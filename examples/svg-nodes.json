@@ -1,0 +1,185 @@
+[
+  {
+    "id": "rect-fill-001",
+    "tag": "rect",
+    "groupPath": [],
+    "properties": {
+      "x": "50",
+      "y": "40",
+      "width": "160",
+      "height": "100",
+      "rx": "8",
+      "fill": "#3498db",
+      "stroke": "#2c3e50",
+      "stroke-width": "2"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "none"
+  },
+  {
+    "id": "circle-001",
+    "tag": "circle",
+    "groupPath": [],
+    "properties": {
+      "cx": "320",
+      "cy": "90",
+      "r": "50",
+      "fill": "#e74c3c",
+      "stroke": "#c0392b",
+      "stroke-width": "2"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "none"
+  },
+  {
+    "id": "ellipse-001",
+    "tag": "ellipse",
+    "groupPath": [],
+    "properties": {
+      "cx": "480",
+      "cy": "90",
+      "rx": "70",
+      "ry": "40",
+      "fill": "#2ecc71",
+      "stroke": "#27ae60",
+      "stroke-width": "2"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "none"
+  },
+  {
+    "id": "line-001",
+    "tag": "line",
+    "groupPath": [],
+    "properties": {
+      "x1": "50",
+      "y1": "220",
+      "x2": "250",
+      "y2": "280",
+      "stroke": "#9b59b6",
+      "stroke-width": "4"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "none"
+  },
+  {
+    "id": "polygon-001",
+    "tag": "polygon",
+    "groupPath": [],
+    "properties": {
+      "points": "340,190 378,242 352,267 328,267 302,242 316,225",
+      "fill": "#f39c12",
+      "stroke": "#e67e22",
+      "stroke-width": "2"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "none"
+  },
+  {
+    "id": "polyline-001",
+    "tag": "polyline",
+    "groupPath": [],
+    "properties": {
+      "points": "490,230 530,200 570,240 610,210 650,245",
+      "stroke": "#1abc9c",
+      "stroke-width": "3",
+      "fill": "none"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "none"
+  },
+  {
+    "id": "text-001",
+    "tag": "text",
+    "groupPath": [],
+    "properties": {
+      "x": "60",
+      "y": "340",
+      "font-size": "22",
+      "font-family": "monospace",
+      "fill": "#2c3e50",
+      "textContent": "Hello SVG Canvas!"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "none"
+  },
+  {
+    "id": "image-001",
+    "tag": "image",
+    "groupPath": [],
+    "properties": {
+      "x": "320",
+      "y": "320",
+      "width": "64",
+      "height": "64",
+      "href": "https://www.svgrepo.com/show/5125/star.svg"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "none"
+  },
+  {
+    "id": "path-cubic-001",
+    "tag": "path",
+    "groupPath": [],
+    "properties": {
+      "d": "M 0 0 C 60 -50 140 -50 200 0 S 260 70 320 0 S 380 -50 440 0",
+      "stroke": "#e67e22",
+      "stroke-width": "3",
+      "fill": "none",
+      "transformMatrix": "1,0,0,1,30,420"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": null,
+    "laserActionType": "cut"
+  },
+  {
+    "id": "path-cutout-001",
+    "tag": "path",
+    "groupPath": [],
+    "properties": {
+      "d": "M 0 0 L 200 0 L 200 120 L 0 120 Z M 40 30 L 80 30 L 80 80 L 40 80 Z M 120 30 L 160 30 L 160 80 L 120 80 Z",
+      "fill": "#e74c3c",
+      "stroke": "#c0392b",
+      "stroke-width": "2",
+      "transformMatrix": "1,0,0,1,480,420"
+    },
+    "svgFileId": null,
+    "svgGroupId": null,
+    "laserGroupId": "laser-group-a",
+    "laserActionType": "cut"
+  },
+  {
+    "id": "independent-inside-cutout",
+    "tag": "circle",
+    "groupPath": [0],
+    "properties": {
+      "cx": "60",
+      "cy": "55",
+      "r": "12",
+      "fill": "#2ecc71",
+      "stroke": "#27ae60",
+      "stroke-width": "1"
+    },
+    "svgFileId": null,
+    "svgGroupId": "inner-group-b",
+    "laserGroupId": null,
+    "laserActionType": "none"
+  }
+]
