@@ -11,4 +11,7 @@ export {
   PolylineElement,
   TextElement,
   ImageElement,
+  createFromJSON,
+  createFromJSONArray,
 } from '@/shapes';
+export type { ElementJSON } from '@/shapes';

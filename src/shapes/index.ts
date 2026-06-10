@@ -10,4 +10,7 @@ export {
   PolylineElement,
   TextElement,
   ImageElement,
+  createFromJSON,
+  createFromJSONArray,
 } from './elements';
+export type { ElementJSON } from './elements';

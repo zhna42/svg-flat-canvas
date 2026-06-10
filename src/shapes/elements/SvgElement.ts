@@ -25,7 +25,6 @@ export abstract class SvgElement implements DirtyTracker {
     this.laserType = '';
     this.name = type;
     this.element = document.createElementNS(SVG_NS, tag);
-    this.buildHitArea();
   }
 
   public get dirty(): boolean {
@@ -37,7 +36,15 @@ export abstract class SvgElement implements DirtyTracker {
   }
 
   public get hitArea(): Point[] {
+    if (this._hitArea.length === 0) {
+      this.buildHitArea();
+    }
     return this._hitArea;
+  }
+
+  public invalidateHitArea(): void {
+    this._hitArea = [];
+    this.setDirty();
   }
 
   public abstract buildHitArea(): void;
@@ -101,17 +108,17 @@ export abstract class SvgElement implements DirtyTracker {
 
   public setFill(color: string): void {
     this.element.setAttribute('fill', color);
-    this.setDirty();
+    this.invalidateHitArea();
   }
 
   public setStroke(color: string): void {
     this.element.setAttribute('stroke', color);
-    this.setDirty();
+    this.invalidateHitArea();
   }
 
   public setStrokeWidth(w: number): void {
     this.element.setAttribute('stroke-width', String(w));
-    this.setDirty();
+    this.invalidateHitArea();
   }
 
   public setOpacity(v: number): void {

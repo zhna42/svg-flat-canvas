@@ -1,11 +1,16 @@
 import { EventManager } from '@/events/EventManager';
 import { Renderer } from '@/renderer/Renderer';
 import { ShapeManager } from '@/shapes/ShapeManager';
+import { Camera } from '@/camera/Camera';
+import type { SvgElement } from '@/shapes/elements/SvgElement';
+import { createFromJSONArray } from '@/shapes/elements/factory';
+import type { ElementJSON } from '@/shapes/elements/factory';
 import type { SvgCanvasOptions } from '@/types';
 
 export class SvgCanvas {
   private readonly element: HTMLElement;
   private readonly svg: SVGSVGElement;
+  private readonly camera: Camera;
   private readonly renderer: Renderer;
   private readonly shapeManager: ShapeManager;
   private readonly eventManager: EventManager;
@@ -13,19 +18,39 @@ export class SvgCanvas {
   public constructor(container: HTMLElement, options?: SvgCanvasOptions) {
     this.element = container;
     this.svg = this.createSvgElement(options);
-    this.renderer = new Renderer(this.svg);
+    this.camera = new Camera();
+    this.renderer = new Renderer(this.svg, this.camera);
     this.shapeManager = new ShapeManager(this.renderer);
     this.eventManager = new EventManager(this.svg);
 
     this.element.appendChild(this.svg);
-    this.init();
   }
 
   public getSVG(): SVGSVGElement {
     return this.svg;
   }
 
+  public getCamera(): Camera {
+    return this.camera;
+  }
+
+  public addShape(shape: SvgElement): void {
+    this.shapeManager.add(shape);
+  }
+
+  public loadJSON(items: ElementJSON[]): void {
+    const elements = createFromJSONArray(items);
+    for (const el of elements) {
+      this.shapeManager.add(el);
+    }
+  }
+
+  public setArtboardSize(widthMM: number, heightMM: number): void {
+    this.renderer.getArtboard().setSize(widthMM, heightMM);
+  }
+
   public destroy(): void {
+    this.renderer.destroy();
     this.eventManager.destroy();
     this.shapeManager.clear();
     this.svg.remove();
@@ -41,9 +66,5 @@ export class SvgCanvas {
       `0 0 ${options?.width ?? 800} ${options?.height ?? 600}`,
     );
     return svg;
-  }
-
-  private init(): void {
-    this.renderer.render();
   }
 }
