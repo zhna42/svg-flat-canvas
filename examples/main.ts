@@ -33,33 +33,84 @@ const independentEl = elements.find(
   (e) => e.id === 'independent-inside-cutout',
 );
 if (independentEl) {
-  info(
-    `  independent-inside-cutout hitArea points: ${independentEl.hitArea.length}`,
-  );
+  info(`  independent-inside-cutout hitArea points: ${independentEl.hitArea.length}`);
 }
+
+// ----- selection debug -----
+canvas.onSelectionChange = (selected) => {
+  info(`Selection: ${selected.map((s) => s.id).join(', ') || '(none)'}`);
+};
+
+// добавим кнопки для переключения режимов селекта
+document.getElementById('btn-mode-v')!.onclick = () => { canvas.setSelectionMode('element'); info('Mode: element (V)'); };
+document.getElementById('btn-mode-g')!.onclick = () => { canvas.setSelectionMode('group'); info('Mode: group (G)'); };
+
+let currentGesture = 'click';
+
+function setGesture(g: string) {
+  currentGesture = g;
+  canvas.setSelectionGesture(g as any);
+  info(`Gesture: ${g}`);
+  document.querySelectorAll('.gesture-btn').forEach((b) => b.classList.remove('active'));
+  document.getElementById(`btn-gesture-${g}`)?.classList.add('active');
+}
+
+document.getElementById('btn-gesture-click')!.onclick = () => setGesture('click');
+document.getElementById('btn-gesture-rect')!.onclick = () => setGesture('rect');
+document.getElementById('btn-gesture-lasso')!.onclick = () => setGesture('lasso');
+setGesture('click');
+
+// ----- toggle pan button -----
+let panLocked = false;
+document.getElementById('btn-toggle-pan')!.onclick = () => {
+  panLocked = !panLocked;
+  const btn = document.getElementById('btn-toggle-pan')!;
+  btn.textContent = panLocked ? 'Pan: on' : 'Pan: off';
+  btn.classList.toggle('active', panLocked);
+  info(panLocked ? 'Pan mode: ON (LMB always pans)' : 'Pan mode: OFF');
+};
 
 // ----- mouse wheel zoom -----
 const svgEl = canvas.getSVG();
 svgEl.addEventListener('wheel', (e: WheelEvent) => {
   e.preventDefault();
-  const rect = svgEl.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+  const point = svgEl.createSVGPoint();
+  point.x = e.clientX;
+  point.y = e.clientY;
+  const ctm = svgEl.getScreenCTM();
+  if (!ctm) return;
+  const svgPt = point.matrixTransform(ctm.inverse());
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
-  canvas.getCamera().setZoom({ x, y }, factor);
+  canvas.getCamera().setZoom({ x: svgPt.x, y: svgPt.y }, factor);
 });
 
-// ----- mouse drag pan -----
+// ----- mouse drag pan (space + LMB, or middle button) -----
 let isPanning = false;
 let panStartX = 0;
 let panStartY = 0;
+let spaceHeld = false;
+
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.code === 'Space') {
+    spaceHeld = true;
+    e.preventDefault();
+  }
+});
+window.addEventListener('keyup', (e: KeyboardEvent) => {
+  if (e.code === 'Space') {
+    spaceHeld = false;
+    svgEl.style.cursor = '';
+  }
+});
 
 svgEl.addEventListener('mousedown', (e: MouseEvent) => {
-  if (e.button === 1 || e.button === 0) {
+  if (e.button === 1 || (e.button === 0 && spaceHeld) || (e.button === 0 && panLocked)) {
+    canvas.panActive.value = true;
     isPanning = true;
     panStartX = e.clientX;
     panStartY = e.clientY;
     svgEl.style.cursor = 'grabbing';
+    e.preventDefault();
   }
 });
 
@@ -75,7 +126,8 @@ window.addEventListener('mousemove', (e: MouseEvent) => {
 window.addEventListener('mouseup', () => {
   if (isPanning) {
     isPanning = false;
-    svgEl.style.cursor = '';
+    canvas.panActive.value = false;
+    svgEl.style.cursor = spaceHeld ? 'grab' : '';
   }
 });
 
