@@ -62,6 +62,31 @@ export abstract class SvgElement implements DirtyTracker {
     return { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height };
   }
 
+  public toDOMMatrix(): DOMMatrix {
+    const t = this.element.getAttribute('transform');
+    if (!t || !t.startsWith('matrix(')) return new DOMMatrix();
+    const nums = t.slice(7, -1).split(',').map(Number);
+    if (nums.length !== 6) return new DOMMatrix();
+    return new DOMMatrix(nums);
+  }
+
+  public getTransformedBBox(): BoundingBox {
+    const pts = this.hitArea;
+    if (pts.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+
+    const m = this.toDOMMatrix();
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pts) {
+      const pt = m.transformPoint({ x: p.x, y: p.y });
+      if (pt.x < minX) minX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y > maxY) maxY = pt.y;
+    }
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+
   public getCenter(): Point {
     const bbox = this.getBBox();
     return { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };

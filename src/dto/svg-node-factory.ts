@@ -68,18 +68,8 @@ export function svgNodesToElements(dtos: SvgNodeDto[]): SvgElement[] {
       if (key === 'transformMatrix' && el instanceof PathElement) {
         const nums = value.split(',').map(Number);
         if (nums.length === 6) {
-          const [a, b, c, d, e, f] = nums as [
-            number,
-            number,
-            number,
-            number,
-            number,
-            number,
-          ];
-          el.element.setAttribute(
-            'transform',
-            `matrix(${a},${b},${c},${d},${e},${f})`,
-          );
+          const [a, b, c, d, e, f] = nums;
+          el.applyMatrixToD(a, b, c, d, e, f);
         }
         continue;
       }

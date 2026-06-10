@@ -43,7 +43,7 @@ export class SelectionHandler {
     this.state = state;
     this.isPanning = isPanning ?? null;
     this.shortcuts = { ...DEFAULT_SELECTION_SHORTCUTS, ...shortcuts };
-    this.clickHandler = new ClickHandler(state, getElements, grid);
+    this.clickHandler = new ClickHandler(state, getElements, grid, cameraGroup);
     this.rectHandler = new RectHandler(state, getElements, grid);
     this.lassoHandler = new LassoHandler(state, getElements, grid);
     this.bindEvents();
@@ -120,9 +120,13 @@ export class SelectionHandler {
       const wp = this.screenToWorld(e);
 
       if (this.rectHandler.isActive) {
+        const wasDrag = this.rectHandler.hasDrag();
         this.rectHandler.end(wp, this.ctrlHeld);
         this.hideRectOverlay();
         this.shiftOverride = false;
+        if (!wasDrag) {
+          this.clickHandler.handle(wp.x, wp.y, this.ctrlHeld);
+        }
       }
       if (this.lassoHandler.isActive) {
         this.lassoHandler.end(wp.x, wp.y, this.ctrlHeld);

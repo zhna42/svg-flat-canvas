@@ -129,7 +129,76 @@ export class PathElement extends SvgElement {
       return;
     }
 
-    this._hitArea = this.offsetPolygon(flat, offset);
+    const isClosed = cmds.length > 0 && (cmds[cmds.length - 1].command === 'Z' || cmds[cmds.length - 1].command === 'z');
+
+    if (isClosed) {
+      this._hitArea = this.offsetPolygon(flat, offset);
+    } else {
+      this._hitArea = this.offsetOpenPath(flat, offset);
+    }
+  }
+
+  private offsetOpenPath(poly: Point[], offset: number): Point[] {
+    if (poly.length < 2) return poly;
+
+    const left: Point[] = [];
+    const right: Point[] = [];
+
+    const dir = (ax: number, ay: number, bx: number, by: number) => {
+      const dx = bx - ax;
+      const dy = by - ay;
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len === 0) return { dx: 0, dy: 0 };
+      return { dx: dx / len, dy: dy / len };
+    };
+
+    const perp = (ax: number, ay: number, bx: number, by: number) => {
+      const d = dir(ax, ay, bx, by);
+      return { nx: -d.dy * offset, ny: d.dx * offset };
+    };
+
+    const miter = (p: Point, pnx: number, pny: number, nnx: number, nny: number) => {
+      const mx = (pnx + nnx) / 2;
+      const my = (pny + nny) / 2;
+      const len = Math.sqrt(mx * mx + my * my);
+      if (len === 0) return { x: p.x + pnx, y: p.y + pny };
+      const scale = offset / len;
+      return { x: p.x + mx * scale, y: p.y + my * scale };
+    };
+
+    // start butt cap
+    const startDir = dir(poly[0].x, poly[0].y, poly[1].x, poly[1].y);
+    const startN = { nx: -startDir.dy * offset, ny: startDir.dx * offset };
+    left.push(
+      { x: poly[0].x + startN.nx - startDir.dx * offset, y: poly[0].y + startN.ny - startDir.dy * offset },
+    );
+    left.push({ x: poly[0].x + startN.nx, y: poly[0].y + startN.ny });
+
+    for (let i = 1; i < poly.length - 1; i++) {
+      const pn = perp(poly[i - 1].x, poly[i - 1].y, poly[i].x, poly[i].y);
+      const nn = perp(poly[i].x, poly[i].y, poly[i + 1].x, poly[i + 1].y);
+      left.push(miter(poly[i], pn.nx, pn.ny, nn.nx, nn.ny));
+    }
+
+    const endDir = dir(poly[poly.length - 2].x, poly[poly.length - 2].y, poly[poly.length - 1].x, poly[poly.length - 1].y);
+    const endN = { nx: -endDir.dy * offset, ny: endDir.dx * offset };
+    left.push({ x: poly[poly.length - 1].x + endN.nx, y: poly[poly.length - 1].y + endN.ny });
+
+    // end butt cap
+    right.push({ x: poly[poly.length - 1].x + endDir.dx * offset - endN.nx, y: poly[poly.length - 1].y + endDir.dy * offset - endN.ny });
+
+    right.push({ x: poly[poly.length - 1].x - endN.nx, y: poly[poly.length - 1].y - endN.ny });
+
+    for (let i = poly.length - 2; i >= 1; i--) {
+      const pn = perp(poly[i - 1].x, poly[i - 1].y, poly[i].x, poly[i].y);
+      const nn = perp(poly[i].x, poly[i].y, poly[i + 1].x, poly[i + 1].y);
+      right.push(miter(poly[i], -pn.nx, -pn.ny, -nn.nx, -nn.ny));
+    }
+
+    right.push({ x: poly[0].x - startN.nx, y: poly[0].y - startN.ny });
+    right.push({ x: poly[0].x - startDir.dx * offset - startN.nx, y: poly[0].y - startDir.dy * offset - startN.ny });
+
+    return [...left, ...right];
   }
 
   public clone(): PathElement {
@@ -147,6 +216,54 @@ export class PathElement extends SvgElement {
 
   protected createClone(): PathElement {
     return new PathElement(this.id);
+  }
+
+  public applyMatrixToD(a: number, b: number, c: number, d: number, e: number, f: number): void {
+    const m = new DOMMatrix([a, b, c, d, e, f]);
+    const cmds = this.parsedD.commands.map((cmd) => {
+      if (cmd.command === 'M' || cmd.command === 'L') {
+        const pt = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
+        return { command: cmd.command, args: [pt.x, pt.y] };
+      }
+      if (cmd.command === 'H') {
+        const pt = m.transformPoint({ x: cmd.args[0], y: 0 });
+        return { command: 'L', args: [pt.x, pt.y] };
+      }
+      if (cmd.command === 'V') {
+        const pt = m.transformPoint({ x: 0, y: cmd.args[0] });
+        return { command: 'L', args: [pt.x, pt.y] };
+      }
+      if (cmd.command === 'C') {
+        const p1 = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
+        const p2 = m.transformPoint({ x: cmd.args[2], y: cmd.args[3] });
+        const p3 = m.transformPoint({ x: cmd.args[4], y: cmd.args[5] });
+        return { command: 'C', args: [p1.x, p1.y, p2.x, p2.y, p3.x, p3.y] };
+      }
+      if (cmd.command === 'S') {
+        const p1 = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
+        const p2 = m.transformPoint({ x: cmd.args[2], y: cmd.args[3] });
+        return { command: 'S', args: [p1.x, p1.y, p2.x, p2.y] };
+      }
+      if (cmd.command === 'Q') {
+        const p1 = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
+        const p2 = m.transformPoint({ x: cmd.args[2], y: cmd.args[3] });
+        return { command: 'Q', args: [p1.x, p1.y, p2.x, p2.y] };
+      }
+      if (cmd.command === 'T') {
+        const pt = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
+        return { command: 'T', args: [pt.x, pt.y] };
+      }
+      if (cmd.command === 'A') {
+        const pt = m.transformPoint({ x: cmd.args[5], y: cmd.args[6] });
+        return { command: 'A', args: [cmd.args[0], cmd.args[1], cmd.args[2], cmd.args[3], cmd.args[4], pt.x, pt.y] };
+      }
+      return cmd;
+    });
+    const newD = this.commandsToString(cmds);
+    this.element.setAttribute('d', newD);
+    this._parsedPath = null;
+    this._dirtyPath = true;
+    this.setDirty();
   }
 
   private parseD(d: string): ParsedPath {
@@ -176,7 +293,8 @@ export class PathElement extends SvgElement {
     let startX = 0;
     let startY = 0;
 
-    for (const cmd of commands) {
+    for (let i = 0; i < commands.length; i++) {
+      const cmd = commands[i];
       const c = cmd.command;
       const a = cmd.args;
 
@@ -210,6 +328,30 @@ export class PathElement extends SvgElement {
         for (const p of pts) points.push(p);
         currentX = a[4];
         currentY = a[5];
+      } else if (c === 'S') {
+        const prevCmd = commands[i > 0 ? i - 1 : 0];
+        let reflectX = currentX;
+        let reflectY = currentY;
+        if (prevCmd.command === 'C' || prevCmd.command === 'S') {
+          const prevArgs = prevCmd.args;
+          const lastCpX = prevCmd.command === 'C' ? prevArgs[2] : prevArgs[0];
+          const lastCpY = prevCmd.command === 'C' ? prevArgs[3] : prevArgs[1];
+          reflectX = 2 * currentX - lastCpX;
+          reflectY = 2 * currentY - lastCpY;
+        }
+        const pts = this.flattenCubic(
+          currentX,
+          currentY,
+          reflectX,
+          reflectY,
+          a[0],
+          a[1],
+          a[2],
+          a[3],
+        );
+        for (const p of pts) points.push(p);
+        currentX = a[2];
+        currentY = a[3];
       } else if (c === 'Q' || c === 'T') {
         const pts = this.flattenQuadratic(
           currentX,

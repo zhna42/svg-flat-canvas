@@ -56,6 +56,10 @@ export class Renderer {
     this.cameraGroup.removeChild(element);
   }
 
+  public appendOverlay(element: SVGElement): void {
+    this.cameraGroup.appendChild(element);
+  }
+
   public destroy(): void {
     setRenderQueue(null);
     if (this.rafId !== null) {

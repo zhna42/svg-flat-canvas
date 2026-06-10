@@ -25,6 +25,12 @@ export class RectHandler {
     return this.active;
   }
 
+  public hasDrag(): boolean {
+    return this._hadDrag;
+  }
+
+  private _hadDrag = false;
+
   public start(worldPoint: Point): void {
     this.startPoint = { ...worldPoint };
     this.active = true;
@@ -42,7 +48,8 @@ export class RectHandler {
     this.active = false;
 
     const rect = this.normalizeRect(worldPoint);
-    if (rect.w < 3 && rect.h < 3) return;
+    this._hadDrag = rect.w >= 3 || rect.h >= 3;
+    if (!this._hadDrag) return;
 
     const leftToRight = worldPoint.x >= this.startPoint.x;
     const hits = hitTestRect(

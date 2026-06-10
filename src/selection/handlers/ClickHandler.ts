@@ -7,20 +7,23 @@ export class ClickHandler {
   private readonly state: SelectionState;
   private readonly elements: () => SvgElement[];
   private readonly grid: SpatialGrid;
+  private readonly cameraGroup: SVGGElement;
 
   public constructor(
     state: SelectionState,
     elements: () => SvgElement[],
     grid: SpatialGrid,
+    cameraGroup: SVGGElement,
   ) {
     this.state = state;
     this.elements = elements;
     this.grid = grid;
+    this.cameraGroup = cameraGroup;
   }
 
   public handle(px: number, py: number, ctrl: boolean): void {
     const all = this.elements();
-    const hits = hitTestPoint(px, py, all, this.grid);
+    const hits = hitTestPoint(px, py, all, this.grid, this.cameraGroup);
 
     if (hits.length === 0) {
       if (!ctrl) this.state.clear();

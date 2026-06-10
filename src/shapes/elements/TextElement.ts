@@ -6,12 +6,17 @@ export class TextElement extends SvgElement {
   }
 
   public buildHitArea(): void {
-    const bbox = this.getBBox();
+    const x = parseFloat(this.element.getAttribute('x') || '0');
+    const y = parseFloat(this.element.getAttribute('y') || '0');
+    const fontSize = parseFloat(this.element.getAttribute('font-size') || '16');
+    const text = this.element.textContent || '';
+    const approxWidth = text.length * fontSize * 0.6;
+
     this._hitArea = [
-      { x: bbox.x, y: bbox.y },
-      { x: bbox.x + bbox.width, y: bbox.y },
-      { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
-      { x: bbox.x, y: bbox.y + bbox.height },
+      { x, y: y - fontSize },
+      { x: x + approxWidth, y: y - fontSize },
+      { x: x + approxWidth, y },
+      { x, y },
     ];
   }
 

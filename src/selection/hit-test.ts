@@ -74,6 +74,7 @@ export function hitTestPoint(
   py: number,
   elements: SvgElement[],
   grid: SpatialGrid,
+  cameraGroup?: SVGGElement,
 ): SvgElement[] {
   const size = 1;
   const ids = grid.query(px, py, size, size);
@@ -86,6 +87,12 @@ export function hitTestPoint(
       hits.push(el);
     }
   }
+
+  if (hits.length > 1 && cameraGroup) {
+    const children = Array.from(cameraGroup.children);
+    hits.sort((a, b) => children.indexOf(a.element) - children.indexOf(b.element));
+  }
+
   return hits;
 }
 

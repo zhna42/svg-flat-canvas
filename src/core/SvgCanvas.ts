@@ -13,6 +13,8 @@ import type { SelectionMode } from '@/selection/SelectionMode';
 import type { SelectionFilter } from '@/selection/selection-filter';
 import type { SelectionShortcuts } from '@/selection/selection-defaults';
 import type { SelectionGesture } from '@/selection';
+import { SelectionOverlay } from '@/selection/SelectionOverlay';
+import { DebugOverlay } from '@/debug/DebugOverlay';
 
 export class SvgCanvas {
   private readonly element: HTMLElement;
@@ -24,6 +26,9 @@ export class SvgCanvas {
   private readonly selectionState: SelectionState;
   private readonly spatialGrid: SpatialGrid;
   private readonly selectionHandler: SelectionHandler;
+  private readonly selectionOverlay: SelectionOverlay;
+  private readonly debugOverlay: DebugOverlay;
+  private _debugShowHitArea: boolean;
 
   public readonly panActive = { value: false };
 
@@ -48,6 +53,32 @@ export class SvgCanvas {
     );
 
     this.element.appendChild(this.svg);
+
+    const overlaysGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    this.renderer.appendOverlay(overlaysGroup);
+
+    this.selectionOverlay = new SelectionOverlay(this.camera);
+    overlaysGroup.appendChild(this.selectionOverlay.getElement());
+
+    this.debugOverlay = new DebugOverlay(this.camera);
+    overlaysGroup.appendChild(this.debugOverlay.getElement());
+    this._debugShowHitArea = options?.debugShowHitArea ?? false;
+
+    const updateOverlay = (): void => {
+      this.selectionOverlay.update(this.selectionState.selected);
+      if (this._debugShowHitArea) {
+        this.debugOverlay.update(this.shapeManager.getAll());
+      }
+    };
+    this.selectionState.setOnChange(updateOverlay);
+
+    const origSetOnChange = this.selectionState.setOnChange.bind(this.selectionState);
+    this.selectionState.setOnChange = (fn) => {
+      origSetOnChange((selected) => {
+        fn?.(selected);
+        updateOverlay();
+      });
+    };
   }
 
   public getSVG(): SVGSVGElement {
@@ -120,6 +151,19 @@ export class SvgCanvas {
 
   public getSelectionGesture(): SelectionGesture {
     return this.selectionHandler.getGesture();
+  }
+
+  public get debugShowHitArea(): boolean {
+    return this._debugShowHitArea;
+  }
+
+  public set debugShowHitArea(v: boolean) {
+    this._debugShowHitArea = v;
+    if (v) {
+      this.debugOverlay.update(this.shapeManager.getAll());
+    } else {
+      this.debugOverlay.update([]);
+    }
   }
 
   public destroy(): void {
