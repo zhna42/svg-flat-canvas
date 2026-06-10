@@ -29,7 +29,12 @@ export class RectHandler {
     return this._hadDrag;
   }
 
+  public get boxDirection(): 'left-to-right' | 'right-to-left' {
+    return this._boxDirection;
+  }
+
   private _hadDrag = false;
+  private _boxDirection: 'left-to-right' | 'right-to-left' = 'left-to-right';
 
   public start(worldPoint: Point): void {
     this.startPoint = { ...worldPoint };
@@ -40,6 +45,7 @@ export class RectHandler {
     worldPoint: Point,
   ): { x: number; y: number; w: number; h: number } | null {
     if (!this.active) return null;
+    this._boxDirection = worldPoint.x >= this.startPoint.x ? 'left-to-right' : 'right-to-left';
     return this.normalizeRect(worldPoint);
   }
 

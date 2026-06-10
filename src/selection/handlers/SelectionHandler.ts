@@ -180,6 +180,14 @@ export class SelectionHandler {
     h: number;
   }): void {
     if (!this.cursorOverlay) return;
+    const leftToRight = this.rectHandler.boxDirection === 'left-to-right';
+    if (leftToRight) {
+      this.cursorOverlay.setAttribute('fill', 'rgba(200, 120, 0, 0.12)');
+      this.cursorOverlay.setAttribute('stroke', '#c87800');
+    } else {
+      this.cursorOverlay.setAttribute('fill', 'rgba(66, 133, 244, 0.12)');
+      this.cursorOverlay.setAttribute('stroke', '#4285f4');
+    }
     this.cursorOverlay.setAttribute('x', String(r.x));
     this.cursorOverlay.setAttribute('y', String(r.y));
     this.cursorOverlay.setAttribute('width', String(r.w));
