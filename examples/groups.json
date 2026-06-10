@@ -1,0 +1,17 @@
+[
+  {
+    "id": "grp-lines",
+    "name": "Line shapes",
+    "elementIds": ["polyline-green", "line-001"]
+  },
+  {
+    "id": "grp-curves",
+    "name": "Curve shapes",
+    "elementIds": ["path-orange", "path-cutout-001", "path-triangle-001"]
+  },
+  {
+    "id": "grp-empty",
+    "name": "Empty group",
+    "elementIds": []
+  }
+]

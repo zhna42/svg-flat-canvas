@@ -17,6 +17,14 @@
     button.active { background: #ff8c00; color: #fff; }
     #app { flex: 1; min-height: 0; overflow: hidden; }
     #app svg { display: block; }
+    #toolbar { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; border-bottom: 1px solid #333; align-items: center; }
+    #toolbar select { padding: 4px; border-radius: 4px; border: 1px solid #555; background: #0f0f23; color: #4ecca3; font-size: 12px; }
+    #group-list { flex: 0 0 auto; max-height: 200px; overflow-y: auto; border-bottom: 1px solid #333; padding: 6px; }
+    #group-list .group-item { display: flex; justify-content: space-between; padding: 3px 0; font-size: 11px; color: #ccc; cursor: pointer; }
+    #group-list .group-item:hover { background: #2a2a4e; }
+    #group-list .group-item.active { background: #3a3a6e; color: #fff; }
+    #group-actions { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; border-bottom: 1px solid #333; }
+    #group-actions button { font-size: 11px; padding: 3px 7px; }
     #console { flex: 1; background: #0f0f23; color: #4ecca3; padding: 8px; font-size: 12px; overflow-y: auto; white-space: pre-wrap; min-height: 0; }
     #legend { padding: 8px; color: #888; font-size: 11px; border-bottom: 1px solid #333; }
   </style>
@@ -35,10 +43,24 @@
       <button id="btn-toggle-pan">Pan: off</button>
       <button id="btn-debug-hitarea">HitArea: off</button>
     </div>
+    <div id="toolbar">
+      <select id="group-select">
+        <option value="">— no group —</option>
+      </select>
+      <button id="btn-group-add">+ to group</button>
+      <button id="btn-group-remove">− from group</button>
+    </div>
     <div id="app"></div>
   </div>
   <div class="right">
     <div id="legend">V — element · G — group · Shift+drag — rect · L — lasso · Space — pan · Ctrl — toggle</div>
+    <div id="group-list"></div>
+    <div id="group-actions">
+      <button id="btn-group-create">+ Group</button>
+      <button id="btn-group-delete">− Group</button>
+      <button id="btn-group-clear">Clear</button>
+      <button id="btn-group-select">Select all</button>
+    </div>
     <div id="console">// ready</div>
   </div>
   <script type="module" src="./main.ts"></script>

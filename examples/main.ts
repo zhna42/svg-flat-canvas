@@ -2,6 +2,7 @@ import { SvgCanvas } from '../src/index';
 import { svgNodesToElements } from '../src/dto/svg-node-factory';
 import type { SvgNodeDto } from '../src/dto/svg-node-dto';
 import nodesData from './svg-nodes.json';
+import groupsData from './groups.json';
 
 const canvas = new SvgCanvas(document.getElementById('app')!, {
   width: 800,
@@ -35,6 +36,10 @@ const independentEl = elements.find(
 if (independentEl) {
   info(`  independent-inside-cutout hitArea points: ${independentEl.hitArea.length}`);
 }
+
+// ----- groups -----
+canvas.setGroups(groupsData);
+info(`Loaded ${canvas.groups.length} groups from groups.json`);
 
 // ----- selection debug -----
 canvas.onSelectionChange = (selected) => {
@@ -149,3 +154,88 @@ document.getElementById('btn-size-a3')!.onclick = () => {
   canvas.setArtboardSize(297, 420);
   info('Artboard: A3 (297×420 mm)');
 };
+
+// ----- group UI -----
+let selectedGroupId: string | null = null;
+
+function renderGroupList() {
+  const list = document.getElementById('group-list')!;
+  list.innerHTML = '';
+  for (const g of canvas.groups) {
+    const div = document.createElement('div');
+    div.className = 'group-item' + (g.id === selectedGroupId ? ' active' : '');
+    div.textContent = `${g.name} (${g.elementIds.size})`;
+    div.onclick = () => {
+      selectedGroupId = g.id;
+      renderGroupList();
+    };
+    list.appendChild(div);
+  }
+
+  const sel = document.getElementById('group-select') as HTMLSelectElement;
+  sel.innerHTML = '<option value="">— no group —</option>';
+  for (const g of canvas.groups) {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = g.name;
+    sel.appendChild(opt);
+  }
+}
+
+document.getElementById('btn-group-create')!.onclick = () => {
+  const id = canvas.createGroup();
+  selectedGroupId = id;
+  renderGroupList();
+  info(`Group created: ${id}`);
+};
+
+document.getElementById('btn-group-delete')!.onclick = () => {
+  if (!selectedGroupId) { info('No group selected'); return; }
+  canvas.deleteGroup(selectedGroupId);
+  selectedGroupId = null;
+  renderGroupList();
+  info('Group deleted');
+};
+
+document.getElementById('btn-group-clear')!.onclick = () => {
+  if (!selectedGroupId) { info('No group selected'); return; }
+  canvas.clearGroup(selectedGroupId);
+  renderGroupList();
+  info('Group cleared');
+};
+
+document.getElementById('btn-group-select')!.onclick = () => {
+  if (!selectedGroupId) { info('No group selected'); return; }
+  canvas.selectGroupElements(selectedGroupId);
+  renderGroupList();
+  info('Selected all elements in group');
+};
+
+document.getElementById('btn-group-add')!.onclick = () => {
+  const sel = document.getElementById('group-select') as HTMLSelectElement;
+  const gid = sel.value;
+  if (!gid) { info('Select a group first'); return; }
+  const selected = Array.from(canvas.getSelected());
+  if (selected.length === 0) { info('No elements selected'); return; }
+  for (const el of selected) {
+    canvas.addToGroup(gid, el.id);
+  }
+  renderGroupList();
+  info(`Added ${selected.length} element(s) to group`);
+};
+
+document.getElementById('btn-group-remove')!.onclick = () => {
+  const sel = document.getElementById('group-select') as HTMLSelectElement;
+  const gid = sel.value;
+  if (!gid) { info('Select a group first'); return; }
+  const selected = Array.from(canvas.getSelected());
+  if (selected.length === 0) { info('No elements selected'); return; }
+  for (const el of selected) {
+    canvas.removeFromGroup(gid, el.id);
+  }
+  renderGroupList();
+  info(`Removed ${selected.length} element(s) from group`);
+};
+
+canvas.onGroupsChange = renderGroupList;
+renderGroupList();
