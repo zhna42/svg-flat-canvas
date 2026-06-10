@@ -15,6 +15,8 @@ import type { SelectionShortcuts } from '@/selection/selection-defaults';
 import type { SelectionGesture } from '@/selection';
 import { SelectionOverlay } from '@/selection/SelectionOverlay';
 import { DebugOverlay } from '@/debug/DebugOverlay';
+import { GroupManager, type GroupData, type GroupConflictAction } from '@/group';
+import type { Group } from '@/group';
 
 export class SvgCanvas {
   private readonly element: HTMLElement;
@@ -28,6 +30,7 @@ export class SvgCanvas {
   private readonly selectionHandler: SelectionHandler;
   private readonly selectionOverlay: SelectionOverlay;
   private readonly debugOverlay: DebugOverlay;
+  private readonly groupManager: GroupManager;
   private _debugShowHitArea: boolean;
 
   public readonly panActive = { value: false };
@@ -63,6 +66,12 @@ export class SvgCanvas {
     this.debugOverlay = new DebugOverlay(this.camera);
     overlaysGroup.appendChild(this.debugOverlay.getElement());
     this._debugShowHitArea = options?.debugShowHitArea ?? false;
+
+    this.groupManager = new GroupManager(
+      this.renderer.getCameraGroup(),
+      this.camera,
+      () => this.shapeManager.getAll(),
+    );
 
     const updateOverlay = (): void => {
       this.selectionOverlay.update(this.selectionState.selected);
@@ -166,10 +175,70 @@ export class SvgCanvas {
     }
   }
 
+  // ---- Group API ----
+
+  public get groups(): Group[] {
+    return this.groupManager.getGroups();
+  }
+
+  public setGroups(data: GroupData[]): void {
+    this.groupManager.setGroups(data);
+  }
+
+  public createGroup(name?: string): string {
+    return this.groupManager.createGroup(name);
+  }
+
+  public deleteGroup(id: string): void {
+    this.groupManager.deleteGroup(id);
+  }
+
+  public addToGroup(groupId: string, elementId: string): void {
+    this.groupManager.addToGroup(groupId, elementId);
+  }
+
+  public removeFromGroup(groupId: string, elementId: string): void {
+    this.groupManager.removeFromGroup(groupId, elementId);
+  }
+
+  public clearGroup(id: string): void {
+    this.groupManager.clearGroup(id);
+  }
+
+  public getElementIdsInGroup(id: string): string[] {
+    return this.groupManager.getElementIdsInGroup(id);
+  }
+
+  public selectGroupElements(id: string): void {
+    const ids = this.groupManager.getElementIdsInGroup(id);
+    const all = this.shapeManager.getAll();
+    const elements = all.filter((e) => ids.includes(e.id));
+    this.selectionState.replace(elements);
+  }
+
+  public set onGroupsChange(fn: (() => void) | null) {
+    this.groupManager.setOnChange(fn);
+  }
+
+  public set onGroupConflict(
+    fn: ((elementId: string, fromGroup: string, toGroup: string) => GroupConflictAction | null) | null,
+  ) {
+    this.groupManager.onConflict = fn;
+  }
+
+  public get groupConflictSuppressed(): boolean {
+    return this.groupManager.conflictSuppressed;
+  }
+
+  public set groupConflictSuppressed(v: boolean) {
+    this.groupManager.conflictSuppressed = v;
+  }
+
   public destroy(): void {
     this.renderer.destroy();
     this.eventManager.destroy();
     this.shapeManager.clear();
+    this.groupManager.destroy();
     this.svg.remove();
   }
 

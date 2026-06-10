@@ -20,3 +20,4 @@ export type {
   SelectionFilter,
   SelectionShortcuts,
 } from '@/selection';
+export type { Group, GroupData, GroupConflictAction } from '@/group';
