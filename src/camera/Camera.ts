@@ -47,4 +47,22 @@ export class Camera {
     this.zoom = Math.max(0.05, Math.min(zoom, 50));
     this._dirty = true;
   }
+
+  public fitToViewport(
+    contentWidth: number,
+    contentHeight: number,
+    viewWidth: number,
+    viewHeight: number,
+    padding = 20,
+  ): void {
+    const padX = viewWidth - padding * 2;
+    const padY = viewHeight - padding * 2;
+    const scaleX = padX / contentWidth;
+    const scaleY = padY / contentHeight;
+    this.zoom = Math.min(scaleX, scaleY);
+
+    this.x = (viewWidth - viewWidth * this.zoom) / 2;
+    this.y = (viewHeight - viewHeight * this.zoom) / 2;
+    this._dirty = true;
+  }
 }

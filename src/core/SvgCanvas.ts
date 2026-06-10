@@ -46,7 +46,14 @@ export class SvgCanvas {
   }
 
   public setArtboardSize(widthMM: number, heightMM: number): void {
-    this.renderer.getArtboard().setSize(widthMM, heightMM);
+    const artboard = this.renderer.getArtboard();
+    artboard.setSize(widthMM, heightMM);
+
+    const vw = parseFloat(this.svg.getAttribute('width') || '800');
+    const vh = parseFloat(this.svg.getAttribute('height') || '600');
+    const pw = widthMM * 3.7795;
+    const ph = heightMM * 3.7795;
+    this.camera.fitToViewport(pw, ph, vw, vh, 40);
   }
 
   public destroy(): void {

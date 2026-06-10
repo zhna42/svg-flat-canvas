@@ -22,10 +22,10 @@ export class Renderer {
 
     new Background(svg, this.defs);
 
-    this.artboard = new Artboard(svg, null);
-
     this.cameraGroup = document.createElementNS(ns, 'g');
     this.svg.appendChild(this.cameraGroup);
+
+    this.artboard = new Artboard(this.cameraGroup);
 
     this.startLoop();
   }
