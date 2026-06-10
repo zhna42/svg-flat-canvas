@@ -2,6 +2,8 @@ import { SVG_NS } from '@/constants';
 import { Camera } from '@/camera/Camera';
 import { Background } from './Background';
 import { Artboard } from './Artboard';
+import { RenderQueue } from './RenderQueue';
+import { setRenderQueue } from '@/shapes/elements/SvgElement';
 
 export class Renderer {
   private readonly svg: SVGSVGElement;
@@ -9,12 +11,16 @@ export class Renderer {
   private readonly cameraGroup: SVGGElement;
   private readonly camera: Camera;
   private readonly artboard: Artboard;
+  private readonly queue: RenderQueue;
 
   private rafId: number | null = null;
 
   public constructor(svg: SVGSVGElement, camera: Camera) {
     this.svg = svg;
     this.camera = camera;
+    this.queue = new RenderQueue();
+
+    setRenderQueue(this.queue);
 
     const ns = SVG_NS;
     this.defs = document.createElementNS(ns, 'defs');
@@ -38,6 +44,10 @@ export class Renderer {
     return this.artboard;
   }
 
+  public getQueue(): RenderQueue {
+    return this.queue;
+  }
+
   public addElement(element: SVGElement): void {
     this.cameraGroup.appendChild(element);
   }
@@ -47,6 +57,7 @@ export class Renderer {
   }
 
   public destroy(): void {
+    setRenderQueue(null);
     if (this.rafId !== null) {
       cancelAnimationFrame(this.rafId);
       this.rafId = null;
@@ -59,6 +70,12 @@ export class Renderer {
         this.cameraGroup.setAttribute('transform', this.camera.getTransform());
         this.camera.markClean();
       }
+
+      const pending = this.queue.drain();
+      for (const el of pending) {
+        el.markClean();
+      }
+
       this.rafId = requestAnimationFrame(tick);
     };
     this.rafId = requestAnimationFrame(tick);

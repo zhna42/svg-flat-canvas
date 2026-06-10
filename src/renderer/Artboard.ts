@@ -45,12 +45,18 @@ export class Artboard {
   private updateRect(vw?: number, vh?: number): void {
     const w = this._widthMM * MM_TO_PX;
     const h = this._heightMM * MM_TO_PX;
-    const viewW =
-      vw ??
-      parseFloat(this.rect.closest('svg')?.getAttribute('width') || '800');
-    const viewH =
-      vh ??
-      parseFloat(this.rect.closest('svg')?.getAttribute('height') || '600');
+    let viewW: number;
+    let viewH: number;
+    if (vw !== undefined && vh !== undefined) {
+      viewW = vw;
+      viewH = vh;
+    } else {
+      const svg = this.rect.closest('svg');
+      const vb = svg?.getAttribute('viewBox') || '0 0 800 600';
+      const parts = vb.split(/\s+/).map(Number);
+      viewW = parts[2] || 800;
+      viewH = parts[3] || 600;
+    }
     const x = (viewW - w) / 2;
     const y = (viewH - h) / 2;
     this.rect.setAttribute('x', String(x));

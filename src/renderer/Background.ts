@@ -1,8 +1,6 @@
 import { SVG_NS } from '@/constants';
 
 export class Background {
-  private readonly rect: SVGRectElement;
-
   public constructor(svg: SVGSVGElement, defs: SVGDefsElement) {
     const pattern = document.createElementNS(SVG_NS, 'pattern');
     pattern.id = 'bg-checkers';
@@ -32,11 +30,13 @@ export class Background {
 
     defs.appendChild(pattern);
 
-    this.rect = document.createElementNS(SVG_NS, 'rect');
-    this.rect.setAttribute('fill', 'url(#bg-checkers)');
-    this.rect.setAttribute('width', '100%');
-    this.rect.setAttribute('height', '100%');
-    this.rect.setAttribute('pointer-events', 'none');
-    svg.insertBefore(this.rect, svg.firstChild);
+    const rect = document.createElementNS(SVG_NS, 'rect');
+    rect.setAttribute('x', '-10000');
+    rect.setAttribute('y', '-10000');
+    rect.setAttribute('width', '20000');
+    rect.setAttribute('height', '20000');
+    rect.setAttribute('fill', 'url(#bg-checkers)');
+    rect.setAttribute('pointer-events', 'none');
+    svg.insertBefore(rect, svg.firstChild);
   }
 }

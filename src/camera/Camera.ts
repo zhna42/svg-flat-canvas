@@ -25,14 +25,14 @@ export class Camera {
     this._dirty = true;
   }
 
-  public setZoom(viewportPoint: Point, factor: number): void {
+  public setZoom(svgPoint: Point, factor: number): void {
     const newZoom = Math.max(0.05, Math.min(this.zoom * factor, 50));
 
-    const worldX = (viewportPoint.x - this.x) / this.zoom;
-    const worldY = (viewportPoint.y - this.y) / this.zoom;
+    const worldX = (svgPoint.x - this.x) / this.zoom;
+    const worldY = (svgPoint.y - this.y) / this.zoom;
 
-    this.x = viewportPoint.x - worldX * newZoom;
-    this.y = viewportPoint.y - worldY * newZoom;
+    this.x = svgPoint.x - worldX * newZoom;
+    this.y = svgPoint.y - worldY * newZoom;
     this.zoom = newZoom;
     this._dirty = true;
   }
@@ -46,6 +46,13 @@ export class Camera {
   public setZoomLevel(zoom: number): void {
     this.zoom = Math.max(0.05, Math.min(zoom, 50));
     this._dirty = true;
+  }
+
+  public screenToWorld(screenPoint: Point): Point {
+    return {
+      x: (screenPoint.x - this.x) / this.zoom,
+      y: (screenPoint.y - this.y) / this.zoom,
+    };
   }
 
   public fitToViewport(

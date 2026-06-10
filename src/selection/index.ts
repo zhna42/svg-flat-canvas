@@ -1,0 +1,12 @@
+export type { SelectionMode } from './SelectionMode';
+export type { SelectionFilter } from './selection-filter';
+export type { SelectionShortcuts } from './selection-defaults';
+export { DEFAULT_SELECTION_SHORTCUTS } from './selection-defaults';
+export { SpatialGrid } from './SpatialGrid';
+export { SelectionState } from './SelectionState';
+export { hitTestPoint, hitTestRect, hitTestLasso } from './hit-test';
+export { ClickHandler } from './handlers/ClickHandler';
+export { RectHandler } from './handlers/RectHandler';
+export { LassoHandler } from './handlers/LassoHandler';
+export { SelectionHandler } from './handlers/SelectionHandler';
+export type { SelectionGesture } from './handlers/SelectionHandler';

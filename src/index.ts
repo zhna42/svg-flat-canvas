@@ -15,3 +15,8 @@ export {
   createFromJSONArray,
 } from '@/shapes';
 export type { ElementJSON } from '@/shapes';
+export type {
+  SelectionMode,
+  SelectionFilter,
+  SelectionShortcuts,
+} from '@/selection';

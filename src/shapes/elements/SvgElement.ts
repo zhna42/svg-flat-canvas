@@ -1,5 +1,12 @@
 import { SVG_NS } from '@/constants';
 import type { Point, BoundingBox, DirtyTracker, ElementType } from '@/types';
+import { RenderQueue } from '@/renderer/RenderQueue';
+
+let globalQueue: RenderQueue | null = null;
+
+export function setRenderQueue(queue: RenderQueue | null): void {
+  globalQueue = queue;
+}
 
 export abstract class SvgElement implements DirtyTracker {
   public readonly id: string;
@@ -168,6 +175,7 @@ export abstract class SvgElement implements DirtyTracker {
 
   protected setDirty(): void {
     this._dirty = true;
+    globalQueue?.add(this);
   }
 
   protected getStrokeWidth(): number {
