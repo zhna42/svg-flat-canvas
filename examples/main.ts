@@ -60,6 +60,15 @@ document.getElementById('btn-gesture-rect')!.onclick = () => setGesture('rect');
 document.getElementById('btn-gesture-lasso')!.onclick = () => setGesture('lasso');
 setGesture('click');
 
+// ----- debug hitArea button -----
+document.getElementById('btn-debug-hitarea')!.onclick = () => {
+  canvas.debugShowHitArea = !canvas.debugShowHitArea;
+  const btn = document.getElementById('btn-debug-hitarea')!;
+  btn.textContent = canvas.debugShowHitArea ? 'HitArea: on' : 'HitArea: off';
+  btn.classList.toggle('active', canvas.debugShowHitArea);
+  info(canvas.debugShowHitArea ? 'HitArea debug: ON' : 'HitArea debug: OFF');
+};
+
 // ----- toggle pan button -----
 let panLocked = false;
 document.getElementById('btn-toggle-pan')!.onclick = () => {
