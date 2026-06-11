@@ -63,6 +63,8 @@ export class SvgCanvas {
     this.selectionHandler.onGroupSelect = (ids) => {
       this.groupManager.setSelectedGroupIds(ids);
     };
+    this.selectionHandler.onDragStart = () => this.onDragStart?.();
+    this.selectionHandler.onDragEnd = () => this.onDragEnd?.();
 
     this.element.appendChild(this.svg);
 
@@ -185,6 +187,11 @@ export class SvgCanvas {
       this.debugOverlay.update([]);
     }
   }
+
+  // ---- Drag API ----
+
+  public onDragStart: (() => void) | null = null;
+  public onDragEnd: (() => void) | null = null;
 
   // ---- Group API ----
 
