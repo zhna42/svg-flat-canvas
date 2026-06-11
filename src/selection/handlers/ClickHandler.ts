@@ -8,17 +8,21 @@ export class ClickHandler {
   private readonly elements: () => SvgElement[];
   private readonly grid: SpatialGrid;
   private readonly cameraGroup: SVGGElement;
+  private readonly lookupGroup: (elementId: string) => string | undefined;
+  public onGroupSelect: ((groupId: string | null) => void) | null = null;
 
   public constructor(
     state: SelectionState,
     elements: () => SvgElement[],
     grid: SpatialGrid,
     cameraGroup: SVGGElement,
+    lookupGroup: (elementId: string) => string | undefined,
   ) {
     this.state = state;
     this.elements = elements;
     this.grid = grid;
     this.cameraGroup = cameraGroup;
+    this.lookupGroup = lookupGroup;
   }
 
   public handle(px: number, py: number, ctrl: boolean): void {
@@ -26,27 +30,33 @@ export class ClickHandler {
     const hits = hitTestPoint(px, py, all, this.grid, this.cameraGroup);
 
     if (hits.length === 0) {
-      if (!ctrl) this.state.clear();
+      if (!ctrl) {
+        this.state.clear();
+        if (this.onGroupSelect) this.onGroupSelect(null);
+      }
       return;
     }
 
     const picked = hits[hits.length - 1];
 
-    if (this.state.mode === 'group' && picked.groupId) {
-      const groupElements = all.filter((e) => e.groupId === picked.groupId);
-      if (ctrl) {
-        const someSelected = groupElements.some((g) =>
-          this.state.selected.some((s) => s.id === g.id),
-        );
-        if (someSelected) {
-          this.state.remove(groupElements);
+    if (this.state.mode === 'group') {
+      const groupId = this.lookupGroup(picked.id);
+      if (groupId) {
+        if (ctrl) {
+          const groupElements = all.filter((e) => this.lookupGroup(e.id) === groupId);
+          const someSelected = groupElements.some((g) =>
+            this.state.selected.some((s) => s.id === g.id),
+          );
+          if (someSelected) {
+            this.state.remove(groupElements);
+          } else {
+            this.state.add(groupElements);
+          }
         } else {
-          this.state.add(groupElements);
+          this.state.clear();
+          this.onGroupSelect?.(groupId);
         }
-      } else {
-        this.state.replace(groupElements);
       }
-      return;
     }
 
     if (ctrl) {

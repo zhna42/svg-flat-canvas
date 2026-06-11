@@ -53,7 +53,15 @@ export class SvgCanvas {
       () => this.shapeManager.getAll(),
       this.spatialGrid,
       () => this.panActive.value,
+      undefined,
+      (elementId) => {
+        const g = this.groupManager.getGroupByElement(elementId);
+        return g?.id;
+      },
     );
+    this.selectionHandler.onGroupSelect = (ids) => {
+      this.groupManager.setSelectedGroupIds(ids);
+    };
 
     this.element.appendChild(this.svg);
 
@@ -210,6 +218,30 @@ export class SvgCanvas {
   }
 
   public selectGroupElements(id: string): void {
+    const ids = this.groupManager.getElementIdsInGroup(id);
+    const all = this.shapeManager.getAll();
+    const elements = all.filter((e) => ids.includes(e.id));
+    this.selectionState.replace(elements);
+  }
+
+  public selectGroup(id: string): void {
+    this.selectionState.clear();
+    this.groupManager.setSelectedGroupIds([id]);
+  }
+
+  public selectMultipleGroups(ids: string[]): void {
+    this.groupManager.setSelectedGroupIds(ids);
+  }
+
+  public getSelectedGroupIds(): string[] {
+    return Array.from(this.groupManager.selectedGroupIds);
+  }
+
+  public set onGroupSelect(fn: ((ids: string[]) => void) | null) {
+    this.groupManager.onGroupSelect = fn;
+  }
+
+  public highlightGroupElements(id: string): void {
     const ids = this.groupManager.getElementIdsInGroup(id);
     const all = this.shapeManager.getAll();
     const elements = all.filter((e) => ids.includes(e.id));

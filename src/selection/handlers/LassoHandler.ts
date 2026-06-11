@@ -8,6 +8,7 @@ export class LassoHandler {
   private readonly state: SelectionState;
   private readonly elements: () => SvgElement[];
   private readonly grid: SpatialGrid;
+  private readonly lookupGroup: (elementId: string) => string | undefined;
   private points: Point[] = [];
   private active = false;
 
@@ -15,10 +16,12 @@ export class LassoHandler {
     state: SelectionState,
     elements: () => SvgElement[],
     grid: SpatialGrid,
+    lookupGroup: (elementId: string) => string | undefined,
   ) {
     this.state = state;
     this.elements = elements;
     this.grid = grid;
+    this.lookupGroup = lookupGroup;
   }
 
   public get isActive(): boolean {
@@ -52,11 +55,12 @@ export class LassoHandler {
 
     if (this.state.mode === 'group') {
       const groupIds = new Set(
-        hits.filter((e) => e.groupId).map((e) => e.groupId),
+        hits.map((e) => this.lookupGroup(e.id)).filter((gid): gid is string => gid !== undefined),
       );
-      const groupElements = this.elements().filter((e) =>
-        groupIds.has(e.groupId),
-      );
+      const groupElements = this.elements().filter((e) => {
+        const gid = this.lookupGroup(e.id);
+        return gid !== undefined && groupIds.has(gid);
+      });
 
       if (ctrl) {
         const allSelected = groupElements.every((g) =>

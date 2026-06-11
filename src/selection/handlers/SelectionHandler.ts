@@ -26,6 +26,7 @@ export class SelectionHandler {
   private cursorOverlay: SVGRectElement | null = null;
   private lassoOverlay: SVGPolylineElement | null = null;
   public isPanning: (() => boolean) | null = null;
+  public onGroupSelect: ((ids: string[]) => void) | null = null;
 
   public constructor(
     svg: SVGSVGElement,
@@ -36,6 +37,7 @@ export class SelectionHandler {
     grid: SpatialGrid,
     isPanning?: () => boolean,
     shortcuts?: Partial<SelectionShortcuts>,
+    getGroupIdForElement?: (elementId: string) => string | undefined,
   ) {
     this.svg = svg;
     this.cameraGroup = cameraGroup;
@@ -43,9 +45,12 @@ export class SelectionHandler {
     this.state = state;
     this.isPanning = isPanning ?? null;
     this.shortcuts = { ...DEFAULT_SELECTION_SHORTCUTS, ...shortcuts };
-    this.clickHandler = new ClickHandler(state, getElements, grid, cameraGroup);
-    this.rectHandler = new RectHandler(state, getElements, grid);
-    this.lassoHandler = new LassoHandler(state, getElements, grid);
+    const lookupGroup = getGroupIdForElement ?? (() => undefined);
+    this.clickHandler = new ClickHandler(state, getElements, grid, cameraGroup, lookupGroup);
+    this.clickHandler.onGroupSelect = (gid) => this.onGroupSelect?.(gid ? [gid] : []);
+    this.rectHandler = new RectHandler(state, getElements, grid, lookupGroup);
+    this.rectHandler.onGroupSelect = (gid) => this.onGroupSelect?.(gid ? [gid] : []);
+    this.lassoHandler = new LassoHandler(state, getElements, grid, lookupGroup);
     this.bindEvents();
   }
 

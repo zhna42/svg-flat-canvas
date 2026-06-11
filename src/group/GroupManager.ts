@@ -11,6 +11,8 @@ export class GroupManager {
   private readonly camera: Camera;
   private readonly overlayGroup: SVGGElement;
   private _onChange: (() => void) | null = null;
+  public readonly selectedGroupIds = new Set<string>();
+  public onGroupSelect: ((ids: string[]) => void) | null = null;
   public onConflict:
     | ((elementId: string, fromGroup: string, toGroup: string) => GroupConflictAction | null)
     | null = null;
@@ -30,6 +32,31 @@ export class GroupManager {
 
   public setOnChange(fn: (() => void) | null): void {
     this._onChange = fn;
+  }
+
+  public setSelectedGroupIds(ids: string[]): void {
+    this.selectedGroupIds.clear();
+    for (const id of ids) {
+      if (this.groups.has(id)) this.selectedGroupIds.add(id);
+    }
+    this.renderOverlay();
+    this.onGroupSelect?.(Array.from(this.selectedGroupIds));
+  }
+
+  public clearSelectedGroups(): void {
+    this.selectedGroupIds.clear();
+    this.renderOverlay();
+    this.onGroupSelect?.([]);
+  }
+
+  public toggleGroup(id: string): void {
+    if (this.selectedGroupIds.has(id)) {
+      this.selectedGroupIds.delete(id);
+    } else {
+      if (this.groups.has(id)) this.selectedGroupIds.add(id);
+    }
+    this.renderOverlay();
+    this.onGroupSelect?.(Array.from(this.selectedGroupIds));
   }
 
   private notify(): void {
@@ -168,10 +195,13 @@ export class GroupManager {
       this.overlayGroup.removeChild(this.overlayGroup.firstChild);
     }
 
+    if (this.selectedGroupIds.size === 0) return;
+
     const z = this.camera.zoom;
 
-    for (const g of this.groups.values()) {
-      if (g.elementIds.size === 0) continue;
+    for (const gid of this.selectedGroupIds) {
+      const g = this.groups.get(gid);
+      if (!g || g.elementIds.size === 0) continue;
 
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       let hasAny = false;
@@ -197,7 +227,7 @@ export class GroupManager {
       rect.setAttribute('width', String(maxX - minX + pad * 2));
       rect.setAttribute('height', String(maxY - minY + pad * 2));
       rect.setAttribute('fill', 'none');
-      rect.setAttribute('stroke', '#888');
+      rect.setAttribute('stroke', '#4285f4');
       rect.setAttribute('stroke-width', String(1.5 / z));
       rect.setAttribute('stroke-dasharray', String(6 / z) + ' ' + String(3 / z));
       this.overlayGroup.appendChild(rect);

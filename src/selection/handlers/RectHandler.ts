@@ -8,6 +8,8 @@ export class RectHandler {
   private readonly state: SelectionState;
   private readonly elements: () => SvgElement[];
   private readonly grid: SpatialGrid;
+  private readonly lookupGroup: (elementId: string) => string | undefined;
+  public onGroupSelect: ((groupId: string | null) => void) | null = null;
   private startPoint = { x: 0, y: 0 };
   private active = false;
 
@@ -15,10 +17,12 @@ export class RectHandler {
     state: SelectionState,
     elements: () => SvgElement[],
     grid: SpatialGrid,
+    lookupGroup: (elementId: string) => string | undefined,
   ) {
     this.state = state;
     this.elements = elements;
     this.grid = grid;
+    this.lookupGroup = lookupGroup;
   }
 
   public get isActive(): boolean {
@@ -70,23 +74,27 @@ export class RectHandler {
 
     if (this.state.mode === 'group') {
       const groupIds = new Set(
-        hits.filter((e) => e.groupId).map((e) => e.groupId),
-      );
-      const groupElements = this.elements().filter((e) =>
-        groupIds.has(e.groupId),
+        hits.map((e) => this.lookupGroup(e.id)).filter((gid): gid is string => gid !== undefined),
       );
 
       if (ctrl) {
-        const allSelected = groupElements.every((g) =>
-          this.state.selected.some((s) => s.id === g.id),
-        );
-        if (allSelected) {
-          this.state.remove(groupElements);
-        } else {
-          this.state.add(groupElements);
+        for (const gid of groupIds) {
+          const groupElements = this.elements().filter((e) => this.lookupGroup(e.id) === gid);
+          const allSelected = groupElements.every((g) =>
+            this.state.selected.some((s) => s.id === g.id),
+          );
+          if (allSelected) {
+            this.state.remove(groupElements);
+          } else {
+            this.state.add(groupElements);
+          }
         }
       } else {
-        this.state.replace(groupElements);
+        this.state.clear();
+        if (groupIds.size === 1) {
+          const gid = groupIds.values().next().value;
+          if (gid !== undefined) this.onGroupSelect?.(gid);
+        }
       }
       return;
     }
