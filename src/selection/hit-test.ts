@@ -2,6 +2,12 @@ import type { Point } from '@/types';
 import type { SvgElement } from '@/shapes/elements/SvgElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
 
+function getTransformedHitArea(el: SvgElement): Point[] {
+  const m = el.toDOMMatrix();
+  const ha = el.hitArea;
+  return ha.map((p) => m.transformPoint({ x: p.x, y: p.y }));
+}
+
 function pointInPolygon(px: number, py: number, poly: Point[]): boolean {
   let inside = false;
   const n = poly.length;
@@ -116,7 +122,7 @@ export function hitTestPoint(
 
   const hits: SvgElement[] = [];
   for (const el of candidates) {
-    const ha = el.hitArea;
+    const ha = getTransformedHitArea(el);
     if (ha.length >= 3 && pointInPolygon(px, py, ha)) {
       hits.push(el);
     }
@@ -143,7 +149,7 @@ export function hitTestRect(
   const candidates = elements.filter((e) => ids.includes(e.id));
 
   return candidates.filter((el) => {
-    const ha = el.hitArea;
+    const ha = getTransformedHitArea(el);
     if (ha.length < 3) return false;
     if (requireFullContain) {
       return rectContainsPoly(rx, ry, rw, rh, ha);
@@ -174,7 +180,7 @@ export function hitTestLasso(
   const candidates = elements.filter((e) => ids.includes(e.id));
 
   return candidates.filter((el) => {
-    const ha = el.hitArea;
+    const ha = getTransformedHitArea(el);
     if (ha.length < 3) return false;
     return polyInPoly(lassoPoints, ha);
   });

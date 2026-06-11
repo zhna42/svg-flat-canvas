@@ -14,6 +14,7 @@ import type { SelectionFilter } from '@/selection/selection-filter';
 import type { SelectionShortcuts } from '@/selection/selection-defaults';
 import type { SelectionGesture } from '@/selection';
 import { SelectionOverlay } from '@/selection/SelectionOverlay';
+import { GroupSelectionOverlay } from '@/selection/GroupSelectionOverlay';
 import { DebugOverlay } from '@/debug/DebugOverlay';
 import { GroupManager, type GroupData, type GroupConflictAction } from '@/group';
 import type { Group } from '@/group';
@@ -75,9 +76,11 @@ export class SvgCanvas {
     overlaysGroup.appendChild(this.debugOverlay.getElement());
     this._debugShowHitArea = options?.debugShowHitArea ?? false;
 
+    const groupOverlay = new GroupSelectionOverlay(this.camera);
+    overlaysGroup.appendChild(groupOverlay.getElement());
+
     this.groupManager = new GroupManager(
-      this.renderer.getCameraGroup(),
-      this.camera,
+      groupOverlay,
       () => this.shapeManager.getAll(),
     );
 

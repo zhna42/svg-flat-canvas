@@ -7,6 +7,7 @@ import { DEFAULT_SELECTION_SHORTCUTS } from '@/selection/selection-defaults';
 import { ClickHandler } from './ClickHandler';
 import { RectHandler } from './RectHandler';
 import { LassoHandler } from './LassoHandler';
+import { hitTestGroupsPoint, hitTestGroupsRect, hitTestGroupsLasso } from '@/selection/group-hit-test';
 
 export type SelectionGesture = 'click' | 'rect' | 'lasso';
 
@@ -18,15 +19,19 @@ export class SelectionHandler {
   private readonly cameraGroup: SVGGElement;
   private readonly svg: SVGSVGElement;
   private readonly camera: Camera;
+  private readonly getElements: () => SvgElement[];
+  private readonly grid: SpatialGrid;
 
   private shortcuts: SelectionShortcuts;
   private gesture: SelectionGesture = 'click';
   private ctrlHeld = false;
   private shiftOverride = false;
+  private lookupGroup: (elementId: string) => string | undefined;
   private cursorOverlay: SVGRectElement | null = null;
   private lassoOverlay: SVGPolylineElement | null = null;
   public isPanning: (() => boolean) | null = null;
   public onGroupSelect: ((ids: string[]) => void) | null = null;
+  public currentGroupIds: string[] = [];
 
   public constructor(
     svg: SVGSVGElement,
@@ -43,14 +48,20 @@ export class SelectionHandler {
     this.cameraGroup = cameraGroup;
     this.camera = camera;
     this.state = state;
+    this.getElements = getElements;
+    this.grid = grid;
     this.isPanning = isPanning ?? null;
     this.shortcuts = { ...DEFAULT_SELECTION_SHORTCUTS, ...shortcuts };
     const lookupGroup = getGroupIdForElement ?? (() => undefined);
-    this.clickHandler = new ClickHandler(state, getElements, grid, cameraGroup, lookupGroup);
-    this.clickHandler.onGroupSelect = (gid) => this.onGroupSelect?.(gid ? [gid] : []);
-    this.rectHandler = new RectHandler(state, getElements, grid, lookupGroup);
-    this.rectHandler.onGroupSelect = (gid) => this.onGroupSelect?.(gid ? [gid] : []);
-    this.lassoHandler = new LassoHandler(state, getElements, grid, lookupGroup);
+    this.clickHandler = new ClickHandler(state, getElements, grid, cameraGroup);
+    this.rectHandler = new RectHandler(state, getElements, grid);
+    this.lassoHandler = new LassoHandler(state, getElements, grid);
+    this.lookupGroup = lookupGroup;
+    const origOnGroupSelect = this.onGroupSelect;
+    this.onGroupSelect = (ids) => {
+      this.currentGroupIds = ids;
+      origOnGroupSelect?.(ids);
+    };
     this.bindEvents();
   }
 
@@ -93,6 +104,26 @@ export class SelectionHandler {
       const wp = this.screenToWorld(e);
       const useRect = this.gesture === 'rect' || this.shiftOverride;
 
+      if (this.state.mode === 'group') {
+        if (useRect) {
+          this.rectHandler.start(wp);
+          this.showRectOverlay(wp.x, wp.y);
+        } else if (this.gesture === 'lasso') {
+          this.lassoHandler.start(wp.x, wp.y);
+          this.showLassoOverlay();
+        } else {
+          const gids = hitTestGroupsPoint(wp.x, wp.y, this.getElements(), this.grid, this.lookupGroup, this.cameraGroup);
+          if (gids.length > 0) {
+            this.state.clear();
+            this.onGroupSelect?.(this.ctrlHeld ? [...this.currentGroupIds, ...gids] : gids);
+          } else if (!this.ctrlHeld) {
+            this.state.clear();
+            this.onGroupSelect?.([]);
+          }
+        }
+        return;
+      }
+
       if (useRect) {
         this.rectHandler.start(wp);
         this.showRectOverlay(wp.x, wp.y);
@@ -125,17 +156,57 @@ export class SelectionHandler {
       const wp = this.screenToWorld(e);
 
       if (this.rectHandler.isActive) {
-        const wasDrag = this.rectHandler.hasDrag();
-        this.rectHandler.end(wp, this.ctrlHeld);
-        this.hideRectOverlay();
+        const dx = wp.x - this.rectHandler.startPoint.x;
+        const dy = wp.y - this.rectHandler.startPoint.y;
+        const wasDrag = Math.abs(dx) >= 3 || Math.abs(dy) >= 3;
         this.shiftOverride = false;
-        if (!wasDrag) {
-          this.clickHandler.handle(wp.x, wp.y, this.ctrlHeld);
+        if (this.state.mode === 'group') {
+          this.rectHandler.reset();
+          this.hideRectOverlay();
+          if (wasDrag) {
+            const gids = hitTestGroupsRect(
+              Math.min(wp.x, this.rectHandler.startPoint.x),
+              Math.min(wp.y, this.rectHandler.startPoint.y),
+              Math.abs(wp.x - this.rectHandler.startPoint.x),
+              Math.abs(wp.y - this.rectHandler.startPoint.y),
+              this.getElements(),
+              this.grid,
+              this.lookupGroup,
+              wp.x >= this.rectHandler.startPoint.x,
+            );
+            this.state.clear();
+            this.onGroupSelect?.(this.ctrlHeld ? [...this.currentGroupIds, ...gids] : gids);
+          } else {
+            const gids = hitTestGroupsPoint(wp.x, wp.y, this.getElements(), this.grid, this.lookupGroup, this.cameraGroup);
+            this.state.clear();
+            this.onGroupSelect?.(this.ctrlHeld ? [...this.currentGroupIds, ...gids] : gids);
+          }
+        } else {
+          this.hideRectOverlay();
+          if (wasDrag) {
+            this.rectHandler.end(wp, this.ctrlHeld);
+          } else {
+            this.rectHandler.reset();
+            this.clickHandler.handle(wp.x, wp.y, this.ctrlHeld);
+          }
         }
       }
       if (this.lassoHandler.isActive) {
-        this.lassoHandler.end(wp.x, wp.y, this.ctrlHeld);
-        this.hideLassoOverlay();
+        if (this.state.mode === 'group') {
+          this.lassoHandler.reset();
+          this.hideLassoOverlay();
+          const gids = hitTestGroupsLasso(
+            this.lassoHandler.currentPoints as any,
+            this.getElements(),
+            this.grid,
+            this.lookupGroup,
+          );
+          this.state.clear();
+          this.onGroupSelect?.(this.ctrlHeld ? [...this.currentGroupIds, ...gids] : gids);
+        } else {
+          this.lassoHandler.end(wp.x, wp.y, this.ctrlHeld);
+          this.hideLassoOverlay();
+        }
       }
     });
 

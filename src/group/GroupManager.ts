@@ -1,15 +1,13 @@
-import { SVG_NS } from '@/constants';
 import type { SvgElement } from '@/shapes/elements/SvgElement';
-import type { Camera } from '@/camera/Camera';
 import { Group, type GroupData } from './Group';
+import type { GroupSelectionOverlay } from '@/selection/GroupSelectionOverlay';
 
 export type GroupConflictAction = 'move' | 'cancel';
 
 export class GroupManager {
   private readonly groups = new Map<string, Group>();
   private readonly getElements: () => SvgElement[];
-  private readonly camera: Camera;
-  private readonly overlayGroup: SVGGElement;
+  private readonly overlay: GroupSelectionOverlay;
   private _onChange: (() => void) | null = null;
   public readonly selectedGroupIds = new Set<string>();
   public onGroupSelect: ((ids: string[]) => void) | null = null;
@@ -19,19 +17,24 @@ export class GroupManager {
   public conflictSuppressed = false;
 
   public constructor(
-    parent: SVGGElement,
-    camera: Camera,
+    overlay: GroupSelectionOverlay,
     getElements: () => SvgElement[],
   ) {
-    this.camera = camera;
+    this.overlay = overlay;
     this.getElements = getElements;
-    this.overlayGroup = document.createElementNS(SVG_NS, 'g');
-    this.overlayGroup.setAttribute('pointer-events', 'none');
-    parent.appendChild(this.overlayGroup);
   }
 
   public setOnChange(fn: (() => void) | null): void {
     this._onChange = fn;
+  }
+
+  private groupList(): Group[] {
+    return Array.from(this.groups.values());
+  }
+
+  private updateOverlay(): void {
+    const selected = this.groupList().filter((g) => this.selectedGroupIds.has(g.id));
+    this.overlay.update(selected, (id) => this.findElement(id));
   }
 
   public setSelectedGroupIds(ids: string[]): void {
@@ -39,13 +42,13 @@ export class GroupManager {
     for (const id of ids) {
       if (this.groups.has(id)) this.selectedGroupIds.add(id);
     }
-    this.renderOverlay();
+    this.updateOverlay();
     this.onGroupSelect?.(Array.from(this.selectedGroupIds));
   }
 
   public clearSelectedGroups(): void {
     this.selectedGroupIds.clear();
-    this.renderOverlay();
+    this.updateOverlay();
     this.onGroupSelect?.([]);
   }
 
@@ -55,12 +58,12 @@ export class GroupManager {
     } else {
       if (this.groups.has(id)) this.selectedGroupIds.add(id);
     }
-    this.renderOverlay();
+    this.updateOverlay();
     this.onGroupSelect?.(Array.from(this.selectedGroupIds));
   }
 
   private notify(): void {
-    this.renderOverlay();
+    this.updateOverlay();
     this._onChange?.();
   }
 
@@ -188,52 +191,6 @@ export class GroupManager {
     return 'cancel';
   }
 
-  // ---- overlay rendering ----
-
-  private renderOverlay(): void {
-    while (this.overlayGroup.firstChild) {
-      this.overlayGroup.removeChild(this.overlayGroup.firstChild);
-    }
-
-    if (this.selectedGroupIds.size === 0) return;
-
-    const z = this.camera.zoom;
-
-    for (const gid of this.selectedGroupIds) {
-      const g = this.groups.get(gid);
-      if (!g || g.elementIds.size === 0) continue;
-
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      let hasAny = false;
-
-      for (const elId of g.elementIds) {
-        const el = this.findElement(elId);
-        if (!el) continue;
-        const bbox = el.getTransformedBBox();
-        if (bbox.width === 0 && bbox.height === 0) continue;
-        hasAny = true;
-        if (bbox.x < minX) minX = bbox.x;
-        if (bbox.y < minY) minY = bbox.y;
-        if (bbox.x + bbox.width > maxX) maxX = bbox.x + bbox.width;
-        if (bbox.y + bbox.height > maxY) maxY = bbox.y + bbox.height;
-      }
-
-      if (!hasAny) continue;
-
-      const pad = 2 / z;
-      const rect = document.createElementNS(SVG_NS, 'rect');
-      rect.setAttribute('x', String(minX - pad));
-      rect.setAttribute('y', String(minY - pad));
-      rect.setAttribute('width', String(maxX - minX + pad * 2));
-      rect.setAttribute('height', String(maxY - minY + pad * 2));
-      rect.setAttribute('fill', 'none');
-      rect.setAttribute('stroke', '#4285f4');
-      rect.setAttribute('stroke-width', String(1.5 / z));
-      rect.setAttribute('stroke-dasharray', String(6 / z) + ' ' + String(3 / z));
-      this.overlayGroup.appendChild(rect);
-    }
-  }
-
   // ---- helpers ----
 
   private findElement(id: string): SvgElement | undefined {
@@ -241,6 +198,5 @@ export class GroupManager {
   }
 
   public destroy(): void {
-    this.overlayGroup.remove();
   }
 }
