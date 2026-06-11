@@ -66,7 +66,7 @@
       "stroke-width": "4"
     },
     "svgFileId": null,
-    "svgGroupId": null,
+    "svgGroupId": "grp-lines",
     "laserGroupId": null,
     "laserActionType": "none"
   },
@@ -96,7 +96,7 @@
       "fill": "none"
     },
     "svgFileId": null,
-    "svgGroupId": null,
+    "svgGroupId": "grp-lines",
     "laserGroupId": null,
     "laserActionType": "none"
   },
@@ -145,7 +145,7 @@
       "transformMatrix": "1,0,0,1,30,420"
     },
     "svgFileId": null,
-    "svgGroupId": null,
+    "svgGroupId": "grp-curves",
     "laserGroupId": null,
     "laserActionType": "cut"
   },
@@ -161,7 +161,7 @@
       "transformMatrix": "1,0,0,1,480,420"
     },
     "svgFileId": null,
-    "svgGroupId": null,
+    "svgGroupId": "grp-curves",
     "laserGroupId": "laser-group-a",
     "laserActionType": "cut"
   },

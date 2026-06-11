@@ -2,16 +2,21 @@
   {
     "id": "grp-lines",
     "name": "Line shapes",
-    "elementIds": ["polyline-green", "line-001"]
+    "elementIds": ["polyline-001", "line-001"]
   },
   {
     "id": "grp-curves",
     "name": "Curve shapes",
-    "elementIds": ["path-orange", "path-cutout-001", "path-triangle-001"]
+    "elementIds": ["path-cubic-001", "path-cutout-001", "polygon-001"]
   },
   {
     "id": "grp-empty",
     "name": "Empty group",
     "elementIds": []
+  },
+  {
+    "id": "grp-rect-only",
+    "name": "Rectangle group",
+    "elementIds": ["rect-fill-001", "nonexistent-id"]
   }
 ]

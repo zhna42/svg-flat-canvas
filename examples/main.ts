@@ -46,9 +46,18 @@ canvas.onSelectionChange = (selected) => {
   info(`Selection: ${selected.map((s) => s.id).join(', ') || '(none)'}`);
 };
 
-// добавим кнопки для переключения режимов селекта
-document.getElementById('btn-mode-v')!.onclick = () => { canvas.setSelectionMode('element'); info('Mode: element (V)'); };
-document.getElementById('btn-mode-g')!.onclick = () => { canvas.setSelectionMode('group'); info('Mode: group (G)'); };
+// ----- selection mode toggle -----
+function setMode(mode: 'element' | 'group') {
+  canvas.setSelectionMode(mode);
+  info(`Mode: ${mode}`);
+  document.querySelectorAll('.mode-btn').forEach((b) => b.classList.remove('active'));
+  document.getElementById(`btn-mode-${mode}`)?.classList.add('active');
+  document.getElementById('btn-mode-element')!.textContent = mode === 'element' ? '● Element' : '○ Element';
+  document.getElementById('btn-mode-group')!.textContent = mode === 'group' ? '● Group' : '○ Group';
+}
+document.getElementById('btn-mode-element')!.onclick = () => setMode('element');
+document.getElementById('btn-mode-group')!.onclick = () => setMode('group');
+setMode('element');
 
 let currentGesture = 'click';
 
@@ -167,6 +176,8 @@ function renderGroupList() {
     div.textContent = `${g.name} (${g.elementIds.size})`;
     div.onclick = () => {
       selectedGroupId = g.id;
+      canvas.highlightGroupElements(g.id);
+      canvas.selectGroup(g.id);
       renderGroupList();
     };
     list.appendChild(div);
@@ -207,6 +218,7 @@ document.getElementById('btn-group-clear')!.onclick = () => {
 document.getElementById('btn-group-select')!.onclick = () => {
   if (!selectedGroupId) { info('No group selected'); return; }
   canvas.selectGroupElements(selectedGroupId);
+  canvas.selectMultipleGroups([]);
   renderGroupList();
   info('Selected all elements in group');
 };
