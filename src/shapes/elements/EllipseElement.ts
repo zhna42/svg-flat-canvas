@@ -48,8 +48,10 @@ export class EllipseElement extends SvgElement {
     return new EllipseElement(this.id);
   }
 
-  private getAttrAsNum(name: string, fallback: number): number {
-    const v = this.element.getAttribute(name);
-    return v !== null ? parseFloat(v) : fallback;
+  protected flattenTranslateDelta(dx: number, dy: number): void {
+    const cx = this.getAttrAsNum('cx', 0) + dx;
+    const cy = this.getAttrAsNum('cy', 0) + dy;
+    this.element.setAttribute('cx', String(cx));
+    this.element.setAttribute('cy', String(cy));
   }
 }

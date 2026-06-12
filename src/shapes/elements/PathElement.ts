@@ -218,6 +218,10 @@ export class PathElement extends SvgElement {
     return new PathElement(this.id);
   }
 
+  protected flattenTranslateDelta(dx: number, dy: number): void {
+    this.applyMatrixToD(1, 0, 0, 1, dx, dy);
+  }
+
   public applyMatrixToD(a: number, b: number, c: number, d: number, e: number, f: number): void {
     const m = new DOMMatrix([a, b, c, d, e, f]);
     const cmds = this.parsedD.commands.map((cmd) => {

@@ -34,6 +34,7 @@ export class SelectionHandler {
   public isPanning: (() => boolean) | null = null;
   public onGroupSelect: ((ids: string[]) => void) | null = null;
   public onDragStart: (() => void) | null = null;
+  public onDragMove: (() => void) | null = null;
   public onDragEnd: (() => void) | null = null;
   public currentGroupIds: string[] = [];
 
@@ -62,6 +63,7 @@ export class SelectionHandler {
     this.lassoHandler = new LassoHandler(state, getElements, grid);
     this.dragHandler = new DragHandler(getElements, () => this.currentGroupIds);
     this.dragHandler.onDragStart = () => this.onDragStart?.();
+    this.dragHandler.onDragMove = () => this.onDragMove?.();
     this.dragHandler.onDragEnd = () => this.onDragEnd?.();
     this.lookupGroup = lookupGroup;
     const origOnGroupSelect = this.onGroupSelect;
@@ -110,6 +112,7 @@ export class SelectionHandler {
 
       const wp = this.screenToWorld(e);
       const hasSelection = this.state.selected.length > 0 || this.currentGroupIds.length > 0;
+      const useRect = this.gesture === 'rect' || this.shiftOverride;
 
       if (this.state.mode === 'group') {
         if (!this.ctrlHeld && hasSelection) {
@@ -118,7 +121,7 @@ export class SelectionHandler {
             return;
           }
         }
-        if (this.gesture === 'rect' || this.shiftOverride) {
+        if (useRect) {
           this.rectHandler.start(wp);
           this.showRectOverlay(wp.x, wp.y);
         } else if (this.gesture === 'lasso') {
@@ -142,6 +145,16 @@ export class SelectionHandler {
           e.preventDefault();
           return;
         }
+      }
+
+      if (useRect) {
+        this.rectHandler.start(wp);
+        this.showRectOverlay(wp.x, wp.y);
+      } else if (this.gesture === 'lasso') {
+        this.lassoHandler.start(wp.x, wp.y);
+        this.showLassoOverlay();
+      } else {
+        this.clickHandler.handle(wp.x, wp.y, this.ctrlHeld);
       }
     });
 

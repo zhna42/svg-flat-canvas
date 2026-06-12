@@ -26,9 +26,12 @@ export class SelectionOverlay {
       const bbox = el.getTransformedBBox();
       if (bbox.width === 0 && bbox.height === 0) continue;
 
+      const tx = el._translate.x;
+      const ty = el._translate.y;
+
       const rect = document.createElementNS(SVG_NS, 'rect');
-      rect.setAttribute('x', String(bbox.x - pad));
-      rect.setAttribute('y', String(bbox.y - pad));
+      rect.setAttribute('x', String(bbox.x + tx - pad));
+      rect.setAttribute('y', String(bbox.y + ty - pad));
       rect.setAttribute('width', String(bbox.width + pad * 2));
       rect.setAttribute('height', String(bbox.height + pad * 2));
       rect.setAttribute('fill', 'none');

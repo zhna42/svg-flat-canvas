@@ -4,10 +4,11 @@ export class DragHandler {
   private readonly getElements: () => readonly SvgElement[];
   private readonly getGroupElementIds: () => string[];
   private _active = false;
-  private startWorld = { x: 0, y: 0 };
-  private dragTargets: SvgElement[] = [];
+  private prevWorld = { x: 0, y: 0 };
+  private targets: SvgElement[] = [];
 
   public onDragStart: (() => void) | null = null;
+  public onDragMove: (() => void) | null = null;
   public onDragEnd: (() => void) | null = null;
 
   public constructor(
@@ -25,7 +26,6 @@ export class DragHandler {
   public tryStart(worldPoint: { x: number; y: number }, currentSelected: readonly SvgElement[]): boolean {
     if (currentSelected.length === 0) return false;
 
-    // hit-test selection rect (25% padding = bigger hit area)
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     for (const el of currentSelected) {
       const bbox = el.getTransformedBBox();
@@ -46,16 +46,15 @@ export class DragHandler {
     }
 
     this._active = true;
-    this.startWorld = { ...worldPoint };
+    this.prevWorld = { ...worldPoint };
 
     const groupIds = this.getGroupElementIds();
     if (groupIds.length > 0) {
-      // drag whole group elements
       const all = this.getElements();
       const groupSet = new Set(groupIds);
-      this.dragTargets = all.filter((e) => groupSet.has(e.id));
+      this.targets = all.filter((e) => groupSet.has(e.id));
     } else {
-      this.dragTargets = Array.from(currentSelected);
+      this.targets = Array.from(currentSelected);
     }
 
     this.onDragStart?.();
@@ -64,20 +63,26 @@ export class DragHandler {
 
   public move(worldPoint: { x: number; y: number }): void {
     if (!this._active) return;
-    const dx = worldPoint.x - this.startWorld.x;
-    const dy = worldPoint.y - this.startWorld.y;
+    const dx = worldPoint.x - this.prevWorld.x;
+    const dy = worldPoint.y - this.prevWorld.y;
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
 
-    for (const el of this.dragTargets) {
-      el.translate(dx, dy);
+    for (const el of this.targets) {
+      el.applyDelta(dx, dy);
     }
-    this.startWorld = { ...worldPoint };
+    this.prevWorld = { ...worldPoint };
+    this.onDragMove?.();
   }
 
   public end(): void {
     if (!this._active) return;
     this._active = false;
-    this.dragTargets = [];
+
+    for (const el of this.targets) {
+      el.flushTransformToCoords();
+    }
+    this.targets = [];
     this.onDragEnd?.();
   }
 }
+

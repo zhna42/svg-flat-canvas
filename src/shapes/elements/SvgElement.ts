@@ -23,6 +23,7 @@ export abstract class SvgElement implements DirtyTracker {
 
   protected _dirty = false;
   protected _hitArea: Point[] = [];
+  public readonly _translate = { x: 0, y: 0 };
 
   public constructor(id: string, type: ElementType, tag: string) {
     this.id = id;
@@ -52,6 +53,21 @@ export abstract class SvgElement implements DirtyTracker {
   public invalidateHitArea(): void {
     this._hitArea = [];
     this.setDirty();
+  }
+
+  public applyDelta(dx: number, dy: number): void {
+    this._translate.x += dx;
+    this._translate.y += dy;
+    this.setDirty();
+  }
+
+  public flushTransformToCoords(): void {
+    if (this._translate.x === 0 && this._translate.y === 0) return;
+    this.flattenTranslateDelta(this._translate.x, this._translate.y);
+    this._translate.x = 0;
+    this._translate.y = 0;
+    this.element.removeAttribute('transform');
+    this.invalidateHitArea();
   }
 
   public abstract buildHitArea(): void;
@@ -122,6 +138,13 @@ export abstract class SvgElement implements DirtyTracker {
 
   public translate(dx: number, dy: number): void {
     this.applyTransform(`translate(${dx}, ${dy})`);
+  }
+
+  protected flattenTranslateDelta(_dx: number, _dy: number): void { }
+
+  protected getAttrAsNum(name: string, fallback: number): number {
+    const v = this.element.getAttribute(name);
+    return v !== null ? parseFloat(v) : fallback;
   }
 
   public scale(sx: number, sy?: number): void {

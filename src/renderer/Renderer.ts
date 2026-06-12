@@ -77,6 +77,11 @@ export class Renderer {
 
       const pending = this.queue.drain();
       for (const el of pending) {
+        const tx = el._translate.x;
+        const ty = el._translate.y;
+        if (tx !== 0 || ty !== 0) {
+          el.element.setAttribute('transform', `translate(${tx}, ${ty})`);
+        }
         el.markClean();
       }
 

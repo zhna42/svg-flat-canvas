@@ -53,4 +53,11 @@ export class TextElement extends SvgElement {
   protected createClone(): TextElement {
     return new TextElement(this.id);
   }
+
+  protected flattenTranslateDelta(dx: number, dy: number): void {
+    const x = parseFloat(this.element.getAttribute('x') || '0') + dx;
+    const y = parseFloat(this.element.getAttribute('y') || '0') + dy;
+    this.element.setAttribute('x', String(x));
+    this.element.setAttribute('y', String(y));
+  }
 }

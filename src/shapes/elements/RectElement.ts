@@ -116,8 +116,10 @@ export class RectElement extends SvgElement {
     return new RectElement(this.id);
   }
 
-  private getAttrAsNum(name: string, fallback: number): number {
-    const v = this.element.getAttribute(name);
-    return v !== null ? parseFloat(v) : fallback;
+  protected flattenTranslateDelta(dx: number, dy: number): void {
+    const x = this.getAttrAsNum('x', 0) + dx;
+    const y = this.getAttrAsNum('y', 0) + dy;
+    this.element.setAttribute('x', String(x));
+    this.element.setAttribute('y', String(y));
   }
 }

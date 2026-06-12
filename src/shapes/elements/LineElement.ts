@@ -62,8 +62,14 @@ export class LineElement extends SvgElement {
     return new LineElement(this.id);
   }
 
-  private getAttrAsNum(name: string, fallback: number): number {
-    const v = this.element.getAttribute(name);
-    return v !== null ? parseFloat(v) : fallback;
+  protected flattenTranslateDelta(dx: number, dy: number): void {
+    const x1 = this.getAttrAsNum('x1', 0) + dx;
+    const y1 = this.getAttrAsNum('y1', 0) + dy;
+    const x2 = this.getAttrAsNum('x2', 0) + dx;
+    const y2 = this.getAttrAsNum('y2', 0) + dy;
+    this.element.setAttribute('x1', String(x1));
+    this.element.setAttribute('y1', String(y1));
+    this.element.setAttribute('x2', String(x2));
+    this.element.setAttribute('y2', String(y2));
   }
 }
