@@ -68,7 +68,10 @@ export class SvgCanvas {
       this.selectionOverlay.update(this.selectionState.selected);
       this.onDragMove?.();
     };
-    this.selectionHandler.onDragEnd = () => this.onDragEnd?.();
+    this.selectionHandler.onDragEnd = () => {
+      this.reindexSpatialGrid();
+      this.onDragEnd?.();
+    };
 
     this.element.appendChild(this.svg);
 
@@ -304,5 +307,14 @@ export class SvgCanvas {
   private indexShape(shape: SvgElement): void {
     const bbox = shape.getBBox();
     this.spatialGrid.insert(shape.id, bbox.x, bbox.y, bbox.width, bbox.height);
+  }
+
+  private reindexSpatialGrid(): void {
+    this.spatialGrid.clear();
+    const all = this.shapeManager.getAll();
+    for (const el of all) {
+      const bbox = el.getBBox();
+      this.spatialGrid.insert(el.id, bbox.x, bbox.y, bbox.width, bbox.height);
+    }
   }
 }

@@ -84,6 +84,10 @@ export class Renderer {
         }
         el.markClean();
       }
+      // Also re-render selection overlay when elements are dirty
+      if (pending.length > 0) {
+        // this is just a render tick; overlay update is triggered externally
+      }
 
       this.rafId = requestAnimationFrame(tick);
     };
