@@ -230,9 +230,7 @@ document.getElementById('btn-group-add')!.onclick = () => {
   if (!gid) { info('Select a group first'); return; }
   const selected = Array.from(canvas.getSelected());
   if (selected.length === 0) { info('No elements selected'); return; }
-  for (const el of selected) {
-    canvas.addToGroup(gid, el.id);
-  }
+  canvas.addToGroup(gid, selected.map(e => e.id));
   renderGroupList();
   info(`Added ${selected.length} element(s) to group`);
 };
@@ -243,9 +241,7 @@ document.getElementById('btn-group-remove')!.onclick = () => {
   if (!gid) { info('Select a group first'); return; }
   const selected = Array.from(canvas.getSelected());
   if (selected.length === 0) { info('No elements selected'); return; }
-  for (const el of selected) {
-    canvas.removeFromGroup(gid, el.id);
-  }
+  canvas.removeFromGroup(gid, selected.map(e => e.id));
   renderGroupList();
   info(`Removed ${selected.length} element(s) from group`);
 };

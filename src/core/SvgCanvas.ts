@@ -24,8 +24,16 @@ import {
 import type { Group } from '@/group';
 import { EventBus, Events } from './EventBus';
 import { CommandBus, CommandHistory } from '@/commands';
+import {
+  createGroupCreateCommand,
+  createGroupDeleteCommand,
+  createGroupAddCommand,
+  createGroupRemoveCommand,
+  createGroupClearCommand,
+} from '@/commands/factories/group-command-factory';
 import { createSelectHandler } from '@/commands/handlers/select-handler';
 import { createDragMoveHandler, createDragEndHandler } from '@/commands/handlers/drag-handler';
+import { createGroupHandler } from '@/commands/handlers/group-handler';
 
 export class SvgCanvas {
   private readonly element: HTMLElement;
@@ -140,6 +148,12 @@ export class SvgCanvas {
     this.groupManager.setOnChange(() =>
       this.events.emit(Events.GroupsChange, undefined),
     );
+
+    this.commandBus.register('GROUP_CREATE', createGroupHandler(this.groupManager));
+    this.commandBus.register('GROUP_DELETE', createGroupHandler(this.groupManager));
+    this.commandBus.register('GROUP_ADD', createGroupHandler(this.groupManager));
+    this.commandBus.register('GROUP_REMOVE', createGroupHandler(this.groupManager));
+    this.commandBus.register('GROUP_CLEAR', createGroupHandler(this.groupManager));
 
     const updateOverlay = (): void => {
       this.selectionOverlay.update(this.selectionState.selected);
@@ -270,7 +284,7 @@ export class SvgCanvas {
     }
   }
 
-  // ---- Group API ----
+  // ---- Group API (through CommandBus) ----
 
   public get groups(): Group[] {
     return this.groupManager.getGroups();
@@ -281,23 +295,36 @@ export class SvgCanvas {
   }
 
   public createGroup(name?: string): string {
-    return this.groupManager.createGroup(name);
+    const cmd = createGroupCreateCommand(name);
+    this.commandBus.execute(cmd);
+    const created = this.groupManager.getGroups();
+    return created[created.length - 1]?.id ?? '';
   }
 
   public deleteGroup(id: string): void {
-    this.groupManager.deleteGroup(id);
+    const cmd = createGroupDeleteCommand(id);
+    this.commandBus.execute(cmd);
   }
 
-  public addToGroup(groupId: string, elementId: string): void {
-    this.groupManager.addToGroup(groupId, elementId);
+  public addToGroup(groupId: string, elementIds: string[]): void;
+  public addToGroup(groupId: string, elementId: string): void;
+  public addToGroup(groupId: string, elementOrIds: string | string[]): void {
+    const ids = Array.isArray(elementOrIds) ? elementOrIds : [elementOrIds];
+    const cmd = createGroupAddCommand(groupId, ids);
+    this.commandBus.execute(cmd);
   }
 
-  public removeFromGroup(groupId: string, elementId: string): void {
-    this.groupManager.removeFromGroup(groupId, elementId);
+  public removeFromGroup(groupId: string, elementIds: string[]): void;
+  public removeFromGroup(groupId: string, elementId: string): void;
+  public removeFromGroup(groupId: string, elementOrIds: string | string[]): void {
+    const ids = Array.isArray(elementOrIds) ? elementOrIds : [elementOrIds];
+    const cmd = createGroupRemoveCommand(groupId, ids);
+    this.commandBus.execute(cmd);
   }
 
   public clearGroup(id: string): void {
-    this.groupManager.clearGroup(id);
+    const cmd = createGroupClearCommand(id);
+    this.commandBus.execute(cmd);
   }
 
   public getElementIdsInGroup(id: string): string[] {

@@ -4,6 +4,11 @@ export type {
   SelectCommand,
   DragMoveCommand,
   DragEndCommand,
+  GroupCreateCommand,
+  GroupDeleteCommand,
+  GroupAddCommand,
+  GroupRemoveCommand,
+  GroupClearCommand,
   SelectionMode,
   SelectionGesture,
   SnapshotEntry,
@@ -24,3 +29,11 @@ export {
   createDragMoveCommand,
   createDragEndCommand,
 } from './factories/drag-command-factory';
+
+export {
+  createGroupCreateCommand,
+  createGroupDeleteCommand,
+  createGroupAddCommand,
+  createGroupRemoveCommand,
+  createGroupClearCommand,
+} from './factories/group-command-factory';

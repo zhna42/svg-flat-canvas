@@ -1,6 +1,6 @@
 import type { Point } from '@/types';
 
-export type CommandType = 'SELECT' | 'DRAG_MOVE' | 'DRAG_END';
+export type CommandType = 'SELECT' | 'DRAG_MOVE' | 'DRAG_END' | 'GROUP_CREATE' | 'GROUP_DELETE' | 'GROUP_ADD' | 'GROUP_REMOVE' | 'GROUP_CLEAR';
 
 export type SelectionMode = 'element' | 'group';
 export type SelectionGesture = 'click' | 'rect' | 'lasso';
@@ -34,7 +34,44 @@ export interface DragEndCommand {
   };
 }
 
-export type Command = SelectCommand | DragMoveCommand | DragEndCommand;
+export interface GroupCreateCommand {
+  type: 'GROUP_CREATE';
+  options: {
+    name?: string;
+  };
+}
+
+export interface GroupDeleteCommand {
+  type: 'GROUP_DELETE';
+  options: {
+    groupId: string;
+  };
+}
+
+export interface GroupAddCommand {
+  type: 'GROUP_ADD';
+  options: {
+    groupId: string;
+    elementIds: string[];
+  };
+}
+
+export interface GroupRemoveCommand {
+  type: 'GROUP_REMOVE';
+  options: {
+    groupId: string;
+    elementIds: string[];
+  };
+}
+
+export interface GroupClearCommand {
+  type: 'GROUP_CLEAR';
+  options: {
+    groupId: string;
+  };
+}
+
+export type Command = SelectCommand | DragMoveCommand | DragEndCommand | GroupCreateCommand | GroupDeleteCommand | GroupAddCommand | GroupRemoveCommand | GroupClearCommand;
 
 export interface SnapshotEntry {
   id: string;
