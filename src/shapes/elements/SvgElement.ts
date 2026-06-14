@@ -92,7 +92,10 @@ export abstract class SvgElement implements DirtyTracker {
 
     const m = this.toDOMMatrix();
 
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const p of pts) {
       const pt = m.transformPoint({ x: p.x, y: p.y });
       if (pt.x < minX) minX = pt.x;
@@ -140,7 +143,7 @@ export abstract class SvgElement implements DirtyTracker {
     this.applyTransform(`translate(${dx}, ${dy})`);
   }
 
-  protected flattenTranslateDelta(_dx: number, _dy: number): void { }
+  protected flattenTranslateDelta(_dx: number, _dy: number): void {}
 
   protected getAttrAsNum(name: string, fallback: number): number {
     const v = this.element.getAttribute(name);

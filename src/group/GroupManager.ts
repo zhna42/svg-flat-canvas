@@ -12,7 +12,11 @@ export class GroupManager {
   public readonly selectedGroupIds = new Set<string>();
   public onGroupSelect: ((ids: string[]) => void) | null = null;
   public onConflict:
-    | ((elementId: string, fromGroup: string, toGroup: string) => GroupConflictAction | null)
+    | ((
+        elementId: string,
+        fromGroup: string,
+        toGroup: string,
+      ) => GroupConflictAction | null)
     | null = null;
   public conflictSuppressed = false;
 
@@ -33,8 +37,14 @@ export class GroupManager {
   }
 
   private updateOverlay(): void {
-    const selected = this.groupList().filter((g) => this.selectedGroupIds.has(g.id));
-    this.overlay.update(selected, (id) => this.findElement(id));
+    const selected = this.groupList().filter((g) =>
+      this.selectedGroupIds.has(g.id),
+    );
+    this.overlay.sync(selected, (id) => this.findElement(id));
+  }
+
+  public refreshOverlay(): void {
+    this.updateOverlay();
   }
 
   public setSelectedGroupIds(ids: string[]): void {
@@ -70,8 +80,13 @@ export class GroupManager {
   // ---- CRUD ----
 
   public createGroup(name?: string): string {
-    const id = 'grp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-    const g = new Group({ id, name: name || `Group-${this.groups.size + 1}`, elementIds: [] });
+    const id =
+      'grp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const g = new Group({
+      id,
+      name: name || `Group-${this.groups.size + 1}`,
+      elementIds: [],
+    });
     this.groups.set(id, g);
     this.notify();
     return id;
@@ -163,7 +178,9 @@ export class GroupManager {
     this.groups.clear();
 
     for (const d of data) {
-      const validIds = d.elementIds.filter((eid) => this.findElement(eid) !== undefined);
+      const validIds = d.elementIds.filter(
+        (eid) => this.findElement(eid) !== undefined,
+      );
       this.groups.set(d.id, new Group({ ...d, elementIds: validIds }));
     }
 
@@ -197,6 +214,5 @@ export class GroupManager {
     return this.getElements().find((e) => e.id === id);
   }
 
-  public destroy(): void {
-  }
+  public destroy(): void {}
 }

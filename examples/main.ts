@@ -1,4 +1,5 @@
 import { SvgCanvas } from '../src/index';
+import { Events } from '../src/core/EventBus';
 import { svgNodesToElements } from '../src/dto/svg-node-factory';
 import type { SvgNodeDto } from '../src/dto/svg-node-dto';
 import nodesData from './svg-nodes.json';
@@ -42,9 +43,9 @@ canvas.setGroups(groupsData);
 info(`Loaded ${canvas.groups.length} groups from groups.json`);
 
 // ----- selection debug -----
-canvas.onSelectionChange = (selected) => {
+canvas.on(Events.SelectionChange, (selected) => {
   info(`Selection: ${selected.map((s) => s.id).join(', ') || '(none)'}`);
-};
+});
 
 // ----- selection mode toggle -----
 function setMode(mode: 'element' | 'group') {

@@ -32,7 +32,13 @@ export class PolylineElement extends SvgElement {
       return { nx: -d.dy * halfSw, ny: d.dx * halfSw };
     };
 
-    const miter = (p: Point, pnx: number, pny: number, nnx: number, nny: number) => {
+    const miter = (
+      p: Point,
+      pnx: number,
+      pny: number,
+      nnx: number,
+      nny: number,
+    ) => {
       const mx = (pnx + nnx) / 2;
       const my = (pny + nny) / 2;
       const len = Math.sqrt(mx * mx + my * my);
@@ -42,37 +48,83 @@ export class PolylineElement extends SvgElement {
     };
 
     // start butt cap
-    const startDir = dir(rawPoints[0].x, rawPoints[0].y, rawPoints[1].x, rawPoints[1].y);
-    const startN = { nx: -startDir.dy * halfSw, ny: startDir.dx * halfSw };
-    left.push(
-      { x: rawPoints[0].x + startN.nx - startDir.dx * halfSw, y: rawPoints[0].y + startN.ny - startDir.dy * halfSw },
+    const startDir = dir(
+      rawPoints[0].x,
+      rawPoints[0].y,
+      rawPoints[1].x,
+      rawPoints[1].y,
     );
+    const startN = { nx: -startDir.dy * halfSw, ny: startDir.dx * halfSw };
+    left.push({
+      x: rawPoints[0].x + startN.nx - startDir.dx * halfSw,
+      y: rawPoints[0].y + startN.ny - startDir.dy * halfSw,
+    });
     left.push({ x: rawPoints[0].x + startN.nx, y: rawPoints[0].y + startN.ny });
 
     // middle points — miter join
     for (let i = 1; i < rawPoints.length - 1; i++) {
-      const pn = perp(rawPoints[i - 1].x, rawPoints[i - 1].y, rawPoints[i].x, rawPoints[i].y);
-      const nn = perp(rawPoints[i].x, rawPoints[i].y, rawPoints[i + 1].x, rawPoints[i + 1].y);
+      const pn = perp(
+        rawPoints[i - 1].x,
+        rawPoints[i - 1].y,
+        rawPoints[i].x,
+        rawPoints[i].y,
+      );
+      const nn = perp(
+        rawPoints[i].x,
+        rawPoints[i].y,
+        rawPoints[i + 1].x,
+        rawPoints[i + 1].y,
+      );
       left.push(miter(rawPoints[i], pn.nx, pn.ny, nn.nx, nn.ny));
     }
 
     // end point
-    const endDir = dir(rawPoints[rawPoints.length - 2].x, rawPoints[rawPoints.length - 2].y, rawPoints[rawPoints.length - 1].x, rawPoints[rawPoints.length - 1].y);
+    const endDir = dir(
+      rawPoints[rawPoints.length - 2].x,
+      rawPoints[rawPoints.length - 2].y,
+      rawPoints[rawPoints.length - 1].x,
+      rawPoints[rawPoints.length - 1].y,
+    );
     const endN = { nx: -endDir.dy * halfSw, ny: endDir.dx * halfSw };
-    left.push({ x: rawPoints[rawPoints.length - 1].x + endN.nx, y: rawPoints[rawPoints.length - 1].y + endN.ny });
+    left.push({
+      x: rawPoints[rawPoints.length - 1].x + endN.nx,
+      y: rawPoints[rawPoints.length - 1].y + endN.ny,
+    });
 
     // end butt cap
-    right.push({ x: rawPoints[rawPoints.length - 1].x + endDir.dx * halfSw - endN.nx, y: rawPoints[rawPoints.length - 1].y + endDir.dy * halfSw - endN.ny });
-    right.push({ x: rawPoints[rawPoints.length - 1].x - endN.nx, y: rawPoints[rawPoints.length - 1].y - endN.ny });
+    right.push({
+      x: rawPoints[rawPoints.length - 1].x + endDir.dx * halfSw - endN.nx,
+      y: rawPoints[rawPoints.length - 1].y + endDir.dy * halfSw - endN.ny,
+    });
+    right.push({
+      x: rawPoints[rawPoints.length - 1].x - endN.nx,
+      y: rawPoints[rawPoints.length - 1].y - endN.ny,
+    });
 
     for (let i = rawPoints.length - 2; i >= 1; i--) {
-      const pn = perp(rawPoints[i - 1].x, rawPoints[i - 1].y, rawPoints[i].x, rawPoints[i].y);
-      const nn = perp(rawPoints[i].x, rawPoints[i].y, rawPoints[i + 1].x, rawPoints[i + 1].y);
+      const pn = perp(
+        rawPoints[i - 1].x,
+        rawPoints[i - 1].y,
+        rawPoints[i].x,
+        rawPoints[i].y,
+      );
+      const nn = perp(
+        rawPoints[i].x,
+        rawPoints[i].y,
+        rawPoints[i + 1].x,
+        rawPoints[i + 1].y,
+      );
       right.push(miter(rawPoints[i], -pn.nx, -pn.ny, -nn.nx, -nn.ny));
     }
 
-    right.push({ x: rawPoints[0].x - startN.nx, y: rawPoints[0].y - startN.ny });
-    right.push({ x: rawPoints[0].x - startDir.dx * halfSw - startN.nx, y: rawPoints[0].y - startDir.dy * halfSw - startN.ny });
+    right.push({
+      x: rawPoints[0].x - startN.nx,
+      y: rawPoints[0].y - startN.ny,
+    });
+    right.push({
+      x: rawPoints[0].x - startDir.dx * halfSw - startN.nx,
+      y: rawPoints[0].y - startDir.dy * halfSw - startN.ny,
+    });
 
     this._hitArea = [...left, ...right];
   }
@@ -99,7 +151,11 @@ export class PolylineElement extends SvgElement {
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
     const pointsAttr = this.element.getAttribute('points') || '';
-    const nums = pointsAttr.trim().split(/[\s,]+/).map(Number).filter((n) => !isNaN(n));
+    const nums = pointsAttr
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter((n) => !isNaN(n));
     for (let i = 0; i < nums.length; i += 2) {
       nums[i] += dx;
       if (i + 1 < nums.length) nums[i + 1] += dy;

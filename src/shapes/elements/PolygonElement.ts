@@ -44,7 +44,11 @@ export class PolygonElement extends SvgElement {
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
     const pointsAttr = this.element.getAttribute('points') || '';
-    const nums = pointsAttr.trim().split(/[\s,]+/).map(Number).filter((n) => !isNaN(n));
+    const nums = pointsAttr
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter((n) => !isNaN(n));
     for (let i = 0; i < nums.length; i += 2) {
       nums[i] += dx;
       if (i + 1 < nums.length) nums[i + 1] += dy;

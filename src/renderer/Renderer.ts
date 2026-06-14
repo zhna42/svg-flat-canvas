@@ -77,12 +77,15 @@ export class Renderer {
 
       const pending = this.queue.drain();
       for (const el of pending) {
-        const tx = el._translate.x;
-        const ty = el._translate.y;
-        if (tx !== 0 || ty !== 0) {
-          el.element.setAttribute('transform', `translate(${tx}, ${ty})`);
+        const tx = (el as any)._translate?.x;
+        const ty = (el as any)._translate?.y;
+        if (tx !== undefined && (tx !== 0 || ty !== 0)) {
+          (el as any).element.setAttribute(
+            'transform',
+            `translate(${tx}, ${ty})`,
+          );
         }
-        el.markClean();
+        if ('markClean' in el) el.markClean();
       }
       // Also re-render selection overlay when elements are dirty
       if (pending.length > 0) {

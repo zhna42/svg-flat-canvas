@@ -129,7 +129,10 @@ export class PathElement extends SvgElement {
       return;
     }
 
-    const isClosed = cmds.length > 0 && (cmds[cmds.length - 1].command === 'Z' || cmds[cmds.length - 1].command === 'z');
+    const isClosed =
+      cmds.length > 0 &&
+      (cmds[cmds.length - 1].command === 'Z' ||
+        cmds[cmds.length - 1].command === 'z');
 
     if (isClosed) {
       this._hitArea = this.offsetPolygon(flat, offset);
@@ -157,7 +160,13 @@ export class PathElement extends SvgElement {
       return { nx: -d.dy * offset, ny: d.dx * offset };
     };
 
-    const miter = (p: Point, pnx: number, pny: number, nnx: number, nny: number) => {
+    const miter = (
+      p: Point,
+      pnx: number,
+      pny: number,
+      nnx: number,
+      nny: number,
+    ) => {
       const mx = (pnx + nnx) / 2;
       const my = (pny + nny) / 2;
       const len = Math.sqrt(mx * mx + my * my);
@@ -169,9 +178,10 @@ export class PathElement extends SvgElement {
     // start butt cap
     const startDir = dir(poly[0].x, poly[0].y, poly[1].x, poly[1].y);
     const startN = { nx: -startDir.dy * offset, ny: startDir.dx * offset };
-    left.push(
-      { x: poly[0].x + startN.nx - startDir.dx * offset, y: poly[0].y + startN.ny - startDir.dy * offset },
-    );
+    left.push({
+      x: poly[0].x + startN.nx - startDir.dx * offset,
+      y: poly[0].y + startN.ny - startDir.dy * offset,
+    });
     left.push({ x: poly[0].x + startN.nx, y: poly[0].y + startN.ny });
 
     for (let i = 1; i < poly.length - 1; i++) {
@@ -180,14 +190,28 @@ export class PathElement extends SvgElement {
       left.push(miter(poly[i], pn.nx, pn.ny, nn.nx, nn.ny));
     }
 
-    const endDir = dir(poly[poly.length - 2].x, poly[poly.length - 2].y, poly[poly.length - 1].x, poly[poly.length - 1].y);
+    const endDir = dir(
+      poly[poly.length - 2].x,
+      poly[poly.length - 2].y,
+      poly[poly.length - 1].x,
+      poly[poly.length - 1].y,
+    );
     const endN = { nx: -endDir.dy * offset, ny: endDir.dx * offset };
-    left.push({ x: poly[poly.length - 1].x + endN.nx, y: poly[poly.length - 1].y + endN.ny });
+    left.push({
+      x: poly[poly.length - 1].x + endN.nx,
+      y: poly[poly.length - 1].y + endN.ny,
+    });
 
     // end butt cap
-    right.push({ x: poly[poly.length - 1].x + endDir.dx * offset - endN.nx, y: poly[poly.length - 1].y + endDir.dy * offset - endN.ny });
+    right.push({
+      x: poly[poly.length - 1].x + endDir.dx * offset - endN.nx,
+      y: poly[poly.length - 1].y + endDir.dy * offset - endN.ny,
+    });
 
-    right.push({ x: poly[poly.length - 1].x - endN.nx, y: poly[poly.length - 1].y - endN.ny });
+    right.push({
+      x: poly[poly.length - 1].x - endN.nx,
+      y: poly[poly.length - 1].y - endN.ny,
+    });
 
     for (let i = poly.length - 2; i >= 1; i--) {
       const pn = perp(poly[i - 1].x, poly[i - 1].y, poly[i].x, poly[i].y);
@@ -196,7 +220,10 @@ export class PathElement extends SvgElement {
     }
 
     right.push({ x: poly[0].x - startN.nx, y: poly[0].y - startN.ny });
-    right.push({ x: poly[0].x - startDir.dx * offset - startN.nx, y: poly[0].y - startDir.dy * offset - startN.ny });
+    right.push({
+      x: poly[0].x - startDir.dx * offset - startN.nx,
+      y: poly[0].y - startDir.dy * offset - startN.ny,
+    });
 
     return [...left, ...right];
   }
@@ -222,7 +249,14 @@ export class PathElement extends SvgElement {
     this.applyMatrixToD(1, 0, 0, 1, dx, dy);
   }
 
-  public applyMatrixToD(a: number, b: number, c: number, d: number, e: number, f: number): void {
+  public applyMatrixToD(
+    a: number,
+    b: number,
+    c: number,
+    d: number,
+    e: number,
+    f: number,
+  ): void {
     const m = new DOMMatrix([a, b, c, d, e, f]);
     const cmds = this.parsedD.commands.map((cmd) => {
       if (cmd.command === 'M' || cmd.command === 'L') {
@@ -259,7 +293,18 @@ export class PathElement extends SvgElement {
       }
       if (cmd.command === 'A') {
         const pt = m.transformPoint({ x: cmd.args[5], y: cmd.args[6] });
-        return { command: 'A', args: [cmd.args[0], cmd.args[1], cmd.args[2], cmd.args[3], cmd.args[4], pt.x, pt.y] };
+        return {
+          command: 'A',
+          args: [
+            cmd.args[0],
+            cmd.args[1],
+            cmd.args[2],
+            cmd.args[3],
+            cmd.args[4],
+            pt.x,
+            pt.y,
+          ],
+        };
       }
       return cmd;
     });

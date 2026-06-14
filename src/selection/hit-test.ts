@@ -39,10 +39,18 @@ function rectContainsPoly(
 }
 
 function segmentIntersectsRect(
-  a: Point, b: Point,
-  left: number, right: number, top: number, bottom: number,
+  a: Point,
+  b: Point,
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
 ): boolean {
-  const INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8;
+  const INSIDE = 0,
+    LEFT = 1,
+    RIGHT = 2,
+    BOTTOM = 4,
+    TOP = 8;
   const code = (p: Point): number => {
     let c = INSIDE;
     if (p.x < left) c |= LEFT;
@@ -51,26 +59,41 @@ function segmentIntersectsRect(
     else if (p.y > bottom) c |= BOTTOM;
     return c;
   };
-  let ca = code(a), cb = code(b);
+  let ca = code(a),
+    cb = code(b);
   while (true) {
     if ((ca | cb) === 0) return true;
     if ((ca & cb) !== 0) return false;
     const out = ca !== 0 ? ca : cb;
     let p: Point;
-    if (out & TOP) p = { x: a.x + (b.x - a.x) * (top - a.y) / (b.y - a.y), y: top };
-    else if (out & BOTTOM) p = { x: a.x + (b.x - a.x) * (bottom - a.y) / (b.y - a.y), y: bottom };
-    else if (out & RIGHT) p = { x: right, y: a.y + (b.y - a.y) * (right - a.x) / (b.x - a.x) };
-    else p = { x: left, y: a.y + (b.y - a.y) * (left - a.x) / (b.x - a.x) };
-    if (out === ca) { a = p; ca = code(a); }
-    else { b = p; cb = code(b); }
+    if (out & TOP)
+      p = { x: a.x + ((b.x - a.x) * (top - a.y)) / (b.y - a.y), y: top };
+    else if (out & BOTTOM)
+      p = { x: a.x + ((b.x - a.x) * (bottom - a.y)) / (b.y - a.y), y: bottom };
+    else if (out & RIGHT)
+      p = { x: right, y: a.y + ((b.y - a.y) * (right - a.x)) / (b.x - a.x) };
+    else p = { x: left, y: a.y + ((b.y - a.y) * (left - a.x)) / (b.x - a.x) };
+    if (out === ca) {
+      a = p;
+      ca = code(a);
+    } else {
+      b = p;
+      cb = code(b);
+    }
   }
 }
 
 function rectIntersectsPoly(
-  rx: number, ry: number, rw: number, rh: number,
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
   poly: Point[],
 ): boolean {
-  const left = rx, right = rx + rw, top = ry, bottom = ry + rh;
+  const left = rx,
+    right = rx + rw,
+    top = ry,
+    bottom = ry + rh;
 
   for (const p of poly) {
     if (p.x >= left && p.x <= right && p.y >= top && p.y <= bottom) {
@@ -130,7 +153,9 @@ export function hitTestPoint(
 
   if (hits.length > 1 && cameraGroup) {
     const children = Array.from(cameraGroup.children);
-    hits.sort((a, b) => children.indexOf(a.element) - children.indexOf(b.element));
+    hits.sort(
+      (a, b) => children.indexOf(a.element) - children.indexOf(b.element),
+    );
   }
 
   return hits;

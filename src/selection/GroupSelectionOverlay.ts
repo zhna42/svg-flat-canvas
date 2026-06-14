@@ -2,74 +2,119 @@ import { SVG_NS } from '@/constants';
 import type { Camera } from '@/camera/Camera';
 import type { Group } from '@/group/Group';
 import type { SvgElement } from '@/shapes/elements/SvgElement';
+import { GroupSelectionRect, setGroupRectQueue } from './GroupSelectionRect';
+import { RenderQueue } from '@/renderer/RenderQueue';
+
+function computeGroupBBox(
+  g: Group,
+  findElement: (id: string) => SvgElement | undefined,
+  _z: number,
+): { x: number; y: number; width: number; height: number } | null {
+  if (g.elementIds.size === 0) return null;
+
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  let hasAny = false;
+
+  for (const elId of g.elementIds) {
+    const el = findElement(elId);
+    if (!el) continue;
+    const bbox = el.getTransformedBBox();
+    if (bbox.width === 0 && bbox.height === 0) continue;
+    hasAny = true;
+    const tx = el._translate.x;
+    const ty = el._translate.y;
+    if (bbox.x + tx < minX) minX = bbox.x + tx;
+    if (bbox.y + ty < minY) minY = bbox.y + ty;
+    if (bbox.x + bbox.width + tx > maxX) maxX = bbox.x + bbox.width + tx;
+    if (bbox.y + bbox.height + ty > maxY) maxY = bbox.y + bbox.height + ty;
+  }
+
+  if (!hasAny) return null;
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
 
 export class GroupSelectionOverlay {
   private readonly group: SVGGElement;
   private readonly camera: Camera;
+  private rects = new Map<string, GroupSelectionRect>();
 
-  public constructor(camera: Camera) {
+  public constructor(camera: Camera, queue: RenderQueue) {
     this.camera = camera;
+    setGroupRectQueue(queue);
     this.group = document.createElementNS(SVG_NS, 'g');
     this.group.setAttribute('pointer-events', 'none');
+  }
+
+  private strokeWidth(z: number): string {
+    return String(1.5 / z);
+  }
+
+  private dashArray(z: number): string {
+    return String(6 / z) + ' ' + String(3 / z);
+  }
+
+  public sync(
+    groups: Group[],
+    findElement: (id: string) => SvgElement | undefined,
+  ): void {
+    const z = this.camera.zoom;
+    const pad = 2 / z;
+    const needed = new Set(groups.map((g) => g.id));
+
+    // remove stale rects
+    for (const [id, rect] of this.rects) {
+      if (!needed.has(id)) {
+        rect.destroy();
+        this.rects.delete(id);
+      }
+    }
+
+    // add / update rects
+    for (const g of groups) {
+      const bbox = computeGroupBBox(g, findElement, z);
+      if (!bbox) continue;
+
+      let rect = this.rects.get(g.id);
+      if (!rect) {
+        rect = new GroupSelectionRect();
+        rect.element.setAttribute('stroke-width', this.strokeWidth(z));
+        rect.element.setAttribute('stroke-dasharray', this.dashArray(z));
+        this.group.appendChild(rect.toDOM());
+        this.rects.set(g.id, rect);
+      }
+
+      rect.element.setAttribute('x', String(bbox.x - pad));
+      rect.element.setAttribute('y', String(bbox.y - pad));
+      rect.element.setAttribute('width', String(bbox.width + pad * 2));
+      rect.element.setAttribute('height', String(bbox.height + pad * 2));
+    }
+  }
+
+  public translateRect(groupId: string, dx: number, dy: number): void {
+    const rect = this.rects.get(groupId);
+    if (rect) rect.applyDelta(dx, dy);
+  }
+
+  public clear(): void {
+    for (const rect of this.rects.values()) {
+      rect.destroy();
+    }
+    this.rects.clear();
   }
 
   public getElement(): SVGGElement {
     return this.group;
   }
 
-  public update(groups: Group[], findElement: (id: string) => SvgElement | undefined): void {
-    while (this.group.firstChild) {
-      this.group.removeChild(this.group.firstChild);
-    }
-
-    if (groups.length === 0) return;
-
-    const z = this.camera.zoom;
-
-    for (const g of groups) {
-      const bbox = this.computeGroupBBox(g, findElement);
-      if (!bbox) continue;
-
-      const pad = 2 / z;
-      const rect = document.createElementNS(SVG_NS, 'rect');
-      rect.setAttribute('x', String(bbox.x - pad));
-      rect.setAttribute('y', String(bbox.y - pad));
-      rect.setAttribute('width', String(bbox.width + pad * 2));
-      rect.setAttribute('height', String(bbox.height + pad * 2));
-      rect.setAttribute('fill', 'none');
-      rect.setAttribute('stroke', '#4285f4');
-      rect.setAttribute('stroke-width', String(1.5 / z));
-      rect.setAttribute('stroke-dasharray', String(6 / z) + ' ' + String(3 / z));
-      this.group.appendChild(rect);
-    }
-  }
-
-  private computeGroupBBox(
-    g: Group,
-    findElement: (id: string) => SvgElement | undefined,
-  ): { x: number; y: number; width: number; height: number } | null {
-    if (g.elementIds.size === 0) return null;
-
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    let hasAny = false;
-
-    for (const elId of g.elementIds) {
-      const el = findElement(elId);
-      if (!el) continue;
-      const bbox = el.getTransformedBBox();
-      if (bbox.width === 0 && bbox.height === 0) continue;
-      hasAny = true;
-      if (bbox.x < minX) minX = bbox.x;
-      if (bbox.y < minY) minY = bbox.y;
-      if (bbox.x + bbox.width > maxX) maxX = bbox.x + bbox.width;
-      if (bbox.y + bbox.height > maxY) maxY = bbox.y + bbox.height;
-    }
-
-    if (!hasAny) return null;
-    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  public getRect(id: string): GroupSelectionRect | undefined {
+    return this.rects.get(id);
   }
 
   public destroy(): void {
+    this.clear();
     this.group.remove();
   }
 }

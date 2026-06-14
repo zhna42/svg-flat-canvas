@@ -37,7 +37,10 @@ export class SelectionOverlay {
       rect.setAttribute('fill', 'none');
       rect.setAttribute('stroke', '#4285f4');
       rect.setAttribute('stroke-width', String(4 / this.camera.zoom));
-      rect.setAttribute('stroke-dasharray', String(4 / this.camera.zoom) + ' ' + String(2 / this.camera.zoom));
+      rect.setAttribute(
+        'stroke-dasharray',
+        String(4 / this.camera.zoom) + ' ' + String(2 / this.camera.zoom),
+      );
       rect.setAttribute('pointer-events', 'none');
       this.group.appendChild(rect);
     }
