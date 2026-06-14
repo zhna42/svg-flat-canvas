@@ -55,6 +55,17 @@ export class Camera {
     };
   }
 
+  public toDTO(): Record<string, unknown> {
+    return { x: this.x, y: this.y, zoom: this.zoom };
+  }
+
+  public applyDTO(dto: Record<string, unknown>): void {
+    if (typeof dto.x === 'number') this.x = dto.x;
+    if (typeof dto.y === 'number') this.y = dto.y;
+    if (typeof dto.zoom === 'number') this.zoom = dto.zoom;
+    this._dirty = true;
+  }
+
   public fitToViewport(
     contentWidth: number,
     contentHeight: number,

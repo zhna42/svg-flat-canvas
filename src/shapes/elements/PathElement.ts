@@ -14,6 +14,11 @@ export class PathElement extends SvgElement {
     super(id, 'path', 'path');
   }
 
+  protected onDTOApplied(): void {
+    this._parsedPath = null;
+    this._dirtyPath = true;
+  }
+
   public get parsedD(): ParsedPath {
     if (this._parsedPath === null || this._dirtyPath) {
       this._parsedPath = this.parseD(this.element.getAttribute('d') || '');

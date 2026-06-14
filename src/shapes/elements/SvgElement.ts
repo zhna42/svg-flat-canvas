@@ -210,6 +210,53 @@ export abstract class SvgElement implements DirtyTracker {
     };
   }
 
+  public applyDTO(dto: Record<string, unknown>): void {
+    const attrs = dto.attributes as Record<string, string> | undefined;
+    if (attrs) {
+      for (const [key, value] of Object.entries(attrs)) {
+        this.element.setAttribute(key, value);
+      }
+    }
+    if (typeof dto.groupId === 'string') this.groupId = dto.groupId;
+    if (typeof dto.name === 'string') this.name = dto.name;
+    if (typeof dto.visible === 'boolean') this.visible = dto.visible;
+    if (typeof dto.lock === 'boolean') this.lock = dto.lock;
+    if (dto.data && typeof dto.data === 'object') this.data = { ...(dto.data as Record<string, unknown>) };
+    if (typeof dto.textContent === 'string' && this.element.textContent !== null) {
+      this.element.textContent = dto.textContent;
+    }
+    this._translate.x = 0;
+    this._translate.y = 0;
+    this._hitArea = [];
+    this._dirty = true;
+    this.onDTOApplied();
+  }
+
+  public toDTO(): Record<string, unknown> {
+    const attrs: Record<string, string> = {};
+    for (let i = 0; i < this.element.attributes.length; i++) {
+      const attr = this.element.attributes[i];
+      attrs[attr.name] = attr.value;
+    }
+
+    const result: Record<string, unknown> = {
+      id: this.id,
+      type: this.type,
+      attributes: attrs,
+      groupId: this.groupId,
+      name: this.name,
+      visible: this.visible,
+      lock: this.lock,
+      data: { ...this.data },
+    };
+
+    if (this.element.textContent) {
+      result.textContent = this.element.textContent;
+    }
+
+    return result;
+  }
+
   public clone(): SvgElement {
     const cloned = this.createClone();
     cloned.groupId = this.groupId;
@@ -224,7 +271,9 @@ export abstract class SvgElement implements DirtyTracker {
 
   protected abstract createClone(): SvgElement;
 
-  protected setDirty(): void {
+  protected onDTOApplied(): void {}
+
+  public setDirty(): void {
     this._dirty = true;
     globalQueue?.add(this);
   }

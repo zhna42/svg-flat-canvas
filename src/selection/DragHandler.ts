@@ -58,7 +58,6 @@ export class DragHandler {
     currentSelected: readonly SvgElement[],
   ): void {
     if (currentSelected.length === 0) return;
-    console.log('[DragHandler] startWithoutCheck targets=' + currentSelected.map(e => e.id).join(','));
     this._active = true;
     this.prevWorld = { ...worldPoint };
     this.targets = Array.from(currentSelected);
@@ -70,7 +69,6 @@ export class DragHandler {
     const dx = worldPoint.x - this.prevWorld.x;
     const dy = worldPoint.y - this.prevWorld.y;
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
-    console.log('[DragHandler] move delta=' + dx.toFixed(1) + ',' + dy.toFixed(1) + ' ids=' + this.targets.map(e => e.id).join(','));
     const ids = this.targets.map((e) => e.id);
     const cmd = createDragMoveCommand('element', { x: dx, y: dy }, ids);
     this.bus.execute(cmd);
@@ -81,7 +79,6 @@ export class DragHandler {
 
   public end(): void {
     if (!this._active) return;
-    console.log('[DragHandler] end ids=' + this.targets.map(e => e.id).join(','));
     this._active = false;
 
     const ids = this.targets.map((e) => e.id);

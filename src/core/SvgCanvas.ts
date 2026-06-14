@@ -23,7 +23,8 @@ import {
 } from '@/group';
 import type { Group } from '@/group';
 import { EventBus, Events } from './EventBus';
-import { CommandBus, CommandHistory } from '@/commands';
+import { CommandBus } from '@/commands';
+import { TimeMachine, type TimeMachineRecord } from '@/time-machine';
 import {
   createGroupCreateCommand,
   createGroupDeleteCommand,
@@ -49,7 +50,7 @@ export class SvgCanvas {
   private readonly debugOverlay: DebugOverlay;
   private readonly groupManager: GroupManager;
   private readonly commandBus: CommandBus;
-  private readonly commandHistory: CommandHistory;
+  private readonly timeMachine: TimeMachine;
   private _debugShowHitArea: boolean;
 
   public readonly panActive = { value: false };
@@ -64,8 +65,13 @@ export class SvgCanvas {
     this.eventManager = new EventManager(this.svg);
     this.selectionState = new SelectionState();
     this.spatialGrid = new SpatialGrid(800, 600, 100);
-    this.commandHistory = new CommandHistory();
-    this.commandBus = new CommandBus(this.commandHistory);
+
+    this.timeMachine = new TimeMachine(
+      () => this.shapeManager.getAll(),
+      (dto) => this.applyEntityDTO('element', dto),
+      100,
+    );
+    this.commandBus = new CommandBus(this.timeMachine);
     this.commandBus.register(
       'SELECT',
       createSelectHandler({
@@ -81,7 +87,6 @@ export class SvgCanvas {
     );
     const dragCtx = {
       getElements: () => this.shapeManager.getAll(),
-      history: this.commandHistory,
       onDragEnd: (_ids: string[]) => {
         this.reindexSpatialGrid();
         this.events.emit(Events.DragEnd, undefined);
@@ -116,9 +121,13 @@ export class SvgCanvas {
         return g?.id;
       },
       onGroupSelect,
-      onDragStart: () => this.events.emit(Events.DragStart, undefined),
+      onDragStart: () => {
+        this.events.emit(Events.DragStart, undefined);
+      },
       onDragMove,
-      onDragEnd: () => this.events.emit(Events.DragEnd, undefined),
+      onDragEnd: () => {
+        this.events.emit(Events.DragEnd, undefined);
+      },
     });
 
     this.element.appendChild(this.svg);
@@ -194,6 +203,7 @@ export class SvgCanvas {
       this.shapeManager.add(el);
       this.indexShape(el);
     }
+    this.timeMachine.captureRoot();
   }
 
   public setArtboardSize(widthMM: number, heightMM: number): void {
@@ -267,8 +277,40 @@ export class SvgCanvas {
     return this.commandBus;
   }
 
-  public getCommandHistory(): CommandHistory {
-    return this.commandHistory;
+  public getTimeMachine(): TimeMachine {
+    return this.timeMachine;
+  }
+
+  // ---- Undo / Redo ----
+
+  public undo(): void {
+    this.selectionState.clear();
+    this.groupManager.clearSelectedGroups();
+    this.timeMachine.undo();
+    this.reindexSpatialGrid();
+    for (const el of this.shapeManager.getAll()) {
+      el.setDirty();
+      el.markClean();
+    }
+  }
+
+  public redo(): void {
+    this.selectionState.clear();
+    this.groupManager.clearSelectedGroups();
+    this.timeMachine.redo();
+    this.reindexSpatialGrid();
+    for (const el of this.shapeManager.getAll()) {
+      el.setDirty();
+      el.markClean();
+    }
+  }
+
+  public get canUndo(): boolean {
+    return this.timeMachine.canUndo;
+  }
+
+  public get canRedo(): boolean {
+    return this.timeMachine.canRedo;
   }
 
   public get debugShowHitArea(): boolean {
@@ -292,6 +334,7 @@ export class SvgCanvas {
 
   public setGroups(data: GroupData[]): void {
     this.groupManager.setGroups(data);
+    this.timeMachine.captureRoot();
   }
 
   public createGroup(name?: string): string {
@@ -390,6 +433,19 @@ export class SvgCanvas {
     this.groupManager.conflictSuppressed = v;
   }
 
+  // ---- TimeMachine serialization ----
+
+  public saveTimeMachine(): TimeMachineRecord[] {
+    return this.timeMachine.toJSON();
+  }
+
+  public loadTimeMachine(records: TimeMachineRecord[]): void {
+    this.shapeManager.clear();
+    this.groupManager.setGroups([]);
+    this.spatialGrid.clear();
+    this.timeMachine.fromJSON(records);
+  }
+
   public destroy(): void {
     this.renderer.destroy();
     this.eventManager.destroy();
@@ -422,5 +478,30 @@ export class SvgCanvas {
       const bbox = el.getBBox();
       this.spatialGrid.insert(el.id, bbox.x, bbox.y, bbox.width, bbox.height);
     }
+  }
+
+  private applyEntityDTO(_kind: string, dto: Record<string, unknown>): void {
+      const id = dto.id as string;
+      let el = this.shapeManager.getAll().find((e) => e.id === id);
+      if (!el) {
+        const type = dto.type as string;
+        const attrs = (dto.attributes ?? {}) as Record<string, string>;
+        const elementJSON: ElementJSON = {
+          id,
+          type: type as any,
+          attributes: attrs,
+          groupId: dto.groupId as string | undefined,
+          name: dto.name as string | undefined,
+          visible: dto.visible as boolean | undefined,
+          lock: dto.lock as boolean | undefined,
+          data: dto.data as Record<string, unknown> | undefined,
+          textContent: dto.textContent as string | undefined,
+        };
+        el = createFromJSONArray([elementJSON])[0];
+        this.shapeManager.add(el);
+        this.indexShape(el);
+      } else {
+        el.applyDTO(dto);
+      }
   }
 }

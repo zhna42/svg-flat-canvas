@@ -20,4 +20,19 @@ export class RenderQueue {
   public clear(): void {
     this.set.clear();
   }
+
+  public drainForced(): void {
+    const items = this.drain();
+    for (const el of items) {
+      const tx = (el as any)._translate?.x;
+      const ty = (el as any)._translate?.y;
+      if (tx !== undefined && (tx !== 0 || ty !== 0)) {
+        (el as any).element.setAttribute(
+          'transform',
+          `translate(${tx}, ${ty})`,
+        );
+      }
+      if ('markClean' in el) el.markClean();
+    }
+  }
 }

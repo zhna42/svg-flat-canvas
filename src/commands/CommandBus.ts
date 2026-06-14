@@ -1,13 +1,13 @@
 import type { Command } from './types';
 import type { CommandHandler, CommandRegistry } from './registry';
-import { CommandHistory } from './CommandHistory';
+import type { TimeMachine } from '@/time-machine';
 
 export class CommandBus {
   private readonly handlers: CommandRegistry = {};
-  private readonly history: CommandHistory;
+  private readonly timeMachine: TimeMachine;
 
-  public constructor(history?: CommandHistory) {
-    this.history = history ?? new CommandHistory();
+  public constructor(timeMachine: TimeMachine) {
+    this.timeMachine = timeMachine;
   }
 
   public register(type: string, handler: CommandHandler): void {
@@ -20,10 +20,15 @@ export class CommandBus {
       console.warn(`[CommandBus] No handler for type: ${command.type}`);
       return;
     }
+
     handler(command);
+
+    if (command.type === 'DRAG_MOVE' || command.type === 'SELECT') return;
+
+    this.timeMachine.push(command.type);
   }
 
-  public getHistory(): CommandHistory {
-    return this.history;
+  public getTimeMachine(): TimeMachine {
+    return this.timeMachine;
   }
 }

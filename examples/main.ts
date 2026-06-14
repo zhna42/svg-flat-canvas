@@ -246,5 +246,23 @@ document.getElementById('btn-group-remove')!.onclick = () => {
   info(`Removed ${selected.length} element(s) from group`);
 };
 
+// ----- undo/redo keyboard shortcuts -----
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  const isCmd = e.metaKey || e.ctrlKey;
+  if (isCmd && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    if (canvas.canUndo) {
+      canvas.undo();
+      info('Undo');
+    }
+  } else if ((isCmd && e.key === 'z' && e.shiftKey) || (isCmd && e.key === 'y')) {
+    e.preventDefault();
+    if (canvas.canRedo) {
+      canvas.redo();
+      info('Redo');
+    }
+  }
+});
+
 canvas.onGroupsChange = renderGroupList;
 renderGroupList();

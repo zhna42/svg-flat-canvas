@@ -22,4 +22,18 @@ export class Group {
       elementIds: Array.from(this.elementIds),
     };
   }
+
+  public toDTO(): Record<string, unknown> {
+    return this.toData() as unknown as Record<string, unknown>;
+  }
+
+  public applyDTO(dto: Record<string, unknown>): void {
+    if (typeof dto.name === 'string') this.name = dto.name;
+    if (Array.isArray(dto.elementIds)) {
+      this.elementIds.clear();
+      for (const id of dto.elementIds) {
+        if (typeof id === 'string') this.elementIds.add(id);
+      }
+    }
+  }
 }

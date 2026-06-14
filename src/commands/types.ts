@@ -72,14 +72,3 @@ export interface GroupClearCommand {
 }
 
 export type Command = SelectCommand | DragMoveCommand | DragEndCommand | GroupCreateCommand | GroupDeleteCommand | GroupAddCommand | GroupRemoveCommand | GroupClearCommand;
-
-export interface SnapshotEntry {
-  id: string;
-  properties: Record<string, unknown>;
-}
-
-export interface CommandSnapshot {
-  type: CommandType;
-  before: SnapshotEntry[];
-  after: SnapshotEntry[];
-}

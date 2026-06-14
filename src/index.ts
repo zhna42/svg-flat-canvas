@@ -22,7 +22,7 @@ export type {
 } from '@/selection';
 export type { Group, GroupData, GroupConflictAction } from '@/group';
 
-export { CommandBus, CommandHistory } from '@/commands';
+export { CommandBus } from '@/commands';
 export type {
   Command,
   CommandType,
@@ -35,18 +35,8 @@ export type {
   GroupRemoveCommand,
   GroupClearCommand,
   SelectionGesture,
-  CommandSnapshot,
-  SnapshotEntry,
 } from '@/commands';
-export {
-  createSelectPickCommand,
-  createSelectRectCommand,
-  createSelectLassoCommand,
-  createDragMoveCommand,
-  createDragEndCommand,
-  createGroupCreateCommand,
-  createGroupDeleteCommand,
-  createGroupAddCommand,
-  createGroupRemoveCommand,
-  createGroupClearCommand,
-} from '@/commands';
+
+export { TimeMachine } from '@/time-machine';
+export type { TimeMachineRecord } from '@/time-machine';
+export type { EntityKind } from '@/time-machine/types';

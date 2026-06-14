@@ -11,13 +11,10 @@ export type {
   GroupClearCommand,
   SelectionMode,
   SelectionGesture,
-  SnapshotEntry,
-  CommandSnapshot,
 } from './types';
 
 export type { CommandHandler, CommandRegistry } from './registry';
 export { CommandBus } from './CommandBus';
-export { CommandHistory } from './CommandHistory';
 
 export {
   createSelectPickCommand,
