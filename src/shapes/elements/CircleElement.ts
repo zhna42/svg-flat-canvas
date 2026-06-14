@@ -52,4 +52,12 @@ export class CircleElement extends SvgElement {
     this.element.setAttribute('cx', String(cx));
     this.element.setAttribute('cy', String(cy));
   }
+
+  public flattenTransformToAttrs(): void {
+    const bbox = this.getTransformedBBox();
+    this.element.setAttribute('cx', String(bbox.x + bbox.width / 2));
+    this.element.setAttribute('cy', String(bbox.y + bbox.height / 2));
+    this.element.setAttribute('r', String(Math.max(bbox.width, bbox.height) / 2));
+    super.flattenTransformToAttrs();
+  }
 }

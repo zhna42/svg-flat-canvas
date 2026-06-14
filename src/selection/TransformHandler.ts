@@ -9,7 +9,7 @@ export class TransformHandler {
   private _active = false;
   private _mode: TransformMode = 'resize';
   private handle: HandlePosition = 'se';
-  private originBBoxes = new Map<string, { x: number; y: number; w: number; h: number }>();
+  private origins = new Map<string, { x: number; y: number; w: number; h: number; tx: number; ty: number; sx: number; sy: number }>();
   private targets: SvgElement[] = [];
   private startPoint = { x: 0, y: 0 };
 
@@ -28,10 +28,14 @@ export class TransformHandler {
     currentSelected: readonly SvgElement[],
   ): boolean {
     this._mode = handle === 'rotate' ? 'rotate' : 'resize';
-    this.originBBoxes.clear();
+    this.origins.clear();
     for (const el of currentSelected) {
-      const b = el.getTransformedBBox();
-      this.originBBoxes.set(el.id, { x: b.x, y: b.y, w: b.width, h: b.height });
+      const bbox = el.getTransformedBBox();
+      const uw = bbox.width / el._scaleX;
+      const uh = bbox.height / el._scaleY;
+      const ux = bbox.x - el._translate.x;
+      const uy = bbox.y - el._translate.y;
+      this.origins.set(el.id, { x: ux, y: uy, w: uw, h: uh, tx: el._translate.x, ty: el._translate.y, sx: el._scaleX, sy: el._scaleY });
     }
     this._active = true;
     this.handle = handle;
@@ -57,66 +61,34 @@ export class TransformHandler {
     if (!this._active) return;
     this._active = false;
     for (const el of this.targets) {
-      el.flushTransformToCoords();
+      el.buildHitArea();
+      el.setDirty();
     }
-    this.originBBoxes.clear();
+    this.origins.clear();
     this.onTransformEnd?.(this._mode);
   }
 
   public abort(): void {
     this._active = false;
-    this.originBBoxes.clear();
+    this.origins.clear();
   }
 
   private applyResizePreview(dx: number, dy: number): void {
     for (const el of this.targets) {
-      const orig = this.originBBoxes.get(el.id);
-      if (!orig) continue;
-
-      let w = orig.w, h = orig.h;
-      const flipW = this.handle === 'w' || this.handle === 'nw' || this.handle === 'sw';
-      const flipH = this.handle === 'n' || this.handle === 'nw' || this.handle === 'ne';
-
-      if (flipW) { w = orig.w - dx; }
-      else if (this.handle === 'e' || this.handle === 'ne' || this.handle === 'se') { w = orig.w + dx; }
-
-      if (flipH) { h = orig.h - dy; }
-      else if (this.handle === 's' || this.handle === 'se' || this.handle === 'sw') { h = orig.h + dy; }
-
-      w = Math.max(10, w);
-      h = Math.max(10, h);
-
-      const sx = w / orig.w;
-      const sy = h / orig.h;
-
-      let pinX = orig.x, pinY = orig.y;
-      if (flipW) pinX = orig.x + orig.w;
-      if (flipH) pinY = orig.y + orig.h;
-
-      el.element.setAttribute(
-        'transform',
-        `translate(${pinX}, ${pinY}) scale(${sx}, ${sy}) translate(${-pinX}, ${-pinY})`,
-      );
-      el.invalidateHitArea();
-      el.buildHitArea();
-      el.setDirty();
+      const o = this.origins.get(el.id);
+      if (!o) continue;
+      el.applyTransformOp({ type: 'resize', handle: this.handle, dx, dy, ox: o.x, oy: o.y, ow: o.w, oh: o.h, otx: o.tx, oty: o.ty, osx: o.sx, osy: o.sy });
     }
   }
 
   private applyRotatePreview(worldPoint: { x: number; y: number }): void {
     for (const el of this.targets) {
-      const orig = this.originBBoxes.get(el.id);
-      if (!orig) continue;
-      const cx = orig.x + orig.w / 2;
-      const cy = orig.y + orig.h / 2;
+      const o = this.origins.get(el.id);
+      if (!o) continue;
+      const cx = o.x + o.w / 2 + o.tx;
+      const cy = o.y + o.h / 2 + o.ty;
       const angle = Math.atan2(worldPoint.y - cy, worldPoint.x - cx) * (180 / Math.PI) + 90;
-      const last = (el as any)._lastAngle ?? angle;
-      el.element.setAttribute('transform', '');
-      el.rotate(angle - last, cx, cy);
-      (el as any)._lastAngle = angle;
-      el.invalidateHitArea();
-      el.buildHitArea();
-      el.setDirty();
+      el.applyTransformOp({ type: 'rotate', angle, cx, cy });
     }
   }
 }

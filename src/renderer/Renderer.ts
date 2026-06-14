@@ -87,19 +87,21 @@ export class Renderer {
 
       const pending = this.queue.drain();
       for (const el of pending) {
-        const tx = (el as any)._translate?.x;
-        const ty = (el as any)._translate?.y;
-        if (tx !== undefined && (tx !== 0 || ty !== 0)) {
-          (el as any).element.setAttribute(
-            'transform',
-            `translate(${tx}, ${ty})`,
-          );
-        }
+        const tx = (el as any)._translate?.x ?? 0;
+        const ty = (el as any)._translate?.y ?? 0;
+        const sx = (el as any)._scaleX ?? 1;
+        const sy = (el as any)._scaleY ?? 1;
+        const rot = (el as any)._rotate ?? 0;
+        const rcx = (el as any)._rotateCx ?? 0;
+        const rcy = (el as any)._rotateCy ?? 0;
+
+        let t = '';
+        if (tx !== 0 || ty !== 0) t += `translate(${tx},${ty}) `;
+        if (sx !== 1 || sy !== 1) t += `scale(${sx},${sy}) `;
+        if (rot !== 0) t += `rotate(${rot},${rcx},${rcy})`;
+
+        (el as any).element.setAttribute('transform', t.trim());
         if ('markClean' in el) el.markClean();
-      }
-      // Also re-render selection overlay when elements are dirty
-      if (pending.length > 0) {
-        // this is just a render tick; overlay update is triggered externally
       }
 
       this.rafId = requestAnimationFrame(tick);

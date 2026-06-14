@@ -72,4 +72,24 @@ export class LineElement extends SvgElement {
     this.element.setAttribute('x2', String(x2));
     this.element.setAttribute('y2', String(y2));
   }
+
+  public flattenTransformToAttrs(): void {
+    const bbox = this.getTransformedBBox();
+    const x1 = this.getAttrAsNum('x1', 0);
+    const y1 = this.getAttrAsNum('y1', 0);
+    const x2 = this.getAttrAsNum('x2', 0);
+    const y2 = this.getAttrAsNum('y2', 0);
+    const cx = (x1 + x2) / 2;
+    const cy = (y1 + y2) / 2;
+    const halfDx = (x2 - x1) / 2;
+    const halfDy = (y2 - y1) / 2;
+    const scaleX = bbox.width / (Math.abs(halfDx) * 2 || 1);
+    const scaleY = bbox.height / (Math.abs(halfDy) * 2 || 1);
+    const s = Math.max(scaleX, scaleY);
+    this.element.setAttribute('x1', String(cx - halfDx * s));
+    this.element.setAttribute('y1', String(cy - halfDy * s));
+    this.element.setAttribute('x2', String(cx + halfDx * s));
+    this.element.setAttribute('y2', String(cy + halfDy * s));
+    super.flattenTransformToAttrs();
+  }
 }

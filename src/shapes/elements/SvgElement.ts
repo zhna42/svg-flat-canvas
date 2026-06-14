@@ -1,5 +1,5 @@
 import { SVG_NS } from '@/constants';
-import type { Point, BoundingBox, DirtyTracker, ElementType } from '@/types';
+import type { Point, BoundingBox, DirtyTracker, ElementType, TransformOp } from '@/types';
 import { RenderQueue } from '@/renderer/RenderQueue';
 
 let globalQueue: RenderQueue | null = null;
@@ -24,6 +24,12 @@ export abstract class SvgElement implements DirtyTracker {
   protected _dirty = false;
   protected _hitArea: Point[] = [];
   public readonly _translate = { x: 0, y: 0 };
+  public _scaleX = 1;
+  public _scaleY = 1;
+  public _rotate = 0;
+  public _rotateCx = 0;
+  public _rotateCy = 0;
+  public onDirty: (() => void) | null = null;
 
   public constructor(id: string, type: ElementType, tag: string) {
     this.id = id;
@@ -61,13 +67,53 @@ export abstract class SvgElement implements DirtyTracker {
     this.setDirty();
   }
 
+  public applyTransformOp(op: TransformOp): void {
+    switch (op.type) {
+      case 'translate':
+        this.applyDelta(op.dx, op.dy);
+        break;
+      case 'resize': {
+        const { handle, dx, dy, ox, oy, ow, oh, otx, oty, osx, osy } = op;
+        let w = ow, h = oh;
+        const flipW = handle === 'w' || handle === 'nw' || handle === 'sw';
+        const flipH = handle === 'n' || handle === 'nw' || handle === 'ne';
+        if (flipW) { w = ow - dx / osx; }
+        else if (handle === 'e' || handle === 'ne' || handle === 'se') { w = ow + dx / osx; }
+        if (flipH) { h = oh - dy / osy; }
+        else if (handle === 's' || handle === 'se' || handle === 'sw') { h = oh + dy / osy; }
+        w = Math.max(10 / osx, w);
+        h = Math.max(10 / osy, h);
+        const sx = (w / ow) * osx;
+        const sy = (h / oh) * osy;
+        let pinX = ox, pinY = oy;
+        if (flipW) pinX = ox + ow;
+        if (flipH) pinY = oy + oh;
+        this._scaleX = sx;
+        this._scaleY = sy;
+        this._translate.x = otx + pinX - pinX * sx / osx;
+        this._translate.y = oty + pinY - pinY * sy / osy;
+        this.setDirty();
+        break;
+      }
+      case 'rotate': {
+        this._rotate = op.angle;
+        this._rotateCx = op.cx;
+        this._rotateCy = op.cy;
+        this.setDirty();
+        break;
+      }
+    }
+  }
+
   public flushTransformToCoords(): void {
-    if (this._translate.x === 0 && this._translate.y === 0) return;
     this.flattenTranslateDelta(this._translate.x, this._translate.y);
+    if (this._scaleX === 1 && this._scaleY === 1 && this._rotate === 0) {
+      this.element.removeAttribute('transform');
+    }
     this._translate.x = 0;
     this._translate.y = 0;
-    this.element.removeAttribute('transform');
     this.invalidateHitArea();
+    this.setDirty();
   }
 
   public abstract buildHitArea(): void;
@@ -80,34 +126,39 @@ export abstract class SvgElement implements DirtyTracker {
 
   public toDOMMatrix(): DOMMatrix {
     const t = this.element.getAttribute('transform');
-    if (!t || !t.startsWith('matrix(')) return new DOMMatrix();
-    const nums = t.slice(7, -1).split(',').map(Number);
-    if (nums.length !== 6) return new DOMMatrix();
-    return new DOMMatrix(nums);
+    if (!t) return new DOMMatrix();
+    try {
+      return new DOMMatrix(t);
+    } catch {
+      return new DOMMatrix();
+    }
   }
 
   public getTransformedBBox(): BoundingBox {
     const pts = this.hitArea;
     if (pts.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
 
-    const m = this.toDOMMatrix();
+    const cos = Math.cos((this._rotate * Math.PI) / 180);
+    const sin = Math.sin((this._rotate * Math.PI) / 180);
 
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
       maxY = -Infinity;
     for (const p of pts) {
-      const pt = m.transformPoint({ x: p.x, y: p.y });
-      if (pt.x < minX) minX = pt.x;
-      if (pt.y < minY) minY = pt.y;
-      if (pt.x > maxX) maxX = pt.x;
-      if (pt.y > maxY) maxY = pt.y;
+      const dx = p.x - this._rotateCx;
+      const dy = p.y - this._rotateCy;
+      const rx = dx * cos - dy * sin;
+      const ry = dx * sin + dy * cos;
+      const sx = rx * this._scaleX;
+      const sy = ry * this._scaleY;
+      const px = sx + this._rotateCx + this._translate.x;
+      const py = sy + this._rotateCy + this._translate.y;
+      if (px < minX) minX = px;
+      if (py < minY) minY = py;
+      if (px > maxX) maxX = px;
+      if (py > maxY) maxY = py;
     }
-
-    minX += this._translate.x;
-    minY += this._translate.y;
-    maxX += this._translate.x;
-    maxY += this._translate.y;
 
     return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   }
@@ -150,6 +201,17 @@ export abstract class SvgElement implements DirtyTracker {
   }
 
   protected flattenTranslateDelta(_dx: number, _dy: number): void {}
+
+  public flattenTransformToAttrs(): void {
+    this._scaleX = 1;
+    this._scaleY = 1;
+    this._rotate = 0;
+    this._translate.x = 0;
+    this._translate.y = 0;
+    this.element.removeAttribute('transform');
+    this.invalidateHitArea();
+    this.setDirty();
+  }
 
   protected getAttrAsNum(name: string, fallback: number): number {
     const v = this.element.getAttribute(name);
@@ -282,6 +344,7 @@ export abstract class SvgElement implements DirtyTracker {
   public setDirty(): void {
     this._dirty = true;
     globalQueue?.add(this);
+    this.onDirty?.();
   }
 
   protected getStrokeWidth(): number {

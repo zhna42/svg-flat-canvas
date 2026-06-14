@@ -83,6 +83,9 @@ export class SvgCanvas {
       },
     });
     this.selectionState.setOnChange((selected) => {
+      for (const el of selected) {
+        el.onDirty = () => this.selectionOverlay.setPositions(this.selectionState.selected);
+      }
       this.selectionOverlay.setElements(selected);
       this.events.emit(Events.SelectionChange, selected);
     });
@@ -135,13 +138,6 @@ export class SvgCanvas {
       onDragMove: () => this.events.emit(Events.DragMove, undefined),
       onDragEnd: () => this.events.emit(Events.DragEnd, undefined),
     });
-
-    this.events.on(Events.DragMove, () => {
-      this.selectionOverlay.setPositions(this.selectionState.selected);
-      this.selectionOverlay.showHandles(false);
-    });
-    this.events.on(Events.DragEnd, () => this.selectionOverlay.showHandles(true));
-    this.events.on(Events.TransformMove, () => this.selectionOverlay.setPositions(this.selectionState.selected));
 
     // Transform mousemove/mouseup
     this.svg.addEventListener('mousemove', (e: MouseEvent) => {

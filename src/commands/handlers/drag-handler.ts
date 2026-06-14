@@ -25,11 +25,11 @@ export function createDragEndHandler(ctx: DragHandlerContext): CommandHandler {
     if (command.type !== 'DRAG_END') return;
     const { elementIds } = command.options;
     const all = ctx.getElements();
-    const targets = elementIds
-      .map((id) => all.find((e) => e.id === id))
-      .filter((e): e is SvgElement => !!e);
-    for (const el of targets) {
-      el.flushTransformToCoords();
+    for (const id of elementIds) {
+      const el = all.find((e) => e.id === id);
+      if (!el) continue;
+      el.buildHitArea();
+      el.setDirty();
     }
     ctx.onDragEnd?.(elementIds);
   };

@@ -67,10 +67,16 @@ export class SelectionOverlay {
   }
 
   public setPositions(elements: readonly SvgElement[]): void {
+    const pad = 2 / this.camera.zoom;
     for (let i = 0; i < elements.length && i < this.elementGroups.length; i++) {
       const bbox = elements[i].getTransformedBBox();
       const eg = this.elementGroups[i];
       eg.group.setAttribute('transform', `translate(${bbox.x},${bbox.y})`);
+      const rect = eg.group.children[0] as SVGRectElement;
+      if (rect) {
+        rect.setAttribute('width', String(bbox.width + pad * 2));
+        rect.setAttribute('height', String(bbox.height + pad * 2));
+      }
     }
   }
 

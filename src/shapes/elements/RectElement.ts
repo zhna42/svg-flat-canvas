@@ -122,4 +122,13 @@ export class RectElement extends SvgElement {
     this.element.setAttribute('x', String(x));
     this.element.setAttribute('y', String(y));
   }
+
+  public flattenTransformToAttrs(): void {
+    const bbox = this.getTransformedBBox();
+    this.element.setAttribute('x', String(bbox.x));
+    this.element.setAttribute('y', String(bbox.y));
+    this.element.setAttribute('width', String(bbox.width));
+    this.element.setAttribute('height', String(bbox.height));
+    super.flattenTransformToAttrs();
+  }
 }
