@@ -5,14 +5,14 @@ import type { SvgNodeDto } from '../src/dto/svg-node-dto';
 import nodesData from './svg-nodes.json';
 import groupsData from './groups.json';
 
-const canvas = new SvgCanvas(document.getElementById('app')!, {
+const canvas = new SvgCanvas(document.getElementById('canvas-container')!, {
   width: 800,
   height: 600,
 });
 
 canvas.setArtboardSize(210, 297);
 
-const log = document.getElementById('console')!;
+const log = document.getElementById('info')!;
 function info(msg: string) {
   log.textContent += '\n' + msg;
   log.scrollTop = log.scrollHeight;
@@ -245,6 +245,62 @@ document.getElementById('btn-group-remove')!.onclick = () => {
   renderGroupList();
   info(`Removed ${selected.length} element(s) from group`);
 };
+
+// ----- transform buttons -----
+document.getElementById('btn-transform-resize')!.onclick = () => {
+  const sel = canvas.getSelected();
+  if (sel.length === 0) { info('No element selected'); return; }
+  const el = sel[0];
+  const bbox = el.getTransformedBBox();
+  canvas.resizeElement(el.id, bbox.width * 1.2, bbox.height * 1.2);
+  canvas.getTimeMachine().push('RESIZE');
+  info(`Resized ${el.id} +20%`);
+};
+document.getElementById('btn-transform-rotate')!.onclick = () => {
+  const sel = canvas.getSelected();
+  if (sel.length === 0) { info('No element selected'); return; }
+  const el = sel[0];
+  const bbox = el.getBBox();
+  canvas.rotateElement(el.id, 15, bbox.x + bbox.width / 2, bbox.y + bbox.height / 2);
+  canvas.getTimeMachine().push('ROTATE');
+  info(`Rotated ${el.id} 15deg`);
+};
+document.getElementById('btn-transform-matrix')!.onclick = () => {
+  const sel = canvas.getSelected();
+  if (sel.length === 0) { info('No element selected'); return; }
+  const el = sel[0];
+  canvas.transformElement(el.id, [1, 0.2, 0, 1, 0, 0]);
+  canvas.getTimeMachine().push('TRANSFORM');
+  info(`Applied matrix skew to ${el.id}`);
+};
+
+// ----- delete keyboard -----
+window.addEventListener('keydown', (e: KeyboardEvent) => {
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    if (!e.target || (e.target as HTMLElement).tagName === 'BODY') {
+      const mode = canvas.getSelectionMode();
+      if (mode === 'group') {
+        const gids = canvas.getSelectedGroupIds();
+        if (gids.length > 0) {
+          e.preventDefault();
+          for (const gid of gids) {
+            const ids = canvas.getElementIdsInGroup(gid);
+            if (ids.length > 0) canvas.deleteElements(ids);
+            canvas.deleteGroup(gid);
+          }
+          info(`Deleted ${gids.length} group(s)`);
+        }
+      } else {
+        const selected = Array.from(canvas.getSelected());
+        if (selected.length > 0) {
+          e.preventDefault();
+          canvas.deleteElements(selected.map((s) => s.id));
+          info(`Deleted ${selected.length} element(s)`);
+        }
+      }
+    }
+  }
+});
 
 // ----- undo/redo keyboard shortcuts -----
 window.addEventListener('keydown', (e: KeyboardEvent) => {

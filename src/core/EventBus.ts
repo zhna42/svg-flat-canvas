@@ -5,6 +5,9 @@ export enum Events {
   DragStart = 'dragStart',
   DragMove = 'dragMove',
   DragEnd = 'dragEnd',
+  TransformStart = 'transformStart',
+  TransformMove = 'transformMove',
+  TransformEnd = 'transformEnd',
 }
 
 export interface EventMap {
@@ -14,6 +17,9 @@ export interface EventMap {
   [Events.DragStart]: void;
   [Events.DragMove]: void;
   [Events.DragEnd]: void;
+  [Events.TransformStart]: import('@/selection/TransformHandler').TransformMode;
+  [Events.TransformMove]: void;
+  [Events.TransformEnd]: import('@/selection/TransformHandler').TransformMode;
 }
 
 type Listener<T> = (data: T) => void;

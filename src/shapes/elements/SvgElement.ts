@@ -103,6 +103,12 @@ export abstract class SvgElement implements DirtyTracker {
       if (pt.x > maxX) maxX = pt.x;
       if (pt.y > maxY) maxY = pt.y;
     }
+
+    minX += this._translate.x;
+    minY += this._translate.y;
+    maxX += this._translate.x;
+    maxY += this._translate.y;
+
     return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   }
 

@@ -5,10 +5,3 @@ export interface EntitySnapshot {
   kind: EntityKind;
   dto: Record<string, unknown>;
 }
-
-export interface TimeMachineRecordOld {
-  type: string;
-  before: EntitySnapshot[];
-  after: EntitySnapshot[];
-  timestamp: number;
-}

@@ -11,7 +11,7 @@ export class ShapeManager {
 
   public add(shape: SvgElement): void {
     this.shapes.push(shape);
-    this.renderer.addElement(shape.element);
+    this.renderer.addElementShaped(shape.element);
   }
 
   public remove(id: string): void {

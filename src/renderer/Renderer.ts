@@ -12,6 +12,7 @@ export class Renderer {
   private readonly camera: Camera;
   private readonly artboard: Artboard;
   private readonly queue: RenderQueue;
+  private overlayAnchor: SVGGElement | null = null;
 
   private rafId: number | null = null;
 
@@ -58,6 +59,15 @@ export class Renderer {
 
   public appendOverlay(element: SVGElement): void {
     this.cameraGroup.appendChild(element);
+    this.overlayAnchor = element as unknown as SVGGElement;
+  }
+
+  public addElementShaped(element: SVGElement): void {
+    if (this.overlayAnchor) {
+      this.cameraGroup.insertBefore(element, this.overlayAnchor);
+    } else {
+      this.cameraGroup.appendChild(element);
+    }
   }
 
   public destroy(): void {
