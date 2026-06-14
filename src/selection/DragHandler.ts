@@ -1,29 +1,33 @@
 import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { CommandBus } from '@/commands/CommandBus';
+import { createDragMoveCommand, createDragEndCommand } from '@/commands/factories/drag-command-factory';
 
 export class DragHandler {
-  private readonly getElements: () => readonly SvgElement[];
-  private readonly getGroupElementIds: () => string[];
   private _active = false;
   private prevWorld = { x: 0, y: 0 };
   private targets: SvgElement[] = [];
+  private bus: CommandBus;
 
   public onDragStart: (() => void) | null = null;
   public onDragMove: (() => void) | null = null;
   public onDragEnd: (() => void) | null = null;
 
-  public constructor(
-    getElements: () => readonly SvgElement[],
-    getGroupElementIds: () => string[],
-  ) {
-    this.getElements = getElements;
-    this.getGroupElementIds = getGroupElementIds;
+  public constructor(bus: CommandBus) {
+    this.bus = bus;
   }
 
   public get isActive(): boolean {
     return this._active;
   }
 
-  public tryStart(worldPoint: { x: number; y: number }, currentSelected: readonly SvgElement[]): boolean {
+  public get targetIds(): string[] {
+    return this.targets.map((e) => e.id);
+  }
+
+  public tryStart(
+    worldPoint: { x: number; y: number },
+    currentSelected: readonly SvgElement[],
+  ): boolean {
     if (currentSelected.length === 0) return false;
 
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
@@ -45,20 +49,20 @@ export class DragHandler {
       return false;
     }
 
+    this.startWithoutCheck(worldPoint, currentSelected);
+    return true;
+  }
+
+  public startWithoutCheck(
+    worldPoint: { x: number; y: number },
+    currentSelected: readonly SvgElement[],
+  ): void {
+    if (currentSelected.length === 0) return;
+    console.log('[DragHandler] startWithoutCheck targets=' + currentSelected.map(e => e.id).join(','));
     this._active = true;
     this.prevWorld = { ...worldPoint };
-
-    const groupIds = this.getGroupElementIds();
-    if (groupIds.length > 0) {
-      const all = this.getElements();
-      const groupSet = new Set(groupIds);
-      this.targets = all.filter((e) => groupSet.has(e.id));
-    } else {
-      this.targets = Array.from(currentSelected);
-    }
-
+    this.targets = Array.from(currentSelected);
     this.onDragStart?.();
-    return true;
   }
 
   public move(worldPoint: { x: number; y: number }): void {
@@ -66,23 +70,31 @@ export class DragHandler {
     const dx = worldPoint.x - this.prevWorld.x;
     const dy = worldPoint.y - this.prevWorld.y;
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    console.log('[DragHandler] move delta=' + dx.toFixed(1) + ',' + dy.toFixed(1) + ' ids=' + this.targets.map(e => e.id).join(','));
+    const ids = this.targets.map((e) => e.id);
+    const cmd = createDragMoveCommand('element', { x: dx, y: dy }, ids);
+    this.bus.execute(cmd);
 
-    for (const el of this.targets) {
-      el.applyDelta(dx, dy);
-    }
     this.prevWorld = { ...worldPoint };
     this.onDragMove?.();
   }
 
   public end(): void {
     if (!this._active) return;
+    console.log('[DragHandler] end ids=' + this.targets.map(e => e.id).join(','));
     this._active = false;
 
-    for (const el of this.targets) {
-      el.flushTransformToCoords();
-    }
+    const ids = this.targets.map((e) => e.id);
+    const cmd = createDragEndCommand(ids);
+    this.bus.execute(cmd);
+
     this.targets = [];
     this.onDragEnd?.();
   }
-}
 
+  public abort(): void {
+    if (!this._active) return;
+    this._active = false;
+    this.targets = [];
+  }
+}

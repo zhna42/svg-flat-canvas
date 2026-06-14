@@ -21,3 +21,22 @@ export type {
   SelectionShortcuts,
 } from '@/selection';
 export type { Group, GroupData, GroupConflictAction } from '@/group';
+
+export { CommandBus, CommandHistory } from '@/commands';
+export type {
+  Command,
+  CommandType,
+  SelectCommand,
+  DragMoveCommand,
+  DragEndCommand,
+  SelectionGesture,
+  CommandSnapshot,
+  SnapshotEntry,
+} from '@/commands';
+export {
+  createSelectPickCommand,
+  createSelectRectCommand,
+  createSelectLassoCommand,
+  createDragMoveCommand,
+  createDragEndCommand,
+} from '@/commands';

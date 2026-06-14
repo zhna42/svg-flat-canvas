@@ -12,12 +12,20 @@ import { SelectionHandler } from '@/selection/handlers/SelectionHandler';
 import type { SelectionMode } from '@/selection/SelectionMode';
 import type { SelectionFilter } from '@/selection/selection-filter';
 import type { SelectionShortcuts } from '@/selection/selection-defaults';
-import type { SelectionGesture } from '@/selection';
+import type { SelectionGesture } from '@/commands';
 import { SelectionOverlay } from '@/selection/SelectionOverlay';
 import { GroupSelectionOverlay } from '@/selection/GroupSelectionOverlay';
 import { DebugOverlay } from '@/debug/DebugOverlay';
-import { GroupManager, type GroupData, type GroupConflictAction } from '@/group';
+import {
+  GroupManager,
+  type GroupData,
+  type GroupConflictAction,
+} from '@/group';
 import type { Group } from '@/group';
+import { EventBus, Events } from './EventBus';
+import { CommandBus, CommandHistory } from '@/commands';
+import { createSelectHandler } from '@/commands/handlers/select-handler';
+import { createDragMoveHandler, createDragEndHandler } from '@/commands/handlers/drag-handler';
 
 export class SvgCanvas {
   private readonly element: HTMLElement;
@@ -32,9 +40,12 @@ export class SvgCanvas {
   private readonly selectionOverlay: SelectionOverlay;
   private readonly debugOverlay: DebugOverlay;
   private readonly groupManager: GroupManager;
+  private readonly commandBus: CommandBus;
+  private readonly commandHistory: CommandHistory;
   private _debugShowHitArea: boolean;
 
   public readonly panActive = { value: false };
+  public readonly events = new EventBus();
 
   public constructor(container: HTMLElement, options?: SvgCanvasOptions) {
     this.element = container;
@@ -45,37 +56,69 @@ export class SvgCanvas {
     this.eventManager = new EventManager(this.svg);
     this.selectionState = new SelectionState();
     this.spatialGrid = new SpatialGrid(800, 600, 100);
+    this.commandHistory = new CommandHistory();
+    this.commandBus = new CommandBus(this.commandHistory);
+    this.commandBus.register(
+      'SELECT',
+      createSelectHandler({
+        state: this.selectionState,
+        getElements: () => this.shapeManager.getAll(),
+        grid: this.spatialGrid,
+        cameraGroup: this.renderer.getCameraGroup(),
+        lookupGroup: (elementId) => {
+          const g = this.groupManager.getGroupByElement(elementId);
+          return g?.id;
+        },
+      }),
+    );
+    const dragCtx = {
+      getElements: () => this.shapeManager.getAll(),
+      history: this.commandHistory,
+      onDragEnd: (_ids: string[]) => {
+        this.reindexSpatialGrid();
+        this.events.emit(Events.DragEnd, undefined);
+      },
+    };
+    this.commandBus.register('DRAG_MOVE', createDragMoveHandler(dragCtx));
+    this.commandBus.register('DRAG_END', createDragEndHandler(dragCtx));
 
-    this.selectionHandler = new SelectionHandler(
-      this.svg,
-      this.renderer.getCameraGroup(),
-      this.camera,
-      this.selectionState,
-      () => this.shapeManager.getAll(),
-      this.spatialGrid,
-      () => this.panActive.value,
-      undefined,
-      (elementId) => {
+    const panActive = this.panActive;
+    const onGroupSelect = (ids: string[]): void => {
+      this.selectionState.clear();
+      this.groupManager.setSelectedGroupIds(ids);
+      this.events.emit(Events.GroupSelect, ids);
+    };
+    const onDragMove = (): void => {
+      this.selectionOverlay.update(this.selectionState.selected);
+      this.groupManager.refreshOverlay();
+      this.events.emit(Events.DragMove, undefined);
+    };
+
+    this.selectionHandler = new SelectionHandler({
+      svg: this.svg,
+      cameraGroup: this.renderer.getCameraGroup(),
+      camera: this.camera,
+      state: this.selectionState,
+      getElements: () => this.shapeManager.getAll(),
+      grid: this.spatialGrid,
+      bus: this.commandBus,
+      isPanning: () => panActive.value,
+      getGroupIdForElement: (elementId) => {
         const g = this.groupManager.getGroupByElement(elementId);
         return g?.id;
       },
-    );
-    this.selectionHandler.onGroupSelect = (ids) => {
-      this.groupManager.setSelectedGroupIds(ids);
-    };
-    this.selectionHandler.onDragStart = () => this.onDragStart?.();
-    this.selectionHandler.onDragMove = () => {
-      this.selectionOverlay.update(this.selectionState.selected);
-      this.onDragMove?.();
-    };
-    this.selectionHandler.onDragEnd = () => {
-      this.reindexSpatialGrid();
-      this.onDragEnd?.();
-    };
+      onGroupSelect,
+      onDragStart: () => this.events.emit(Events.DragStart, undefined),
+      onDragMove,
+      onDragEnd: () => this.events.emit(Events.DragEnd, undefined),
+    });
 
     this.element.appendChild(this.svg);
 
-    const overlaysGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const overlaysGroup = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'g',
+    );
     this.renderer.appendOverlay(overlaysGroup);
 
     this.selectionOverlay = new SelectionOverlay(this.camera);
@@ -85,12 +128,17 @@ export class SvgCanvas {
     overlaysGroup.appendChild(this.debugOverlay.getElement());
     this._debugShowHitArea = options?.debugShowHitArea ?? false;
 
-    const groupOverlay = new GroupSelectionOverlay(this.camera);
+    const groupOverlay = new GroupSelectionOverlay(
+      this.camera,
+      this.renderer.getQueue(),
+    );
     overlaysGroup.appendChild(groupOverlay.getElement());
 
-    this.groupManager = new GroupManager(
-      groupOverlay,
-      () => this.shapeManager.getAll(),
+    this.groupManager = new GroupManager(groupOverlay, () =>
+      this.shapeManager.getAll(),
+    );
+    this.groupManager.setOnChange(() =>
+      this.events.emit(Events.GroupsChange, undefined),
     );
 
     const updateOverlay = (): void => {
@@ -101,11 +149,14 @@ export class SvgCanvas {
     };
     this.selectionState.setOnChange(updateOverlay);
 
-    const origSetOnChange = this.selectionState.setOnChange.bind(this.selectionState);
+    const origSetOnChange = this.selectionState.setOnChange.bind(
+      this.selectionState,
+    );
     this.selectionState.setOnChange = (fn) => {
       origSetOnChange((selected) => {
         fn?.(selected);
         updateOverlay();
+        this.events.emit(Events.SelectionChange, selected);
       });
     };
   }
@@ -170,6 +221,22 @@ export class SvgCanvas {
     return this.selectionState.selected;
   }
 
+  // ---- EventBus shorthands ----
+
+  public on<E extends Events>(
+    event: E,
+    fn: (data: import('./EventBus').EventMap[E]) => void,
+  ): () => void {
+    return this.events.on(event, fn as any);
+  }
+
+  public off<E extends Events>(
+    event: E,
+    fn: (data: import('./EventBus').EventMap[E]) => void,
+  ): void {
+    this.events.off(event, fn as any);
+  }
+
   public setSelectionShortcuts(s: Partial<SelectionShortcuts>): void {
     this.selectionHandler.setShortcuts(s);
   }
@@ -180,6 +247,14 @@ export class SvgCanvas {
 
   public getSelectionGesture(): SelectionGesture {
     return this.selectionHandler.getGesture();
+  }
+
+  public getCommandBus(): CommandBus {
+    return this.commandBus;
+  }
+
+  public getCommandHistory(): CommandHistory {
+    return this.commandHistory;
   }
 
   public get debugShowHitArea(): boolean {
@@ -194,12 +269,6 @@ export class SvgCanvas {
       this.debugOverlay.update([]);
     }
   }
-
-  // ---- Drag API ----
-
-  public onDragStart: (() => void) | null = null;
-  public onDragMove: (() => void) | null = null;
-  public onDragEnd: (() => void) | null = null;
 
   // ---- Group API ----
 
@@ -251,12 +320,16 @@ export class SvgCanvas {
     this.groupManager.setSelectedGroupIds(ids);
   }
 
-  public getSelectedGroupIds(): string[] {
-    return Array.from(this.groupManager.selectedGroupIds);
+  public selectGroupWithElements(id: string): void {
+    this.groupManager.setSelectedGroupIds([id]);
+    const ids = this.groupManager.getElementIdsInGroup(id);
+    const all = this.shapeManager.getAll();
+    const elements = all.filter((e) => ids.includes(e.id));
+    this.selectionState.replace(elements);
   }
 
-  public set onGroupSelect(fn: ((ids: string[]) => void) | null) {
-    this.groupManager.onGroupSelect = fn;
+  public getSelectedGroupIds(): string[] {
+    return Array.from(this.groupManager.selectedGroupIds);
   }
 
   public highlightGroupElements(id: string): void {
@@ -271,7 +344,13 @@ export class SvgCanvas {
   }
 
   public set onGroupConflict(
-    fn: ((elementId: string, fromGroup: string, toGroup: string) => GroupConflictAction | null) | null,
+    fn:
+      | ((
+          elementId: string,
+          fromGroup: string,
+          toGroup: string,
+        ) => GroupConflictAction | null)
+      | null,
   ) {
     this.groupManager.onConflict = fn;
   }
