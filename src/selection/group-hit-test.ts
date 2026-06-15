@@ -3,9 +3,8 @@ import type { SvgElement } from '@/shapes/elements/SvgElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
 
 function getTransformedHitArea(el: SvgElement): Point[] {
-  const m = el.toDOMMatrix();
   const ha = el.hitArea;
-  return ha.map((p) => m.transformPoint({ x: p.x, y: p.y }));
+  return ha.map((p) => el.transformPoint(p));
 }
 
 function pointInPolygon(px: number, py: number, poly: Point[]): boolean {

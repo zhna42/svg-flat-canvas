@@ -24,12 +24,10 @@ function computeGroupBBox(
     const bbox = el.getTransformedBBox();
     if (bbox.width === 0 && bbox.height === 0) continue;
     hasAny = true;
-    const tx = el._translate.x;
-    const ty = el._translate.y;
-    if (bbox.x + tx < minX) minX = bbox.x + tx;
-    if (bbox.y + ty < minY) minY = bbox.y + ty;
-    if (bbox.x + bbox.width + tx > maxX) maxX = bbox.x + bbox.width + tx;
-    if (bbox.y + bbox.height + ty > maxY) maxY = bbox.y + bbox.height + ty;
+    if (bbox.x < minX) minX = bbox.x;
+    if (bbox.y < minY) minY = bbox.y;
+    if (bbox.x + bbox.width > maxX) maxX = bbox.x + bbox.width;
+    if (bbox.y + bbox.height > maxY) maxY = bbox.y + bbox.height;
   }
 
   if (!hasAny) return null;

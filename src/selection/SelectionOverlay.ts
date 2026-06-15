@@ -2,7 +2,7 @@ import { SVG_NS } from '@/constants';
 import type { Camera } from '@/camera/Camera';
 import type { SvgElement } from '@/shapes/elements/SvgElement';
 
-export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate';
+export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 export interface SelectionOverlayCallbacks {
   onHandleMouseDown: (handle: HandlePosition, bbox: DOMRect, element: SvgElement, event: MouseEvent) => void;
@@ -18,7 +18,6 @@ export class SelectionOverlay {
   private readonly camera: Camera;
   private elementGroups: ElementGroup[] = [];
   private callbacks: SelectionOverlayCallbacks | null = null;
-
   public constructor(camera: Camera) {
     this.camera = camera;
     this.root = document.createElementNS(SVG_NS, 'g');
@@ -127,31 +126,6 @@ export class SelectionOverlay {
       });
       handlesGroup.appendChild(handle);
     }
-
-    const rot = document.createElementNS(SVG_NS, 'circle');
-    rot.setAttribute('cx', String(w / 2));
-    rot.setAttribute('cy', String(-20 / z));
-    rot.setAttribute('r', String(4 / z));
-    rot.setAttribute('fill', '#fff');
-    rot.setAttribute('stroke', '#4285f4');
-    rot.setAttribute('stroke-width', String(1.5 / z));
-    rot.setAttribute('data-handle', 'rotate');
-    rot.setAttribute('cursor', 'grab');
-    rot.setAttribute('pointer-events', 'all');
-    rot.addEventListener('mousedown', (e) => {
-      if (this.callbacks) this.callbacks.onHandleMouseDown('rotate', new DOMRect(0, 0, w, h), el, e);
-    });
-    handlesGroup.appendChild(rot);
-
-    const line = document.createElementNS(SVG_NS, 'line');
-    line.setAttribute('x1', String(w / 2));
-    line.setAttribute('y1', String(0));
-    line.setAttribute('x2', String(w / 2));
-    line.setAttribute('y2', String(-20 / z));
-    line.setAttribute('stroke', '#4285f4');
-    line.setAttribute('stroke-width', String(1.5 / z));
-    line.setAttribute('pointer-events', 'none');
-    handlesGroup.appendChild(line);
 
     group.appendChild(handlesGroup);
   }

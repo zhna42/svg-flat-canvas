@@ -261,7 +261,7 @@ document.getElementById('btn-transform-rotate')!.onclick = () => {
   if (sel.length === 0) { info('No element selected'); return; }
   const el = sel[0];
   const bbox = el.getBBox();
-  canvas.rotateElement(el.id, 15, bbox.x + bbox.width / 2, bbox.y + bbox.height / 2);
+  canvas.rotateElement(el.id, 15);
   canvas.getTimeMachine().push('ROTATE');
   info(`Rotated ${el.id} 15deg`);
 };

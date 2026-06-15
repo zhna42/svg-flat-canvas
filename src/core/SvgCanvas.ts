@@ -236,12 +236,12 @@ export class SvgCanvas {
   public get canUndo(): boolean { return this.timeMachine.canUndo; }
   public get canRedo(): boolean { return this.timeMachine.canRedo; }
 
-  public startTransform(mode: TransformMode): void {
+  public startTransform(_mode: TransformMode): void {
     const selected = this.selectionState.selected;
     if (selected.length === 0) return;
     const bbox = selected[0].getTransformedBBox();
     this.transformHandler.tryStart(
-      mode === 'rotate' ? 'rotate' : 'se',
+      'se',
       new DOMRect(bbox.x, bbox.y, bbox.width, bbox.height),
       selected[0], { x: 0, y: 0 }, selected,
     );
@@ -256,10 +256,10 @@ export class SvgCanvas {
     el.setHeight(height);
   }
 
-  public rotateElement(id: string, angle: number, cx?: number, cy?: number): void {
+  public rotateElement(id: string, angle: number): void {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
-    el.rotate(angle, cx, cy);
+    el.rotate(angle);
   }
 
   public transformElement(id: string, matrix: [number, number, number, number, number, number]): void {

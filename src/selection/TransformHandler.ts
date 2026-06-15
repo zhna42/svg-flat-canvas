@@ -9,7 +9,8 @@ export class TransformHandler {
   private _active = false;
   private _mode: TransformMode = 'resize';
   private handle: HandlePosition = 'se';
-  private origins = new Map<string, { x: number; y: number; w: number; h: number; tx: number; ty: number; sx: number; sy: number }>();
+  private originBBoxes = new Map<string, { x: number; y: number; w: number; h: number }>();
+  private startMatrices = new Map<string, DOMMatrix>();
   private targets: SvgElement[] = [];
   private startPoint = { x: 0, y: 0 };
 
@@ -27,15 +28,13 @@ export class TransformHandler {
     worldPoint: { x: number; y: number },
     currentSelected: readonly SvgElement[],
   ): boolean {
-    this._mode = handle === 'rotate' ? 'rotate' : 'resize';
-    this.origins.clear();
+    this._mode = 'resize';
+    this.originBBoxes.clear();
+    this.startMatrices.clear();
     for (const el of currentSelected) {
-      const bbox = el.getTransformedBBox();
-      const uw = bbox.width / el._scaleX;
-      const uh = bbox.height / el._scaleY;
-      const ux = bbox.x - el._translate.x;
-      const uy = bbox.y - el._translate.y;
-      this.origins.set(el.id, { x: ux, y: uy, w: uw, h: uh, tx: el._translate.x, ty: el._translate.y, sx: el._scaleX, sy: el._scaleY });
+      const b = el.getTransformedBBox();
+      this.originBBoxes.set(el.id, { x: b.x, y: b.y, w: b.width, h: b.height });
+      this.startMatrices.set(el.id, new DOMMatrix(el.matrix.toString()));
     }
     this._active = true;
     this.handle = handle;
@@ -64,31 +63,72 @@ export class TransformHandler {
       el.buildHitArea();
       el.setDirty();
     }
-    this.origins.clear();
+    this.originBBoxes.clear();
+    this.startMatrices.clear();
     this.onTransformEnd?.(this._mode);
   }
 
   public abort(): void {
     this._active = false;
-    this.origins.clear();
+    this.originBBoxes.clear();
+    this.startMatrices.clear();
   }
 
   private applyResizePreview(dx: number, dy: number): void {
     for (const el of this.targets) {
-      const o = this.origins.get(el.id);
-      if (!o) continue;
-      el.applyTransformOp({ type: 'resize', handle: this.handle, dx, dy, ox: o.x, oy: o.y, ow: o.w, oh: o.h, otx: o.tx, oty: o.ty, osx: o.sx, osy: o.sy });
+      const o = this.originBBoxes.get(el.id);
+      const startMatrix = this.startMatrices.get(el.id);
+      if (!o || !startMatrix) continue;
+
+      let w = o.w, h = o.h;
+      const flipW = this.handle === 'w' || this.handle === 'nw' || this.handle === 'sw';
+      const flipH = this.handle === 'n' || this.handle === 'nw' || this.handle === 'ne';
+
+      if (flipW) { w = o.w - dx; }
+      else if (this.handle === 'e' || this.handle === 'ne' || this.handle === 'se') { w = o.w + dx; }
+
+      if (flipH) { h = o.h - dy; }
+      else if (this.handle === 's' || this.handle === 'se' || this.handle === 'sw') { h = o.h + dy; }
+
+      w = Math.max(10, w);
+      h = Math.max(10, h);
+
+      const sx = w / o.w;
+      const sy = h / o.h;
+
+      let pinX = o.x, pinY = o.y;
+      if (flipW) pinX = o.x + o.w;
+      if (flipH) pinY = o.y + o.h;
+
+      const change = new DOMMatrix()
+        .translateSelf(pinX, pinY)
+        .scaleSelf(sx, sy)
+        .translateSelf(-pinX, -pinY);
+
+      el.matrix = change.multiply(startMatrix);
+      el.decomposeMatrix();
+      el.invalidateHitArea();
     }
   }
 
   private applyRotatePreview(worldPoint: { x: number; y: number }): void {
     for (const el of this.targets) {
-      const o = this.origins.get(el.id);
-      if (!o) continue;
-      const cx = o.x + o.w / 2 + o.tx;
-      const cy = o.y + o.h / 2 + o.ty;
-      const angle = Math.atan2(worldPoint.y - cy, worldPoint.x - cx) * (180 / Math.PI) + 90;
-      el.applyTransformOp({ type: 'rotate', angle, cx, cy });
+      const o = this.originBBoxes.get(el.id);
+      const startMatrix = this.startMatrices.get(el.id);
+      if (!o || !startMatrix) continue;
+
+      const cx = o.x + o.w / 2;
+      const cy = o.y + o.h / 2;
+      const curAngle = Math.atan2(worldPoint.y - cy, worldPoint.x - cx) * (180 / Math.PI) + 90;
+
+      const change = new DOMMatrix()
+        .translateSelf(cx, cy)
+        .rotateSelf(0, 0, curAngle)
+        .translateSelf(-cx, -cy);
+
+      el.matrix = change.multiply(startMatrix);
+      el.decomposeMatrix();
+      el.invalidateHitArea();
     }
   }
 }
