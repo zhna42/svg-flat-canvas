@@ -121,11 +121,16 @@ export abstract class SvgElement implements DirtyTracker {
         const factorX = 1 + localDeltaX / (delta.width || 1);
         const factorY = 1 + localDeltaY / (delta.height || 1);
         if (factorX <= 0 || factorY <= 0) return;
+        const localOrigin = new DOMMatrix(startingMatrix.toString())
+          .invertSelf()
+          .transformPoint({ x: delta.originX ?? 0, y: delta.originY ?? 0 });
         const m = new DOMMatrix()
-          .translateSelf(delta.originX ?? 0, delta.originY ?? 0)
+          .translateSelf(startingMatrix.e, startingMatrix.f)
+          .rotateSelf(0, 0, (Math.atan2(startingMatrix.b, startingMatrix.a) * 180) / Math.PI)
+          .translateSelf(localOrigin.x, localOrigin.y)
           .scaleSelf(factorX, factorY)
-          .translateSelf(-(delta.originX ?? 0), -(delta.originY ?? 0));
-        this.matrix = m.multiply(startingMatrix);
+          .translateSelf(-localOrigin.x, -localOrigin.y);
+        this.matrix = m;
         this.decomposeMatrix();
         this.setDirty();
         return;
