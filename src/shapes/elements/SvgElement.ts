@@ -33,15 +33,25 @@ export abstract class SvgElement implements DirtyTracker {
   public angle = 0;
 
   public onDirty: (() => void) | null = null;
+  public nonScalingStroke = true;
 
   public constructor(id: string, type: ElementType, tag: string) {
     this.id = id;
     this.type = type;
     this.name = type;
     this.element = document.createElementNS(SVG_NS, tag);
+    this.element.setAttribute('vector-effect', 'non-scaling-stroke');
   }
 
-  public setNonScalingStroke(_v: boolean): void {}
+  public setNonScalingStroke(v: boolean): void {
+    this.nonScalingStroke = v;
+    if (v) {
+      this.element.setAttribute('vector-effect', 'non-scaling-stroke');
+    } else {
+      this.element.removeAttribute('vector-effect');
+    }
+    this.setDirty();
+  }
 
   public get dirty(): boolean {
     return this._dirty;
