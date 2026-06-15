@@ -33,12 +33,24 @@ export abstract class SvgElement implements DirtyTracker {
   public angle = 0;
 
   public onDirty: (() => void) | null = null;
+  public nonScalingStroke = true;
 
   public constructor(id: string, type: ElementType, tag: string) {
     this.id = id;
     this.type = type;
     this.name = type;
     this.element = document.createElementNS(SVG_NS, tag);
+    this.element.setAttribute('vector-effect', 'non-scaling-stroke');
+  }
+
+  public setNonScalingStroke(v: boolean): void {
+    this.nonScalingStroke = v;
+    if (v) {
+      this.element.setAttribute('vector-effect', 'non-scaling-stroke');
+    } else {
+      this.element.removeAttribute('vector-effect');
+    }
+    this.setDirty();
   }
 
   public get dirty(): boolean {
@@ -98,19 +110,14 @@ export abstract class SvgElement implements DirtyTracker {
       }
 
       case 'scale': {
-        const angleRad = Math.atan2(startingMatrix.b, startingMatrix.a);
-        const cos = Math.cos(angleRad);
-        const sin = Math.sin(angleRad);
-        let localDeltaX = (delta.x ?? 0) * cos + (delta.y ?? 0) * sin;
-        let localDeltaY = -(delta.x ?? 0) * sin + (delta.y ?? 0) * cos;
         const baseScaleX =
           Math.sqrt(startingMatrix.a * startingMatrix.a + startingMatrix.b * startingMatrix.b) *
           (startingMatrix.a < 0 ? -1 : 1);
         const baseScaleY =
           Math.sqrt(startingMatrix.c * startingMatrix.c + startingMatrix.d * startingMatrix.d) *
           (startingMatrix.d < 0 ? -1 : 1);
-        localDeltaX /= baseScaleX;
-        localDeltaY /= baseScaleY;
+        const localDeltaX = (delta.x ?? 0) / baseScaleX;
+        const localDeltaY = (delta.y ?? 0) / baseScaleY;
         const factorX = 1 + localDeltaX / (delta.width || 1);
         const factorY = 1 + localDeltaY / (delta.height || 1);
         if (factorX <= 0 || factorY <= 0) return;

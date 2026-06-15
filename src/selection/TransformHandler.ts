@@ -10,10 +10,10 @@ const ORIGIN_INDEX: Record<string, number> = {
 };
 
 const FLIP: Record<string, { x: number; y: number }> = {
-  se: { x: 1,  y: 1  }, e:  { x: 1,  y: 1  },
-  ne: { x: 1,  y: -1 }, n:  { x: 1,  y: -1 },
-  nw: { x: -1, y: -1 }, w:  { x: -1, y: 1  },
-  sw: { x: -1, y: 1  }, s:  { x: 1,  y: 1  },
+  se: { x: 1,  y: 1  }, e:  { x: 1,  y: 0  },
+  ne: { x: 1,  y: -1 }, n:  { x: 0,  y: -1 },
+  nw: { x: -1, y: -1 }, w:  { x: -1, y: 0  },
+  sw: { x: -1, y: 1  }, s:  { x: 0,  y: 1  },
 };
 
 export class TransformHandler {
@@ -47,7 +47,6 @@ export class TransformHandler {
   ): boolean {
     const oppIdx = ORIGIN_INDEX[handle] ?? 0;
     this._handle = handle;
-    console.log(`RESIZE START handle=${handle} PM=(${worldPoint.x.toFixed(1)},${worldPoint.y.toFixed(1)}) originIdx=${oppIdx}`);
     this.targets = Array.from(currentSelected);
     this.startMouse = { x: worldPoint.x, y: worldPoint.y };
     this.startMatrices.clear();
@@ -126,16 +125,21 @@ export class TransformHandler {
       const globalOrigin = this.globalOrigins.get(el.id);
       if (!startMatrix || !localBBox || !globalOrigin) continue;
 
-      const bbox = el.getTransformedBBox();
-      console.log(`RESIZE MOVE PM=(${(this.startMouse.x+totalDx).toFixed(1)},${(this.startMouse.y+totalDy).toFixed(1)}) elem=(${bbox.x.toFixed(1)},${bbox.y.toFixed(1)},${bbox.width.toFixed(1)},${bbox.height.toFixed(1)})`);
+      const angleRad = Math.atan2(startMatrix.b, startMatrix.a);
+      const cos = Math.cos(angleRad);
+      const sin = Math.sin(angleRad);
+      const rawLocalDx = totalDx * cos + totalDy * sin;
+      const rawLocalDy = -totalDx * sin + totalDy * cos;
 
       const flip = FLIP[this._handle] ?? { x: 1, y: 1 };
+      const localDx = rawLocalDx * flip.x;
+      const localDy = rawLocalDy * flip.y;
 
       el.applyTransformation(
         'scale',
         {
-          x: totalDx * flip.x,
-          y: totalDy * flip.y,
+          x: localDx,
+          y: localDy,
           originX: globalOrigin.x,
           originY: globalOrigin.y,
           width: localBBox.w,

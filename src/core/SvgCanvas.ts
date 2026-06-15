@@ -205,6 +205,11 @@ export class SvgCanvas {
   public set onSelectionChange(fn: ((selected: SvgElement[]) => void) | null) { this.selectionState.setOnChange(fn); }
   public getSelected(): readonly SvgElement[] { return this.selectionState.selected; }
 
+  public setNonScalingStroke(id: string, v: boolean): void {
+    const el = this.shapeManager.getAll().find((e) => e.id === id);
+    el?.setNonScalingStroke(v);
+  }
+
   public on<E extends Events>(event: E, fn: (data: import('./EventBus').EventMap[E]) => void): () => void {
     return this.events.on(event, fn as any);
   }
