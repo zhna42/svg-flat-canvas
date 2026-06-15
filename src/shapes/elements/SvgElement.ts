@@ -87,8 +87,8 @@ export abstract class SvgElement implements DirtyTracker {
         const rad = (this.angle * Math.PI) / 180;
         const cos = Math.cos(rad);
         const sin = Math.sin(rad);
-        const localX = ((delta.x ?? 0) * cos + (delta.y ?? 0) * sin) / this.scaleX;
-        const localY = (-(delta.x ?? 0) * sin + (delta.y ?? 0) * cos) / this.scaleY;
+        const localX = (delta.x ?? 0) * cos + (delta.y ?? 0) * sin;
+        const localY = -(delta.x ?? 0) * sin + (delta.y ?? 0) * cos;
         const m = new DOMMatrix().translateSelf(localX, localY);
         this.matrix = m.multiply(startingMatrix);
         break;
