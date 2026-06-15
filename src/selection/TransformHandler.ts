@@ -5,14 +5,28 @@ import type { CommandBus } from '@/commands/CommandBus';
 
 export type TransformMode = 'resize' | 'rotate';
 
+const ORIGIN_INDEX: Record<string, number> = {
+  se: 0, e:  0, ne: 2, n:  2, nw: 3, w:  3, sw: 1, s:  1,
+};
+
+const FLIP: Record<string, { x: number; y: number }> = {
+  se: { x: 1,  y: 1  }, e:  { x: 1,  y: 1  },
+  ne: { x: 1,  y: -1 }, n:  { x: 1,  y: -1 },
+  nw: { x: -1, y: -1 }, w:  { x: -1, y: 1  },
+  sw: { x: -1, y: 1  }, s:  { x: 1,  y: 1  },
+};
+
 export class TransformHandler {
   private _active = false;
-  private _mode: TransformMode = 'resize';
-  private handle: HandlePosition = 'se';
-  private originBBoxes = new Map<string, { x: number; y: number; w: number; h: number }>();
-  private startMatrices = new Map<string, DOMMatrix>();
+  private _handle: HandlePosition = 'se';
   private targets: SvgElement[] = [];
-  private startPoint = { x: 0, y: 0 };
+  private startMouse = { x: 0, y: 0 };
+  private startMatrices = new Map<string, DOMMatrix>();
+  private localBBoxes = new Map<
+    string,
+    { x: number; y: number; w: number; h: number }
+  >();
+  private globalOrigins = new Map<string, { x: number; y: number }>();
 
   public onTransformStart: ((mode: TransformMode) => void) | null = null;
   public onTransformMove: (() => void) | null = null;
@@ -20,39 +34,68 @@ export class TransformHandler {
 
   public constructor(_camera: Camera, _bus: CommandBus) {}
 
-  public get isActive(): boolean { return this._active; }
-  public get mode(): TransformMode { return this._mode; }
+  public get isActive(): boolean {
+    return this._active;
+  }
 
   public tryStart(
-    handle: HandlePosition, _bbox: DOMRect, _element: SvgElement,
+    handle: HandlePosition,
+    _bbox: DOMRect,
+    _element: SvgElement,
     worldPoint: { x: number; y: number },
     currentSelected: readonly SvgElement[],
   ): boolean {
-    this._mode = 'resize';
-    this.originBBoxes.clear();
-    this.startMatrices.clear();
-    for (const el of currentSelected) {
-      const b = el.getTransformedBBox();
-      this.originBBoxes.set(el.id, { x: b.x, y: b.y, w: b.width, h: b.height });
-      this.startMatrices.set(el.id, new DOMMatrix(el.matrix.toString()));
-    }
-    this._active = true;
-    this.handle = handle;
+    const oppIdx = ORIGIN_INDEX[handle] ?? 0;
+    this._handle = handle;
+    console.log(`RESIZE START handle=${handle} PM=(${worldPoint.x.toFixed(1)},${worldPoint.y.toFixed(1)}) originIdx=${oppIdx}`);
     this.targets = Array.from(currentSelected);
-    this.startPoint = { ...worldPoint };
-    this.onTransformStart?.(this._mode);
+    this.startMouse = { x: worldPoint.x, y: worldPoint.y };
+    this.startMatrices.clear();
+    this.localBBoxes.clear();
+    this.globalOrigins.clear();
+
+    for (const el of currentSelected) {
+      const saved = el.element.getAttribute('transform');
+      el.element.removeAttribute('transform');
+      const localBBox = el.getBBox();
+      if (saved) el.element.setAttribute('transform', saved);
+      const startMatrix = new DOMMatrix(el.matrix.toString());
+      this.startMatrices.set(el.id, startMatrix);
+      this.localBBoxes.set(el.id, {
+        x: localBBox.x,
+        y: localBBox.y,
+        w: localBBox.width,
+        h: localBBox.height,
+      });
+
+      const corners = [
+        startMatrix.transformPoint({ x: localBBox.x, y: localBBox.y }),
+        startMatrix.transformPoint({
+          x: localBBox.x + localBBox.width,
+          y: localBBox.y,
+        }),
+        startMatrix.transformPoint({
+          x: localBBox.x,
+          y: localBBox.y + localBBox.height,
+        }),
+        startMatrix.transformPoint({
+          x: localBBox.x + localBBox.width,
+          y: localBBox.y + localBBox.height,
+        }),
+      ];
+      this.globalOrigins.set(el.id, { x: corners[oppIdx].x, y: corners[oppIdx].y });
+    }
+
+    this._active = true;
+    this.onTransformStart?.('resize');
     return true;
   }
 
   public move(worldPoint: { x: number; y: number }): void {
     if (!this._active) return;
-    const dx = worldPoint.x - this.startPoint.x;
-    const dy = worldPoint.y - this.startPoint.y;
-    if (this._mode === 'resize') {
-      this.applyResizePreview(dx, dy);
-    } else {
-      this.applyRotatePreview(worldPoint);
-    }
+    const totalDx = worldPoint.x - this.startMouse.x;
+    const totalDy = worldPoint.y - this.startMouse.y;
+    this.applyResizePreview(totalDx, totalDy);
     this.onTransformMove?.();
   }
 
@@ -63,72 +106,43 @@ export class TransformHandler {
       el.buildHitArea();
       el.setDirty();
     }
-    this.originBBoxes.clear();
     this.startMatrices.clear();
-    this.onTransformEnd?.(this._mode);
+    this.localBBoxes.clear();
+    this.globalOrigins.clear();
+    this.onTransformEnd?.('resize');
   }
 
   public abort(): void {
     this._active = false;
-    this.originBBoxes.clear();
     this.startMatrices.clear();
+    this.localBBoxes.clear();
+    this.globalOrigins.clear();
   }
 
-  private applyResizePreview(dx: number, dy: number): void {
+  private applyResizePreview(totalDx: number, totalDy: number): void {
     for (const el of this.targets) {
-      const o = this.originBBoxes.get(el.id);
       const startMatrix = this.startMatrices.get(el.id);
-      if (!o || !startMatrix) continue;
+      const localBBox = this.localBBoxes.get(el.id);
+      const globalOrigin = this.globalOrigins.get(el.id);
+      if (!startMatrix || !localBBox || !globalOrigin) continue;
 
-      let w = o.w, h = o.h;
-      const flipW = this.handle === 'w' || this.handle === 'nw' || this.handle === 'sw';
-      const flipH = this.handle === 'n' || this.handle === 'nw' || this.handle === 'ne';
+      const bbox = el.getTransformedBBox();
+      console.log(`RESIZE MOVE PM=(${(this.startMouse.x+totalDx).toFixed(1)},${(this.startMouse.y+totalDy).toFixed(1)}) elem=(${bbox.x.toFixed(1)},${bbox.y.toFixed(1)},${bbox.width.toFixed(1)},${bbox.height.toFixed(1)})`);
 
-      if (flipW) { w = o.w - dx; }
-      else if (this.handle === 'e' || this.handle === 'ne' || this.handle === 'se') { w = o.w + dx; }
+      const flip = FLIP[this._handle] ?? { x: 1, y: 1 };
 
-      if (flipH) { h = o.h - dy; }
-      else if (this.handle === 's' || this.handle === 'se' || this.handle === 'sw') { h = o.h + dy; }
-
-      w = Math.max(10, w);
-      h = Math.max(10, h);
-
-      const sx = w / o.w;
-      const sy = h / o.h;
-
-      let pinX = o.x, pinY = o.y;
-      if (flipW) pinX = o.x + o.w;
-      if (flipH) pinY = o.y + o.h;
-
-      const change = new DOMMatrix()
-        .translateSelf(pinX, pinY)
-        .scaleSelf(sx, sy)
-        .translateSelf(-pinX, -pinY);
-
-      el.matrix = change.multiply(startMatrix);
-      el.decomposeMatrix();
-      el.invalidateHitArea();
-    }
-  }
-
-  private applyRotatePreview(worldPoint: { x: number; y: number }): void {
-    for (const el of this.targets) {
-      const o = this.originBBoxes.get(el.id);
-      const startMatrix = this.startMatrices.get(el.id);
-      if (!o || !startMatrix) continue;
-
-      const cx = o.x + o.w / 2;
-      const cy = o.y + o.h / 2;
-      const curAngle = Math.atan2(worldPoint.y - cy, worldPoint.x - cx) * (180 / Math.PI) + 90;
-
-      const change = new DOMMatrix()
-        .translateSelf(cx, cy)
-        .rotateSelf(0, 0, curAngle)
-        .translateSelf(-cx, -cy);
-
-      el.matrix = change.multiply(startMatrix);
-      el.decomposeMatrix();
-      el.invalidateHitArea();
+      el.applyTransformation(
+        'scale',
+        {
+          x: totalDx * flip.x,
+          y: totalDy * flip.y,
+          originX: globalOrigin.x,
+          originY: globalOrigin.y,
+          width: localBBox.w,
+          height: localBBox.h,
+        },
+        startMatrix,
+      );
     }
   }
 }

@@ -179,7 +179,10 @@ export class SvgCanvas {
   public getSVG(): SVGSVGElement { return this.svg; }
   public getCamera(): Camera { return this.camera; }
 
-  public addShape(shape: SvgElement): void { this.shapeManager.add(shape); this.indexShape(shape); }
+  public addShape(shape: SvgElement): void {
+    this.shapeManager.add(shape);
+    this.indexShape(shape);
+  }
 
   public loadJSON(items: ElementJSON[]): void {
     const elements = createFromJSONArray(items);

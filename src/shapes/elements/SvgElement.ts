@@ -66,27 +66,29 @@ export abstract class SvgElement implements DirtyTracker {
   ): void {
     if (this.lock) return;
 
-    // Используем сохраненную стартовую матрицу или текущую (если baseMatrix не передан)
-    const startingMatrix = baseMatrix ? new DOMMatrix(baseMatrix) : this.matrix;
+    const startingMatrix = baseMatrix
+      ? new DOMMatrix(baseMatrix.toString())
+      : this.matrix;
 
     switch (type) {
       case 'translate': {
-        // При драге: delta.x и delta.y — это ПОЛНЫЙ сдвиг мыши с момента tryStart
-        const m = new DOMMatrix().translateSelf(delta.x ?? 0, delta.y ?? 0);
+        const rad = (this.angle * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const localX = ((delta.x ?? 0) * cos + (delta.y ?? 0) * sin) / this.scaleX;
+        const localY = (-(delta.x ?? 0) * sin + (delta.y ?? 0) * cos) / this.scaleY;
+        const m = new DOMMatrix().translateSelf(localX, localY);
         this.matrix = m.multiply(startingMatrix);
         break;
       }
 
       case 'rotate': {
-        // При ротейте: delta.angle — это ПОЛНЫЙ угол поворота с момента tryStart
         const angleDelta = delta.angle ?? 0;
-
         const localCenter = this.getLocalCenter();
         const globalCenter = startingMatrix.transformPoint({
           x: localCenter.x,
           y: localCenter.y,
         });
-
         this.matrix = new DOMMatrix()
           .translateSelf(globalCenter.x, globalCenter.y)
           .rotateSelf(0, 0, angleDelta)
@@ -95,46 +97,31 @@ export abstract class SvgElement implements DirtyTracker {
         break;
       }
 
-      case 'resize': {
-        // Абсолютный коэффициент изменения масштаба с момента tryStart (например, 1.25)
-        const sx = delta.sx ?? 1;
-        const sy = delta.sy ?? 1;
-
-        // 1. Декомпозируем СТАРТОВУЮ матрицу полностью
-        const baseAngleRad = Math.atan2(startingMatrix.b, startingMatrix.a);
+      case 'scale': {
+        const angleRad = Math.atan2(startingMatrix.b, startingMatrix.a);
+        const cos = Math.cos(angleRad);
+        const sin = Math.sin(angleRad);
+        let localDeltaX = (delta.x ?? 0) * cos + (delta.y ?? 0) * sin;
+        let localDeltaY = -(delta.x ?? 0) * sin + (delta.y ?? 0) * cos;
         const baseScaleX =
-          Math.sqrt(
-            startingMatrix.a * startingMatrix.a +
-              startingMatrix.b * startingMatrix.b,
-          ) * (startingMatrix.a < 0 ? -1 : 1);
+          Math.sqrt(startingMatrix.a * startingMatrix.a + startingMatrix.b * startingMatrix.b) *
+          (startingMatrix.a < 0 ? -1 : 1);
         const baseScaleY =
-          Math.sqrt(
-            startingMatrix.c * startingMatrix.c +
-              startingMatrix.d * startingMatrix.d,
-          ) * (startingMatrix.d < 0 ? -1 : 1);
-
-        // 2. Находим глобальную точку опоры (origin)
-        const globalOrigin = { x: delta.originX ?? 0, y: delta.originY ?? 0 };
-
-        // 3. Переводим точку опоры в ЛОКАЛЬНЫЕ координаты элемента (до всех скейлов и поворотов!)
-        // Для этого инвертируем стартовую матрицу
-        const localOrigin = new DOMMatrix(startingMatrix)
-          .invertSelf()
-          .transformPoint(globalOrigin);
-
-        // 4. Строим матрицу С НУЛЯ в строгом порядке, сохраняя прошлую историю:
-        this.matrix = new DOMMatrix()
-          // А) Задаем глобальное положение (из стартовой матрицы)
-          .translateSelf(startingMatrix.e, startingMatrix.f)
-          // Б) Восстанавливаем стартовый поворот
-          .rotateRadiansSelf(baseAngleRad)
-          // В) Переносим систему координат в локальную точку опоры
-          .translateSelf(localOrigin.x, localOrigin.y)
-          // Г) Применяем НОВЫЙ масштаб, перемножая его со СТАРТОВЫМ масштабом элемента
-          .scaleSelf(sx * baseScaleX, sy * baseScaleY)
-          // Д) Возвращаем систему координат обратно
-          .translateSelf(-localOrigin.x, -localOrigin.y);
-        break;
+          Math.sqrt(startingMatrix.c * startingMatrix.c + startingMatrix.d * startingMatrix.d) *
+          (startingMatrix.d < 0 ? -1 : 1);
+        localDeltaX /= baseScaleX;
+        localDeltaY /= baseScaleY;
+        const factorX = 1 + localDeltaX / (delta.width || 1);
+        const factorY = 1 + localDeltaY / (delta.height || 1);
+        if (factorX <= 0 || factorY <= 0) return;
+        const m = new DOMMatrix()
+          .translateSelf(delta.originX ?? 0, delta.originY ?? 0)
+          .scaleSelf(factorX, factorY)
+          .translateSelf(-(delta.originX ?? 0), -(delta.originY ?? 0));
+        this.matrix = m.multiply(startingMatrix);
+        this.decomposeMatrix();
+        this.setDirty();
+        return;
       }
 
       default:
