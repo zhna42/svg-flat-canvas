@@ -1,22 +1,19 @@
-import type { SnapResult, SnapOptions } from './snap-types';
+export type SnapResult = {
+  correctionX: number;
+  correctionY: number;
+};
 
 type SnapAxis = 'x' | 'y';
 
-type SnapCandidate = {
-  distance: number;
-  correctionPx: number;
-  sideDistance: number;
-};
-
 const SNAP_DISTANCE_PX = 16;
 const SNAP_RELEASE_DISTANCE_PX = SNAP_DISTANCE_PX * 2;
-const CORNER_SNAP_DISTANCE_PX = 6;
 const SNAP_PULL_BREAK_DISTANCE_PX = 24;
 
 export class SvgSnap {
   private active: Partial<Record<SnapAxis, boolean>> = {};
   private blocked: Partial<Record<SnapAxis, boolean>> = {};
   private pull: Record<SnapAxis, number> = { x: 0, y: 0 };
+  private snapLines: { x: number; y: number; x2: number; y2: number }[] = [];
 
   get isActiveX(): boolean {
     return Boolean(this.active.x);
@@ -30,73 +27,108 @@ export class SvgSnap {
     this.active = {};
     this.blocked = {};
     this.pull = { x: 0, y: 0 };
+    this.snapLines = [];
   }
 
   updatePull(deltaXPx: number, deltaYPx: number): void {
     if (this.active.x) this.pull.x += Math.abs(deltaXPx);
     if (this.active.y) this.pull.y += Math.abs(deltaYPx);
-
     if (this.pull.x > SNAP_PULL_BREAK_DISTANCE_PX) this.resetAxis('x', true);
     if (this.pull.y > SNAP_PULL_BREAK_DISTANCE_PX) this.resetAxis('y', true);
   }
 
-  computeCorrection(movingRect: DOMRect, options: SnapOptions): SnapResult {
-    const movingXEdges = [movingRect.left, movingRect.right];
-    const movingYEdges = [movingRect.top, movingRect.bottom];
-
-    let bestX: SnapCandidate | null = null;
-    let bestY: SnapCandidate | null = null;
-
-    for (const r of options.targetRects ?? []) {
-      const ySideGap = SvgSnap.rangeGap(
-        movingRect.top,
-        movingRect.bottom,
-        r.top,
-        r.bottom,
-      );
-      const xSideGap = SvgSnap.rangeGap(
-        movingRect.left,
-        movingRect.right,
-        r.left,
-        r.right,
-      );
-
-      const xCandidate = SvgSnap.bestCandidate(movingXEdges, [r.left, r.right], ySideGap);
-      const yCandidate = SvgSnap.bestCandidate(movingYEdges, [r.top, r.bottom], xSideGap);
-
-      if (
-        xCandidate &&
-        xCandidate.sideDistance <= SNAP_RELEASE_DISTANCE_PX &&
-        SvgSnap.isBetter(xCandidate, bestX)
-      ) {
-        bestX = xCandidate;
-      }
-
-      if (
-        yCandidate &&
-        yCandidate.sideDistance <= SNAP_RELEASE_DISTANCE_PX &&
-        SvgSnap.isBetter(yCandidate, bestY)
-      ) {
-        bestY = yCandidate;
-      }
+  /**
+   * Строит snap-линии для целевых элементов в экранных координатах.
+   * Каждый элемент даёт 4 линии (каждая сторона bounding rect).
+   */
+  buildTargetLines(
+    elements: {
+      screenBBox: { x: number; y: number; width: number; height: number };
+    }[],
+  ): void {
+    this.snapLines = [];
+    for (const el of elements) {
+      const { x, y, width, height } = el.screenBBox;
+      const l = x,
+        r = x + width,
+        t = y,
+        b = y + height;
+      this.snapLines.push({ x: l, y: t, x2: r, y2: t }); // top
+      this.snapLines.push({ x: l, y: b, x2: r, y2: b }); // bottom
+      this.snapLines.push({ x: l, y: t, x2: l, y2: b }); // left
+      this.snapLines.push({ x: r, y: t, x2: r, y2: b }); // right
     }
+  }
 
-    if (options.listRect) {
-      const r = options.listRect;
+  /**
+   * Строит snap-линии для артборда.
+   */
+  buildArtboardLines(screenBBox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }): void {
+    const { x, y, width, height } = screenBBox;
+    const l = x,
+      r = x + width,
+      t = y,
+      b = y + height;
+    this.snapLines.push({ x: l, y: t, x2: r, y2: t }); // top
+    this.snapLines.push({ x: l, y: b, x2: r, y2: b }); // bottom
+    this.snapLines.push({ x: l, y: t, x2: l, y2: b }); // left
+    this.snapLines.push({ x: r, y: t, x2: r, y2: b }); // right
+  }
 
-      const xCandidate = SvgSnap.bestCandidate(movingXEdges, [r.left, r.right], 0);
-      const yCandidate = SvgSnap.bestCandidate(movingYEdges, [r.top, r.bottom], 0);
+  /**
+   * Вычисляет коррекцию.
+   * @param movingPoints — массив мировых точек контура перетаскиваемого элемента,
+   *        спроецированных в экранные координаты.
+   * Принимает что movingPoints уже сдвинуты на rawDelta (без snap).
+   */
+  computeCorrection(movingPoints: { x: number; y: number }[]): SnapResult {
+    let bestCorrX = 0;
+    let bestCorrY = 0;
+    let bestDistX = Infinity;
+    let bestDistY = Infinity;
 
-      if (xCandidate && SvgSnap.isBetter(xCandidate, bestX)) bestX = xCandidate;
-      if (yCandidate && SvgSnap.isBetter(yCandidate, bestY)) bestY = yCandidate;
+    for (const pt of movingPoints) {
+      for (const line of this.snapLines) {
+        // Snap по X: расстояние от точки до линии по Y (горизонтальная линия)
+        if (line.y === line.y2) {
+          const dist = Math.abs(pt.y - line.y);
+          if (dist < SNAP_DISTANCE_PX && dist < bestDistY) {
+            const onSegment =
+              pt.x >= Math.min(line.x, line.x2) &&
+              pt.x <= Math.max(line.x, line.x2);
+            if (onSegment || dist < 4) {
+              bestDistY = dist;
+              bestCorrY = line.y - pt.y;
+            }
+          }
+        }
+        // Snap по Y: расстояние от точки до линии по X (вертикальная линия)
+        if (line.x === line.x2) {
+          const dist = Math.abs(pt.x - line.x);
+          if (dist < SNAP_DISTANCE_PX && dist < bestDistX) {
+            const onSegment =
+              pt.y >= Math.min(line.y, line.y2) &&
+              pt.y <= Math.max(line.y, line.y2);
+            if (onSegment || dist < 4) {
+              bestDistX = dist;
+              bestCorrX = line.x - pt.x;
+            }
+          }
+        }
+      }
     }
 
     const wasXSnapped = Boolean(this.active.x);
     const wasYSnapped = Boolean(this.active.y);
 
     return {
-      correctionX: this.resolveAxis('x', bestX, wasYSnapped),
-      correctionY: this.resolveAxis('y', bestY, wasXSnapped),
+      correctionX: this.resolveAxis('x', bestCorrX, bestDistX, wasYSnapped),
+      correctionY: this.resolveAxis('y', bestCorrY, bestDistY, wasXSnapped),
     };
   }
 
@@ -108,16 +140,17 @@ export class SvgSnap {
 
   private resolveAxis(
     axis: SnapAxis,
-    candidate: SnapCandidate | null,
+    correction: number,
+    distance: number,
     isOtherAxisSnapped: boolean,
   ): number {
-    if (!candidate) {
+    if (distance >= SNAP_DISTANCE_PX) {
       this.resetAxis(axis);
       return 0;
     }
 
     if (this.blocked[axis]) {
-      if (candidate.distance > SNAP_RELEASE_DISTANCE_PX) {
+      if (distance > SNAP_RELEASE_DISTANCE_PX) {
         this.blocked[axis] = false;
       }
       return 0;
@@ -126,61 +159,15 @@ export class SvgSnap {
     const maxDistance = this.active[axis]
       ? SNAP_RELEASE_DISTANCE_PX
       : SNAP_DISTANCE_PX;
-    const snapDistance = isOtherAxisSnapped
-      ? CORNER_SNAP_DISTANCE_PX
-      : maxDistance;
+    const snapDistance = isOtherAxisSnapped ? SNAP_DISTANCE_PX : maxDistance;
 
-    if (
-      candidate.distance > snapDistance ||
-      candidate.sideDistance > SNAP_RELEASE_DISTANCE_PX
-    ) {
+    if (distance >= snapDistance) {
       this.resetAxis(axis);
-      return 0;
-    }
-
-    if (!this.active[axis] && candidate.sideDistance > SNAP_DISTANCE_PX) {
       return 0;
     }
 
     this.active[axis] = true;
     this.pull[axis] = 0;
-
-    return candidate.correctionPx;
-  }
-
-  private static rangeGap(
-    aStart: number,
-    aEnd: number,
-    bStart: number,
-    bEnd: number,
-  ): number {
-    if (aEnd < bStart) return bStart - aEnd;
-    if (bEnd < aStart) return aStart - bEnd;
-    return 0;
-  }
-
-  private static bestCandidate(
-    movingEdges: number[],
-    targetEdges: number[],
-    sideDistance: number,
-  ): SnapCandidate | null {
-    let best: SnapCandidate | null = null;
-
-    for (const mEdge of movingEdges) {
-      for (const tEdge of targetEdges) {
-        const correctionPx = tEdge - mEdge;
-        const distance = Math.abs(correctionPx);
-
-        if (!best || distance < best.distance) {
-          best = { distance, correctionPx, sideDistance };
-        }
-      }
-    }
-
-    return best;
-  }
-
-  private static isBetter(a: SnapCandidate, b: SnapCandidate | null): boolean {
-    return !b || a.distance + a.sideDistance < b.distance + b.sideDistance;
+    return correction;
   }
 }

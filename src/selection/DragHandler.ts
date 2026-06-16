@@ -1,6 +1,7 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/camera/Camera';
+import type { Point } from '@/types';
 import { SvgSnap } from '@/snap/SvgSnap';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
 
@@ -121,58 +122,74 @@ export class DragHandler {
     if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
 
     if (this.snapEnabled) {
-      const movingBBox = this.getMovingScreenBBox();
-      if (movingBBox) {
-        const movingRect = new DOMRect(
-          movingBBox.x + dx * this.camera.zoom,
-          movingBBox.y + dy * this.camera.zoom,
-          movingBBox.width,
-          movingBBox.height,
-        );
+      this.snap.reset();
+      const selectedIds = new Set(this.targets.map((t) => t.id));
 
-        const targetRects: DOMRect[] = [];
-        const selectedIds = new Set(this.targets.map((t) => t.id));
-        for (const el of this.getElements()) {
-          if (selectedIds.has(el.id)) continue;
-          const bbox = el.getWorldBBox();
-          if (bbox.width === 0 && bbox.height === 0) continue;
-          const screen = this.camera.worldRectToScreen(bbox);
-          targetRects.push(
-            new DOMRect(screen.x, screen.y, screen.width, screen.height),
-          );
-        }
-
-        let listRect: DOMRect | undefined;
-        if (this.snapToArtboard) {
-          const artboard = this.getArtboardRect();
-          if (artboard) {
-            const screen = this.camera.worldRectToScreen(artboard);
-            listRect = new DOMRect(
-              screen.x,
-              screen.y,
-              screen.width,
-              screen.height,
-            );
-          }
-        }
-
-        const result = this.snap.computeCorrection(movingRect, {
-          targetRects,
-          listRect,
-        });
-
-        this.snap.updatePull(
-          dx * this.camera.zoom -
-            (result.correctionX - ((this as any)._lastSnapCorrectionX ?? 0)),
-          dy * this.camera.zoom -
-            (result.correctionY - ((this as any)._lastSnapCorrectionY ?? 0)),
-        );
-        (this as any)._lastSnapCorrectionX = result.correctionX;
-        (this as any)._lastSnapCorrectionY = result.correctionY;
-
-        dx += result.correctionX / this.camera.zoom;
-        dy += result.correctionY / this.camera.zoom;
+      // Строим snap-линии от целевых элементов
+      const targetEls: {
+        screenBBox: { x: number; y: number; width: number; height: number };
+      }[] = [];
+      for (const el of this.getElements()) {
+        if (selectedIds.has(el.id)) continue;
+        const bbox = el.getWorldBBox();
+        if (bbox.width === 0 && bbox.height === 0) continue;
+        const screen = this.camera.worldRectToScreen(bbox);
+        targetEls.push({ screenBBox: screen });
       }
+      this.snap.buildTargetLines(targetEls);
+
+      if (this.snapToArtboard) {
+        const artboard = this.getArtboardRect();
+        if (artboard) {
+          const screen = this.camera.worldRectToScreen(artboard);
+          this.snap.buildArtboardLines(screen);
+        }
+      }
+
+      // Собираем мировые точки контура для виртуальной матрицы (startMatrix + dx/dy)
+      // и проецируем их в экранные координаты
+      const movingScreenPoints: Point[] = [];
+      for (const el of this.targets) {
+        const start = this.startMatrices.get(el.id);
+        if (!start) continue;
+        const virtualMatrix = new DOMMatrix(start.toString());
+        virtualMatrix.e += dx;
+        virtualMatrix.f += dy;
+
+        const local = el.getBBox();
+        const corners: Point[] = [
+          virtualMatrix.transformPoint({ x: local.x, y: local.y }),
+          virtualMatrix.transformPoint({
+            x: local.x + local.width,
+            y: local.y,
+          }),
+          virtualMatrix.transformPoint({
+            x: local.x + local.width,
+            y: local.y + local.height,
+          }),
+          virtualMatrix.transformPoint({
+            x: local.x,
+            y: local.y + local.height,
+          }),
+        ];
+        for (const c of corners) {
+          movingScreenPoints.push(this.camera.worldToScreen(c));
+        }
+      }
+
+      const result = this.snap.computeCorrection(movingScreenPoints);
+
+      this.snap.updatePull(
+        dx * this.camera.zoom -
+          (result.correctionX - ((this as any)._lastSnapCorrectionX ?? 0)),
+        dy * this.camera.zoom -
+          (result.correctionY - ((this as any)._lastSnapCorrectionY ?? 0)),
+      );
+      (this as any)._lastSnapCorrectionX = result.correctionX;
+      (this as any)._lastSnapCorrectionY = result.correctionY;
+
+      dx += result.correctionX / this.camera.zoom;
+      dy += result.correctionY / this.camera.zoom;
     }
 
     for (const el of this.targets) {
@@ -210,34 +227,5 @@ export class DragHandler {
     this.targets = [];
     this.startMatrices.clear();
     this.snap.reset();
-  }
-
-  private getMovingScreenBBox(): {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null {
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    let hasAny = false;
-    for (const el of this.targets) {
-      const bbox = el.getWorldBBox();
-      if (bbox.width === 0 && bbox.height === 0) continue;
-      hasAny = true;
-      if (bbox.x < minX) minX = bbox.x;
-      if (bbox.y < minY) minY = bbox.y;
-      if (bbox.x + bbox.width > maxX) maxX = bbox.x + bbox.width;
-      if (bbox.y + bbox.height > maxY) maxY = bbox.y + bbox.height;
-    }
-    if (!hasAny) return null;
-    return this.camera.worldRectToScreen({
-      x: minX,
-      y: minY,
-      width: maxX - minX,
-      height: maxY - minY,
-    });
   }
 }
