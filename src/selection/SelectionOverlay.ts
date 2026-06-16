@@ -4,15 +4,6 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
-export interface SelectionOverlayCallbacks {
-  onHandleMouseDown: (
-    handle: HandlePosition,
-    screenBBox: { x: number; y: number; width: number; height: number },
-    element: AbstractGraphicElement,
-    event: MouseEvent,
-  ) => void;
-}
-
 const HANDLE_SIZE = 8;
 const HANDLE_OFFSET = HANDLE_SIZE / 2;
 const PADDING = 2;
@@ -29,16 +20,11 @@ export class SelectionOverlay {
   private readonly root: SVGGElement;
   private readonly camera: Camera;
   private groups: HandleGroup[] = [];
-  private callbacks: SelectionOverlayCallbacks | null = null;
 
   public constructor(camera: Camera) {
     this.camera = camera;
     this.root = document.createElementNS(SVG_NS, 'g');
     this.root.setAttribute('pointer-events', 'none');
-  }
-
-  public setCallbacks(cb: SelectionOverlayCallbacks): void {
-    this.callbacks = cb;
   }
 
   public getElement(): SVGGElement {
@@ -56,6 +42,7 @@ export class SelectionOverlay {
       const screenBBox = this.camera.worldRectToScreen(worldBBox);
 
       const group = document.createElementNS(SVG_NS, 'g');
+      (group as any).__element = el;
       group.setAttribute(
         'transform',
         `translate(${screenBBox.x - PADDING}, ${screenBBox.y - PADDING})`,
@@ -76,7 +63,6 @@ export class SelectionOverlay {
       const handlesGroup = this.createHandles(
         screenBBox.width,
         screenBBox.height,
-        el,
       );
       group.appendChild(handlesGroup);
 
@@ -108,16 +94,63 @@ export class SelectionOverlay {
     }
   }
 
+  /**
+   * Хит-тест в SVG координатах.
+   * Проверяет, попал ли клик в одну из ручек выделенного элемента.
+   * Возвращает { handle, element, screenBBox } или null.
+   */
+  public hitTestHandle(
+    svgX: number,
+    svgY: number,
+  ): { handle: HandlePosition; element: AbstractGraphicElement; screenBBox: { x: number; y: number; width: number; height: number } } | null {
+    for (const g of this.groups) {
+      const el = (g.group as any).__element as AbstractGraphicElement;
+      if (!el) continue;
+
+      const worldBBox = el.getWorldBBox();
+      const screenBBox = this.camera.worldRectToScreen(worldBBox);
+
+      const groupX = screenBBox.x - PADDING;
+      const groupY = screenBBox.y - PADDING;
+      const localX = svgX - groupX;
+      const localY = svgY - groupY;
+
+      const w = screenBBox.width;
+      const h = screenBBox.height;
+
+      const positions: { pos: HandlePosition; cx: number; cy: number }[] = [
+        { pos: 'nw', cx: 0, cy: 0 },
+        { pos: 'n', cx: w / 2, cy: 0 },
+        { pos: 'ne', cx: w, cy: 0 },
+        { pos: 'e', cx: w, cy: h / 2 },
+        { pos: 'se', cx: w, cy: h },
+        { pos: 's', cx: w / 2, cy: h },
+        { pos: 'sw', cx: 0, cy: h },
+        { pos: 'w', cx: 0, cy: h / 2 },
+      ];
+
+      for (const { pos, cx, cy } of positions) {
+        const hx = cx - HANDLE_OFFSET;
+        const hy = cy - HANDLE_OFFSET;
+        if (
+          localX >= hx &&
+          localX <= hx + HANDLE_SIZE &&
+          localY >= hy &&
+          localY <= hy + HANDLE_SIZE
+        ) {
+          return { handle: pos, element: el, screenBBox: { x: 0, y: 0, width: w, height: h } };
+        }
+      }
+    }
+    return null;
+  }
+
   private clear(): void {
     while (this.root.firstChild) this.root.removeChild(this.root.firstChild);
     this.groups = [];
   }
 
-  private createHandles(
-    w: number,
-    h: number,
-    el: AbstractGraphicElement,
-  ): SVGGElement {
+  private createHandles(w: number, h: number): SVGGElement {
     const handlesGroup = document.createElementNS(SVG_NS, 'g');
 
     const positions: { pos: HandlePosition; cx: number; cy: number }[] = [
@@ -141,22 +174,7 @@ export class SelectionOverlay {
       handle.setAttribute('stroke', STROKE_COLOR);
       handle.setAttribute('stroke-width', '1.5');
       handle.setAttribute('data-handle', pos);
-      handle.setAttribute('cursor', this.handleCursor(pos));
-      handle.setAttribute('pointer-events', 'all');
-
-      const screenBBox = { x: 0, y: 0, width: w, height: h };
-
-      handle.addEventListener('mousedown', (e) => {
-        if (this.callbacks) {
-          this.callbacks.onHandleMouseDown(
-            pos,
-            screenBBox,
-            el,
-            e,
-          );
-        }
-      });
-
+      handle.setAttribute('pointer-events', 'none');
       handlesGroup.appendChild(handle);
     }
 
@@ -185,20 +203,6 @@ export class SelectionOverlay {
       const { cx, cy } = positions[i];
       handle.setAttribute('x', String(cx - HANDLE_OFFSET));
       handle.setAttribute('y', String(cy - HANDLE_OFFSET));
-    }
-  }
-
-  private handleCursor(pos: HandlePosition): string {
-    switch (pos) {
-      case 'nw': return 'nw-resize';
-      case 'n': return 'n-resize';
-      case 'ne': return 'ne-resize';
-      case 'e': return 'e-resize';
-      case 'se': return 'se-resize';
-      case 's': return 's-resize';
-      case 'sw': return 'sw-resize';
-      case 'w': return 'w-resize';
-      default: return 'default';
     }
   }
 

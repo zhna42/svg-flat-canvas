@@ -88,35 +88,27 @@ export class SvgCanvas {
 
     // SelectionOverlay — вне cameraGroup (screen coords)
     this.selectionOverlay = new SelectionOverlay(this.camera);
-    this.selectionOverlay.setCallbacks({
-      onHandleMouseDown: (handle, screenBBox, element, event) => {
-        const wp = this.camera.screenToWorld({
-          x: event.clientX,
-          y: event.clientY,
-        });
-        const worldBBox = {
-          x: this.camera.screenToWorld({ x: screenBBox.x, y: screenBBox.y }).x,
-          y: this.camera.screenToWorld({ x: screenBBox.x, y: screenBBox.y }).y,
-          width: screenBBox.width / this.camera.zoom,
-          height: screenBBox.height / this.camera.zoom,
-        };
-        this.transformHandler.tryStart(
-          handle,
-          new DOMRect(worldBBox.x, worldBBox.y, worldBBox.width, worldBBox.height),
-          element,
-          wp,
-          this.selectionState.selected,
-        );
-      },
-    });
     this.selectionState.setOnChange((selected) => {
       for (const el of selected) {
-        el.onDirty = () =>
+        el.onDirty = () => {
           this.selectionOverlay.setPositions(this.selectionState.selected);
+          if (this.groupManager.selectedGroupIds.size > 0) {
+            this.syncGroupSelectionOverlay();
+          }
+        };
       }
       this.selectionOverlay.setElements(selected);
       this.events.emit(Events.SelectionChange, selected);
     });
+
+    // TransformHandler
+    this.transformHandler = new TransformHandler(this.camera, this.commandBus);
+    this.transformHandler.onTransformStart = (mode) =>
+      this.events.emit(Events.TransformStart, mode);
+    this.transformHandler.onTransformMove = () =>
+      this.events.emit(Events.TransformMove, undefined);
+    this.transformHandler.onTransformEnd = (mode) =>
+      this.events.emit(Events.TransformEnd, mode);
 
     // Camera onChange — перерисовка оверлеев при pan/zoom
     this.camera.onChange = () => {
@@ -129,26 +121,12 @@ export class SvgCanvas {
       }
     };
 
-    // TransformHandler
-    this.transformHandler = new TransformHandler(this.camera, this.commandBus);
-    this.transformHandler.onTransformStart = (mode) =>
-      this.events.emit(Events.TransformStart, mode);
-    this.transformHandler.onTransformMove = () =>
-      this.events.emit(Events.TransformMove, undefined);
-    this.transformHandler.onTransformEnd = (mode) =>
-      this.events.emit(Events.TransformEnd, mode);
-
     // Overlay root — вне cameraGroup (в корне SVG, поверх камеры)
     const overlayRoot = document.createElementNS(
       'http://www.w3.org/2000/svg',
       'g',
     );
-    overlayRoot.setAttribute('pointer-events', 'none');
     this.svg.appendChild(overlayRoot);
-
-    console.log('[SvgCanvas] DOM structure:', {
-      svgChildren: Array.from(this.svg.children).map(c => c.tagName + (c.getAttribute('transform') ? ' (with transform)' : '')),
-    });
 
     overlayRoot.appendChild(this.selectionOverlay.getElement());
 
@@ -193,6 +171,8 @@ export class SvgCanvas {
       svg: this.svg,
       camera: this.camera,
       overlayRoot,
+      selectionOverlay: this.selectionOverlay,
+      transformHandler: this.transformHandler,
       state: this.selectionState,
       getElements: () => this.shapeManager.getAll(),
       grid: this.spatialGrid,
@@ -204,18 +184,6 @@ export class SvgCanvas {
       onDragStart: () => this.events.emit(Events.DragStart, undefined),
       onDragMove: () => this.events.emit(Events.DragMove, undefined),
       onDragEnd: () => this.events.emit(Events.DragEnd, undefined),
-    });
-
-    // Transform mousemove/mouseup
-    this.svg.addEventListener('mousemove', (e: MouseEvent) => {
-      if (this.transformHandler.isActive) {
-        this.transformHandler.move(
-          this.camera.screenToWorld({ x: e.clientX, y: e.clientY }),
-        );
-      }
-    });
-    this.svg.addEventListener('mouseup', () => {
-      if (this.transformHandler.isActive) this.transformHandler.end();
     });
 
     this.element.appendChild(this.svg);
