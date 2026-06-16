@@ -1,5 +1,6 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
+import type { Camera } from '@/camera/Camera';
 import type { DragHandler } from '@/selection/DragHandler';
 import {
   hitTestGroupsPoint,
@@ -17,7 +18,7 @@ export interface GroupSelectionHandlerOptions {
   getElements: () => AbstractGraphicElement[];
   grid: SpatialGrid;
   lookupGroup: (elementId: string) => string | undefined;
-  cameraGroup: SVGGElement;
+  camera: Camera;
   bus: CommandBus;
   dragHandler: DragHandler;
   onGroupSelect?: (ids: string[]) => void;
@@ -49,7 +50,6 @@ export class GroupSelectionHandler {
       all,
       this.opts.grid,
       this.opts.lookupGroup,
-      this.opts.cameraGroup,
     );
 
     if (gids.length > 0) {

@@ -14,7 +14,6 @@ export interface SelectHandlerContext {
   state: SelectionState;
   getElements: () => AbstractGraphicElement[];
   grid: SpatialGrid;
-  cameraGroup: SVGGElement;
   lookupGroup: (elementId: string) => string | undefined;
 }
 
@@ -29,7 +28,7 @@ const handleElementSelect = (
     case 'click': {
       const pt = options.point as { x: number; y: number };
       if (!pt) return;
-      const hits = hitTestPoint(pt.x, pt.y, all, ctx.grid, ctx.cameraGroup);
+      const hits = hitTestPoint(pt.x, pt.y, all, ctx.grid);
       if (hits.length === 0) {
         if (!toggle) ctx.state.clear();
         return;
@@ -100,7 +99,6 @@ const handleGroupSelect = (
         all,
         ctx.grid,
         ctx.lookupGroup,
-        ctx.cameraGroup,
       );
       if (gids.length > 0) {
         ctx.state.replace(

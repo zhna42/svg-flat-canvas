@@ -55,6 +55,19 @@ export class Camera {
     };
   }
 
+  public worldToScreen(worldPoint: Point): Point {
+    return {
+      x: worldPoint.x * this.zoom + this.x,
+      y: worldPoint.y * this.zoom + this.y,
+    };
+  }
+
+  public worldRectToScreen(worldRect: { x: number; y: number; width: number; height: number }): { x: number; y: number; width: number; height: number } {
+    const tl = this.worldToScreen({ x: worldRect.x, y: worldRect.y });
+    const br = this.worldToScreen({ x: worldRect.x + worldRect.width, y: worldRect.y + worldRect.height });
+    return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
+  }
+
   public toDTO(): Record<string, unknown> {
     return { x: this.x, y: this.y, zoom: this.zoom };
   }

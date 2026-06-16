@@ -60,6 +60,30 @@ export abstract class AbstractGraphicElement {
 
   public abstract getBBox(): BoundingBox;
 
+  public getWorldBBox(): BoundingBox {
+    const local = this.getBBox();
+    const corners = [
+      this.transformPoint({ x: local.x, y: local.y }),
+      this.transformPoint({ x: local.x + local.width, y: local.y }),
+      this.transformPoint({ x: local.x + local.width, y: local.y + local.height }),
+      this.transformPoint({ x: local.x, y: local.y + local.height }),
+    ];
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of corners) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+
+  public getWorldHitPoints(): Point[] {
+    const ha = this.hitArea;
+    if (ha.length === 0) return [];
+    return ha.map((p) => this.transformPoint(p));
+  }
+
   public applyTransformation(
     type: string,
     delta: Record<string, number>,

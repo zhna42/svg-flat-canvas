@@ -24,13 +24,10 @@ export class DebugOverlay {
     const z = this.camera.zoom;
 
     for (const el of elements) {
-      const pts = el.hitArea;
+      const pts = el.getWorldHitPoints();
       if (pts.length < 3) continue;
 
-      const m = el.transform.matrix;
-      const transformed = pts.map((p) => m.transformPoint({ x: p.x, y: p.y }));
-
-      const pointsStr = transformed.map((p) => `${p.x},${p.y}`).join(' ');
+      const pointsStr = pts.map((p) => `${p.x},${p.y}`).join(' ');
 
       const poly = document.createElementNS(SVG_NS, 'polygon');
       poly.setAttribute('points', pointsStr);

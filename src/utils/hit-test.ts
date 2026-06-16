@@ -2,11 +2,6 @@ import type { Point } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
 
-const getTransformedHitArea = (el: AbstractGraphicElement): Point[] => {
-  const ha = el.hitArea;
-  return ha.map((p) => el.transformPoint(p));
-};
-
 const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
   let inside = false;
   const n = poly.length;
@@ -23,11 +18,7 @@ const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
 };
 
 const rectContainsPoly = (
-  rx: number,
-  ry: number,
-  rw: number,
-  rh: number,
-  poly: Point[],
+  rx: number, ry: number, rw: number, rh: number, poly: Point[],
 ): boolean => {
   for (const p of poly) {
     if (p.x < rx || p.x > rx + rw || p.y < ry || p.y > ry + rh) {
@@ -38,18 +29,9 @@ const rectContainsPoly = (
 };
 
 const segmentIntersectsRect = (
-  a: Point,
-  b: Point,
-  left: number,
-  right: number,
-  top: number,
-  bottom: number,
+  a: Point, b: Point, left: number, right: number, top: number, bottom: number,
 ): boolean => {
-  const INSIDE = 0,
-    LEFT = 1,
-    RIGHT = 2,
-    BOTTOM = 4,
-    TOP = 8;
+  const INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8;
   const code = (p: Point): number => {
     let c = INSIDE;
     if (p.x < left) c |= LEFT;
@@ -58,8 +40,7 @@ const segmentIntersectsRect = (
     else if (p.y > bottom) c |= BOTTOM;
     return c;
   };
-  let ca = code(a),
-    cb = code(b);
+  let ca = code(a), cb = code(b);
   while (true) {
     if ((ca | cb) === 0) return true;
     if ((ca & cb) !== 0) return false;
@@ -71,52 +52,33 @@ const segmentIntersectsRect = (
       p = { x: a.x + ((b.x - a.x) * (bottom - a.y)) / (b.y - a.y), y: bottom };
     else if (out & RIGHT)
       p = { x: right, y: a.y + ((b.y - a.y) * (right - a.x)) / (b.x - a.x) };
-    else p = { x: left, y: a.y + ((b.y - a.y) * (left - a.x)) / (b.x - a.x) };
-    if (out === ca) {
-      a = p;
-      ca = code(a);
-    } else {
-      b = p;
-      cb = code(b);
-    }
+    else
+      p = { x: left, y: a.y + ((b.y - a.y) * (left - a.x)) / (b.x - a.x) };
+    if (out === ca) { a = p; ca = code(a); }
+    else { b = p; cb = code(b); }
   }
 };
 
 const rectIntersectsPoly = (
-  rx: number,
-  ry: number,
-  rw: number,
-  rh: number,
-  poly: Point[],
+  rx: number, ry: number, rw: number, rh: number, poly: Point[],
 ): boolean => {
-  const left = rx,
-    right = rx + rw,
-    top = ry,
-    bottom = ry + rh;
+  const left = rx, right = rx + rw, top = ry, bottom = ry + rh;
 
   for (const p of poly) {
-    if (p.x >= left && p.x <= right && p.y >= top && p.y <= bottom) {
-      return true;
-    }
+    if (p.x >= left && p.x <= right && p.y >= top && p.y <= bottom) return true;
   }
 
   const corners: Point[] = [
-    { x: left, y: top },
-    { x: right, y: top },
-    { x: right, y: bottom },
-    { x: left, y: bottom },
+    { x: left, y: top }, { x: right, y: top },
+    { x: right, y: bottom }, { x: left, y: bottom },
   ];
   for (const c of corners) {
-    if (pointInPolygon(c.x, c.y, poly)) {
-      return true;
-    }
+    if (pointInPolygon(c.x, c.y, poly)) return true;
   }
 
   const n = poly.length;
   for (let i = 0, j = n - 1; i < n; j = i++) {
-    if (segmentIntersectsRect(poly[i], poly[j], left, right, top, bottom)) {
-      return true;
-    }
+    if (segmentIntersectsRect(poly[i], poly[j], left, right, top, bottom)) return true;
   }
 
   return false;
@@ -124,9 +86,7 @@ const rectIntersectsPoly = (
 
 const polyInPoly = (outer: Point[], inner: Point[]): boolean => {
   for (const p of inner) {
-    if (!pointInPolygon(p.x, p.y, outer)) {
-      return false;
-    }
+    if (!pointInPolygon(p.x, p.y, outer)) return false;
   }
   return true;
 };
@@ -136,7 +96,6 @@ export const hitTestPoint = (
   py: number,
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
-  _cameraGroup?: SVGGElement,
 ): AbstractGraphicElement[] => {
   const size = 1;
   const ids = grid.query(px, py, size, size);
@@ -144,7 +103,7 @@ export const hitTestPoint = (
 
   const hits: AbstractGraphicElement[] = [];
   for (const el of candidates) {
-    const ha = getTransformedHitArea(el);
+    const ha = el.getWorldHitPoints();
     if (ha.length >= 3 && pointInPolygon(px, py, ha)) {
       hits.push(el);
     }
@@ -154,10 +113,7 @@ export const hitTestPoint = (
 };
 
 export const hitTestRect = (
-  rx: number,
-  ry: number,
-  rw: number,
-  rh: number,
+  rx: number, ry: number, rw: number, rh: number,
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   requireFullContain: boolean,
@@ -166,7 +122,7 @@ export const hitTestRect = (
   const candidates = elements.filter((e) => ids.includes(e.id));
 
   return candidates.filter((el) => {
-    const ha = getTransformedHitArea(el);
+    const ha = el.getWorldHitPoints();
     if (ha.length < 3) return false;
     if (requireFullContain) {
       return rectContainsPoly(rx, ry, rw, rh, ha);
@@ -182,10 +138,7 @@ export const hitTestLasso = (
 ): AbstractGraphicElement[] => {
   if (lassoPoints.length < 3) return [];
 
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
   for (const p of lassoPoints) {
     if (p.x < minX) minX = p.x;
     if (p.y < minY) minY = p.y;
@@ -197,8 +150,10 @@ export const hitTestLasso = (
   const candidates = elements.filter((e) => ids.includes(e.id));
 
   return candidates.filter((el) => {
-    const ha = getTransformedHitArea(el);
+    const ha = el.getWorldHitPoints();
     if (ha.length < 3) return false;
     return polyInPoly(lassoPoints, ha);
   });
 };
+
+export { pointInPolygon, rectContainsPoly, rectIntersectsPoly, polyInPoly };

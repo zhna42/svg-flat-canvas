@@ -15,7 +15,7 @@ export class Renderer {
   private readonly background: Background;
   private readonly queue: RenderQueue;
   private readonly nodeMap = new Map<string, SVGElement>();
-  private overlayAnchor: SVGGElement | null = null;
+
   private rafId: number | null = null;
 
   public constructor(svg: SVGSVGElement, camera: Camera) {
@@ -52,11 +52,7 @@ export class Renderer {
     const tag = TAG_BY_TYPE[type] || 'rect';
     const el = document.createElementNS(SVG_NS, tag);
     this.nodeMap.set(id, el);
-    if (this.overlayAnchor) {
-      this.cameraGroup.insertBefore(el, this.overlayAnchor);
-    } else {
-      this.cameraGroup.appendChild(el);
-    }
+    this.cameraGroup.appendChild(el);
     return el;
   }
 
@@ -77,11 +73,6 @@ export class Renderer {
 
   public getNode(id: string): SVGElement | undefined {
     return this.nodeMap.get(id);
-  }
-
-  public appendOverlay(element: SVGElement): void {
-    this.cameraGroup.appendChild(element);
-    this.overlayAnchor = element as unknown as SVGGElement;
   }
 
   public destroy(): void {

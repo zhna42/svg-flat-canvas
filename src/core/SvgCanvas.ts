@@ -84,17 +84,23 @@ export class SvgCanvas {
     );
     this.commandBus = new CommandBus(this.timeMachine);
 
-    // SelectionOverlay — self-subscribing
+    // SelectionOverlay — вне cameraGroup (screen coords)
     this.selectionOverlay = new SelectionOverlay(this.camera);
     this.selectionOverlay.setCallbacks({
-      onHandleMouseDown: (handle, bbox, element, event) => {
+      onHandleMouseDown: (handle, screenBBox, element, event) => {
         const wp = this.camera.screenToWorld({
           x: event.clientX,
           y: event.clientY,
         });
+        const worldBBox = {
+          x: this.camera.screenToWorld({ x: screenBBox.x, y: screenBBox.y }).x,
+          y: this.camera.screenToWorld({ x: screenBBox.x, y: screenBBox.y }).y,
+          width: screenBBox.width / this.camera.zoom,
+          height: screenBBox.height / this.camera.zoom,
+        };
         this.transformHandler.tryStart(
           handle,
-          bbox,
+          new DOMRect(worldBBox.x, worldBBox.y, worldBBox.width, worldBBox.height),
           element,
           wp,
           this.selectionState.selected,
@@ -119,6 +125,23 @@ export class SvgCanvas {
     this.transformHandler.onTransformEnd = (mode) =>
       this.events.emit(Events.TransformEnd, mode);
 
+    // Overlay root — вне cameraGroup (в корне SVG, поверх камеры)
+    const overlayRoot = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'g',
+    );
+    overlayRoot.setAttribute('pointer-events', 'none');
+    this.svg.appendChild(overlayRoot);
+
+    overlayRoot.appendChild(this.selectionOverlay.getElement());
+
+    this.groupSelectionOverlay = new GroupSelectionOverlay(this.camera);
+    overlayRoot.appendChild(this.groupSelectionOverlay.getElement());
+
+    this.debugOverlay = new DebugOverlay(this.camera);
+    overlayRoot.appendChild(this.debugOverlay.getElement());
+    this._debugShowHitArea = options?.debugShowHitArea ?? false;
+
     // Command registrations
     this.commandBus.register(
       'SELECT',
@@ -126,7 +149,6 @@ export class SvgCanvas {
         state: this.selectionState,
         getElements: () => this.shapeManager.getAll(),
         grid: this.spatialGrid,
-        cameraGroup: this.renderer.getCameraGroup(),
         lookupGroup: (elementId) =>
           this.groupManager.getGroupByElement(elementId)?.id,
       }),
@@ -152,8 +174,8 @@ export class SvgCanvas {
 
     this.selectionHandler = new SelectionHandler({
       svg: this.svg,
-      cameraGroup: this.renderer.getCameraGroup(),
       camera: this.camera,
+      overlayRoot,
       state: this.selectionState,
       getElements: () => this.shapeManager.getAll(),
       grid: this.spatialGrid,
@@ -180,23 +202,6 @@ export class SvgCanvas {
     });
 
     this.element.appendChild(this.svg);
-
-    const overlaysGroup = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'g',
-    );
-    this.renderer.appendOverlay(overlaysGroup);
-    overlaysGroup.appendChild(this.selectionOverlay.getElement());
-
-    this.groupSelectionOverlay = new GroupSelectionOverlay(
-      this.camera,
-      this.renderer.getQueue(),
-    );
-    overlaysGroup.appendChild(this.groupSelectionOverlay.getElement());
-
-    this.debugOverlay = new DebugOverlay(this.camera);
-    overlaysGroup.appendChild(this.debugOverlay.getElement());
-    this._debugShowHitArea = options?.debugShowHitArea ?? false;
 
     this.groupManager = new GroupManager(null as any, () =>
       this.shapeManager.getAll(),

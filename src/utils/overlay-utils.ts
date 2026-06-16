@@ -10,21 +10,21 @@ export interface LassoOverlay {
 }
 
 export const createRectOverlay = (
-  cameraGroup: SVGGElement,
-  camera: Camera,
-  x: number,
-  y: number,
+  overlayRoot: SVGGElement,
+  _camera: Camera,
+  screenX: number,
+  screenY: number,
 ): RectOverlay => {
   const rect = document.createElementNS(SVG_NS, 'rect');
   rect.setAttribute('fill', 'rgba(66, 133, 244, 0.12)');
   rect.setAttribute('stroke', '#4285f4');
-  rect.setAttribute('stroke-width', String(1 / camera.zoom));
+  rect.setAttribute('stroke-width', '1');
   rect.setAttribute('pointer-events', 'none');
-  rect.setAttribute('x', String(x));
-  rect.setAttribute('y', String(y));
+  rect.setAttribute('x', String(screenX));
+  rect.setAttribute('y', String(screenY));
   rect.setAttribute('width', '0');
   rect.setAttribute('height', '0');
-  cameraGroup.appendChild(rect);
+  overlayRoot.appendChild(rect);
   return { element: rect };
 };
 
@@ -56,20 +56,17 @@ export const hideRectOverlay = (overlay: RectOverlay): void => {
 };
 
 export const createLassoOverlay = (
-  cameraGroup: SVGGElement,
-  camera: Camera,
+  overlayRoot: SVGGElement,
+  _camera: Camera,
 ): LassoOverlay => {
   const poly = document.createElementNS(SVG_NS, 'polyline');
   poly.setAttribute('fill', 'rgba(255, 165, 0, 0.1)');
   poly.setAttribute('stroke', '#ff8c00');
-  poly.setAttribute('stroke-width', String(1.5 / camera.zoom));
-  poly.setAttribute(
-    'stroke-dasharray',
-    String(3 / camera.zoom) + ' ' + String(2 / camera.zoom),
-  );
+  poly.setAttribute('stroke-width', '1.5');
+  poly.setAttribute('stroke-dasharray', '3 2');
   poly.setAttribute('pointer-events', 'none');
   poly.setAttribute('stroke-linejoin', 'round');
-  cameraGroup.appendChild(poly);
+  overlayRoot.appendChild(poly);
   return { element: poly };
 };
 

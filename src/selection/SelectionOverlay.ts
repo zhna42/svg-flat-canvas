@@ -7,22 +7,30 @@ export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 export interface SelectionOverlayCallbacks {
   onHandleMouseDown: (
     handle: HandlePosition,
-    bbox: DOMRect,
+    screenBBox: { x: number; y: number; width: number; height: number },
     element: AbstractGraphicElement,
     event: MouseEvent,
   ) => void;
 }
 
-interface ElementGroup {
+const HANDLE_SIZE = 8;
+const HANDLE_OFFSET = HANDLE_SIZE / 2;
+const PADDING = 2;
+const STROKE_COLOR = '#4285f4';
+const HANDLE_FILL = '#fff';
+
+interface HandleGroup {
   group: SVGGElement;
-  bbox: { x: number; y: number; width: number; height: number };
+  rect: SVGRectElement;
+  handlesGroup: SVGGElement;
 }
 
 export class SelectionOverlay {
   private readonly root: SVGGElement;
   private readonly camera: Camera;
-  private elementGroups: ElementGroup[] = [];
+  private groups: HandleGroup[] = [];
   private callbacks: SelectionOverlayCallbacks | null = null;
+
   public constructor(camera: Camera) {
     this.camera = camera;
     this.root = document.createElementNS(SVG_NS, 'g');
@@ -32,6 +40,7 @@ export class SelectionOverlay {
   public setCallbacks(cb: SelectionOverlayCallbacks): void {
     this.callbacks = cb;
   }
+
   public getElement(): SVGGElement {
     return this.root;
   }
@@ -40,80 +49,77 @@ export class SelectionOverlay {
     this.clear();
     if (elements.length === 0) return;
 
-    const z = this.camera.zoom;
-    const pad = 2 / z;
-    const sw = String(1.5 / z);
-    const dash = String(4 / z) + ' ' + String(2 / z);
-    const handleSize = 8 / z;
-
     for (const el of elements) {
-      const bbox = el.getTransformedBBox();
-      if (bbox.width === 0 && bbox.height === 0) continue;
+      const worldBBox = el.getWorldBBox();
+      if (worldBBox.width === 0 && worldBBox.height === 0) continue;
+
+      const screenBBox = this.camera.worldRectToScreen(worldBBox);
 
       const group = document.createElementNS(SVG_NS, 'g');
-      group.setAttribute('transform', `translate(${bbox.x},${bbox.y})`);
+      group.setAttribute(
+        'transform',
+        `translate(${screenBBox.x - PADDING}, ${screenBBox.y - PADDING})`,
+      );
 
       const rect = document.createElementNS(SVG_NS, 'rect');
-      const rx = -pad;
-      const ry = -pad;
-      rect.setAttribute('x', String(rx));
-      rect.setAttribute('y', String(ry));
-      rect.setAttribute('width', String(bbox.width + pad * 2));
-      rect.setAttribute('height', String(bbox.height + pad * 2));
+      rect.setAttribute('x', '0');
+      rect.setAttribute('y', '0');
+      rect.setAttribute('width', String(screenBBox.width + PADDING * 2));
+      rect.setAttribute('height', String(screenBBox.height + PADDING * 2));
       rect.setAttribute('fill', 'none');
-      rect.setAttribute('stroke', '#4285f4');
-      rect.setAttribute('stroke-width', sw);
-      rect.setAttribute('stroke-dasharray', dash);
+      rect.setAttribute('stroke', STROKE_COLOR);
+      rect.setAttribute('stroke-width', '1.5');
+      rect.setAttribute('stroke-dasharray', '4 2');
       rect.setAttribute('pointer-events', 'none');
       group.appendChild(rect);
 
-      this.createHandles(group, bbox.width, bbox.height, handleSize, z, el);
+      const handlesGroup = this.createHandles(
+        screenBBox.width,
+        screenBBox.height,
+        el,
+      );
+      group.appendChild(handlesGroup);
 
       this.root.appendChild(group);
-      this.elementGroups.push({
-        group,
-        bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
-      });
+      this.groups.push({ group, rect, handlesGroup });
     }
   }
 
   public setPositions(elements: readonly AbstractGraphicElement[]): void {
-    const pad = 2 / this.camera.zoom;
-    for (let i = 0; i < elements.length && i < this.elementGroups.length; i++) {
-      const bbox = elements[i].getTransformedBBox();
-      const eg = this.elementGroups[i];
-      eg.group.setAttribute('transform', `translate(${bbox.x},${bbox.y})`);
-      const rect = eg.group.children[0] as SVGRectElement;
-      if (rect) {
-        rect.setAttribute('width', String(bbox.width + pad * 2));
-        rect.setAttribute('height', String(bbox.height + pad * 2));
-      }
+    for (let i = 0; i < elements.length && i < this.groups.length; i++) {
+      const worldBBox = elements[i].getWorldBBox();
+      const screenBBox = this.camera.worldRectToScreen(worldBBox);
+      const g = this.groups[i];
+
+      g.group.setAttribute(
+        'transform',
+        `translate(${screenBBox.x - PADDING}, ${screenBBox.y - PADDING})`,
+      );
+      g.rect.setAttribute('width', String(screenBBox.width + PADDING * 2));
+      g.rect.setAttribute('height', String(screenBBox.height + PADDING * 2));
+
+      this.updateHandlePositions(g.handlesGroup, screenBBox.width, screenBBox.height);
     }
   }
 
   public showHandles(show: boolean): void {
-    for (const eg of this.elementGroups) {
-      const handles = eg.group.querySelector('[data-handle]')?.parentElement;
-      if (handles) {
-        (handles as unknown as SVGGElement).style.display = show ? '' : 'none';
-      }
+    for (const g of this.groups) {
+      g.handlesGroup.style.display = show ? '' : 'none';
     }
   }
 
   private clear(): void {
     while (this.root.firstChild) this.root.removeChild(this.root.firstChild);
-    this.elementGroups = [];
+    this.groups = [];
   }
 
   private createHandles(
-    group: SVGGElement,
     w: number,
     h: number,
-    size: number,
-    z: number,
     el: AbstractGraphicElement,
-  ): void {
-    const hh = size / 2;
+  ): SVGGElement {
+    const handlesGroup = document.createElementNS(SVG_NS, 'g');
+
     const positions: { pos: HandlePosition; cx: number; cy: number }[] = [
       { pos: 'nw', cx: 0, cy: 0 },
       { pos: 'n', cx: w / 2, cy: 0 },
@@ -125,51 +131,74 @@ export class SelectionOverlay {
       { pos: 'w', cx: 0, cy: h / 2 },
     ];
 
-    const handlesGroup = document.createElementNS(SVG_NS, 'g');
-    (group as any).__element = el;
-
     for (const { pos, cx, cy } of positions) {
       const handle = document.createElementNS(SVG_NS, 'rect');
-      handle.setAttribute('x', String(cx - hh));
-      handle.setAttribute('y', String(cy - hh));
-      handle.setAttribute('width', String(size));
-      handle.setAttribute('height', String(size));
-      handle.setAttribute('fill', '#fff');
-      handle.setAttribute('stroke', '#4285f4');
-      handle.setAttribute('stroke-width', String(1.5 / z));
+      handle.setAttribute('x', String(cx - HANDLE_OFFSET));
+      handle.setAttribute('y', String(cy - HANDLE_OFFSET));
+      handle.setAttribute('width', String(HANDLE_SIZE));
+      handle.setAttribute('height', String(HANDLE_SIZE));
+      handle.setAttribute('fill', HANDLE_FILL);
+      handle.setAttribute('stroke', STROKE_COLOR);
+      handle.setAttribute('stroke-width', '1.5');
       handle.setAttribute('data-handle', pos);
       handle.setAttribute('cursor', this.handleCursor(pos));
       handle.setAttribute('pointer-events', 'all');
+
+      const screenBBox = { x: 0, y: 0, width: w, height: h };
+
       handle.addEventListener('mousedown', (e) => {
-        if (this.callbacks)
-          this.callbacks.onHandleMouseDown(pos, new DOMRect(0, 0, w, h), el, e);
+        if (this.callbacks) {
+          this.callbacks.onHandleMouseDown(
+            pos,
+            screenBBox,
+            el,
+            e,
+          );
+        }
       });
+
       handlesGroup.appendChild(handle);
     }
 
-    group.appendChild(handlesGroup);
+    return handlesGroup;
+  }
+
+  private updateHandlePositions(
+    handlesGroup: SVGGElement,
+    w: number,
+    h: number,
+  ): void {
+    const children = handlesGroup.children;
+    const positions = [
+      { cx: 0, cy: 0 },
+      { cx: w / 2, cy: 0 },
+      { cx: w, cy: 0 },
+      { cx: w, cy: h / 2 },
+      { cx: w, cy: h },
+      { cx: w / 2, cy: h },
+      { cx: 0, cy: h },
+      { cx: 0, cy: h / 2 },
+    ];
+
+    for (let i = 0; i < children.length && i < positions.length; i++) {
+      const handle = children[i] as SVGRectElement;
+      const { cx, cy } = positions[i];
+      handle.setAttribute('x', String(cx - HANDLE_OFFSET));
+      handle.setAttribute('y', String(cy - HANDLE_OFFSET));
+    }
   }
 
   private handleCursor(pos: HandlePosition): string {
     switch (pos) {
-      case 'nw':
-        return 'nw-resize';
-      case 'n':
-        return 'n-resize';
-      case 'ne':
-        return 'ne-resize';
-      case 'e':
-        return 'e-resize';
-      case 'se':
-        return 'se-resize';
-      case 's':
-        return 's-resize';
-      case 'sw':
-        return 'sw-resize';
-      case 'w':
-        return 'w-resize';
-      default:
-        return 'default';
+      case 'nw': return 'nw-resize';
+      case 'n': return 'n-resize';
+      case 'ne': return 'ne-resize';
+      case 'e': return 'e-resize';
+      case 'se': return 'se-resize';
+      case 's': return 's-resize';
+      case 'sw': return 'sw-resize';
+      case 'w': return 'w-resize';
+      default: return 'default';
     }
   }
 
