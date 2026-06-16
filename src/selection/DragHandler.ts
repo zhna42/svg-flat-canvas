@@ -8,10 +8,19 @@ import { createDragEndCommand } from '@/commands/factories/drag-command-factory'
 import { CircleElement } from '@/shapes/elements/CircleElement';
 import { PathElement } from '@/shapes/elements/PathElement';
 import { flattenCommands } from '@/utils/path-utils';
-import { offsetPolygon, offsetOpenPath, approximateArc } from '@/utils/geometry-utils';
+import {
+  offsetPolygon,
+  offsetOpenPath,
+  approximateArc,
+} from '@/utils/geometry-utils';
 import { polyIntersectsPoly } from '@/utils/hit-test';
 
-function generateCirclePoints(cx: number, cy: number, r: number, count: number): Point[] {
+function generateCirclePoints(
+  cx: number,
+  cy: number,
+  r: number,
+  count: number,
+): Point[] {
   const pts: Point[] = [];
   for (let i = 0; i < count; i++) {
     const a = (2 * Math.PI * i) / count;
@@ -20,12 +29,22 @@ function generateCirclePoints(cx: number, cy: number, r: number, count: number):
   return pts;
 }
 
-function getCenterlinePoints(el: AbstractGraphicElement, camera: Camera, local = false): Point[] | null {
-  const toWorld = (pts: Point[]) => local ? pts : pts.map((p) => el.transformPoint(p));
+function getCenterlinePoints(
+  el: AbstractGraphicElement,
+  camera: Camera,
+  local = false,
+): Point[] | null {
+  const toWorld = (pts: Point[]) =>
+    local ? pts : pts.map((p) => el.transformPoint(p));
 
   if (el instanceof CircleElement) {
     const count = Math.max(16, Math.round(16 * camera.zoom));
-    const localPts = generateCirclePoints(el.geometry.cx, el.geometry.cy, el.geometry.r, count);
+    const localPts = generateCirclePoints(
+      el.geometry.cx,
+      el.geometry.cy,
+      el.geometry.r,
+      count,
+    );
     return toWorld(localPts);
   }
 
@@ -37,19 +56,38 @@ function getCenterlinePoints(el: AbstractGraphicElement, camera: Camera, local =
   }
 
   if (el.type === 'rect') {
-    const g = (el as any).geometry as { x: number; y: number; width: number; height: number; rx: number; ry: number };
+    const g = (el as any).geometry as {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      rx: number;
+      ry: number;
+    };
     if (g.rx || g.ry) {
       const quadrants = 16;
       const rx = Math.min(g.rx || g.ry, g.width / 2);
       const ry = Math.min(g.ry || g.rx, g.height / 2);
       const arcPts = approximateArc(rx, ry, quadrants);
-      const cx = g.x + g.width / 2, cy = g.y + g.height / 2;
-      const iw = g.width / 2 - rx, ih = g.height / 2 - ry;
+      const cx = g.x + g.width / 2,
+        cy = g.y + g.height / 2;
+      const iw = g.width / 2 - rx,
+        ih = g.height / 2 - ry;
       const result: Point[] = [];
-      for (let i = 0; i < quadrants; i++) result.push({ x: cx + arcPts[i].x + iw, y: cy + arcPts[i].y + ih });
-      for (let i = 0; i < quadrants; i++) result.push({ x: cx - arcPts[quadrants - 1 - i].x - iw, y: cy + arcPts[quadrants - 1 - i].y + ih });
-      for (let i = 0; i < quadrants; i++) result.push({ x: cx - arcPts[i].x - iw, y: cy - arcPts[i].y - ih });
-      for (let i = 0; i < quadrants; i++) result.push({ x: cx + arcPts[quadrants - 1 - i].x + iw, y: cy - arcPts[quadrants - 1 - i].y - ih });
+      for (let i = 0; i < quadrants; i++)
+        result.push({ x: cx + arcPts[i].x + iw, y: cy + arcPts[i].y + ih });
+      for (let i = 0; i < quadrants; i++)
+        result.push({
+          x: cx - arcPts[quadrants - 1 - i].x - iw,
+          y: cy + arcPts[quadrants - 1 - i].y + ih,
+        });
+      for (let i = 0; i < quadrants; i++)
+        result.push({ x: cx - arcPts[i].x - iw, y: cy - arcPts[i].y - ih });
+      for (let i = 0; i < quadrants; i++)
+        result.push({
+          x: cx + arcPts[quadrants - 1 - i].x + iw,
+          y: cy - arcPts[quadrants - 1 - i].y - ih,
+        });
       return toWorld(result);
     }
     const localPts: Point[] = [
@@ -62,7 +100,12 @@ function getCenterlinePoints(el: AbstractGraphicElement, camera: Camera, local =
   }
 
   if (el.type === 'line') {
-    const g = (el as any).geometry as { x1: number; y1: number; x2: number; y2: number };
+    const g = (el as any).geometry as {
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+    };
     const localPts: Point[] = [
       { x: g.x1, y: g.y1 },
       { x: g.x2, y: g.y2 },
@@ -72,9 +115,14 @@ function getCenterlinePoints(el: AbstractGraphicElement, camera: Camera, local =
 
   if (el.type === 'polygon' || el.type === 'polyline') {
     const raw = (el as any).points as string;
-    const nums = raw.trim().split(/[\s,]+/).map(Number).filter((n) => !isNaN(n));
+    const nums = raw
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter((n) => !isNaN(n));
     const pts: Point[] = [];
-    for (let i = 0; i + 1 < nums.length; i += 2) pts.push({ x: nums[i], y: nums[i + 1] });
+    for (let i = 0; i + 1 < nums.length; i += 2)
+      pts.push({ x: nums[i], y: nums[i + 1] });
     return toWorld(pts);
   }
 
@@ -99,18 +147,30 @@ function offsetScreenPoints(
       const dy = p.y - cy;
       const len = Math.hypot(dx, dy);
       if (len === 0) return { ...p };
-      return { x: p.x + (dx / len) * strokeOffsetPx, y: p.y + (dy / len) * strokeOffsetPx };
+      return {
+        x: p.x + (dx / len) * strokeOffsetPx,
+        y: p.y + (dy / len) * strokeOffsetPx,
+      };
     });
   }
   if (isClosed) return offsetPolygon(screenPts, strokeOffsetPx);
   return offsetOpenPath(screenPts, strokeOffsetPx);
 }
 
-function getVisualWorldPoints(el: AbstractGraphicElement, camera: Camera, m?: DOMMatrix): Point[] {
+function getVisualWorldPoints(
+  el: AbstractGraphicElement,
+  camera: Camera,
+  m?: DOMMatrix,
+): Point[] {
   if (el instanceof CircleElement) {
     const r = el.geometry.r + el.style.strokeWidth / 2;
     const count = Math.max(24, Math.round(24 * camera.zoom));
-    const localPts = generateCirclePoints(el.geometry.cx, el.geometry.cy, r, count);
+    const localPts = generateCirclePoints(
+      el.geometry.cx,
+      el.geometry.cy,
+      r,
+      count,
+    );
     if (m) return localPts.map((p) => m.transformPoint(p));
     return localPts.map((p) => el.transformPoint(p));
   }
@@ -137,8 +197,16 @@ function getVisualWorldPoints(el: AbstractGraphicElement, camera: Camera, m?: DO
   return result;
 }
 
-function getMovingBBox(worldPts: Point[]): { x: number; y: number; width: number; height: number } {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+function getMovingBBox(worldPts: Point[]): {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+} {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const p of worldPts) {
     if (p.x < minX) minX = p.x;
     if (p.y < minY) minY = p.y;
@@ -226,7 +294,10 @@ export class DragHandler {
     this.targets = Array.from(currentSelected);
     this.startMatrices.clear();
     for (const el of currentSelected) {
-      this.startMatrices.set(el.id, new DOMMatrix(el.transform.matrix.toString()));
+      this.startMatrices.set(
+        el.id,
+        new DOMMatrix(el.transform.matrix.toString()),
+      );
     }
 
     if (this.snapEnabled) {
@@ -242,7 +313,12 @@ export class DragHandler {
         let screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
         if (strokeOffsetPx > 0) {
           const isClosed = el.type !== 'polyline' && el.type !== 'line';
-          screenPts = offsetScreenPoints(screenPts, strokeOffsetPx, el.style.hasFill, isClosed);
+          screenPts = offsetScreenPoints(
+            screenPts,
+            strokeOffsetPx,
+            el.style.hasFill,
+            isClosed,
+          );
         }
         allElementsScreenPoints.push(screenPts);
       }
@@ -273,7 +349,10 @@ export class DragHandler {
     this.targets = Array.from(currentSelected);
     this.startMatrices.clear();
     for (const el of currentSelected) {
-      this.startMatrices.set(el.id, new DOMMatrix(el.transform.matrix.toString()));
+      this.startMatrices.set(
+        el.id,
+        new DOMMatrix(el.transform.matrix.toString()),
+      );
     }
     this.snap.reset();
     this.onDragStart?.();
@@ -286,21 +365,23 @@ export class DragHandler {
     const frameDy = worldPoint.y - this.lastMouseWorld.y;
     this.lastMouseWorld = { x: worldPoint.x, y: worldPoint.y };
 
-    if (Math.abs(frameDx) < 0.5 && Math.abs(frameDy) < 0.5 && (this.currentDx !== 0 || this.currentDy !== 0)) return;
+    if (Math.abs(frameDx) < 0.1 && Math.abs(frameDy) < 0.1) return;
 
-    let targetDx = this.currentDx + frameDx;
-    let targetDy = this.currentDy + frameDy;
+    let currentFrameDx = frameDx;
+    let currentFrameDy = frameDy;
 
     if (this.snapEnabled) {
       const movingScreenPoints: Point[] = [];
+      const testTargetDx = this.currentDx + currentFrameDx;
+      const testTargetDy = this.currentDy + currentFrameDy;
 
       for (const el of this.targets) {
         const start = this.startMatrices.get(el.id);
         if (!start) continue;
 
         const virtualMatrix = new DOMMatrix(start.toString());
-        virtualMatrix.e += targetDx;
-        virtualMatrix.f += targetDy;
+        virtualMatrix.e += testTargetDx;
+        virtualMatrix.f += testTargetDy;
 
         const worldPts = getVisualWorldPoints(el, this.camera, virtualMatrix);
         for (const wp of worldPts) {
@@ -311,44 +392,47 @@ export class DragHandler {
       const snapResult = this.snap.computeCorrection(movingScreenPoints);
       this.snap.updatePull(frameDx * this.camera.zoom, frameDy * this.camera.zoom);
 
-      targetDx += snapResult.correctionX / this.camera.zoom;
-      targetDy += snapResult.correctionY / this.camera.zoom;
+      currentFrameDx += snapResult.correctionX / this.camera.zoom;
+      currentFrameDy += snapResult.correctionY / this.camera.zoom;
     }
 
     if (this.avoidCollisions) {
-      const collisionNormal = this.checkSceneCollisions(targetDx, targetDy);
+      let nextDx = this.currentDx + currentFrameDx;
+      let nextDy = this.currentDy + currentFrameDy;
+
+      const collisionNormal = this.checkSceneCollisions(nextDx, nextDy);
 
       if (collisionNormal) {
-        const dotProduct = targetDx * collisionNormal.x + targetDy * collisionNormal.y;
+        const dotProduct = currentFrameDx * collisionNormal.x + currentFrameDy * collisionNormal.y;
 
         if (dotProduct < 0) {
-          targetDx -= dotProduct * collisionNormal.x;
-          targetDy -= dotProduct * collisionNormal.y;
+          currentFrameDx -= dotProduct * collisionNormal.x;
+          currentFrameDy -= dotProduct * collisionNormal.y;
         }
 
-        if (!this.checkSceneCollisions(targetDx, targetDy)) {
-          this.currentDx = targetDx;
-          this.currentDy = targetDy;
-        } else {
-          const collisionX = this.checkSceneCollisions(targetDx, this.currentDy);
-          const collisionY = this.checkSceneCollisions(this.currentDx, targetDy);
+        nextDx = this.currentDx + currentFrameDx;
+        nextDy = this.currentDy + currentFrameDy;
 
-          if (!collisionX) {
-            this.currentDx = targetDx;
-          } else if (!collisionY) {
-            this.currentDy = targetDy;
+        if (!this.checkSceneCollisions(nextDx, nextDy)) {
+          this.currentDx = nextDx;
+          this.currentDy = nextDy;
+        } else {
+          const testXDx = this.currentDx + currentFrameDx;
+          const testYDy = this.currentDy + currentFrameDy;
+
+          if (!this.checkSceneCollisions(testXDx, this.currentDy)) {
+            this.currentDx = testXDx;
+          } else if (!this.checkSceneCollisions(this.currentDx, testYDy)) {
+            this.currentDy = testYDy;
           }
         }
-
-        targetDx = this.currentDx;
-        targetDy = this.currentDy;
       } else {
-        this.currentDx = targetDx;
-        this.currentDy = targetDy;
+        this.currentDx = nextDx;
+        this.currentDy = nextDy;
       }
     } else {
-      this.currentDx = targetDx;
-      this.currentDy = targetDy;
+      this.currentDx += currentFrameDx;
+      this.currentDy += currentFrameDy;
     }
 
     for (const el of this.targets) {
@@ -377,12 +461,23 @@ export class DragHandler {
       virtualMatrix.e += dx;
       virtualMatrix.f += dy;
 
-      const movingPts = getVisualWorldPoints(movingEl, this.camera, virtualMatrix);
+      const movingPts = getVisualWorldPoints(
+        movingEl,
+        this.camera,
+        virtualMatrix,
+      );
       if (movingPts.length === 0) continue;
 
       const movingBBox = getMovingBBox(movingPts);
-      const candidateIds = this.grid.query(movingBBox.x, movingBBox.y, movingBBox.width, movingBBox.height);
-      const candidates = targetElements.filter((el) => candidateIds.includes(el.id));
+      const candidateIds = this.grid.query(
+        movingBBox.x,
+        movingBBox.y,
+        movingBBox.width,
+        movingBBox.height,
+      );
+      const candidates = targetElements.filter((el) =>
+        candidateIds.includes(el.id),
+      );
 
       for (const candidate of candidates) {
         const candidatePts = getVisualWorldPoints(candidate, this.camera);
@@ -390,7 +485,10 @@ export class DragHandler {
 
         if (!polyIntersectsPoly(movingPts, candidatePts)) continue;
 
-        if (movingEl instanceof CircleElement && candidate instanceof CircleElement) {
+        if (
+          movingEl instanceof CircleElement &&
+          candidate instanceof CircleElement
+        ) {
           const movingCenter = movingEl.getCenter();
           const candidateCenter = candidate.getCenter();
           const nx = movingCenter.x + dx - candidateCenter.x;
