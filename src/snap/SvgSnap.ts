@@ -127,6 +127,43 @@ export class SvgSnap {
     }
   }
 
+  private pointToSegmentDist(
+    px: number, py: number,
+    ax: number, ay: number,
+    bx: number, by: number,
+  ): { dist: number; closestX: number; closestY: number } {
+    const abX = bx - ax;
+    const abY = by - ay;
+    const apX = px - ax;
+    const apY = py - ay;
+
+    const abLenSq = abX * abX + abY * abY;
+    if (abLenSq === 0) {
+      const d = Math.hypot(px - ax, py - ay);
+      return { dist: d, closestX: ax, closestY: ay };
+    }
+
+    let t = (apX * abX + apY * abY) / abLenSq;
+    t = Math.max(0, Math.min(1, t));
+
+    const closestX = ax + t * abX;
+    const closestY = ay + t * abY;
+
+    return { dist: Math.hypot(px - closestX, py - closestY), closestX, closestY };
+  }
+
+  private buildMovingLines(movingPoints: { x: number; y: number }[]): SnapLine[] {
+    const lines: SnapLine[] = [];
+    if (movingPoints.length < 2) return lines;
+    for (let i = 0; i < movingPoints.length; i++) {
+      const pt1 = movingPoints[i];
+      const pt2 = movingPoints[(i + 1) % movingPoints.length];
+      const isOrthogonal = pt1.x === pt2.x || pt1.y === pt2.y;
+      lines.push({ x: pt1.x, y: pt1.y, x2: pt2.x, y2: pt2.y, isOrthogonal });
+    }
+    return lines;
+  }
+
   computeCorrection(movingPoints: { x: number; y: number }[]): SnapResult {
     let bestCorrX = 0;
     let bestCorrY = 0;
@@ -170,26 +207,32 @@ export class SvgSnap {
     if (bestDist === Infinity) {
       for (const pt of movingPoints) {
         for (const line of this.snapLines) {
-          const abX = line.x2 - line.x;
-          const abY = line.y2 - line.y;
-          const apX = pt.x - line.x;
-          const apY = pt.y - line.y;
-
-          const abLenSq = abX * abX + abY * abY;
-          if (abLenSq === 0) continue;
-
-          let t = (apX * abX + apY * abY) / abLenSq;
-          t = Math.max(0, Math.min(1, t));
-
-          const closestX = line.x + t * abX;
-          const closestY = line.y + t * abY;
-
-          const dist = Math.hypot(pt.x - closestX, pt.y - closestY);
+          const { dist, closestX, closestY } = this.pointToSegmentDist(
+            pt.x, pt.y, line.x, line.y, line.x2, line.y2,
+          );
 
           if (dist < SNAP_DISTANCE_PX && dist < bestDist) {
             bestDist = dist;
             bestCorrX = closestX - pt.x;
             bestCorrY = closestY - pt.y;
+          }
+        }
+      }
+    }
+
+    if (bestDist === Infinity) {
+      const movingLines = this.buildMovingLines(movingPoints);
+
+      for (const tNode of this.snapNodes) {
+        for (const mLine of movingLines) {
+          const { dist, closestX, closestY } = this.pointToSegmentDist(
+            tNode.x, tNode.y, mLine.x, mLine.y, mLine.x2, mLine.y2,
+          );
+
+          if (dist < SNAP_DISTANCE_PX && dist < bestDist) {
+            bestDist = dist;
+            bestCorrX = tNode.x - closestX;
+            bestCorrY = tNode.y - closestY;
           }
         }
       }
