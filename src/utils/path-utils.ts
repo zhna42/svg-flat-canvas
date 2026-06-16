@@ -9,10 +9,11 @@ const flattenCubic = (
   y2: number,
   x3: number,
   y3: number,
+  steps = 12,
 ): Point[] => {
   const pts: Point[] = [];
-  for (let i = 1; i <= 12; i++) {
-    const t = i / 12;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
     const mt = 1 - t;
     pts.push({
       x:
@@ -37,10 +38,11 @@ const flattenQuadratic = (
   y1: number | undefined,
   x2: number,
   y2: number,
+  steps = 10,
 ): Point[] => {
   const pts: Point[] = [];
-  for (let i = 1; i <= 10; i++) {
-    const t = i / 10;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps;
     const mt = 1 - t;
     pts.push({
       x: mt * mt * x0 + 2 * mt * t * (x1 ?? (x0 + x2) / 2) + t * t * x2,
@@ -60,6 +62,7 @@ const flattenArc = (
   sweep: number,
   x2: number,
   y2: number,
+  steps = 12,
 ): Point[] => {
   const pts: Point[] = [];
   const angle = (xAxisRot * Math.PI) / 180;
@@ -90,8 +93,8 @@ const flattenArc = (
   let deltaA = endAngle - startAngle;
   if (sweep === 0 && deltaA > 0) deltaA -= 2 * Math.PI;
   if (sweep === 1 && deltaA < 0) deltaA += 2 * Math.PI;
-  for (let i = 1; i <= 12; i++) {
-    const a = startAngle + (deltaA * i) / 12;
+  for (let i = 1; i <= steps; i++) {
+    const a = startAngle + (deltaA * i) / steps;
     pts.push({
       x: cx + rX * Math.cos(a) * cosA - rY * Math.sin(a) * sinA,
       y: cy + rX * Math.cos(a) * sinA + rY * Math.sin(a) * cosA,
@@ -121,7 +124,7 @@ export const parseD = (d: string): PathCommand[] => {
 export const commandsToString = (commands: PathCommand[]): string =>
   commands.map((cmd) => `${cmd.command}${cmd.args.join(' ')}`).join(' ');
 
-export const flattenCommands = (commands: PathCommand[]): Point[] => {
+export const flattenCommands = (commands: PathCommand[], steps?: number): Point[] => {
   const points: Point[] = [];
   let currentX = 0,
     currentY = 0,
@@ -149,14 +152,9 @@ export const flattenCommands = (commands: PathCommand[]): Point[] => {
       points.push({ x: currentX, y: currentY });
     } else if (c === 'C') {
       for (const p of flattenCubic(
-        currentX,
-        currentY,
-        a[0],
-        a[1],
-        a[2],
-        a[3],
-        a[4],
-        a[5],
+        currentX, currentY,
+        a[0], a[1], a[2], a[3], a[4], a[5],
+        steps,
       ))
         points.push(p);
       currentX = a[4];
@@ -173,41 +171,31 @@ export const flattenCommands = (commands: PathCommand[]): Point[] => {
         ry = 2 * currentY - ly;
       }
       for (const p of flattenCubic(
-        currentX,
-        currentY,
-        rx,
-        ry,
-        a[0],
-        a[1],
-        a[2],
-        a[3],
+        currentX, currentY,
+        rx, ry,
+        a[0], a[1], a[2], a[3],
+        steps,
       ))
         points.push(p);
       currentX = a[2];
       currentY = a[3];
     } else if (c === 'Q' || c === 'T') {
       for (const p of flattenQuadratic(
-        currentX,
-        currentY,
+        currentX, currentY,
         c === 'Q' ? a[0] : undefined,
         c === 'Q' ? a[1] : undefined,
         a[c === 'Q' ? 2 : 0],
         a[c === 'Q' ? 3 : 1],
+        steps,
       ))
         points.push(p);
       currentX = c === 'Q' ? a[2] : a[0];
       currentY = c === 'Q' ? a[3] : a[1];
     } else if (c === 'A') {
       for (const p of flattenArc(
-        currentX,
-        currentY,
-        a[0],
-        a[1],
-        a[2],
-        a[3],
-        a[4],
-        a[5],
-        a[6],
+        currentX, currentY,
+        a[0], a[1], a[2], a[3], a[4], a[5], a[6],
+        steps,
       ))
         points.push(p);
       currentX = a[5];

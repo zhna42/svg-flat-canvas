@@ -60,6 +60,18 @@ export abstract class AbstractGraphicElement {
 
   public abstract getBBox(): BoundingBox;
 
+  public getVisualBBox(): BoundingBox {
+    const bbox = this.getBBox();
+    const halfSw = this.style.strokeWidth / 2;
+    if (halfSw <= 0) return bbox;
+    return {
+      x: bbox.x - halfSw,
+      y: bbox.y - halfSw,
+      width: bbox.width + halfSw * 2,
+      height: bbox.height + halfSw * 2,
+    };
+  }
+
   public getWorldBBox(): BoundingBox {
     const corners = this.getWorldCorners();
     let minX = Infinity,
@@ -76,7 +88,7 @@ export abstract class AbstractGraphicElement {
   }
 
   public getWorldCorners(): Point[] {
-    const local = this.getBBox();
+    const local = this.getVisualBBox();
     return [
       this.transformPoint({ x: local.x, y: local.y }),
       this.transformPoint({ x: local.x + local.width, y: local.y }),
@@ -136,7 +148,7 @@ export abstract class AbstractGraphicElement {
   }
 
   public getLocalCenter(): Point {
-    const bbox = this.getBBox();
+    const bbox = this.getVisualBBox();
     return { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
   }
 

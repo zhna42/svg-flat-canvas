@@ -2,8 +2,15 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/camera/Camera';
 import type { Point } from '@/types';
-import { SvgSnap } from '@/snap/SvgSnap';
+import { SvgSnap, type SnapCircle } from '@/snap/SvgSnap';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
+import { CircleElement } from '@/shapes/elements/CircleElement';
+import { PathElement } from '@/shapes/elements/PathElement';
+import { flattenCommands } from '@/utils/path-utils';
+
+function transformPointWithMatrix(p: Point, m: DOMMatrix): Point {
+  return m.transformPoint(p);
+}
 
 export class DragHandler {
   private _active = false;
@@ -116,27 +123,57 @@ export class DragHandler {
   public move(worldPoint: { x: number; y: number }): void {
     if (!this._active) return;
 
-    let dx = worldPoint.x - this.startWorld.x;
-    let dy = worldPoint.y - this.startWorld.y;
+    const worldDx = worldPoint.x - this.startWorld.x;
+    const worldDy = worldPoint.y - this.startWorld.y;
 
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    if (Math.abs(worldDx) < 0.5 && Math.abs(worldDy) < 0.5) return;
+
+    let finalWorldDx = worldDx;
+    let finalWorldDy = worldDy;
 
     if (this.snapEnabled) {
-      this.snap.reset();
       const selectedIds = new Set(this.targets.map((t) => t.id));
 
-      // Строим snap-линии от целевых элементов
-      const targetEls: {
-        screenBBox: { x: number; y: number; width: number; height: number };
-      }[] = [];
+      const allElementsScreenPoints: { x: number; y: number }[][] = [];
+      const allCircles: SnapCircle[] = [];
+
       for (const el of this.getElements()) {
         if (selectedIds.has(el.id)) continue;
-        const bbox = el.getWorldBBox();
-        if (bbox.width === 0 && bbox.height === 0) continue;
-        const screen = this.camera.worldRectToScreen(bbox);
-        targetEls.push({ screenBBox: screen });
+
+        if (el instanceof CircleElement) {
+          const cx = el.geometry.cx;
+          const cy = el.geometry.cy;
+          const wp = el.transformPoint({ x: cx, y: cy });
+          const sp = this.camera.worldToScreen(wp);
+          const worldR = el.geometry.r;
+          const screenR = Math.abs(worldR * this.camera.zoom);
+          allCircles.push({ cx: sp.x, cy: sp.y, r: screenR });
+          continue;
+        }
+
+        let worldPts: Point[];
+
+        if (el instanceof PathElement) {
+          const steps = Math.max(12, Math.round(12 * this.camera.zoom));
+          const cmds = el.parsedD.commands;
+          if (cmds.length > 0) {
+            worldPts = flattenCommands(cmds, steps).map((p) =>
+              el.transformPoint(p),
+            );
+          } else {
+            worldPts = el.getWorldHitPoints();
+          }
+        } else {
+          worldPts = el.getWorldHitPoints();
+        }
+
+        if (worldPts.length === 0) continue;
+        const screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
+        allElementsScreenPoints.push(screenPts);
       }
-      this.snap.buildTargetLines(targetEls);
+
+      this.snap.buildTargetLinesAndNodes(allElementsScreenPoints);
+      this.snap.buildTargetCircles(allCircles);
 
       if (this.snapToArtboard) {
         const artboard = this.getArtboardRect();
@@ -146,58 +183,39 @@ export class DragHandler {
         }
       }
 
-      // Собираем мировые точки контура для виртуальной матрицы (startMatrix + dx/dy)
-      // и проецируем их в экранные координаты
       const movingScreenPoints: Point[] = [];
       for (const el of this.targets) {
         const start = this.startMatrices.get(el.id);
         if (!start) continue;
-        const virtualMatrix = new DOMMatrix(start.toString());
-        virtualMatrix.e += dx;
-        virtualMatrix.f += dy;
 
-        const local = el.getBBox();
-        const corners: Point[] = [
-          virtualMatrix.transformPoint({ x: local.x, y: local.y }),
-          virtualMatrix.transformPoint({
-            x: local.x + local.width,
-            y: local.y,
-          }),
-          virtualMatrix.transformPoint({
-            x: local.x + local.width,
-            y: local.y + local.height,
-          }),
-          virtualMatrix.transformPoint({
-            x: local.x,
-            y: local.y + local.height,
-          }),
-        ];
-        for (const c of corners) {
-          movingScreenPoints.push(this.camera.worldToScreen(c));
+        const virtualMatrix = new DOMMatrix(start.toString());
+        virtualMatrix.e += worldDx;
+        virtualMatrix.f += worldDy;
+
+        const localPts = el.hitArea;
+        for (const lp of localPts) {
+          const vp = transformPointWithMatrix(lp, virtualMatrix);
+          movingScreenPoints.push(this.camera.worldToScreen(vp));
         }
       }
 
-      const result = this.snap.computeCorrection(movingScreenPoints);
+      const snapResult = this.snap.computeCorrection(movingScreenPoints);
 
-      this.snap.updatePull(
-        dx * this.camera.zoom -
-          (result.correctionX - ((this as any)._lastSnapCorrectionX ?? 0)),
-        dy * this.camera.zoom -
-          (result.correctionY - ((this as any)._lastSnapCorrectionY ?? 0)),
-      );
-      (this as any)._lastSnapCorrectionX = result.correctionX;
-      (this as any)._lastSnapCorrectionY = result.correctionY;
+      this.snap.updatePull(worldDx * this.camera.zoom, worldDy * this.camera.zoom);
 
-      dx += result.correctionX / this.camera.zoom;
-      dy += result.correctionY / this.camera.zoom;
+      const worldSnapX = snapResult.correctionX / this.camera.zoom;
+      const worldSnapY = snapResult.correctionY / this.camera.zoom;
+
+      finalWorldDx += worldSnapX;
+      finalWorldDy += worldSnapY;
     }
 
     for (const el of this.targets) {
       const start = this.startMatrices.get(el.id);
       if (!start) continue;
       const m = new DOMMatrix(start.toString());
-      m.e += dx;
-      m.f += dy;
+      m.e += finalWorldDx;
+      m.f += finalWorldDy;
       el.transform.matrix = m;
       el.invalidateHitArea();
     }
@@ -216,8 +234,6 @@ export class DragHandler {
     this.targets = [];
     this.startMatrices.clear();
     this.snap.reset();
-    (this as any)._lastSnapCorrectionX = 0;
-    (this as any)._lastSnapCorrectionY = 0;
     this.onDragEnd?.();
   }
 
