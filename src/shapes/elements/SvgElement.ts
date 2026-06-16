@@ -240,19 +240,15 @@ export abstract class SvgElement {
       this.data = { ...(data.data as Record<string, unknown>) };
     if (typeof data.fill === 'string') {
       this.style.fill = data.fill;
-      this.element.setAttribute('fill', data.fill);
     }
     if (typeof data.stroke === 'string') {
       this.style.stroke = data.stroke;
-      this.element.setAttribute('stroke', data.stroke);
     }
     if (typeof data.strokeWidth === 'number') {
       this.style.strokeWidth = data.strokeWidth;
-      this.element.setAttribute('stroke-width', String(data.strokeWidth));
     }
     if (typeof data.opacity === 'number') {
       this.style.opacity = data.opacity;
-      this.element.setAttribute('opacity', String(data.opacity));
     }
     if (typeof data.matrix === 'string') {
       this.transform.matrix = new DOMMatrix(data.matrix);

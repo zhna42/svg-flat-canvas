@@ -5,6 +5,13 @@ import { RectHitAreaSimple } from '../modules/HitArea';
 export class TextElement extends SvgElement {
   private _ha = new RectHitAreaSimple();
 
+  public posX = '0';
+  public posY = '0';
+  public fontSize = '16';
+  public fontFamily = '';
+  public textAnchor = 'start';
+  public textContent = '';
+
   public constructor(id: string) {
     super(id, 'text', 'text');
   }
@@ -14,104 +21,90 @@ export class TextElement extends SvgElement {
   }
 
   public buildHitArea(): void {
-    const x = parseFloat(this.element.getAttribute('x') || '0');
-    const y = parseFloat(this.element.getAttribute('y') || '0');
-    const fontSize = parseFloat(this.element.getAttribute('font-size') || '16');
-    const text = this.element.textContent || '';
-    const approxWidth = text.length * fontSize * 0.6;
+    const fx = parseFloat(this.posX),
+      fy = parseFloat(this.posY),
+      fsize = parseFloat(this.fontSize);
+    const approxWidth = this.textContent.length * fsize * 0.6;
     this._ha.set([
-      { x, y: y - fontSize },
-      { x: x + approxWidth, y: y - fontSize },
-      { x: x + approxWidth, y },
-      { x, y },
+      { x: fx, y: fy - fsize },
+      { x: fx + approxWidth, y: fy - fsize },
+      { x: fx + approxWidth, y: fy },
+      { x: fx, y: fy },
     ]);
   }
 
   public getBBox(): BoundingBox {
-    const x = parseFloat(this.element.getAttribute('x') || '0');
-    const y = parseFloat(this.element.getAttribute('y') || '0');
-    const fontSize = parseFloat(this.element.getAttribute('font-size') || '16');
-    const text = this.element.textContent || '';
+    const fx = parseFloat(this.posX),
+      fy = parseFloat(this.posY),
+      fsize = parseFloat(this.fontSize);
     return {
-      x,
-      y: y - fontSize,
-      width: text.length * fontSize * 0.6,
-      height: fontSize,
+      x: fx,
+      y: fy - fsize,
+      width: this.textContent.length * fsize * 0.6,
+      height: fsize,
     };
   }
 
   protected getGeometryProps(): Record<string, unknown> {
     return {
-      x: this.element.getAttribute('x') || '0',
-      y: this.element.getAttribute('y') || '0',
-      'font-size': this.element.getAttribute('font-size') || '16',
-      'font-family': this.element.getAttribute('font-family') || '',
-      'text-anchor': this.element.getAttribute('text-anchor') || 'start',
-      textContent: this.element.textContent || '',
+      x: this.posX,
+      y: this.posY,
+      'font-size': this.fontSize,
+      'font-family': this.fontFamily,
+      'text-anchor': this.textAnchor,
+      textContent: this.textContent,
     };
   }
 
   protected getGeometrySnapshot(): Record<string, unknown> {
     return {
-      x: this.element.getAttribute('x') || '0',
-      y: this.element.getAttribute('y') || '0',
-      fontSize: this.element.getAttribute('font-size') || '16',
-      fontFamily: this.element.getAttribute('font-family') || '',
-      textAnchor: this.element.getAttribute('text-anchor') || 'start',
-      textContent: this.element.textContent || '',
+      x: this.posX,
+      y: this.posY,
+      fontSize: this.fontSize,
+      fontFamily: this.fontFamily,
+      textAnchor: this.textAnchor,
+      textContent: this.textContent,
     };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) this.element.setAttribute('x', data.x as string);
-    if (data.y !== undefined) this.element.setAttribute('y', data.y as string);
-    if (data.fontSize !== undefined)
-      this.element.setAttribute('font-size', data.fontSize as string);
+    if (data.x !== undefined) this.posX = data.x as string;
+    if (data.y !== undefined) this.posY = data.y as string;
+    if (data.fontSize !== undefined) this.fontSize = data.fontSize as string;
     if (data.fontFamily !== undefined)
-      this.element.setAttribute('font-family', data.fontFamily as string);
+      this.fontFamily = data.fontFamily as string;
     if (data.textAnchor !== undefined)
-      this.element.setAttribute('text-anchor', data.textAnchor as string);
+      this.textAnchor = data.textAnchor as string;
     if (data.textContent !== undefined)
-      this.element.textContent = data.textContent as string;
+      this.textContent = data.textContent as string;
     this.buildHitArea();
   }
 
   protected copyGeometryTo(clone: SvgElement): void {
     const el = clone as TextElement;
-    [
-      'x',
-      'y',
-      'fill',
-      'stroke',
-      'stroke-width',
-      'opacity',
-      'transform',
-      'font-size',
-      'font-family',
-      'text-anchor',
-    ].forEach((a) => {
-      const v = this.element.getAttribute(a);
-      if (v !== null) el.element.setAttribute(a, v);
-    });
-    el.setTextContent(this.getTextContent());
+    el.posX = this.posX;
+    el.posY = this.posY;
+    el.fontSize = this.fontSize;
+    el.fontFamily = this.fontFamily;
+    el.textAnchor = this.textAnchor;
+    el.textContent = this.textContent;
     el.buildHitArea();
   }
 
   public setTextContent(text: string): void {
-    this.element.textContent = text;
+    this.textContent = text;
     this.buildHitArea();
     this.setDirty();
   }
-
   public getTextContent(): string {
-    return this.element.textContent || '';
+    return this.textContent;
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const x = parseFloat(this.element.getAttribute('x') || '0') + dx;
-    const y = parseFloat(this.element.getAttribute('y') || '0') + dy;
-    this.element.setAttribute('x', String(x));
-    this.element.setAttribute('y', String(y));
+    const fx = parseFloat(this.posX) + dx,
+      fy = parseFloat(this.posY) + dy;
+    this.posX = String(fx);
+    this.posY = String(fy);
     this.buildHitArea();
   }
 }

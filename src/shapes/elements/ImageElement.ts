@@ -5,6 +5,9 @@ import { RectHitAreaSimple } from '../modules/HitArea';
 export class ImageElement extends SvgElement {
   private _ha = new RectHitAreaSimple();
 
+  public geometry = { x: 0, y: 0, width: 0, height: 0 };
+  public href = '';
+
   public constructor(id: string) {
     super(id, 'image', 'image');
   }
@@ -14,105 +17,64 @@ export class ImageElement extends SvgElement {
   }
 
   public buildHitArea(): void {
-    const x = this.getAttrNum('x', 0),
-      y = this.getAttrNum('y', 0);
-    const w = this.getAttrNum('width', 0),
-      h = this.getAttrNum('height', 0);
-    if (w <= 0 || h <= 0) return;
+    if (this.geometry.width <= 0 || this.geometry.height <= 0) return;
     this._ha.set([
-      { x, y },
-      { x: x + w, y },
-      { x: x + w, y: y + h },
-      { x, y: y + h },
+      { x: this.geometry.x, y: this.geometry.y },
+      { x: this.geometry.x + this.geometry.width, y: this.geometry.y },
+      {
+        x: this.geometry.x + this.geometry.width,
+        y: this.geometry.y + this.geometry.height,
+      },
+      { x: this.geometry.x, y: this.geometry.y + this.geometry.height },
     ]);
   }
 
   public getBBox(): BoundingBox {
-    return {
-      x: this.getAttrNum('x', 0),
-      y: this.getAttrNum('y', 0),
-      width: this.getAttrNum('width', 0),
-      height: this.getAttrNum('height', 0),
-    };
+    return { ...this.geometry };
   }
 
   protected getGeometryProps(): Record<string, unknown> {
-    return {
-      x: this.getAttrNum('x', 0),
-      y: this.getAttrNum('y', 0),
-      width: this.getAttrNum('width', 0),
-      height: this.getAttrNum('height', 0),
-      href:
-        this.element.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ||
-        '',
-    };
+    return { ...this.geometry, href: this.href };
   }
-
   protected getGeometrySnapshot(): Record<string, unknown> {
-    return {
-      x: this.getAttrNum('x', 0),
-      y: this.getAttrNum('y', 0),
-      width: this.getAttrNum('width', 0),
-      height: this.getAttrNum('height', 0),
-      href:
-        this.element.getAttributeNS('http://www.w3.org/1999/xlink', 'href') ||
-        '',
-    };
+    return { ...this.geometry, href: this.href };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) this.element.setAttribute('x', String(data.x));
-    if (data.y !== undefined) this.element.setAttribute('y', String(data.y));
-    if (data.width !== undefined)
-      this.element.setAttribute('width', String(data.width));
-    if (data.height !== undefined)
-      this.element.setAttribute('height', String(data.height));
-    if (data.href !== undefined)
-      this.element.setAttributeNS(
-        'http://www.w3.org/1999/xlink',
-        'href',
-        data.href as string,
-      );
+    if (data.x !== undefined) this.geometry.x = data.x as number;
+    if (data.y !== undefined) this.geometry.y = data.y as number;
+    if (data.width !== undefined) this.geometry.width = data.width as number;
+    if (data.height !== undefined) this.geometry.height = data.height as number;
+    if (data.href !== undefined) this.href = data.href as string;
     this.buildHitArea();
   }
 
   protected copyGeometryTo(clone: SvgElement): void {
     const el = clone as ImageElement;
-    ['x', 'y', 'width', 'height', 'opacity', 'transform'].forEach((a) => {
-      const v = this.element.getAttribute(a);
-      if (v !== null) el.element.setAttribute(a, v);
-    });
-    const href = this.element.getAttributeNS(
-      'http://www.w3.org/1999/xlink',
-      'href',
-    );
-    if (href !== null)
-      el.element.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href);
+    el.geometry = { ...this.geometry };
+    el.href = this.href;
     el.buildHitArea();
   }
 
   public setHref(href: string): void {
-    this.element.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href);
+    this.href = href;
     this.setDirty();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const x = this.getAttrNum('x', 0) + dx;
-    const y = this.getAttrNum('y', 0) + dy;
-    this.element.setAttribute('x', String(x));
-    this.element.setAttribute('y', String(y));
+    this.geometry.x += dx;
+    this.geometry.y += dy;
     this.buildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
     const bbox = this.getTransformedBBox();
-    this.element.setAttribute('x', String(bbox.x));
-    this.element.setAttribute('y', String(bbox.y));
-    this.element.setAttribute('width', String(bbox.width));
-    this.element.setAttribute('height', String(bbox.height));
+    this.geometry.x = bbox.x;
+    this.geometry.y = bbox.y;
+    this.geometry.width = bbox.width;
+    this.geometry.height = bbox.height;
     this.transform.reset();
     this.matrix = this.transform.matrix;
-    this.element.removeAttribute('transform');
     this.invalidateHitArea();
   }
 }

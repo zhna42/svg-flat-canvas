@@ -5,6 +5,8 @@ import { EllipseHitArea } from '../modules/HitArea';
 export class EllipseElement extends SvgElement {
   private _ha = new EllipseHitArea();
 
+  public geometry = { cx: 0, cy: 0, rx: 0, ry: 0 };
+
   public constructor(id: string) {
     super(id, 'ellipse', 'ellipse');
   }
@@ -15,83 +17,56 @@ export class EllipseElement extends SvgElement {
 
   public buildHitArea(): void {
     this._ha.set(
-      this.getAttrNum('cx', 0),
-      this.getAttrNum('cy', 0),
-      this.getAttrNum('rx', 0),
-      this.getAttrNum('ry', 0),
+      this.geometry.cx,
+      this.geometry.cy,
+      this.geometry.rx,
+      this.geometry.ry,
     );
   }
 
   public getBBox(): BoundingBox {
-    const cx = this.getAttrNum('cx', 0),
-      cy = this.getAttrNum('cy', 0),
-      rx = this.getAttrNum('rx', 0),
-      ry = this.getAttrNum('ry', 0);
-    return { x: cx - rx, y: cy - ry, width: rx * 2, height: ry * 2 };
+    return {
+      x: this.geometry.cx - this.geometry.rx,
+      y: this.geometry.cy - this.geometry.ry,
+      width: this.geometry.rx * 2,
+      height: this.geometry.ry * 2,
+    };
   }
 
   protected getGeometryProps(): Record<string, unknown> {
-    return {
-      cx: this.getAttrNum('cx', 0),
-      cy: this.getAttrNum('cy', 0),
-      rx: this.getAttrNum('rx', 0),
-      ry: this.getAttrNum('ry', 0),
-    };
+    return { ...this.geometry };
   }
-
   protected getGeometrySnapshot(): Record<string, unknown> {
-    return {
-      cx: this.getAttrNum('cx', 0),
-      cy: this.getAttrNum('cy', 0),
-      rx: this.getAttrNum('rx', 0),
-      ry: this.getAttrNum('ry', 0),
-    };
+    return { ...this.geometry };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.cx !== undefined) this.element.setAttribute('cx', String(data.cx));
-    if (data.cy !== undefined) this.element.setAttribute('cy', String(data.cy));
-    if (data.rx !== undefined) this.element.setAttribute('rx', String(data.rx));
-    if (data.ry !== undefined) this.element.setAttribute('ry', String(data.ry));
+    if (data.cx !== undefined) this.geometry.cx = data.cx as number;
+    if (data.cy !== undefined) this.geometry.cy = data.cy as number;
+    if (data.rx !== undefined) this.geometry.rx = data.rx as number;
+    if (data.ry !== undefined) this.geometry.ry = data.ry as number;
     this.buildHitArea();
   }
 
   protected copyGeometryTo(clone: SvgElement): void {
-    const el = clone as EllipseElement;
-    [
-      'cx',
-      'cy',
-      'rx',
-      'ry',
-      'fill',
-      'stroke',
-      'stroke-width',
-      'opacity',
-      'transform',
-    ].forEach((a) => {
-      const v = this.element.getAttribute(a);
-      if (v !== null) el.element.setAttribute(a, v);
-    });
-    el.buildHitArea();
+    (clone as EllipseElement).geometry = { ...this.geometry };
+    clone.buildHitArea();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const cx = this.getAttrNum('cx', 0) + dx;
-    const cy = this.getAttrNum('cy', 0) + dy;
-    this.element.setAttribute('cx', String(cx));
-    this.element.setAttribute('cy', String(cy));
+    this.geometry.cx += dx;
+    this.geometry.cy += dy;
     this.buildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
     const bbox = this.getTransformedBBox();
-    this.element.setAttribute('cx', String(bbox.x + bbox.width / 2));
-    this.element.setAttribute('cy', String(bbox.y + bbox.height / 2));
-    this.element.setAttribute('rx', String(bbox.width / 2));
-    this.element.setAttribute('ry', String(bbox.height / 2));
+    this.geometry.cx = bbox.x + bbox.width / 2;
+    this.geometry.cy = bbox.y + bbox.height / 2;
+    this.geometry.rx = bbox.width / 2;
+    this.geometry.ry = bbox.height / 2;
     this.transform.reset();
     this.matrix = this.transform.matrix;
-    this.element.removeAttribute('transform');
     this.invalidateHitArea();
   }
 }

@@ -5,6 +5,8 @@ import { LineHitArea } from '../modules/HitArea';
 export class LineElement extends SvgElement {
   private _ha = new LineHitArea();
 
+  public geometry = { x1: 0, y1: 0, x2: 0, y2: 0 };
+
   public constructor(id: string) {
     super(id, 'line', 'line');
   }
@@ -15,105 +17,67 @@ export class LineElement extends SvgElement {
 
   public buildHitArea(): void {
     this._ha.set(
-      this.getAttrNum('x1', 0),
-      this.getAttrNum('y1', 0),
-      this.getAttrNum('x2', 0),
-      this.getAttrNum('y2', 0),
+      this.geometry.x1,
+      this.geometry.y1,
+      this.geometry.x2,
+      this.geometry.y2,
       this.style.strokeWidth,
     );
   }
 
   public getBBox(): BoundingBox {
-    const x1 = this.getAttrNum('x1', 0),
-      y1 = this.getAttrNum('y1', 0);
-    const x2 = this.getAttrNum('x2', 0),
-      y2 = this.getAttrNum('y2', 0);
     return {
-      x: Math.min(x1, x2),
-      y: Math.min(y1, y2),
-      width: Math.abs(x2 - x1),
-      height: Math.abs(y2 - y1),
+      x: Math.min(this.geometry.x1, this.geometry.x2),
+      y: Math.min(this.geometry.y1, this.geometry.y2),
+      width: Math.abs(this.geometry.x2 - this.geometry.x1),
+      height: Math.abs(this.geometry.y2 - this.geometry.y1),
     };
   }
 
   protected getGeometryProps(): Record<string, unknown> {
-    return {
-      x1: this.getAttrNum('x1', 0),
-      y1: this.getAttrNum('y1', 0),
-      x2: this.getAttrNum('x2', 0),
-      y2: this.getAttrNum('y2', 0),
-    };
+    return { ...this.geometry };
   }
-
   protected getGeometrySnapshot(): Record<string, unknown> {
-    return {
-      x1: this.getAttrNum('x1', 0),
-      y1: this.getAttrNum('y1', 0),
-      x2: this.getAttrNum('x2', 0),
-      y2: this.getAttrNum('y2', 0),
-    };
+    return { ...this.geometry };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x1 !== undefined) this.element.setAttribute('x1', String(data.x1));
-    if (data.y1 !== undefined) this.element.setAttribute('y1', String(data.y1));
-    if (data.x2 !== undefined) this.element.setAttribute('x2', String(data.x2));
-    if (data.y2 !== undefined) this.element.setAttribute('y2', String(data.y2));
+    if (data.x1 !== undefined) this.geometry.x1 = data.x1 as number;
+    if (data.y1 !== undefined) this.geometry.y1 = data.y1 as number;
+    if (data.x2 !== undefined) this.geometry.x2 = data.x2 as number;
+    if (data.y2 !== undefined) this.geometry.y2 = data.y2 as number;
     this.buildHitArea();
   }
 
   protected copyGeometryTo(clone: SvgElement): void {
-    const el = clone as LineElement;
-    [
-      'x1',
-      'y1',
-      'x2',
-      'y2',
-      'fill',
-      'stroke',
-      'stroke-width',
-      'opacity',
-      'transform',
-    ].forEach((a) => {
-      const v = this.element.getAttribute(a);
-      if (v !== null) el.element.setAttribute(a, v);
-    });
-    el.buildHitArea();
+    (clone as LineElement).geometry = { ...this.geometry };
+    clone.buildHitArea();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const x1 = this.getAttrNum('x1', 0) + dx,
-      y1 = this.getAttrNum('y1', 0) + dy;
-    const x2 = this.getAttrNum('x2', 0) + dx,
-      y2 = this.getAttrNum('y2', 0) + dy;
-    this.element.setAttribute('x1', String(x1));
-    this.element.setAttribute('y1', String(y1));
-    this.element.setAttribute('x2', String(x2));
-    this.element.setAttribute('y2', String(y2));
+    this.geometry.x1 += dx;
+    this.geometry.y1 += dy;
+    this.geometry.x2 += dx;
+    this.geometry.y2 += dy;
     this.buildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
     const bbox = this.getTransformedBBox();
-    const x1 = this.getAttrNum('x1', 0),
-      y1 = this.getAttrNum('y1', 0);
-    const x2 = this.getAttrNum('x2', 0),
-      y2 = this.getAttrNum('y2', 0);
-    const cx = (x1 + x2) / 2,
-      cy = (y1 + y2) / 2;
-    const halfDx = (x2 - x1) / 2,
-      halfDy = (y2 - y1) / 2;
+    const cx = (this.geometry.x1 + this.geometry.x2) / 2,
+      cy = (this.geometry.y1 + this.geometry.y2) / 2;
+    const halfDx = (this.geometry.x2 - this.geometry.x1) / 2,
+      halfDy = (this.geometry.y2 - this.geometry.y1) / 2;
     const s = Math.max(
       bbox.width / (Math.abs(halfDx) * 2 || 1),
       bbox.height / (Math.abs(halfDy) * 2 || 1),
     );
-    this.element.setAttribute('x1', String(cx - halfDx * s));
-    this.element.setAttribute('y1', String(cy - halfDy * s));
-    this.element.setAttribute('x2', String(cx + halfDx * s));
-    this.element.setAttribute('y2', String(cy + halfDy * s));
+    this.geometry.x1 = cx - halfDx * s;
+    this.geometry.y1 = cy - halfDy * s;
+    this.geometry.x2 = cx + halfDx * s;
+    this.geometry.y2 = cy + halfDy * s;
     this.transform.reset();
     this.matrix = this.transform.matrix;
-    this.element.removeAttribute('transform');
     this.invalidateHitArea();
   }
 }

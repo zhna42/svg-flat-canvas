@@ -18,6 +18,8 @@ export class PathElement extends SvgElement {
   private _parsed: ParsedPath = { commands: [] };
   private _parsedValid = false;
 
+  public d = '';
+
   public constructor(id: string) {
     super(id, 'path', 'path');
   }
@@ -28,7 +30,7 @@ export class PathElement extends SvgElement {
 
   public get parsedD(): ParsedPath {
     if (!this._parsedValid) {
-      this._parsed = { commands: parseD(this.element.getAttribute('d') || '') };
+      this._parsed = { commands: parseD(this.d) };
       this._parsedValid = true;
     }
     return this._parsed;
@@ -62,16 +64,15 @@ export class PathElement extends SvgElement {
   }
 
   protected getGeometryProps(): Record<string, unknown> {
-    return { d: this.element.getAttribute('d') || '' };
+    return { d: this.d };
   }
-
   protected getGeometrySnapshot(): Record<string, unknown> {
-    return { d: this.element.getAttribute('d') || '' };
+    return { d: this.d };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
     if (data.d !== undefined) {
-      this.element.setAttribute('d', data.d as string);
+      this.d = data.d as string;
       this._parsedValid = false;
     }
     this.buildHitArea();
@@ -79,12 +80,8 @@ export class PathElement extends SvgElement {
 
   protected copyGeometryTo(clone: SvgElement): void {
     const el = clone as PathElement;
-    const d = this.element.getAttribute('d');
-    if (d !== null) el.element.setAttribute('d', d);
-    ['fill', 'stroke', 'stroke-width', 'opacity', 'transform'].forEach((a) => {
-      const v = this.element.getAttribute(a);
-      if (v !== null) el.element.setAttribute(a, v);
-    });
+    el.d = this.d;
+    el._parsedValid = false;
     el.buildHitArea();
   }
 
@@ -97,8 +94,7 @@ export class PathElement extends SvgElement {
     f: number,
   ): void {
     const m = new DOMMatrix([a, b, c, d, e, f]);
-    const cmds = transformCommands(this.parsedD.commands, m);
-    this.element.setAttribute('d', commandsToString(cmds));
+    this.d = commandsToString(transformCommands(this.parsedD.commands, m));
     this._parsedValid = false;
     this.invalidateHitArea();
   }
@@ -113,58 +109,59 @@ export class PathElement extends SvgElement {
     if (!svg) return;
     const ctm = graphicsEl.getCTM();
     if (!ctm) return;
-    const cmds = this.parsedD.commands.map((cmd) => {
-      if (cmd.command === 'M' || cmd.command === 'L') {
-        const pt = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
-        return { command: cmd.command, args: [pt.x, pt.y] };
-      }
-      if (cmd.command === 'H') {
-        const pt = applyMatrixToPoint(ctm, cmd.args[0], 0);
-        return { command: 'L', args: [pt.x, pt.y] };
-      }
-      if (cmd.command === 'V') {
-        const pt = applyMatrixToPoint(ctm, 0, cmd.args[0]);
-        return { command: 'L', args: [pt.x, pt.y] };
-      }
-      if (cmd.command === 'C') {
-        const p1 = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
-        const p2 = applyMatrixToPoint(ctm, cmd.args[2], cmd.args[3]);
-        const p3 = applyMatrixToPoint(ctm, cmd.args[4], cmd.args[5]);
-        return { command: 'C', args: [p1.x, p1.y, p2.x, p2.y, p3.x, p3.y] };
-      }
-      if (cmd.command === 'S') {
-        const p1 = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
-        const p2 = applyMatrixToPoint(ctm, cmd.args[2], cmd.args[3]);
-        return { command: 'S', args: [p1.x, p1.y, p2.x, p2.y] };
-      }
-      if (cmd.command === 'Q') {
-        const p1 = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
-        const p2 = applyMatrixToPoint(ctm, cmd.args[2], cmd.args[3]);
-        return { command: 'Q', args: [p1.x, p1.y, p2.x, p2.y] };
-      }
-      if (cmd.command === 'T') {
-        const pt = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
-        return { command: 'T', args: [pt.x, pt.y] };
-      }
-      if (cmd.command === 'A') {
-        const pt = applyMatrixToPoint(ctm, cmd.args[5], cmd.args[6]);
-        return {
-          command: 'A',
-          args: [
-            cmd.args[0],
-            cmd.args[1],
-            cmd.args[2],
-            cmd.args[3],
-            cmd.args[4],
-            pt.x,
-            pt.y,
-          ],
-        };
-      }
-      if (cmd.command === 'Z' || cmd.command === 'z') return cmd;
-      return cmd;
-    });
-    this.element.setAttribute('d', commandsToString(cmds));
+    this.d = commandsToString(
+      this.parsedD.commands.map((cmd) => {
+        if (cmd.command === 'M' || cmd.command === 'L') {
+          const pt = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
+          return { command: cmd.command, args: [pt.x, pt.y] };
+        }
+        if (cmd.command === 'H') {
+          const pt = applyMatrixToPoint(ctm, cmd.args[0], 0);
+          return { command: 'L', args: [pt.x, pt.y] };
+        }
+        if (cmd.command === 'V') {
+          const pt = applyMatrixToPoint(ctm, 0, cmd.args[0]);
+          return { command: 'L', args: [pt.x, pt.y] };
+        }
+        if (cmd.command === 'C') {
+          const p1 = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
+          const p2 = applyMatrixToPoint(ctm, cmd.args[2], cmd.args[3]);
+          const p3 = applyMatrixToPoint(ctm, cmd.args[4], cmd.args[5]);
+          return { command: 'C', args: [p1.x, p1.y, p2.x, p2.y, p3.x, p3.y] };
+        }
+        if (cmd.command === 'S') {
+          const p1 = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
+          const p2 = applyMatrixToPoint(ctm, cmd.args[2], cmd.args[3]);
+          return { command: 'S', args: [p1.x, p1.y, p2.x, p2.y] };
+        }
+        if (cmd.command === 'Q') {
+          const p1 = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
+          const p2 = applyMatrixToPoint(ctm, cmd.args[2], cmd.args[3]);
+          return { command: 'Q', args: [p1.x, p1.y, p2.x, p2.y] };
+        }
+        if (cmd.command === 'T') {
+          const pt = applyMatrixToPoint(ctm, cmd.args[0], cmd.args[1]);
+          return { command: 'T', args: [pt.x, pt.y] };
+        }
+        if (cmd.command === 'A') {
+          const pt = applyMatrixToPoint(ctm, cmd.args[5], cmd.args[6]);
+          return {
+            command: 'A',
+            args: [
+              cmd.args[0],
+              cmd.args[1],
+              cmd.args[2],
+              cmd.args[3],
+              cmd.args[4],
+              pt.x,
+              pt.y,
+            ],
+          };
+        }
+        if (cmd.command === 'Z' || cmd.command === 'z') return cmd;
+        return cmd;
+      }),
+    );
     this.element.removeAttribute('transform');
     this._parsedValid = false;
     this.invalidateHitArea();
@@ -173,7 +170,6 @@ export class PathElement extends SvgElement {
   public flattenTransformToAttrs(): void {
     this.flattenTransform();
   }
-
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.applyMatrixToD(1, 0, 0, 1, dx, dy);
   }

@@ -5,6 +5,8 @@ import { RectHitArea } from '../modules/HitArea';
 export class RectElement extends SvgElement {
   private _ha = new RectHitArea();
 
+  public geometry = { x: 0, y: 0, width: 0, height: 0, rx: 0, ry: 0 };
+
   public constructor(id: string) {
     super(id, 'rect', 'rect');
   }
@@ -15,12 +17,12 @@ export class RectElement extends SvgElement {
 
   public buildHitArea(): void {
     this._ha.set(
-      this.getAttrNum('x', 0),
-      this.getAttrNum('y', 0),
-      this.getAttrNum('width', 0),
-      this.getAttrNum('height', 0),
-      this.getAttrNum('rx', 0),
-      this.getAttrNum('ry', 0),
+      this.geometry.x,
+      this.geometry.y,
+      this.geometry.width,
+      this.geometry.height,
+      this.geometry.rx,
+      this.geometry.ry,
       this.style.strokeWidth,
       this.style.hasFill,
     );
@@ -28,100 +30,61 @@ export class RectElement extends SvgElement {
 
   public getBBox(): BoundingBox {
     return {
-      x: this.getAttrNum('x', 0),
-      y: this.getAttrNum('y', 0),
-      width: this.getAttrNum('width', 0),
-      height: this.getAttrNum('height', 0),
+      x: this.geometry.x,
+      y: this.geometry.y,
+      width: this.geometry.width,
+      height: this.geometry.height,
     };
   }
 
   protected getGeometryProps(): Record<string, unknown> {
-    return {
-      x: this.getAttrNum('x', 0),
-      y: this.getAttrNum('y', 0),
-      width: this.getAttrNum('width', 0),
-      height: this.getAttrNum('height', 0),
-      rx: this.getAttrNum('rx', 0),
-      ry: this.getAttrNum('ry', 0),
-    };
+    return { ...this.geometry };
   }
-
   protected getGeometrySnapshot(): Record<string, unknown> {
-    return {
-      x: this.getAttrNum('x', 0),
-      y: this.getAttrNum('y', 0),
-      width: this.getAttrNum('width', 0),
-      height: this.getAttrNum('height', 0),
-      rx: this.getAttrNum('rx', 0),
-      ry: this.getAttrNum('ry', 0),
-    };
+    return { ...this.geometry };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) this.element.setAttribute('x', String(data.x));
-    if (data.y !== undefined) this.element.setAttribute('y', String(data.y));
-    if (data.width !== undefined)
-      this.element.setAttribute('width', String(data.width));
-    if (data.height !== undefined)
-      this.element.setAttribute('height', String(data.height));
-    if (data.rx !== undefined) this.element.setAttribute('rx', String(data.rx));
-    if (data.ry !== undefined) this.element.setAttribute('ry', String(data.ry));
+    if (data.x !== undefined) this.geometry.x = data.x as number;
+    if (data.y !== undefined) this.geometry.y = data.y as number;
+    if (data.width !== undefined) this.geometry.width = data.width as number;
+    if (data.height !== undefined) this.geometry.height = data.height as number;
+    if (data.rx !== undefined) this.geometry.rx = data.rx as number;
+    if (data.ry !== undefined) this.geometry.ry = data.ry as number;
     this.buildHitArea();
   }
 
   protected copyGeometryTo(clone: SvgElement): void {
     const el = clone as RectElement;
-    el.element.setAttribute('x', this.element.getAttribute('x') || '0');
-    el.element.setAttribute('y', this.element.getAttribute('y') || '0');
-    el.element.setAttribute('width', this.element.getAttribute('width') || '0');
-    el.element.setAttribute(
-      'height',
-      this.element.getAttribute('height') || '0',
-    );
-    [
-      'rx',
-      'ry',
-      'fill',
-      'stroke',
-      'stroke-width',
-      'opacity',
-      'transform',
-    ].forEach((a) => {
-      const v = this.element.getAttribute(a);
-      if (v !== null) el.element.setAttribute(a, v);
-    });
+    el.geometry = { ...this.geometry };
     el.buildHitArea();
   }
 
   public setX(x: number): void {
-    this.element.setAttribute('x', String(x));
+    this.geometry.x = x;
     this.buildHitArea();
     this.setDirty();
   }
-
   public setY(y: number): void {
-    this.element.setAttribute('y', String(y));
+    this.geometry.y = y;
     this.buildHitArea();
     this.setDirty();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const x = this.getAttrNum('x', 0) + dx;
-    const y = this.getAttrNum('y', 0) + dy;
-    this.element.setAttribute('x', String(x));
-    this.element.setAttribute('y', String(y));
+    this.geometry.x += dx;
+    this.geometry.y += dy;
     this.buildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
     const bbox = this.getTransformedBBox();
-    this.element.setAttribute('x', String(bbox.x));
-    this.element.setAttribute('y', String(bbox.y));
-    this.element.setAttribute('width', String(bbox.width));
-    this.element.setAttribute('height', String(bbox.height));
+    this.geometry.x = bbox.x;
+    this.geometry.y = bbox.y;
+    this.geometry.width = bbox.width;
+    this.geometry.height = bbox.height;
     this.transform.reset();
     this.matrix = this.transform.matrix;
-    this.element.removeAttribute('transform');
     this.invalidateHitArea();
   }
 }

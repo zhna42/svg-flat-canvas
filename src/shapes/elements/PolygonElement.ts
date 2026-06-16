@@ -6,6 +6,8 @@ import { flattenPointsTransform } from '../modules/geometry-utils';
 export class PolygonElement extends SvgElement {
   private _ha = new PolygonHitArea();
 
+  public points = '';
+
   public constructor(id: string) {
     super(id, 'polygon', 'polygon');
   }
@@ -15,7 +17,7 @@ export class PolygonElement extends SvgElement {
   }
 
   public buildHitArea(): void {
-    const raw = this.parsePoints(this.element.getAttribute('points') || '');
+    const raw = this.parsePoints(this.points);
     this._ha.set(raw, this.style.strokeWidth, this.style.hasFill);
   }
 
@@ -36,37 +38,24 @@ export class PolygonElement extends SvgElement {
   }
 
   protected getGeometryProps(): Record<string, unknown> {
-    return { points: this.element.getAttribute('points') || '' };
+    return { points: this.points };
   }
-
   protected getGeometrySnapshot(): Record<string, unknown> {
-    return { points: this.element.getAttribute('points') || '' };
+    return { points: this.points };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.points !== undefined)
-      this.element.setAttribute('points', data.points as string);
+    if (data.points !== undefined) this.points = data.points as string;
     this.buildHitArea();
   }
 
   protected copyGeometryTo(clone: SvgElement): void {
-    const el = clone as PolygonElement;
-    [
-      'points',
-      'fill',
-      'stroke',
-      'stroke-width',
-      'opacity',
-      'transform',
-    ].forEach((a) => {
-      const v = this.element.getAttribute(a);
-      if (v !== null) el.element.setAttribute(a, v);
-    });
-    el.buildHitArea();
+    (clone as PolygonElement).points = this.points;
+    clone.buildHitArea();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const nums = (this.element.getAttribute('points') || '')
+    const nums = this.points
       .trim()
       .split(/[\s,]+/)
       .map(Number)
@@ -75,24 +64,20 @@ export class PolygonElement extends SvgElement {
       nums[i] += dx;
       if (i + 1 < nums.length) nums[i + 1] += dy;
     }
-    this.element.setAttribute('points', nums.join(' '));
+    this.points = nums.join(' ');
     this.buildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
-    const pts = this.parsePoints(this.element.getAttribute('points') || '');
+    const pts = this.parsePoints(this.points);
     const scaled = flattenPointsTransform(
       pts,
       this.getBBox(),
       this.getTransformedBBox(),
     );
-    this.element.setAttribute(
-      'points',
-      scaled.map((p) => `${p.x},${p.y}`).join(' '),
-    );
+    this.points = scaled.map((p) => `${p.x},${p.y}`).join(' ');
     this.transform.reset();
     this.matrix = this.transform.matrix;
-    this.element.removeAttribute('transform');
     this.invalidateHitArea();
   }
 }

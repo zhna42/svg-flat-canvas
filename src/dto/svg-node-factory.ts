@@ -30,15 +30,8 @@ function createByTag(id: string, tag: string): SvgElement {
       return new TextElement(id);
     case 'image':
       return new ImageElement(id);
-    default: {
-      const fallback = new RectElement(id);
-      fallback.element.setAttribute('fill', '#ccc');
-      fallback.element.setAttribute('stroke', '#999');
-      fallback.element.setAttribute('stroke-width', '1');
-      fallback.element.setAttribute('width', '20');
-      fallback.element.setAttribute('height', '20');
-      return fallback;
-    }
+    default:
+      return new RectElement(id);
   }
 }
 
@@ -47,29 +40,26 @@ export function svgNodesToElements(dtos: SvgNodeDto[]): SvgElement[] {
     const el = createByTag(dto.id, dto.tag);
 
     for (const [key, value] of Object.entries(dto.properties)) {
-      if (key === 'textContent') {
-        if (el instanceof TextElement) {
-          el.setTextContent(value);
-        }
+      if (el instanceof RectElement && key in el.geometry) {
+        (el.geometry as any)[key] = parseFloat(value);
         continue;
       }
-      if (key === 'href') {
-        if (el instanceof ImageElement) {
-          el.element.setAttributeNS(
-            'http://www.w3.org/1999/xlink',
-            'href',
-            value,
-          );
-        } else {
-          el.element.setAttribute(key, value);
-        }
+      if (
+        (el instanceof CircleElement || el instanceof EllipseElement) &&
+        key in el.geometry
+      ) {
+        (el.geometry as any)[key] = parseFloat(value);
         continue;
       }
-      if (key === 'd' && el instanceof PathElement) {
-        el.element.setAttribute('d', value);
+      if (el instanceof LineElement && key in el.geometry) {
+        (el.geometry as any)[key] = parseFloat(value);
         continue;
       }
-      if (key === 'transformMatrix' && el instanceof PathElement) {
+      if (el instanceof PathElement && key === 'd') {
+        el.d = value;
+        continue;
+      }
+      if (el instanceof PathElement && key === 'transformMatrix') {
         const nums = value.split(',').map(Number);
         if (nums.length === 6) {
           const [a, b, c, d, e, f] = nums;
@@ -77,7 +67,54 @@ export function svgNodesToElements(dtos: SvgNodeDto[]): SvgElement[] {
         }
         continue;
       }
-      el.element.setAttribute(key, value);
+      if (el instanceof PolygonElement && key === 'points') {
+        el.points = value;
+        continue;
+      }
+      if (el instanceof PolylineElement && key === 'points') {
+        el.points = value;
+        continue;
+      }
+      if (el instanceof TextElement) {
+        if (key === 'textContent') {
+          el.setTextContent(value);
+          continue;
+        }
+        if (key === 'x') {
+          el.posX = value;
+          continue;
+        }
+        if (key === 'y') {
+          el.posY = value;
+          continue;
+        }
+        if (key === 'font-size') {
+          el.fontSize = value;
+          continue;
+        }
+        if (key === 'font-family') {
+          el.fontFamily = value;
+          continue;
+        }
+        if (key === 'text-anchor') {
+          el.textAnchor = value;
+          continue;
+        }
+      }
+      if (el instanceof ImageElement) {
+        if (key === 'href') {
+          el.href = value;
+          continue;
+        }
+        if (key in el.geometry) {
+          (el.geometry as any)[key] = parseFloat(value);
+          continue;
+        }
+      }
+      if (key === 'fill') el.style.fill = value;
+      else if (key === 'stroke') el.style.stroke = value;
+      else if (key === 'stroke-width') el.style.strokeWidth = parseFloat(value);
+      else if (key === 'opacity') el.style.opacity = parseFloat(value);
     }
 
     el.groupId = dto.svgGroupId ?? '';
