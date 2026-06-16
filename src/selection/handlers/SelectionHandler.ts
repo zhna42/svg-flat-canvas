@@ -151,36 +151,18 @@ export class SelectionHandler {
 
   private tryHandleHitTest(svgPt: { x: number; y: number }): boolean {
     const hit = this.opts.selectionOverlay.hitTestHandle(svgPt.x, svgPt.y);
-    console.log('[DEBUG] tryHandleHitTest', {
-      svgPt,
-      found: !!hit,
-      handle: hit?.handle,
-      elementId: hit?.element?.id,
-    });
     if (!hit) return false;
 
-    const { handle, element, screenBBox } = hit;
+    const { handle, element } = hit;
     const worldPt = this.opts.camera.screenToWorld(svgPt);
 
-    const started = this.opts.transformHandler.tryStart(
+    return this.opts.transformHandler.tryStart(
       handle,
-      new DOMRect(
-        screenBBox.x,
-        screenBBox.y,
-        screenBBox.width,
-        screenBBox.height,
-      ),
+      new DOMRect(0, 0, 0, 0),
       element,
       worldPt,
       this.opts.state.selected,
     );
-    console.log(
-      '[DEBUG] transformHandler started:',
-      started,
-      'active after:',
-      this.opts.transformHandler.isActive,
-    );
-    return started;
   }
 
   private bindEvents(): void {
@@ -201,12 +183,7 @@ export class SelectionHandler {
       const useRect = this.gesture === 'rect' || this.shiftOverride;
 
       // ШАГ 2: хит-тест интерфейса (ручки ресайза)
-      console.log(
-        '[DEBUG] before handleHitTest, transformHandler.isActive:',
-        this.opts.transformHandler.isActive,
-      );
       if (this.tryHandleHitTest(svgPt)) {
-        console.log('[DEBUG] handle hit, returning');
         e.preventDefault();
         return;
       }
