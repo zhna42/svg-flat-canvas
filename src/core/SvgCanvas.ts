@@ -44,6 +44,7 @@ import { createGroupHandler } from '@/commands/handlers/group-handler';
 import { createDeleteHandler } from '@/commands/handlers/delete-handler';
 import { createCreateHandler } from '@/commands/handlers/create-handler';
 import { createDeleteCommand } from '@/commands/factories/delete-command-factory';
+import { ExternalApi } from '@/api/external-api';
 
 export class SvgCanvas {
   private readonly element: HTMLElement;
@@ -64,6 +65,7 @@ export class SvgCanvas {
   private readonly timeMachine: TimeMachine;
   private readonly creationHandler: CreationHandler;
   private _debugShowHitArea: boolean;
+  private readonly _externalApi: ExternalApi;
 
   public readonly panActive = { value: false };
   public readonly events = new EventBus();
@@ -234,6 +236,8 @@ export class SvgCanvas {
       this.indexShape(el);
     };
 
+    this._externalApi = new ExternalApi(this);
+
     const rootSvg = this.svg;
 
     rootSvg.addEventListener(
@@ -337,6 +341,9 @@ export class SvgCanvas {
   public getSelected(): readonly AbstractGraphicElement[] {
     return this.selectionState.selected;
   }
+  public setSelectedElements(elements: AbstractGraphicElement[]): void {
+    this.selectionState.replace(elements);
+  }
 
   public setNonScalingStroke(id: string, v: boolean): void {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
@@ -380,6 +387,9 @@ export class SvgCanvas {
   }
   public getCreationHandler(): CreationHandler {
     return this.creationHandler;
+  }
+  public getExternalApi(): ExternalApi {
+    return this._externalApi;
   }
 
   public setActiveCreationTool(type: CreationElementType | null): void {

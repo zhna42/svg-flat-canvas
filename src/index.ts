@@ -1,3 +1,32 @@
+export { ExternalApi } from '@/api';
+export type {
+  CreateShapeDTO,
+  UpdateShapesDTO,
+  DeleteShapesDTO,
+  MoveShapesDTO,
+  RotateShapesDTO,
+  ResizeShapesDTO,
+  SetTransformShapesDTO,
+  GroupCreateDTO,
+  GroupDeleteDTO,
+  GroupAddElementsDTO,
+  GroupRemoveElementsDTO,
+  SelectShapesDTO,
+  ClearSelectionDTO,
+  SortShapesDTO,
+  StyleDTO,
+  TransformDTO,
+  ElementGeometryDTO,
+  RectGeometryDTO,
+  CircleGeometryDTO,
+  EllipseGeometryDTO,
+  LineGeometryDTO,
+  PathGeometryDTO,
+  PolygonGeometryDTO,
+  PolylineGeometryDTO,
+  TextGeometryDTO,
+  ImageGeometryDTO,
+} from '@/api/dto';
 export { SvgCanvas } from '@/core';
 export type { SvgCanvasOptions } from '@/types';
 export type { Point, BoundingBox, ElementType, PathCommand } from '@/types';

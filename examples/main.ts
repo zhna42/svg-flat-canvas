@@ -438,3 +438,7 @@ document.querySelectorAll('.tool-btn').forEach((btn) => {
 });
 
 setActiveTool('select');
+
+// External API — доступна из консоли
+const api = canvas.getExternalApi();
+(window as any).api = api;
