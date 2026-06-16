@@ -2,17 +2,15 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/camera/Camera';
 import { SvgSnap } from '@/snap/SvgSnap';
-import {
-  createDragMoveCommand,
-  createDragEndCommand,
-} from '@/commands/factories/drag-command-factory';
+import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
 
 export class DragHandler {
   private _active = false;
   private snapEnabled = false;
   private snapToArtboard = false;
-  private prevWorld = { x: 0, y: 0 };
+  private startWorld = { x: 0, y: 0 };
   private targets: AbstractGraphicElement[] = [];
+  private startMatrices = new Map<string, DOMMatrix>();
   private bus: CommandBus;
   private snap = new SvgSnap();
   private camera: Camera;
@@ -101,27 +99,33 @@ export class DragHandler {
   ): void {
     if (currentSelected.length === 0) return;
     this._active = true;
-    this.prevWorld = { ...worldPoint };
+    this.startWorld = { x: worldPoint.x, y: worldPoint.y };
     this.targets = Array.from(currentSelected);
+    this.startMatrices.clear();
+    for (const el of currentSelected) {
+      this.startMatrices.set(
+        el.id,
+        new DOMMatrix(el.transform.matrix.toString()),
+      );
+    }
     this.snap.reset();
     this.onDragStart?.();
   }
 
   public move(worldPoint: { x: number; y: number }): void {
     if (!this._active) return;
-    const dx = worldPoint.x - this.prevWorld.x;
-    const dy = worldPoint.y - this.prevWorld.y;
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
 
-    let finalDx = dx;
-    let finalDy = dy;
+    let dx = worldPoint.x - this.startWorld.x;
+    let dy = worldPoint.y - this.startWorld.y;
+
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
 
     if (this.snapEnabled) {
       const movingBBox = this.getMovingScreenBBox();
       if (movingBBox) {
         const movingRect = new DOMRect(
-          movingBBox.x + finalDx * this.camera.zoom,
-          movingBBox.y + finalDy * this.camera.zoom,
+          movingBBox.x + dx * this.camera.zoom,
+          movingBBox.y + dy * this.camera.zoom,
           movingBBox.width,
           movingBBox.height,
         );
@@ -158,36 +162,28 @@ export class DragHandler {
         });
 
         this.snap.updatePull(
-          finalDx * this.camera.zoom -
+          dx * this.camera.zoom -
             (result.correctionX - ((this as any)._lastSnapCorrectionX ?? 0)),
-          finalDy * this.camera.zoom -
+          dy * this.camera.zoom -
             (result.correctionY - ((this as any)._lastSnapCorrectionY ?? 0)),
         );
         (this as any)._lastSnapCorrectionX = result.correctionX;
         (this as any)._lastSnapCorrectionY = result.correctionY;
 
-        const snapDx = result.correctionX / this.camera.zoom;
-        const snapDy = result.correctionY / this.camera.zoom;
-
-        finalDx = dx + snapDx;
-        finalDy = dy + snapDy;
-
-        this.prevWorld = {
-          x: worldPoint.x + snapDx,
-          y: worldPoint.y + snapDy,
-        };
+        dx += result.correctionX / this.camera.zoom;
+        dy += result.correctionY / this.camera.zoom;
       }
-    } else {
-      this.prevWorld = { ...worldPoint };
     }
 
-    const ids = this.targets.map((e) => e.id);
-    const cmd = createDragMoveCommand(
-      'element',
-      { x: finalDx, y: finalDy },
-      ids,
-    );
-    this.bus.execute(cmd);
+    for (const el of this.targets) {
+      const start = this.startMatrices.get(el.id);
+      if (!start) continue;
+      const m = new DOMMatrix(start.toString());
+      m.e += dx;
+      m.f += dy;
+      el.transform.matrix = m;
+      el.invalidateHitArea();
+    }
 
     this.onDragMove?.();
   }
@@ -201,6 +197,7 @@ export class DragHandler {
     this.bus.execute(cmd);
 
     this.targets = [];
+    this.startMatrices.clear();
     this.snap.reset();
     (this as any)._lastSnapCorrectionX = 0;
     (this as any)._lastSnapCorrectionY = 0;
@@ -211,6 +208,7 @@ export class DragHandler {
     if (!this._active) return;
     this._active = false;
     this.targets = [];
+    this.startMatrices.clear();
     this.snap.reset();
   }
 
