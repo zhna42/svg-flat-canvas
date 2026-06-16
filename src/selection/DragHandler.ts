@@ -99,10 +99,7 @@ function offsetScreenPoints(
       const dy = p.y - cy;
       const len = Math.hypot(dx, dy);
       if (len === 0) return { ...p };
-      return {
-        x: p.x + (dx / len) * strokeOffsetPx,
-        y: p.y + (dy / len) * strokeOffsetPx,
-      };
+      return { x: p.x + (dx / len) * strokeOffsetPx, y: p.y + (dy / len) * strokeOffsetPx };
     });
   }
   if (isClosed) return offsetPolygon(screenPts, strokeOffsetPx);
@@ -111,11 +108,9 @@ function offsetScreenPoints(
 
 function getVisualWorldPoints(el: AbstractGraphicElement, camera: Camera, m?: DOMMatrix): Point[] {
   if (el instanceof CircleElement) {
-    const cx = el.geometry.cx;
-    const cy = el.geometry.cy;
     const r = el.geometry.r + el.style.strokeWidth / 2;
     const count = Math.max(24, Math.round(24 * camera.zoom));
-    const localPts = generateCirclePoints(cx, cy, r, count);
+    const localPts = generateCirclePoints(el.geometry.cx, el.geometry.cy, r, count);
     if (m) return localPts.map((p) => m.transformPoint(p));
     return localPts.map((p) => el.transformPoint(p));
   }
@@ -139,7 +134,6 @@ function getVisualWorldPoints(el: AbstractGraphicElement, camera: Camera, m?: DO
       return { x: p.x + (dx / len) * halfSw, y: p.y + (dy / len) * halfSw };
     });
   }
-
   return result;
 }
 
@@ -159,7 +153,9 @@ export class DragHandler {
   private snapEnabled = false;
   private snapToArtboard = false;
   private avoidCollisions = false;
-  private startWorld = { x: 0, y: 0 };
+  private lastMouseWorld = { x: 0, y: 0 };
+  private currentDx = 0;
+  private currentDy = 0;
   private targets: AbstractGraphicElement[] = [];
   private startMatrices = new Map<string, DOMMatrix>();
   private bus: CommandBus;
@@ -173,8 +169,6 @@ export class DragHandler {
     width: number;
     height: number;
   } | null;
-  private lastSafeWorldDx = 0;
-  private lastSafeWorldDy = 0;
 
   public onDragStart: (() => void) | null = null;
   public onDragMove: (() => void) | null = null;
@@ -225,79 +219,26 @@ export class DragHandler {
   ): boolean {
     if (currentSelected.length === 0) return false;
 
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    for (const el of currentSelected) {
-      const bbox = el.getTransformedBBox();
-      if (bbox.width === 0 && bbox.height === 0) continue;
-      if (bbox.x < minX) minX = bbox.x;
-      if (bbox.y < minY) minY = bbox.y;
-      if (bbox.x + bbox.width > maxX) maxX = bbox.x + bbox.width;
-      if (bbox.y + bbox.height > maxY) maxY = bbox.y + bbox.height;
-    }
-    if (!isFinite(minX)) return false;
-
-    const pad = Math.max((maxX - minX) * 0.25, (maxY - minY) * 0.25, 10);
-    if (
-      worldPoint.x < minX - pad ||
-      worldPoint.x > maxX + pad ||
-      worldPoint.y < minY - pad ||
-      worldPoint.y > maxY + pad
-    ) {
-      return false;
-    }
-
-    this.startWithoutCheck(worldPoint, currentSelected);
-    return true;
-  }
-
-  public startWithoutCheck(
-    worldPoint: { x: number; y: number },
-    currentSelected: readonly AbstractGraphicElement[],
-  ): void {
-    if (currentSelected.length === 0) return;
     this._active = true;
-    this.startWorld = { x: worldPoint.x, y: worldPoint.y };
+    this.lastMouseWorld = { x: worldPoint.x, y: worldPoint.y };
+    this.currentDx = 0;
+    this.currentDy = 0;
     this.targets = Array.from(currentSelected);
     this.startMatrices.clear();
     for (const el of currentSelected) {
-      this.startMatrices.set(
-        el.id,
-        new DOMMatrix(el.transform.matrix.toString()),
-      );
+      this.startMatrices.set(el.id, new DOMMatrix(el.transform.matrix.toString()));
     }
-    this.snap.reset();
-    this.lastSafeWorldDx = 0;
-    this.lastSafeWorldDy = 0;
-    this.onDragStart?.();
-  }
-
-  public move(worldPoint: { x: number; y: number }): void {
-    if (!this._active) return;
-
-    const worldDx = worldPoint.x - this.startWorld.x;
-    const worldDy = worldPoint.y - this.startWorld.y;
-
-    if (Math.abs(worldDx) < 0.5 && Math.abs(worldDy) < 0.5) return;
-
-    let finalWorldDx = worldDx;
-    let finalWorldDy = worldDy;
 
     if (this.snapEnabled) {
+      this.snap.reset();
       const selectedIds = new Set(this.targets.map((t) => t.id));
-
       const allElementsScreenPoints: { x: number; y: number }[][] = [];
 
       for (const el of this.getElements()) {
         if (selectedIds.has(el.id)) continue;
-
         const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
-
         const worldPts = getCenterlinePoints(el, this.camera);
         if (!worldPts || worldPts.length === 0) continue;
-
         let screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
         if (strokeOffsetPx > 0) {
           const isClosed = el.type !== 'polyline' && el.type !== 'line';
@@ -305,7 +246,6 @@ export class DragHandler {
         }
         allElementsScreenPoints.push(screenPts);
       }
-
       this.snap.buildTargetLinesAndNodes(allElementsScreenPoints);
 
       if (this.snapToArtboard) {
@@ -315,103 +255,177 @@ export class DragHandler {
           this.snap.buildArtboardLines(screen);
         }
       }
+    }
 
+    this.onDragStart?.();
+    return true;
+  }
+
+  public startWithoutCheck(
+    worldPoint: { x: number; y: number },
+    currentSelected: readonly AbstractGraphicElement[],
+  ): void {
+    if (currentSelected.length === 0) return;
+    this._active = true;
+    this.lastMouseWorld = { x: worldPoint.x, y: worldPoint.y };
+    this.currentDx = 0;
+    this.currentDy = 0;
+    this.targets = Array.from(currentSelected);
+    this.startMatrices.clear();
+    for (const el of currentSelected) {
+      this.startMatrices.set(el.id, new DOMMatrix(el.transform.matrix.toString()));
+    }
+    this.snap.reset();
+    this.onDragStart?.();
+  }
+
+  public move(worldPoint: { x: number; y: number }): void {
+    if (!this._active) return;
+
+    const frameDx = worldPoint.x - this.lastMouseWorld.x;
+    const frameDy = worldPoint.y - this.lastMouseWorld.y;
+    this.lastMouseWorld = { x: worldPoint.x, y: worldPoint.y };
+
+    if (Math.abs(frameDx) < 0.5 && Math.abs(frameDy) < 0.5 && (this.currentDx !== 0 || this.currentDy !== 0)) return;
+
+    let targetDx = this.currentDx + frameDx;
+    let targetDy = this.currentDy + frameDy;
+
+    if (this.snapEnabled) {
       const movingScreenPoints: Point[] = [];
+
       for (const el of this.targets) {
         const start = this.startMatrices.get(el.id);
         if (!start) continue;
 
-        const localPts = getCenterlinePoints(el, this.camera, true);
-        if (!localPts || localPts.length === 0) continue;
-
         const virtualMatrix = new DOMMatrix(start.toString());
-        virtualMatrix.e += worldDx;
-        virtualMatrix.f += worldDy;
+        virtualMatrix.e += targetDx;
+        virtualMatrix.f += targetDy;
 
-        const rawScreenPts: Point[] = [];
-        for (const lp of localPts) {
-          const vp = virtualMatrix.transformPoint(lp);
-          rawScreenPts.push(this.camera.worldToScreen(vp));
-        }
-
-        const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
-        if (strokeOffsetPx > 0) {
-          const isClosed = el.type !== 'polyline' && el.type !== 'line';
-          const offset = offsetScreenPoints(rawScreenPts, strokeOffsetPx, el.style.hasFill, isClosed);
-          movingScreenPoints.push(...offset);
-        } else {
-          movingScreenPoints.push(...rawScreenPts);
+        const worldPts = getVisualWorldPoints(el, this.camera, virtualMatrix);
+        for (const wp of worldPts) {
+          movingScreenPoints.push(this.camera.worldToScreen(wp));
         }
       }
 
       const snapResult = this.snap.computeCorrection(movingScreenPoints);
+      this.snap.updatePull(frameDx * this.camera.zoom, frameDy * this.camera.zoom);
 
-      this.snap.updatePull(worldDx * this.camera.zoom, worldDy * this.camera.zoom);
-
-      const worldSnapX = snapResult.correctionX / this.camera.zoom;
-      const worldSnapY = snapResult.correctionY / this.camera.zoom;
-
-      finalWorldDx += worldSnapX;
-      finalWorldDy += worldSnapY;
+      targetDx += snapResult.correctionX / this.camera.zoom;
+      targetDy += snapResult.correctionY / this.camera.zoom;
     }
 
-    if (this.avoidCollisions && this.targets.length > 0) {
-      const selectedIds = new Set(this.targets.map((t) => t.id));
-      const el = this.targets[0];
-      const start = this.startMatrices.get(el.id);
-      if (start) {
-        const testMatrix = new DOMMatrix(start.toString());
-        testMatrix.e += finalWorldDx;
-        testMatrix.f += finalWorldDy;
-        const movingPts = getVisualWorldPoints(el, this.camera, testMatrix);
-        const movingBBox = getMovingBBox(movingPts);
+    if (this.avoidCollisions) {
+      const collisionNormal = this.checkSceneCollisions(targetDx, targetDy);
 
-        const candidateIds = this.grid.query(movingBBox.x, movingBBox.y, movingBBox.width, movingBBox.height);
+      if (collisionNormal) {
+        const dotProduct = targetDx * collisionNormal.x + targetDy * collisionNormal.y;
 
-        const candidates = this.getElements().filter(
-          (o) => !selectedIds.has(o.id) && candidateIds.includes(o.id),
-        );
-        const candidateWorldPts = candidates.map((o) => getVisualWorldPoints(o, this.camera));
-
-        const testCollision = (dx: number, dy: number): boolean => {
-          const m = new DOMMatrix(start.toString());
-          m.e += dx;
-          m.f += dy;
-          const moving = getVisualWorldPoints(el, this.camera, m);
-          return candidateWorldPts.some((cp) => cp.length >= 2 && polyIntersectsPoly(moving, cp));
-        };
-
-        if (testCollision(finalWorldDx, finalWorldDy)) {
-          const safeX = !testCollision(finalWorldDx, this.lastSafeWorldDy);
-          const safeY = !testCollision(this.lastSafeWorldDx, finalWorldDy);
-
-          if (safeX) {
-            this.lastSafeWorldDx = finalWorldDx;
-          }
-          if (safeY) {
-            this.lastSafeWorldDy = finalWorldDy;
-          }
-
-          finalWorldDx = this.lastSafeWorldDx;
-          finalWorldDy = this.lastSafeWorldDy;
-        } else {
-          this.lastSafeWorldDx = finalWorldDx;
-          this.lastSafeWorldDy = finalWorldDy;
+        if (dotProduct < 0) {
+          targetDx -= dotProduct * collisionNormal.x;
+          targetDy -= dotProduct * collisionNormal.y;
         }
+
+        if (!this.checkSceneCollisions(targetDx, targetDy)) {
+          this.currentDx = targetDx;
+          this.currentDy = targetDy;
+        } else {
+          const collisionX = this.checkSceneCollisions(targetDx, this.currentDy);
+          const collisionY = this.checkSceneCollisions(this.currentDx, targetDy);
+
+          if (!collisionX) {
+            this.currentDx = targetDx;
+          } else if (!collisionY) {
+            this.currentDy = targetDy;
+          }
+        }
+
+        targetDx = this.currentDx;
+        targetDy = this.currentDy;
+      } else {
+        this.currentDx = targetDx;
+        this.currentDy = targetDy;
       }
+    } else {
+      this.currentDx = targetDx;
+      this.currentDy = targetDy;
     }
 
     for (const el of this.targets) {
       const start = this.startMatrices.get(el.id);
       if (!start) continue;
       const m = new DOMMatrix(start.toString());
-      m.e += finalWorldDx;
-      m.f += finalWorldDy;
+      m.e += this.currentDx;
+      m.f += this.currentDy;
       el.transform.matrix = m;
       el.invalidateHitArea();
     }
 
     this.onDragMove?.();
+  }
+
+  private checkSceneCollisions(dx: number, dy: number): Point | null {
+    const allElements = this.getElements();
+    const targetIdSet = new Set(this.targets.map((e) => e.id));
+    const targetElements = allElements.filter((el) => !targetIdSet.has(el.id));
+
+    for (const movingEl of this.targets) {
+      const startMat = this.startMatrices.get(movingEl.id);
+      if (!startMat) continue;
+
+      const virtualMatrix = new DOMMatrix(startMat.toString());
+      virtualMatrix.e += dx;
+      virtualMatrix.f += dy;
+
+      const movingPts = getVisualWorldPoints(movingEl, this.camera, virtualMatrix);
+      if (movingPts.length === 0) continue;
+
+      const movingBBox = getMovingBBox(movingPts);
+      const candidateIds = this.grid.query(movingBBox.x, movingBBox.y, movingBBox.width, movingBBox.height);
+      const candidates = targetElements.filter((el) => candidateIds.includes(el.id));
+
+      for (const candidate of candidates) {
+        const candidatePts = getVisualWorldPoints(candidate, this.camera);
+        if (candidatePts.length === 0) continue;
+
+        if (!polyIntersectsPoly(movingPts, candidatePts)) continue;
+
+        if (movingEl instanceof CircleElement && candidate instanceof CircleElement) {
+          const movingCenter = movingEl.getCenter();
+          const candidateCenter = candidate.getCenter();
+          const nx = movingCenter.x + dx - candidateCenter.x;
+          const ny = movingCenter.y + dy - candidateCenter.y;
+          const len = Math.hypot(nx, ny);
+          return len > 0 ? { x: nx / len, y: ny / len } : { x: 0, y: -1 };
+        }
+
+        let bestNormal: Point = { x: 0, y: -1 };
+        let maxPenetration = -Infinity;
+
+        for (let i = 0; i < candidatePts.length; i++) {
+          const p1 = candidatePts[i];
+          const p2 = candidatePts[(i + 1) % candidatePts.length];
+
+          const edgeX = p2.x - p1.x;
+          const edgeY = p2.y - p1.y;
+          const edgeLen = Math.hypot(edgeX, edgeY);
+          if (edgeLen === 0) continue;
+
+          const nX = -edgeY / edgeLen;
+          const nY = edgeX / edgeLen;
+
+          for (const mp of movingPts) {
+            const pen = (p1.x - mp.x) * nX + (p1.y - mp.y) * nY;
+            if (pen > maxPenetration) {
+              maxPenetration = pen;
+              bestNormal = { x: nX, y: nY };
+            }
+          }
+        }
+        return bestNormal;
+      }
+    }
+    return null;
   }
 
   public end(): void {
