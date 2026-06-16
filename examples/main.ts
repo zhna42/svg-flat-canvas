@@ -115,6 +115,17 @@ document.getElementById('btn-snap-artboard')!.onclick = () => {
   info(snapArtboard ? 'Snap to artboard: ON' : 'Snap to artboard: OFF');
 };
 
+// ----- avoid collisions toggle -----
+let avoidCollisions = false;
+document.getElementById('btn-avoid-collisions')!.onclick = () => {
+  avoidCollisions = !avoidCollisions;
+  canvas.setAvoidCollisions(avoidCollisions);
+  const btn = document.getElementById('btn-avoid-collisions')!;
+  btn.textContent = avoidCollisions ? 'Avoid collisions: on' : 'Avoid collisions: off';
+  btn.classList.toggle('active', avoidCollisions);
+  info(avoidCollisions ? 'Avoid collisions: ON' : 'Avoid collisions: OFF');
+};
+
 // ----- toggle pan button -----
 let panLocked = false;
 document.getElementById('btn-toggle-pan')!.onclick = () => {

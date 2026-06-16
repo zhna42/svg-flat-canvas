@@ -156,4 +156,31 @@ export const hitTestLasso = (
   });
 };
 
-export { pointInPolygon, rectContainsPoly, rectIntersectsPoly, polyInPoly };
+const segmentIntersectsSegment = (a: Point, b: Point, c: Point, d: Point): boolean => {
+  const d1x = b.x - a.x, d1y = b.y - a.y;
+  const d2x = d.x - c.x, d2y = d.y - c.y;
+  const cross = d1x * d2y - d1y * d2x;
+  if (Math.abs(cross) < 1e-10) return false;
+  const t = ((c.x - a.x) * d2y - (c.y - a.y) * d2x) / cross;
+  const u = ((c.x - a.x) * d1y - (c.y - a.y) * d1x) / cross;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+};
+
+const polyIntersectsPoly = (polyA: Point[], polyB: Point[]): boolean => {
+  for (const p of polyA) {
+    if (pointInPolygon(p.x, p.y, polyB)) return true;
+  }
+  for (const p of polyB) {
+    if (pointInPolygon(p.x, p.y, polyA)) return true;
+  }
+  const n = polyA.length;
+  for (let i = 0, j = n - 1; i < n; j = i++) {
+    const m = polyB.length;
+    for (let k = 0, l = m - 1; k < m; l = k++) {
+      if (segmentIntersectsSegment(polyA[i], polyA[j], polyB[k], polyB[l])) return true;
+    }
+  }
+  return false;
+};
+
+export { pointInPolygon, rectContainsPoly, rectIntersectsPoly, polyInPoly, polyIntersectsPoly, segmentIntersectsSegment };

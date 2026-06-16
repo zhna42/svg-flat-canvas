@@ -2,12 +2,14 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/camera/Camera';
 import type { Point } from '@/types';
+import type { SpatialGrid } from '@/selection/SpatialGrid';
 import { SvgSnap } from '@/snap/SvgSnap';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
 import { CircleElement } from '@/shapes/elements/CircleElement';
 import { PathElement } from '@/shapes/elements/PathElement';
 import { flattenCommands } from '@/utils/path-utils';
 import { offsetPolygon, offsetOpenPath, approximateArc } from '@/utils/geometry-utils';
+import { polyIntersectsPoly } from '@/utils/hit-test';
 
 function generateCirclePoints(cx: number, cy: number, r: number, count: number): Point[] {
   const pts: Point[] = [];
@@ -107,16 +109,63 @@ function offsetScreenPoints(
   return offsetOpenPath(screenPts, strokeOffsetPx);
 }
 
+function getVisualWorldPoints(el: AbstractGraphicElement, camera: Camera, m?: DOMMatrix): Point[] {
+  if (el instanceof CircleElement) {
+    const cx = el.geometry.cx;
+    const cy = el.geometry.cy;
+    const r = el.geometry.r + el.style.strokeWidth / 2;
+    const count = Math.max(24, Math.round(24 * camera.zoom));
+    const localPts = generateCirclePoints(cx, cy, r, count);
+    if (m) return localPts.map((p) => m.transformPoint(p));
+    return localPts.map((p) => el.transformPoint(p));
+  }
+
+  const localPts = getCenterlinePoints(el, camera, true);
+  if (!localPts || localPts.length === 0) return [];
+
+  const halfSw = el.style.strokeWidth / 2;
+  let result: Point[];
+  if (m) result = localPts.map((p) => m.transformPoint(p));
+  else result = localPts.map((p) => el.transformPoint(p));
+
+  if (halfSw > 0 && result.length >= 2) {
+    const cx = result.reduce((s, p) => s + p.x, 0) / result.length;
+    const cy = result.reduce((s, p) => s + p.y, 0) / result.length;
+    result = result.map((p) => {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const len = Math.hypot(dx, dy);
+      if (len === 0) return p;
+      return { x: p.x + (dx / len) * halfSw, y: p.y + (dy / len) * halfSw };
+    });
+  }
+
+  return result;
+}
+
+function getMovingBBox(worldPts: Point[]): { x: number; y: number; width: number; height: number } {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of worldPts) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+}
+
 export class DragHandler {
   private _active = false;
   private snapEnabled = false;
   private snapToArtboard = false;
+  private avoidCollisions = false;
   private startWorld = { x: 0, y: 0 };
   private targets: AbstractGraphicElement[] = [];
   private startMatrices = new Map<string, DOMMatrix>();
   private bus: CommandBus;
   private snap = new SvgSnap();
   private camera: Camera;
+  private grid: SpatialGrid;
   private getElements: () => AbstractGraphicElement[];
   private getArtboardRect: () => {
     x: number;
@@ -124,6 +173,8 @@ export class DragHandler {
     width: number;
     height: number;
   } | null;
+  private lastSafeWorldDx = 0;
+  private lastSafeWorldDy = 0;
 
   public onDragStart: (() => void) | null = null;
   public onDragMove: (() => void) | null = null;
@@ -132,6 +183,7 @@ export class DragHandler {
   public constructor(
     bus: CommandBus,
     camera: Camera,
+    grid: SpatialGrid,
     getElements: () => AbstractGraphicElement[],
     getArtboardRect: () => {
       x: number;
@@ -142,8 +194,13 @@ export class DragHandler {
   ) {
     this.bus = bus;
     this.camera = camera;
+    this.grid = grid;
     this.getElements = getElements;
     this.getArtboardRect = getArtboardRect;
+  }
+
+  public setAvoidCollisions(enabled: boolean): void {
+    this.avoidCollisions = enabled;
   }
 
   public setSnapEnabled(enabled: boolean): void {
@@ -212,6 +269,8 @@ export class DragHandler {
       );
     }
     this.snap.reset();
+    this.lastSafeWorldDx = 0;
+    this.lastSafeWorldDy = 0;
     this.onDragStart?.();
   }
 
@@ -294,6 +353,52 @@ export class DragHandler {
 
       finalWorldDx += worldSnapX;
       finalWorldDy += worldSnapY;
+    }
+
+    if (this.avoidCollisions && this.targets.length > 0) {
+      const selectedIds = new Set(this.targets.map((t) => t.id));
+      const el = this.targets[0];
+      const start = this.startMatrices.get(el.id);
+      if (start) {
+        const testMatrix = new DOMMatrix(start.toString());
+        testMatrix.e += finalWorldDx;
+        testMatrix.f += finalWorldDy;
+        const movingPts = getVisualWorldPoints(el, this.camera, testMatrix);
+        const movingBBox = getMovingBBox(movingPts);
+
+        const candidateIds = this.grid.query(movingBBox.x, movingBBox.y, movingBBox.width, movingBBox.height);
+
+        const candidates = this.getElements().filter(
+          (o) => !selectedIds.has(o.id) && candidateIds.includes(o.id),
+        );
+        const candidateWorldPts = candidates.map((o) => getVisualWorldPoints(o, this.camera));
+
+        const testCollision = (dx: number, dy: number): boolean => {
+          const m = new DOMMatrix(start.toString());
+          m.e += dx;
+          m.f += dy;
+          const moving = getVisualWorldPoints(el, this.camera, m);
+          return candidateWorldPts.some((cp) => cp.length >= 2 && polyIntersectsPoly(moving, cp));
+        };
+
+        if (testCollision(finalWorldDx, finalWorldDy)) {
+          const safeX = !testCollision(finalWorldDx, this.lastSafeWorldDy);
+          const safeY = !testCollision(this.lastSafeWorldDx, finalWorldDy);
+
+          if (safeX) {
+            this.lastSafeWorldDx = finalWorldDx;
+          }
+          if (safeY) {
+            this.lastSafeWorldDy = finalWorldDy;
+          }
+
+          finalWorldDx = this.lastSafeWorldDx;
+          finalWorldDy = this.lastSafeWorldDy;
+        } else {
+          this.lastSafeWorldDx = finalWorldDx;
+          this.lastSafeWorldDy = finalWorldDy;
+        }
+      }
     }
 
     for (const el of this.targets) {

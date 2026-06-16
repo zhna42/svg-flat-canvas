@@ -75,6 +75,7 @@ export class SelectionHandler {
     this.dragHandler = new DragHandler(
       opts.bus,
       opts.camera,
+      opts.grid,
       opts.getElements,
       opts.getArtboardRect ?? (() => null),
     );
@@ -127,6 +128,10 @@ export class SelectionHandler {
 
   public setSnapToArtboard(enabled: boolean): void {
     this.dragHandler.setSnapToArtboard(enabled);
+  }
+
+  public setAvoidCollisions(enabled: boolean): void {
+    this.dragHandler.setAvoidCollisions(enabled);
   }
 
   private clientToSvg(e: MouseEvent): { x: number; y: number } {

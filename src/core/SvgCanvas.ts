@@ -407,6 +407,10 @@ export class SvgCanvas {
     this.selectionHandler.setSnapToArtboard(enabled);
   }
 
+  public setAvoidCollisions(enabled: boolean): void {
+    this.selectionHandler.setAvoidCollisions(enabled);
+  }
+
   private getArtboardRect(): {
     x: number;
     y: number;
