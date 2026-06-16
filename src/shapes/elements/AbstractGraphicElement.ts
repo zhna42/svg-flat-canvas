@@ -25,6 +25,7 @@ export abstract class AbstractGraphicElement {
   public visible = true;
   public lock = false;
   public isPreview = false;
+  public isNodeEditing = false;
   public data: Record<string, unknown> = {};
   public onDirty: (() => void) | null = null;
 

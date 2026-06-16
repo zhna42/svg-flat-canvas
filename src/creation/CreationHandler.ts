@@ -6,6 +6,7 @@ import { EllipseElement } from '@/shapes/elements/EllipseElement';
 import { LineElement } from '@/shapes/elements/LineElement';
 import { PolylineElement } from '@/shapes/elements/PolylineElement';
 import { PolygonElement } from '@/shapes/elements/PolygonElement';
+import { PathElement } from '@/shapes/elements/PathElement';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { CreationElementType } from '@/commands/types';
 import { Camera } from '@/camera/Camera';
@@ -43,7 +44,8 @@ export class CreationHandler {
 
   public onCreationStart: ((type: CreationElementType) => void) | null = null;
   public onCreationEnd: ((el: AbstractGraphicElement) => void) | null = null;
-  public onElementFinalize: ((el: AbstractGraphicElement) => void) | null = null;
+  public onElementFinalize: ((el: AbstractGraphicElement) => void) | null =
+    null;
 
   public constructor(
     svg: SVGSVGElement,
@@ -68,6 +70,9 @@ export class CreationHandler {
   }
 
   public setActiveType(type: CreationElementType | null): void {
+    if (this._activeType !== type && this.currentPreview) {
+      this.abort();
+    }
     this._activeType = type;
   }
 
@@ -99,7 +104,7 @@ export class CreationHandler {
     const worldPt = this.mouseEventToWorld(e);
     const type = this.currentPreview.type;
 
-    if (type === 'polyline' || type === 'polygon') {
+    if (type === 'polyline' || type === 'polygon' || type === 'path') {
       this.addPointToMulti(worldPt);
       e.preventDefault();
       return true;
@@ -114,7 +119,8 @@ export class CreationHandler {
     if (
       !this.currentPreview ||
       (this.currentPreview.type !== 'polyline' &&
-        this.currentPreview.type !== 'polygon')
+        this.currentPreview.type !== 'polygon' &&
+        this.currentPreview.type !== 'path')
     )
       return false;
 
@@ -129,8 +135,16 @@ export class CreationHandler {
 
     if (e.key === 'Escape') {
       const el = this.currentPreview;
-      if (el.type === 'polyline' || el.type === 'polygon') {
-        this.finishMulti();
+      if (
+        el.type === 'polyline' ||
+        el.type === 'polygon' ||
+        el.type === 'path'
+      ) {
+        if (this.multiPointPoints.length <= 1) {
+          this.abort();
+        } else {
+          this.finishMulti();
+        }
       } else {
         this.abort();
       }
@@ -141,7 +155,8 @@ export class CreationHandler {
     if (
       e.key === 'Enter' &&
       (this.currentPreview.type === 'polyline' ||
-        this.currentPreview.type === 'polygon')
+        this.currentPreview.type === 'polygon' ||
+        this.currentPreview.type === 'path')
     ) {
       this.finishMulti();
       e.preventDefault();
@@ -157,9 +172,8 @@ export class CreationHandler {
 
     this.startWorld = { x: worldPoint.x, y: worldPoint.y };
 
-    if (type === 'polyline' || type === 'polygon') {
+    if (type === 'polyline' || type === 'polygon' || type === 'path') {
       if (this.currentPreview) {
-        this.addPointToMulti(worldPoint);
         return;
       }
       this.multiPointPoints = [{ x: worldPoint.x, y: worldPoint.y }];
@@ -176,6 +190,16 @@ export class CreationHandler {
         this.multiPointPoints,
       );
       preview.buildHitArea();
+    }
+
+    if (type === 'path') {
+      const path = preview as PathElement;
+      const p = this.multiPointPoints[0];
+      path.geometry.commands = [
+        { command: 'M', args: [p.x, p.y] },
+        { command: 'L', args: [p.x, p.y] },
+      ];
+      path.buildHitArea();
     }
 
     this.currentPreview = preview;
@@ -197,6 +221,17 @@ export class CreationHandler {
       poly.points = pointsToString(pts);
       poly.buildHitArea();
       poly.setDirty();
+      return;
+    }
+
+    if (el.type === 'path') {
+      const path = el as PathElement;
+      const cmds = path.geometry.commands;
+      if (cmds.length < 2) return;
+      const last = cmds[cmds.length - 1];
+      last.args = [worldPoint.x, worldPoint.y];
+      path.buildHitArea();
+      path.setDirty();
       return;
     }
 
@@ -236,30 +271,88 @@ export class CreationHandler {
   public addPointToMulti(worldPoint: Point): void {
     if (!this.currentPreview) return;
     const type = this.currentPreview.type;
-    if (type !== 'polyline' && type !== 'polygon') return;
+    if (type === 'polyline' || type === 'polygon') {
+      this.multiPointPoints.push({ x: worldPoint.x, y: worldPoint.y });
+      const poly = this.currentPreview as PolylineElement | PolygonElement;
+      const pts = [...this.multiPointPoints];
+      poly.points = pointsToString(pts);
+      poly.buildHitArea();
+      poly.setDirty();
+      return;
+    }
 
-    this.multiPointPoints.push({ x: worldPoint.x, y: worldPoint.y });
-    const poly = this.currentPreview as PolylineElement | PolygonElement;
-    const pts = [...this.multiPointPoints];
-    poly.points = pointsToString(pts);
-    poly.buildHitArea();
-    poly.setDirty();
+    if (type === 'path') {
+      this.multiPointPoints.push({ x: worldPoint.x, y: worldPoint.y });
+      const path = this.currentPreview as PathElement;
+      const cmds = path.geometry.commands;
+      if (cmds.length > 0) {
+        const last = cmds[cmds.length - 1];
+        last.args = [worldPoint.x, worldPoint.y];
+      }
+      cmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
+      path.buildHitArea();
+      path.setDirty();
+      return;
+    }
   }
 
   public finishMulti(worldPoint?: Point): void {
     const el = this.currentPreview;
     if (!el) return;
-    if (el.type !== 'polyline' && el.type !== 'polygon') return;
+    if (el.type !== 'polyline' && el.type !== 'polygon' && el.type !== 'path')
+      return;
+
+    // Если нет ни одной зафиксированной точки — аборт
+    if (this.multiPointPoints.length <= 1 && !worldPoint) {
+      this.abort();
+      return;
+    }
 
     if (worldPoint) {
-      const poly = el as PolylineElement | PolygonElement;
-      const pts = [
-        ...this.multiPointPoints,
-        { x: worldPoint.x, y: worldPoint.y },
-      ];
-      poly.points = pointsToString(pts);
-      poly.buildHitArea();
-      poly.setDirty();
+      if (el.type === 'path') {
+        const path = el as PathElement;
+        const cmds = path.geometry.commands;
+        if (cmds.length > 1) {
+          const last = cmds[cmds.length - 1];
+          last.args = [worldPoint.x, worldPoint.y];
+        }
+
+        // Замыкание контура, если точка финиша рядом со стартовой M
+        const first = cmds[0];
+        if (first.command === 'M' && first.args.length >= 2) {
+          const dx = worldPoint.x - first.args[0];
+          const dy = worldPoint.y - first.args[1];
+          if (Math.hypot(dx, dy) < 10) {
+            cmds.pop();
+            cmds.push({ command: 'Z', args: [] });
+            path.buildHitArea();
+            path.setDirty();
+          }
+        }
+      } else {
+        const poly = el as PolylineElement | PolygonElement;
+        const pts = [
+          ...this.multiPointPoints,
+          { x: worldPoint.x, y: worldPoint.y },
+        ];
+        poly.points = pointsToString(pts);
+        poly.buildHitArea();
+        poly.setDirty();
+      }
+    }
+
+    // Убираем последнюю временную команду L (резиновую нить) у path
+    if (el.type === 'path') {
+      const path = el as PathElement;
+      const cmds = path.geometry.commands;
+      if (cmds.length > 1) {
+        const last = cmds[cmds.length - 1];
+        if (last.command === 'L' || last.command === 'Z') {
+          cmds.pop();
+        }
+        path.buildHitArea();
+        path.setDirty();
+      }
     }
 
     this.finalizeCreation(el);
@@ -270,6 +363,9 @@ export class CreationHandler {
   }
 
   public abort(): void {
+    if (this.currentPreview) {
+      this.removeFromScene(this.currentPreview);
+    }
     this.currentPreview = null;
     this.multiPointPoints = [];
     this._activeType = null;
@@ -306,6 +402,8 @@ export class CreationHandler {
         return new PolylineElement(id);
       case 'polygon':
         return new PolygonElement(id);
+      case 'path':
+        return new PathElement(id);
     }
   }
 

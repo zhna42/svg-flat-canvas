@@ -13,7 +13,8 @@ module.exports = {
       filename.includes("Renderer") ||
       filename.includes("renderLoop") ||
       filename.includes("/renderer/") ||
-      filename.includes("EventManager")
+      filename.includes("EventManager") ||
+      filename.includes("SelectionOverlay")
     ) {
       return {};
     }

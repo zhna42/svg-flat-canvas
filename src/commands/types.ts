@@ -1,5 +1,6 @@
 import type { Point } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { PathCommand } from '@/types';
 
 export type CommandType =
   | 'SELECT'
@@ -14,7 +15,8 @@ export type CommandType =
   | 'DELETE'
   | 'RESIZE'
   | 'ROTATE'
-  | 'TRANSFORM';
+  | 'TRANSFORM'
+  | 'GEOMETRY_MUTATE';
 
 export type SelectionMode = 'element' | 'group';
 export type SelectionGesture = 'click' | 'rect' | 'lasso';
@@ -25,7 +27,8 @@ export type CreationElementType =
   | 'ellipse'
   | 'line'
   | 'polyline'
-  | 'polygon';
+  | 'polygon'
+  | 'path';
 
 export interface CreateCommand {
   type: 'CREATE';
@@ -112,6 +115,14 @@ export interface TransformCommand {
   };
 }
 
+export interface GeometryMutateCommand {
+  type: 'GEOMETRY_MUTATE';
+  options: {
+    id: string;
+    newCommands: PathCommand[];
+  };
+}
+
 export type Command =
   | CreateCommand
   | SelectCommand
@@ -125,4 +136,5 @@ export type Command =
   | DeleteCommand
   | ResizeCommand
   | RotateCommand
-  | TransformCommand;
+  | TransformCommand
+  | GeometryMutateCommand;

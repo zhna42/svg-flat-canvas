@@ -91,7 +91,10 @@ export const hitTestGroupsLasso = (
 ): string[] => {
   if (polygon.length < 3) return [];
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const p of polygon) {
     if (p.x < minX) minX = p.x;
     if (p.y < minY) minY = p.y;

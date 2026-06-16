@@ -50,7 +50,7 @@ function getCenterlinePoints(
 
   if (el instanceof PathElement) {
     const steps = Math.max(12, Math.round(12 * camera.zoom));
-    const cmds = el.parsedD.commands;
+    const cmds = el.geometry.commands;
     if (cmds.length === 0) return [];
     return toWorld(flattenCommands(cmds, steps));
   }
@@ -390,7 +390,10 @@ export class DragHandler {
       }
 
       const snapResult = this.snap.computeCorrection(movingScreenPoints);
-      this.snap.updatePull(frameDx * this.camera.zoom, frameDy * this.camera.zoom);
+      this.snap.updatePull(
+        frameDx * this.camera.zoom,
+        frameDy * this.camera.zoom,
+      );
 
       currentFrameDx += snapResult.correctionX / this.camera.zoom;
       currentFrameDy += snapResult.correctionY / this.camera.zoom;
@@ -403,7 +406,9 @@ export class DragHandler {
       const collisionNormal = this.checkSceneCollisions(nextDx, nextDy);
 
       if (collisionNormal) {
-        const dotProduct = currentFrameDx * collisionNormal.x + currentFrameDy * collisionNormal.y;
+        const dotProduct =
+          currentFrameDx * collisionNormal.x +
+          currentFrameDy * collisionNormal.y;
 
         if (dotProduct < 0) {
           currentFrameDx -= dotProduct * collisionNormal.x;
@@ -449,9 +454,12 @@ export class DragHandler {
   }
 
   private pointToSegmentDist(
-    px: number, py: number,
-    ax: number, ay: number,
-    bx: number, by: number,
+    px: number,
+    py: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
   ): { dist: number; closestX: number; closestY: number } {
     const abX = bx - ax;
     const abY = by - ay;
@@ -470,7 +478,11 @@ export class DragHandler {
     const closestX = ax + t * abX;
     const closestY = ay + t * abY;
 
-    return { dist: Math.hypot(px - closestX, py - closestY), closestX, closestY };
+    return {
+      dist: Math.hypot(px - closestX, py - closestY),
+      closestX,
+      closestY,
+    };
   }
 
   private checkSceneCollisions(dx: number, dy: number): Point | null {
@@ -486,22 +498,43 @@ export class DragHandler {
       virtualMatrix.e += dx;
       virtualMatrix.f += dy;
 
-      const movingPts = getVisualWorldPoints(movingEl, this.camera, virtualMatrix);
+      const movingPts = getVisualWorldPoints(
+        movingEl,
+        this.camera,
+        virtualMatrix,
+      );
       if (movingPts.length === 0) continue;
 
       const movingBBox = getMovingBBox(movingPts);
-      const candidateIds = this.grid.query(movingBBox.x, movingBBox.y, movingBBox.width, movingBBox.height);
-      const candidates = targetElements.filter((el) => candidateIds.includes(el.id));
+      const candidateIds = this.grid.query(
+        movingBBox.x,
+        movingBBox.y,
+        movingBBox.width,
+        movingBBox.height,
+      );
+      const candidates = targetElements.filter((el) =>
+        candidateIds.includes(el.id),
+      );
 
       for (const candidate of candidates) {
         const candidatePts = getVisualWorldPoints(candidate, this.camera);
         if (candidatePts.length === 0) continue;
 
-        const isClosed = candidate.type !== 'polyline' &&
+        const isClosed =
+          candidate.type !== 'polyline' &&
           candidate.type !== 'line' &&
-          !(candidate instanceof PathElement && candidate.parsedD.commands.length > 0 &&
-            !(candidate.parsedD.commands[candidate.parsedD.commands.length - 1].command === 'Z' ||
-              candidate.parsedD.commands[candidate.parsedD.commands.length - 1].command === 'z'));
+          !(
+            candidate instanceof PathElement &&
+            candidate.geometry.commands.length > 0 &&
+            !(
+              candidate.geometry.commands[
+                candidate.geometry.commands.length - 1
+              ].command === 'Z' ||
+              candidate.geometry.commands[
+                candidate.geometry.commands.length - 1
+              ].command === 'z'
+            )
+          );
 
         let collision = false;
 
@@ -514,7 +547,14 @@ export class DragHandler {
             const ma = movingPts[mi];
             const mb = movingPts[(mi + 1) % movingN];
             for (let ci = 0; ci < candidateN - 1 && !collision; ci++) {
-              if (segmentIntersectsSegment(ma, mb, candidatePts[ci], candidatePts[ci + 1])) {
+              if (
+                segmentIntersectsSegment(
+                  ma,
+                  mb,
+                  candidatePts[ci],
+                  candidatePts[ci + 1],
+                )
+              ) {
                 collision = true;
               }
             }
@@ -533,9 +573,12 @@ export class DragHandler {
           for (let i = 0; i < edgeCount; i++) {
             const j = isClosed ? (i + 1) % n : i + 1;
             const { dist, closestX, closestY } = this.pointToSegmentDist(
-              mp.x, mp.y,
-              candidatePts[i].x, candidatePts[i].y,
-              candidatePts[j].x, candidatePts[j].y,
+              mp.x,
+              mp.y,
+              candidatePts[i].x,
+              candidatePts[i].y,
+              candidatePts[j].x,
+              candidatePts[j].y,
             );
 
             if (dist < bestDist) {

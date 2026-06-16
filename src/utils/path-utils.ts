@@ -124,7 +124,10 @@ export const parseD = (d: string): PathCommand[] => {
 export const commandsToString = (commands: PathCommand[]): string =>
   commands.map((cmd) => `${cmd.command}${cmd.args.join(' ')}`).join(' ');
 
-export const flattenCommands = (commands: PathCommand[], steps?: number): Point[] => {
+export const flattenCommands = (
+  commands: PathCommand[],
+  steps?: number,
+): Point[] => {
   const points: Point[] = [];
   let currentX = 0,
     currentY = 0,
@@ -152,8 +155,14 @@ export const flattenCommands = (commands: PathCommand[], steps?: number): Point[
       points.push({ x: currentX, y: currentY });
     } else if (c === 'C') {
       for (const p of flattenCubic(
-        currentX, currentY,
-        a[0], a[1], a[2], a[3], a[4], a[5],
+        currentX,
+        currentY,
+        a[0],
+        a[1],
+        a[2],
+        a[3],
+        a[4],
+        a[5],
         steps,
       ))
         points.push(p);
@@ -171,9 +180,14 @@ export const flattenCommands = (commands: PathCommand[], steps?: number): Point[
         ry = 2 * currentY - ly;
       }
       for (const p of flattenCubic(
-        currentX, currentY,
-        rx, ry,
-        a[0], a[1], a[2], a[3],
+        currentX,
+        currentY,
+        rx,
+        ry,
+        a[0],
+        a[1],
+        a[2],
+        a[3],
         steps,
       ))
         points.push(p);
@@ -181,7 +195,8 @@ export const flattenCommands = (commands: PathCommand[], steps?: number): Point[
       currentY = a[3];
     } else if (c === 'Q' || c === 'T') {
       for (const p of flattenQuadratic(
-        currentX, currentY,
+        currentX,
+        currentY,
         c === 'Q' ? a[0] : undefined,
         c === 'Q' ? a[1] : undefined,
         a[c === 'Q' ? 2 : 0],
@@ -193,8 +208,15 @@ export const flattenCommands = (commands: PathCommand[], steps?: number): Point[
       currentY = c === 'Q' ? a[3] : a[1];
     } else if (c === 'A') {
       for (const p of flattenArc(
-        currentX, currentY,
-        a[0], a[1], a[2], a[3], a[4], a[5], a[6],
+        currentX,
+        currentY,
+        a[0],
+        a[1],
+        a[2],
+        a[3],
+        a[4],
+        a[5],
+        a[6],
         steps,
       ))
         points.push(p);

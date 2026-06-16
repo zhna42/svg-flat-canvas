@@ -45,6 +45,7 @@ import { createDeleteHandler } from '@/commands/handlers/delete-handler';
 import { createCreateHandler } from '@/commands/handlers/create-handler';
 import { createDeleteCommand } from '@/commands/factories/delete-command-factory';
 import { ExternalApi } from '@/api/external-api';
+import { PathElement } from '@/shapes/elements/PathElement';
 
 export class SvgCanvas {
   private readonly element: HTMLElement;
@@ -66,6 +67,7 @@ export class SvgCanvas {
   private readonly creationHandler: CreationHandler;
   private _debugShowHitArea: boolean;
   private readonly _externalApi: ExternalApi;
+  private _editingPath: PathElement | null = null;
 
   public readonly panActive = { value: false };
   public readonly events = new EventBus();
@@ -120,6 +122,9 @@ export class SvgCanvas {
       const selected = this.selectionState.selected;
       if (selected.length > 0) {
         this.selectionOverlay.setPositions(selected);
+      }
+      if (this._editingPath) {
+        this.selectionOverlay.updatePathNodes(this._editingPath);
       }
       if (this.groupManager.selectedGroupIds.size > 0) {
         this.syncGroupSelectionOverlay();
@@ -190,6 +195,14 @@ export class SvgCanvas {
       onDragStart: () => this.events.emit(Events.DragStart, undefined),
       onDragMove: () => this.events.emit(Events.DragMove, undefined),
       onDragEnd: () => this.events.emit(Events.DragEnd, undefined),
+      onSetEditingPath: (el) => {
+        if (el) {
+          this.editingPath = el as PathElement;
+        } else {
+          this.editingPath = null;
+        }
+      },
+      getEditingPath: () => this._editingPath,
     });
 
     this.element.appendChild(this.svg);
@@ -224,6 +237,17 @@ export class SvgCanvas {
     );
     this.commandBus.register('DELETE', createDeleteHandler(this.shapeManager));
     this.commandBus.register('CREATE', createCreateHandler(this.shapeManager));
+    this.commandBus.register('GEOMETRY_MUTATE', (command) => {
+      if (command.type !== 'GEOMETRY_MUTATE') return;
+      const el = this.shapeManager
+        .getAll()
+        .find((e) => e.id === command.options.id);
+      if (el instanceof PathElement) {
+        el.geometry.commands = command.options.newCommands;
+        el.buildHitArea();
+        el.setDirty();
+      }
+    });
 
     this.creationHandler = new CreationHandler(
       this.svg,
@@ -388,6 +412,28 @@ export class SvgCanvas {
   public getCreationHandler(): CreationHandler {
     return this.creationHandler;
   }
+
+  public get editingPath(): PathElement | null {
+    return this._editingPath;
+  }
+
+  public set editingPath(path: PathElement | null) {
+    if (this._editingPath && this._editingPath !== path) {
+      this._editingPath.isNodeEditing = false;
+      this._editingPath.onDirty = null;
+    }
+    this._editingPath = path;
+    if (path) {
+      path.isNodeEditing = true;
+      path.onDirty = () => {
+        this.selectionOverlay.updatePathNodes(path);
+      };
+      this.selectionOverlay.setElements([path]);
+    } else {
+      this.selectionOverlay.setElements(this.selectionState.selected);
+    }
+  }
+
   public getExternalApi(): ExternalApi {
     return this._externalApi;
   }

@@ -8,6 +8,7 @@ import { DragHandler } from '@/selection/DragHandler';
 import { GroupSelectionHandler } from '@/selection/GroupSelectionHandler';
 import { SelectionOverlay } from '@/selection/SelectionOverlay';
 import type { TransformHandler } from '@/selection/TransformHandler';
+import { PathNodeHandler } from '@/selection/PathNodeHandler';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { SelectionGesture } from '@/commands/types';
 import { hitTestPoint } from '@/utils/hit-test';
@@ -48,12 +49,15 @@ export interface SelectionHandlerOptions {
   onDragStart?: () => void;
   onDragMove?: () => void;
   onDragEnd?: () => void;
+  onSetEditingPath?: (path: AbstractGraphicElement | null) => void;
+  getEditingPath?: () => AbstractGraphicElement | null;
 }
 
 export class SelectionHandler {
   private readonly opts: SelectionHandlerOptions;
   private readonly dragHandler: DragHandler;
   private readonly groupHandler: GroupSelectionHandler;
+  private readonly pathNodeHandler: PathNodeHandler;
 
   private shortcuts: SelectionShortcuts;
   private gesture: SelectionGesture = 'click';
@@ -81,6 +85,7 @@ export class SelectionHandler {
     );
 
     const groupLookup = opts.getGroupIdForElement ?? (() => undefined);
+    this.pathNodeHandler = new PathNodeHandler(opts.bus);
     this.groupHandler = new GroupSelectionHandler({
       getElements: opts.getElements,
       grid: opts.grid,
@@ -206,6 +211,41 @@ export class SelectionHandler {
       this.shiftOverride = e.shiftKey;
       const useRect = this.gesture === 'rect' || this.shiftOverride;
 
+      // Если активен режим редактирования узлов пути
+      const editingPath = this.opts.getEditingPath?.();
+      if (editingPath) {
+        // ШАГ 1: хит-тест ручек узлов пути через оверлей (как для ресайза)
+        const handleHit = this.opts.selectionOverlay.hitTestPathNode(
+          svgPt.x,
+          svgPt.y,
+        );
+        if (handleHit) {
+          const started = this.pathNodeHandler.startFromHandle(
+            handleHit.elementId,
+            handleHit.cmdIdx,
+            handleHit.ptIdx,
+            this.opts.getElements(),
+            worldPt,
+          );
+          if (started) {
+            e.preventDefault();
+            return;
+          }
+        }
+
+        // Клик не по ручке
+        // Проверяем, кликнули ли по самому редактируемому пути
+        const all = this.opts.getElements();
+        const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
+        const hitEditing = hits.some((h) => h.id === editingPath.id);
+        if (!hitEditing) {
+          this.opts.onSetEditingPath?.(null);
+        } else {
+          e.preventDefault();
+          return;
+        }
+      }
+
       // ШАГ 2: хит-тест интерфейса (ручки ресайза)
       if (this.tryHandleHitTest(svgPt)) {
         e.preventDefault();
@@ -275,6 +315,11 @@ export class SelectionHandler {
       const svgPt = this.clientToSvg(e);
       const worldPt = this.screenToWorld(e);
 
+      if (this.pathNodeHandler.isActive) {
+        this.pathNodeHandler.move(worldPt);
+        return;
+      }
+
       if (this.opts.transformHandler.isActive) {
         this.opts.transformHandler.move(worldPt);
         return;
@@ -306,6 +351,11 @@ export class SelectionHandler {
     window.addEventListener('mouseup', (e: MouseEvent) => {
       if (e.button !== 0) return;
       const worldPt = this.screenToWorld(e);
+
+      if (this.pathNodeHandler.isActive) {
+        this.pathNodeHandler.end();
+        return;
+      }
 
       if (this.opts.transformHandler.isActive) {
         this.opts.transformHandler.end();
@@ -369,6 +419,21 @@ export class SelectionHandler {
       }
     });
 
+    // Двойной клик — вход в режим редактирования узлов пути
+    rootSvg.addEventListener('dblclick', (e: MouseEvent) => {
+      if (e.button !== 0) return;
+      if (e.defaultPrevented) return;
+      const worldPt = this.screenToWorld(e);
+      const all = this.opts.getElements();
+      const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
+      if (hits.length > 0) {
+        const picked = hits[hits.length - 1];
+        if (picked.type === 'path' || picked.type === 'polyline' || picked.type === 'polygon') {
+          this.opts.onSetEditingPath?.(picked);
+        }
+      }
+    });
+
     window.addEventListener('keydown', (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
       if (key === this.shortcuts.selectElement) this.gesture = 'click';
@@ -380,6 +445,12 @@ export class SelectionHandler {
       else if (key === 'v') {
         this.gesture = 'click';
         this.opts.state.setMode('element');
+      } else if (e.key === 'Enter') {
+        const selected = this.opts.state.selected;
+        if (selected.length === 1 && selected[0].type === 'path') {
+          this.opts.onSetEditingPath?.(selected[0]);
+          e.preventDefault();
+        }
       } else if (key === 'escape') {
         this.dispatchSelectClear();
         this.opts.onGroupSelect?.([]);

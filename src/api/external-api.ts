@@ -122,7 +122,10 @@ export class ExternalApi {
   }
 
   public groupRemoveElements(dto: GroupRemoveElementsDTO): void {
-    this.canvas.removeFromGroup(dto.groupId, dto.elementIds as unknown as string);
+    this.canvas.removeFromGroup(
+      dto.groupId,
+      dto.elementIds as unknown as string,
+    );
   }
 
   public selectShapes(dto: SelectShapesDTO): void {
@@ -288,7 +291,7 @@ export class ExternalApi {
       el.invalidateHitArea();
       return;
     }
-    let { x, y, scaleX, scaleY, angle } = t;
+    const { x, y, scaleX, scaleY, angle } = t;
     if (x !== undefined || y !== undefined) {
       const dx = x !== undefined ? x - el.transform.x : 0;
       const dy = y !== undefined ? y - el.transform.y : 0;

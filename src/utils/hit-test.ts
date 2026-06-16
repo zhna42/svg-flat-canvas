@@ -18,7 +18,11 @@ const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
 };
 
 const rectContainsPoly = (
-  rx: number, ry: number, rw: number, rh: number, poly: Point[],
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
+  poly: Point[],
 ): boolean => {
   for (const p of poly) {
     if (p.x < rx || p.x > rx + rw || p.y < ry || p.y > ry + rh) {
@@ -29,9 +33,18 @@ const rectContainsPoly = (
 };
 
 const segmentIntersectsRect = (
-  a: Point, b: Point, left: number, right: number, top: number, bottom: number,
+  a: Point,
+  b: Point,
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
 ): boolean => {
-  const INSIDE = 0, LEFT = 1, RIGHT = 2, BOTTOM = 4, TOP = 8;
+  const INSIDE = 0,
+    LEFT = 1,
+    RIGHT = 2,
+    BOTTOM = 4,
+    TOP = 8;
   const code = (p: Point): number => {
     let c = INSIDE;
     if (p.x < left) c |= LEFT;
@@ -40,7 +53,8 @@ const segmentIntersectsRect = (
     else if (p.y > bottom) c |= BOTTOM;
     return c;
   };
-  let ca = code(a), cb = code(b);
+  let ca = code(a),
+    cb = code(b);
   while (true) {
     if ((ca | cb) === 0) return true;
     if ((ca & cb) !== 0) return false;
@@ -52,25 +66,38 @@ const segmentIntersectsRect = (
       p = { x: a.x + ((b.x - a.x) * (bottom - a.y)) / (b.y - a.y), y: bottom };
     else if (out & RIGHT)
       p = { x: right, y: a.y + ((b.y - a.y) * (right - a.x)) / (b.x - a.x) };
-    else
-      p = { x: left, y: a.y + ((b.y - a.y) * (left - a.x)) / (b.x - a.x) };
-    if (out === ca) { a = p; ca = code(a); }
-    else { b = p; cb = code(b); }
+    else p = { x: left, y: a.y + ((b.y - a.y) * (left - a.x)) / (b.x - a.x) };
+    if (out === ca) {
+      a = p;
+      ca = code(a);
+    } else {
+      b = p;
+      cb = code(b);
+    }
   }
 };
 
 const rectIntersectsPoly = (
-  rx: number, ry: number, rw: number, rh: number, poly: Point[],
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
+  poly: Point[],
 ): boolean => {
-  const left = rx, right = rx + rw, top = ry, bottom = ry + rh;
+  const left = rx,
+    right = rx + rw,
+    top = ry,
+    bottom = ry + rh;
 
   for (const p of poly) {
     if (p.x >= left && p.x <= right && p.y >= top && p.y <= bottom) return true;
   }
 
   const corners: Point[] = [
-    { x: left, y: top }, { x: right, y: top },
-    { x: right, y: bottom }, { x: left, y: bottom },
+    { x: left, y: top },
+    { x: right, y: top },
+    { x: right, y: bottom },
+    { x: left, y: bottom },
   ];
   for (const c of corners) {
     if (pointInPolygon(c.x, c.y, poly)) return true;
@@ -78,7 +105,8 @@ const rectIntersectsPoly = (
 
   const n = poly.length;
   for (let i = 0, j = n - 1; i < n; j = i++) {
-    if (segmentIntersectsRect(poly[i], poly[j], left, right, top, bottom)) return true;
+    if (segmentIntersectsRect(poly[i], poly[j], left, right, top, bottom))
+      return true;
   }
 
   return false;
@@ -113,7 +141,10 @@ export const hitTestPoint = (
 };
 
 export const hitTestRect = (
-  rx: number, ry: number, rw: number, rh: number,
+  rx: number,
+  ry: number,
+  rw: number,
+  rh: number,
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   requireFullContain: boolean,
@@ -138,7 +169,10 @@ export const hitTestLasso = (
 ): AbstractGraphicElement[] => {
   if (lassoPoints.length < 3) return [];
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (const p of lassoPoints) {
     if (p.x < minX) minX = p.x;
     if (p.y < minY) minY = p.y;
@@ -156,9 +190,16 @@ export const hitTestLasso = (
   });
 };
 
-const segmentIntersectsSegment = (a: Point, b: Point, c: Point, d: Point): boolean => {
-  const d1x = b.x - a.x, d1y = b.y - a.y;
-  const d2x = d.x - c.x, d2y = d.y - c.y;
+const segmentIntersectsSegment = (
+  a: Point,
+  b: Point,
+  c: Point,
+  d: Point,
+): boolean => {
+  const d1x = b.x - a.x,
+    d1y = b.y - a.y;
+  const d2x = d.x - c.x,
+    d2y = d.y - c.y;
   const cross = d1x * d2y - d1y * d2x;
   if (Math.abs(cross) < 1e-10) return false;
   const t = ((c.x - a.x) * d2y - (c.y - a.y) * d2x) / cross;
@@ -177,10 +218,18 @@ const polyIntersectsPoly = (polyA: Point[], polyB: Point[]): boolean => {
   for (let i = 0, j = n - 1; i < n; j = i++) {
     const m = polyB.length;
     for (let k = 0, l = m - 1; k < m; l = k++) {
-      if (segmentIntersectsSegment(polyA[i], polyA[j], polyB[k], polyB[l])) return true;
+      if (segmentIntersectsSegment(polyA[i], polyA[j], polyB[k], polyB[l]))
+        return true;
     }
   }
   return false;
 };
 
-export { pointInPolygon, rectContainsPoly, rectIntersectsPoly, polyInPoly, polyIntersectsPoly, segmentIntersectsSegment };
+export {
+  pointInPolygon,
+  rectContainsPoly,
+  rectIntersectsPoly,
+  polyInPoly,
+  polyIntersectsPoly,
+  segmentIntersectsSegment,
+};

@@ -29,10 +29,7 @@ export class GroupSelectionOverlay {
     }
 
     for (const g of groups) {
-      const worldBBox = computeGroupWorldBBox(
-        g,
-        findElement,
-      );
+      const worldBBox = computeGroupWorldBBox(g, findElement);
       if (!worldBBox) continue;
 
       const screenBBox = this.camera.worldRectToScreen(worldBBox);

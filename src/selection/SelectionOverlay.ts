@@ -1,6 +1,7 @@
 import { SVG_NS } from '@/constants';
 import type { Camera } from '@/camera/Camera';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { PathElement } from '@/shapes/elements/PathElement';
 import type { Point } from '@/types';
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
@@ -39,11 +40,14 @@ export class SelectionOverlay {
   private readonly root: SVGGElement;
   private readonly camera: Camera;
   private groups: HandleGroup[] = [];
+  private pathNodesGroup: SVGGElement;
 
   public constructor(camera: Camera) {
     this.camera = camera;
     this.root = document.createElementNS(SVG_NS, 'g');
     this.root.setAttribute('pointer-events', 'none');
+    this.pathNodesGroup = document.createElementNS(SVG_NS, 'g');
+    this.root.appendChild(this.pathNodesGroup);
   }
 
   public getElement(): SVGGElement {
@@ -52,9 +56,15 @@ export class SelectionOverlay {
 
   public setElements(elements: readonly AbstractGraphicElement[]): void {
     this.clear();
+    this.clearPathNodes();
     if (elements.length === 0) return;
 
     for (const el of elements) {
+      if (el.isNodeEditing) {
+        this.renderPathNodes(el);
+        continue;
+      }
+
       const local = el.getBBox();
       if (local.width === 0 && local.height === 0) continue;
 
@@ -98,6 +108,12 @@ export class SelectionOverlay {
   public setPositions(elements: readonly AbstractGraphicElement[]): void {
     for (let i = 0; i < elements.length && i < this.groups.length; i++) {
       const el = elements[i];
+
+      if (el.isNodeEditing) {
+        this.updatePathNodes(el);
+        continue;
+      }
+
       const local = el.getBBox();
       if (local.width === 0 && local.height === 0) continue;
 
@@ -171,9 +187,75 @@ export class SelectionOverlay {
     return null;
   }
 
+  public hitTestPathNode(
+    svgX: number,
+    svgY: number,
+  ): {
+    elementId: string;
+    cmdIdx: number;
+    ptIdx: number;
+  } | null {
+    const handles = this.pathNodesGroup.querySelectorAll(
+      '[data-type="path-node"]',
+    );
+    for (const handle of handles) {
+      const x = parseFloat(handle.getAttribute('x') ?? '0');
+      const y = parseFloat(handle.getAttribute('y') ?? '0');
+      if (
+        svgX >= x &&
+        svgX <= x + HANDLE_SIZE &&
+        svgY >= y &&
+        svgY <= y + HANDLE_SIZE
+      ) {
+        const elementId = handle.getAttribute('data-element-id');
+        const cmdIdx = parseInt(handle.getAttribute('data-cmd-idx') ?? '', 10);
+        const ptIdx = parseInt(handle.getAttribute('data-pt-idx') ?? '', 10);
+        if (elementId && !isNaN(cmdIdx) && !isNaN(ptIdx)) {
+          return { elementId, cmdIdx, ptIdx };
+        }
+      }
+    }
+    return null;
+  }
+
   private clear(): void {
     while (this.root.firstChild) this.root.removeChild(this.root.firstChild);
     this.groups = [];
+    this.pathNodesGroup = document.createElementNS(SVG_NS, 'g');
+    this.root.appendChild(this.pathNodesGroup);
+  }
+
+  private clearPathNodes(): void {
+    while (this.pathNodesGroup.firstChild) {
+      this.pathNodesGroup.removeChild(this.pathNodesGroup.firstChild);
+    }
+  }
+
+  private renderPathNodes(el: AbstractGraphicElement): void {
+    if (!('getNodeEditPoints' in el)) return;
+    const pathEl = el as unknown as PathElement;
+    const nodes = pathEl.getNodeEditPoints();
+    for (const node of nodes) {
+      const screen = this.camera.worldToScreen({ x: node.x, y: node.y });
+      const handle = document.createElementNS(SVG_NS, 'rect');
+      handle.setAttribute('x', String(screen.x - HANDLE_OFFSET));
+      handle.setAttribute('y', String(screen.y - HANDLE_OFFSET));
+      handle.setAttribute('width', String(HANDLE_SIZE));
+      handle.setAttribute('height', String(HANDLE_SIZE));
+      handle.setAttribute('fill', HANDLE_FILL);
+      handle.setAttribute('stroke', STROKE_COLOR);
+      handle.setAttribute('stroke-width', '1.5');
+      handle.setAttribute('data-type', 'path-node');
+      handle.setAttribute('data-element-id', el.id);
+      handle.setAttribute('data-cmd-idx', String(node.cmdIdx));
+      handle.setAttribute('data-pt-idx', String(node.ptIdx));
+      this.pathNodesGroup.appendChild(handle);
+    }
+  }
+
+  public updatePathNodes(el: AbstractGraphicElement): void {
+    this.clearPathNodes();
+    this.renderPathNodes(el);
   }
 
   private createHandles(w: number, h: number): SVGGElement {

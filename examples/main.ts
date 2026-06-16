@@ -409,7 +409,7 @@ canvas.onGroupsChange = renderGroupList;
 renderGroupList();
 
 // ----- creation tools -----
-type CreationTool = 'select' | 'rect' | 'circle' | 'ellipse' | 'line' | 'polyline' | 'polygon';
+type CreationTool = 'select' | 'rect' | 'circle' | 'ellipse' | 'line' | 'polyline' | 'polygon' | 'path';
 
 const TOOL_TO_CREATION_TYPE: Record<string, CreationTool | null> = {
   select: null,
@@ -419,6 +419,7 @@ const TOOL_TO_CREATION_TYPE: Record<string, CreationTool | null> = {
   line: 'line',
   polyline: 'polyline',
   polygon: 'polygon',
+  path: 'path',
 };
 
 function setActiveTool(tool: CreationTool) {

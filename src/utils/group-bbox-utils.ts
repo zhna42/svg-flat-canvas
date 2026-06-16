@@ -7,7 +7,10 @@ export const computeGroupWorldBBox = (
 ): { x: number; y: number; width: number; height: number } | null => {
   if (g.elementIds.size === 0) return null;
 
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   let hasAny = false;
 
   for (const elId of g.elementIds) {

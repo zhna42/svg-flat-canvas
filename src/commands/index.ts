@@ -15,6 +15,7 @@ export type {
   ResizeCommand,
   RotateCommand,
   TransformCommand,
+  GeometryMutateCommand,
   BBox,
   SelectionMode,
   SelectionGesture,
