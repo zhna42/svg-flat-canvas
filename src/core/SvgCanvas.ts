@@ -182,11 +182,12 @@ export class SvgCanvas {
   public addShape(shape: SvgElement): void {
     this.shapeManager.add(shape);
     this.indexShape(shape);
+    shape.setDirty();
   }
 
   public loadJSON(items: ElementJSON[]): void {
     const elements = createFromJSONArray(items);
-    for (const el of elements) { this.shapeManager.add(el); this.indexShape(el); }
+    for (const el of elements) { this.shapeManager.add(el); this.indexShape(el); el.setDirty(); }
     this.timeMachine.captureRoot();
   }
 

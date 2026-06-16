@@ -4,6 +4,51 @@ import { Background } from './Background';
 import { Artboard } from './Artboard';
 import { RenderQueue } from './RenderQueue';
 import { setRenderQueue } from '@/shapes/elements/SvgElement';
+import type { RenderSnapshot } from '@/shapes/elements/SvgElement';
+
+function applySpecialProperty(element: SVGElement, key: string, value: unknown): boolean {
+  if (key === 'textContent') {
+    element.textContent = String(value);
+    return true;
+  }
+  if (key === 'href') {
+    element.setAttributeNS('http://www.w3.org/1999/xlink', 'href', String(value));
+    return true;
+  }
+  return false;
+}
+
+function applyRenderSnapshot(snapshot: RenderSnapshot, element: SVGElement): void {
+  const { matrix, style, visible } = snapshot;
+
+  if (matrix && matrix.length === 6) {
+    const [a, b, c, d, e, f] = matrix;
+    if (a !== 1 || b !== 0 || c !== 0 || d !== 1 || e !== 0 || f !== 0) {
+      element.setAttribute('transform', `matrix(${a},${b},${c},${d},${e},${f})`);
+    } else {
+      element.removeAttribute('transform');
+    }
+  }
+
+  const s = style as Record<string, unknown>;
+  if (s.fill !== undefined && s.fill !== '') element.setAttribute('fill', s.fill as string);
+  else element.removeAttribute('fill');
+  if (s.stroke !== undefined && s.stroke !== '') element.setAttribute('stroke', s.stroke as string);
+  else element.removeAttribute('stroke');
+  if (s.strokeWidth !== undefined) element.setAttribute('stroke-width', String(s.strokeWidth));
+  if (s.opacity !== undefined) element.setAttribute('opacity', String(s.opacity));
+  element.setAttribute('visibility', visible ? 'visible' : 'hidden');
+
+  const g = snapshot.geometry;
+
+  for (const [key, value] of Object.entries(g)) {
+    if (value !== undefined) {
+      if (!applySpecialProperty(element, key, value)) {
+        element.setAttribute(key, String(value));
+      }
+    }
+  }
+}
 
 export class Renderer {
   private readonly svg: SVGSVGElement;
@@ -87,12 +132,8 @@ export class Renderer {
 
       const pending = this.queue.drain();
       for (const el of pending) {
-        const m = (el as any).matrix as DOMMatrix;
-        if (m && !m.isIdentity) {
-          (el as any).element.setAttribute('transform', m.toString());
-        } else {
-          (el as any).element.removeAttribute('transform');
-        }
+        const snapshot = el.getRenderSnapshot();
+        applyRenderSnapshot(snapshot, el.element);
         if ('markClean' in el) el.markClean();
       }
 
