@@ -1,103 +1,84 @@
 import { SvgElement } from './SvgElement';
-import type { Point } from '@/types';
-import { MAX_HIT_POINTS, MIN_HIT_STROKE_WIDTH } from '@/constants';
+import type { Point, BoundingBox } from '@/types';
+import { RectHitArea } from '../modules/HitArea';
 
 export class RectElement extends SvgElement {
+  private _ha = new RectHitArea();
+
   public constructor(id: string) {
     super(id, 'rect', 'rect');
   }
 
+  public get hitArea(): Point[] {
+    return this._ha.points;
+  }
+
   public buildHitArea(): void {
-    const x = this.getAttrAsNum('x', 0);
-    const y = this.getAttrAsNum('y', 0);
-    const w = this.getAttrAsNum('width', 0);
-    const h = this.getAttrAsNum('height', 0);
-    const rx = this.getAttrAsNum('rx', 0);
-    const ry = this.getAttrAsNum('ry', 0);
-
-    if (w <= 0 || h <= 0) return;
-
-    if (!this.hasFill() || rx > 0 || ry > 0) {
-      this._hitArea = this.buildRoundedRectHitArea(x, y, w, h, rx, ry);
-      return;
-    }
-
-    this._hitArea = [
-      { x, y },
-      { x: x + w, y },
-      { x: x + w, y: y + h },
-      { x, y: y + h },
-    ];
+    this._ha.set(
+      this.getAttrNum('x', 0),
+      this.getAttrNum('y', 0),
+      this.getAttrNum('width', 0),
+      this.getAttrNum('height', 0),
+      this.getAttrNum('rx', 0),
+      this.getAttrNum('ry', 0),
+      this.style.strokeWidth,
+      this.style.hasFill,
+    );
   }
 
-  private buildRoundedRectHitArea(
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    rx: number,
-    ry: number,
-  ): Point[] {
-    const rX = Math.min(rx || ry, w / 2);
-    const rY = Math.min(ry || rx, h / 2);
-    const sw = this.hasFill()
-      ? 0
-      : Math.max(this.getStrokeWidth(), MIN_HIT_STROKE_WIDTH);
-    const offset = sw / 2;
-
-    const pts = this.approximateArc(rX + offset, rY + offset, MAX_HIT_POINTS);
-    const n = pts.length;
-    const cx = x + w / 2;
-    const cy = y + h / 2;
-    const innerW = w / 2 - rX;
-    const innerH = h / 2 - rY;
-
-    const result: Point[] = [];
-
-    for (let i = 0; i < n; i++) {
-      result.push({
-        x: cx + pts[i].x + innerW,
-        y: cy + pts[i].y + innerH,
-      });
-    }
-    for (let i = 0; i < n; i++) {
-      result.push({
-        x: cx - pts[n - 1 - i].x - innerW,
-        y: cy + pts[n - 1 - i].y + innerH,
-      });
-    }
-    for (let i = 0; i < n; i++) {
-      result.push({
-        x: cx - pts[i].x - innerW,
-        y: cy - pts[i].y - innerH,
-      });
-    }
-    for (let i = 0; i < n; i++) {
-      result.push({
-        x: cx + pts[n - 1 - i].x + innerW,
-        y: cy - pts[n - 1 - i].y - innerH,
-      });
-    }
-
-    return result;
+  public getBBox(): BoundingBox {
+    return {
+      x: this.getAttrNum('x', 0),
+      y: this.getAttrNum('y', 0),
+      width: this.getAttrNum('width', 0),
+      height: this.getAttrNum('height', 0),
+    };
   }
 
-  private approximateArc(rx: number, ry: number, segments: number): Point[] {
-    const pts: Point[] = [];
-    for (let i = 0; i < segments; i++) {
-      const angle = (Math.PI / 2 / segments) * i;
-      pts.push({ x: rx * Math.cos(angle), y: ry * Math.sin(angle) });
-    }
-    return pts;
+  protected getGeometryProps(): Record<string, unknown> {
+    return {
+      x: this.getAttrNum('x', 0),
+      y: this.getAttrNum('y', 0),
+      width: this.getAttrNum('width', 0),
+      height: this.getAttrNum('height', 0),
+      rx: this.getAttrNum('rx', 0),
+      ry: this.getAttrNum('ry', 0),
+    };
   }
 
-  public clone(): RectElement {
-    const el = new RectElement(this.id);
-    [
-      'x',
-      'y',
-      'width',
+  protected getGeometrySnapshot(): Record<string, unknown> {
+    return {
+      x: this.getAttrNum('x', 0),
+      y: this.getAttrNum('y', 0),
+      width: this.getAttrNum('width', 0),
+      height: this.getAttrNum('height', 0),
+      rx: this.getAttrNum('rx', 0),
+      ry: this.getAttrNum('ry', 0),
+    };
+  }
+
+  protected applyGeometrySnapshot(data: Record<string, unknown>): void {
+    if (data.x !== undefined) this.element.setAttribute('x', String(data.x));
+    if (data.y !== undefined) this.element.setAttribute('y', String(data.y));
+    if (data.width !== undefined)
+      this.element.setAttribute('width', String(data.width));
+    if (data.height !== undefined)
+      this.element.setAttribute('height', String(data.height));
+    if (data.rx !== undefined) this.element.setAttribute('rx', String(data.rx));
+    if (data.ry !== undefined) this.element.setAttribute('ry', String(data.ry));
+    this.buildHitArea();
+  }
+
+  protected copyGeometryTo(clone: SvgElement): void {
+    const el = clone as RectElement;
+    el.element.setAttribute('x', this.element.getAttribute('x') || '0');
+    el.element.setAttribute('y', this.element.getAttribute('y') || '0');
+    el.element.setAttribute('width', this.element.getAttribute('width') || '0');
+    el.element.setAttribute(
       'height',
+      this.element.getAttribute('height') || '0',
+    );
+    [
       'rx',
       'ry',
       'fill',
@@ -105,22 +86,31 @@ export class RectElement extends SvgElement {
       'stroke-width',
       'opacity',
       'transform',
-    ].forEach((attr) => {
-      const v = this.element.getAttribute(attr);
-      if (v !== null) el.element.setAttribute(attr, v);
+    ].forEach((a) => {
+      const v = this.element.getAttribute(a);
+      if (v !== null) el.element.setAttribute(a, v);
     });
-    return el;
+    el.buildHitArea();
   }
 
-  protected createClone(): RectElement {
-    return new RectElement(this.id);
+  public setX(x: number): void {
+    this.element.setAttribute('x', String(x));
+    this.buildHitArea();
+    this.setDirty();
+  }
+
+  public setY(y: number): void {
+    this.element.setAttribute('y', String(y));
+    this.buildHitArea();
+    this.setDirty();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const x = this.getAttrAsNum('x', 0) + dx;
-    const y = this.getAttrAsNum('y', 0) + dy;
+    const x = this.getAttrNum('x', 0) + dx;
+    const y = this.getAttrNum('y', 0) + dy;
     this.element.setAttribute('x', String(x));
     this.element.setAttribute('y', String(y));
+    this.buildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
@@ -129,6 +119,9 @@ export class RectElement extends SvgElement {
     this.element.setAttribute('y', String(bbox.y));
     this.element.setAttribute('width', String(bbox.width));
     this.element.setAttribute('height', String(bbox.height));
-    super.flattenTransformToAttrs();
+    this.transform.reset();
+    this.matrix = this.transform.matrix;
+    this.element.removeAttribute('transform');
+    this.invalidateHitArea();
   }
 }

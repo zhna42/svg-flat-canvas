@@ -1,136 +1,56 @@
 import { SvgElement } from './SvgElement';
-import type { Point } from '@/types';
-import { MIN_HIT_STROKE_WIDTH } from '@/constants';
+import type { Point, BoundingBox } from '@/types';
+import { PolylineHitArea } from '../modules/HitArea';
+import { flattenPointsTransform } from '../modules/geometry-utils';
 
 export class PolylineElement extends SvgElement {
+  private _ha = new PolylineHitArea();
+
   public constructor(id: string) {
     super(id, 'polyline', 'polyline');
   }
 
-  public buildHitArea(): void {
-    const pointsAttr = this.element.getAttribute('points') || '';
-    const rawPoints = this.parsePoints(pointsAttr);
-
-    if (rawPoints.length < 2) return;
-
-    const sw = Math.max(this.getStrokeWidth(), MIN_HIT_STROKE_WIDTH);
-    const halfSw = sw / 2;
-
-    const left: Point[] = [];
-    const right: Point[] = [];
-
-    const dir = (ax: number, ay: number, bx: number, by: number) => {
-      const dx = bx - ax;
-      const dy = by - ay;
-      const len = Math.sqrt(dx * dx + dy * dy);
-      if (len === 0) return { dx: 0, dy: 0 };
-      return { dx: dx / len, dy: dy / len };
-    };
-
-    const perp = (ax: number, ay: number, bx: number, by: number) => {
-      const d = dir(ax, ay, bx, by);
-      return { nx: -d.dy * halfSw, ny: d.dx * halfSw };
-    };
-
-    const miter = (
-      p: Point,
-      pnx: number,
-      pny: number,
-      nnx: number,
-      nny: number,
-    ) => {
-      const mx = (pnx + nnx) / 2;
-      const my = (pny + nny) / 2;
-      const len = Math.sqrt(mx * mx + my * my);
-      if (len === 0) return { x: p.x + pnx, y: p.y + pny };
-      const scale = halfSw / len;
-      return { x: p.x + mx * scale, y: p.y + my * scale };
-    };
-
-    // start butt cap
-    const startDir = dir(
-      rawPoints[0].x,
-      rawPoints[0].y,
-      rawPoints[1].x,
-      rawPoints[1].y,
-    );
-    const startN = { nx: -startDir.dy * halfSw, ny: startDir.dx * halfSw };
-    left.push({
-      x: rawPoints[0].x + startN.nx - startDir.dx * halfSw,
-      y: rawPoints[0].y + startN.ny - startDir.dy * halfSw,
-    });
-    left.push({ x: rawPoints[0].x + startN.nx, y: rawPoints[0].y + startN.ny });
-
-    // middle points — miter join
-    for (let i = 1; i < rawPoints.length - 1; i++) {
-      const pn = perp(
-        rawPoints[i - 1].x,
-        rawPoints[i - 1].y,
-        rawPoints[i].x,
-        rawPoints[i].y,
-      );
-      const nn = perp(
-        rawPoints[i].x,
-        rawPoints[i].y,
-        rawPoints[i + 1].x,
-        rawPoints[i + 1].y,
-      );
-      left.push(miter(rawPoints[i], pn.nx, pn.ny, nn.nx, nn.ny));
-    }
-
-    // end point
-    const endDir = dir(
-      rawPoints[rawPoints.length - 2].x,
-      rawPoints[rawPoints.length - 2].y,
-      rawPoints[rawPoints.length - 1].x,
-      rawPoints[rawPoints.length - 1].y,
-    );
-    const endN = { nx: -endDir.dy * halfSw, ny: endDir.dx * halfSw };
-    left.push({
-      x: rawPoints[rawPoints.length - 1].x + endN.nx,
-      y: rawPoints[rawPoints.length - 1].y + endN.ny,
-    });
-
-    // end butt cap
-    right.push({
-      x: rawPoints[rawPoints.length - 1].x + endDir.dx * halfSw - endN.nx,
-      y: rawPoints[rawPoints.length - 1].y + endDir.dy * halfSw - endN.ny,
-    });
-    right.push({
-      x: rawPoints[rawPoints.length - 1].x - endN.nx,
-      y: rawPoints[rawPoints.length - 1].y - endN.ny,
-    });
-
-    for (let i = rawPoints.length - 2; i >= 1; i--) {
-      const pn = perp(
-        rawPoints[i - 1].x,
-        rawPoints[i - 1].y,
-        rawPoints[i].x,
-        rawPoints[i].y,
-      );
-      const nn = perp(
-        rawPoints[i].x,
-        rawPoints[i].y,
-        rawPoints[i + 1].x,
-        rawPoints[i + 1].y,
-      );
-      right.push(miter(rawPoints[i], -pn.nx, -pn.ny, -nn.nx, -nn.ny));
-    }
-
-    right.push({
-      x: rawPoints[0].x - startN.nx,
-      y: rawPoints[0].y - startN.ny,
-    });
-    right.push({
-      x: rawPoints[0].x - startDir.dx * halfSw - startN.nx,
-      y: rawPoints[0].y - startDir.dy * halfSw - startN.ny,
-    });
-
-    this._hitArea = [...left, ...right];
+  public get hitArea(): Point[] {
+    return this._ha.points;
   }
 
-  public clone(): PolylineElement {
-    const el = new PolylineElement(this.id);
+  public buildHitArea(): void {
+    const raw = this.parsePoints(this.element.getAttribute('points') || '');
+    this._ha.set(raw, this.style.strokeWidth);
+  }
+
+  public getBBox(): BoundingBox {
+    const pts = this.hitArea;
+    if (pts.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y > maxY) maxY = p.y;
+    }
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+
+  protected getGeometryProps(): Record<string, unknown> {
+    return { points: this.element.getAttribute('points') || '' };
+  }
+
+  protected getGeometrySnapshot(): Record<string, unknown> {
+    return { points: this.element.getAttribute('points') || '' };
+  }
+
+  protected applyGeometrySnapshot(data: Record<string, unknown>): void {
+    if (data.points !== undefined)
+      this.element.setAttribute('points', data.points as string);
+    this.buildHitArea();
+  }
+
+  protected copyGeometryTo(clone: SvgElement): void {
+    const el = clone as PolylineElement;
     [
       'points',
       'fill',
@@ -138,20 +58,15 @@ export class PolylineElement extends SvgElement {
       'stroke-width',
       'opacity',
       'transform',
-    ].forEach((attr) => {
-      const v = this.element.getAttribute(attr);
-      if (v !== null) el.element.setAttribute(attr, v);
+    ].forEach((a) => {
+      const v = this.element.getAttribute(a);
+      if (v !== null) el.element.setAttribute(a, v);
     });
-    return el;
-  }
-
-  protected createClone(): PolylineElement {
-    return new PolylineElement(this.id);
+    el.buildHitArea();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const pointsAttr = this.element.getAttribute('points') || '';
-    const nums = pointsAttr
+    const nums = (this.element.getAttribute('points') || '')
       .trim()
       .split(/[\s,]+/)
       .map(Number)
@@ -161,19 +76,23 @@ export class PolylineElement extends SvgElement {
       if (i + 1 < nums.length) nums[i + 1] += dy;
     }
     this.element.setAttribute('points', nums.join(' '));
+    this.buildHitArea();
   }
 
-  private parsePoints(points: string): Point[] {
-    const nums = points
-      .trim()
-      .split(/[\s,]+/)
-      .map(Number)
-      .filter((n) => !isNaN(n));
-
-    const result: Point[] = [];
-    for (let i = 0; i < nums.length - 1; i += 2) {
-      result.push({ x: nums[i], y: nums[i + 1] });
-    }
-    return result;
+  public flattenTransformToAttrs(): void {
+    const pts = this.parsePoints(this.element.getAttribute('points') || '');
+    const scaled = flattenPointsTransform(
+      pts,
+      this.getBBox(),
+      this.getTransformedBBox(),
+    );
+    this.element.setAttribute(
+      'points',
+      scaled.map((p) => `${p.x},${p.y}`).join(' '),
+    );
+    this.transform.reset();
+    this.matrix = this.transform.matrix;
+    this.element.removeAttribute('transform');
+    this.invalidateHitArea();
   }
 }

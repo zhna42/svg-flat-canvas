@@ -65,6 +65,10 @@ export function svgNodesToElements(dtos: SvgNodeDto[]): SvgElement[] {
         }
         continue;
       }
+      if (key === 'd' && el instanceof PathElement) {
+        el.element.setAttribute('d', value);
+        continue;
+      }
       if (key === 'transformMatrix' && el instanceof PathElement) {
         const nums = value.split(',').map(Number);
         if (nums.length === 6) {

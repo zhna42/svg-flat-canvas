@@ -1,6 +1,17 @@
 import { SVG_NS } from '@/constants';
-import type { Point, BoundingBox, DirtyTracker, ElementType } from '@/types';
+import type { Point, BoundingBox, ElementType } from '@/types';
+import { Transform } from '../modules/Transform';
+import { Style } from '../modules/Style';
 import { RenderQueue } from '@/renderer/RenderQueue';
+
+export interface RenderSnapshot {
+  id: string;
+  type: ElementType;
+  visible: boolean;
+  matrix: number[];
+  style: Record<string, unknown>;
+  geometry: Record<string, unknown>;
+}
 
 let globalQueue: RenderQueue | null = null;
 
@@ -8,10 +19,14 @@ export function setRenderQueue(queue: RenderQueue | null): void {
   globalQueue = queue;
 }
 
-export abstract class SvgElement implements DirtyTracker {
+export abstract class SvgElement {
   public readonly id: string;
   public readonly type: ElementType;
   public readonly element: SVGElement;
+  public readonly transform = new Transform();
+  public readonly style = new Style();
+
+  public matrix: DOMMatrix;
 
   public groupId = '';
   public laserGroupId = '';
@@ -20,37 +35,16 @@ export abstract class SvgElement implements DirtyTracker {
   public visible = true;
   public lock = false;
   public data: Record<string, unknown> = {};
+  public onDirty: (() => void) | null = null;
 
   protected _dirty = false;
-  protected _hitArea: Point[] = [];
-
-  public matrix = new DOMMatrix();
-
-  public x = 0;
-  public y = 0;
-  public scaleX = 1;
-  public scaleY = 1;
-  public angle = 0;
-
-  public onDirty: (() => void) | null = null;
-  public nonScalingStroke = true;
 
   public constructor(id: string, type: ElementType, tag: string) {
     this.id = id;
     this.type = type;
     this.name = type;
     this.element = document.createElementNS(SVG_NS, tag);
-    this.element.setAttribute('vector-effect', 'non-scaling-stroke');
-  }
-
-  public setNonScalingStroke(v: boolean): void {
-    this.nonScalingStroke = v;
-    if (v) {
-      this.element.setAttribute('vector-effect', 'non-scaling-stroke');
-    } else {
-      this.element.removeAttribute('vector-effect');
-    }
-    this.setDirty();
+    this.matrix = this.transform.matrix;
   }
 
   public get dirty(): boolean {
@@ -61,15 +55,21 @@ export abstract class SvgElement implements DirtyTracker {
     this._dirty = false;
   }
 
-  public get hitArea(): Point[] {
-    if (this._hitArea.length === 0) this.buildHitArea();
-    return this._hitArea;
+  public setDirty(): void {
+    this._dirty = true;
+    globalQueue?.add(this);
+    this.onDirty?.();
   }
 
+  public abstract get hitArea(): Point[];
+
+  public abstract buildHitArea(): void;
+
   public invalidateHitArea(): void {
-    this._hitArea = [];
     this.setDirty();
   }
+
+  public abstract getBBox(): BoundingBox;
 
   public applyTransformation(
     type: string,
@@ -77,99 +77,40 @@ export abstract class SvgElement implements DirtyTracker {
     baseMatrix?: DOMMatrix,
   ): void {
     if (this.lock) return;
-
     const startingMatrix = baseMatrix
       ? new DOMMatrix(baseMatrix.toString())
-      : this.matrix;
+      : this.transform.matrix;
 
     switch (type) {
-      case 'translate': {
-        const rad = (this.angle * Math.PI) / 180;
-        const cos = Math.cos(rad);
-        const sin = Math.sin(rad);
-        const localX = (delta.x ?? 0) * cos + (delta.y ?? 0) * sin;
-        const localY = -(delta.x ?? 0) * sin + (delta.y ?? 0) * cos;
-        const m = new DOMMatrix().translateSelf(localX, localY);
-        this.matrix = m.multiply(startingMatrix);
+      case 'translate':
+        this.transform.applyTranslate(
+          delta.x ?? 0,
+          delta.y ?? 0,
+          this.transform.angle,
+        );
         break;
-      }
-
       case 'rotate': {
-        const angleDelta = delta.angle ?? 0;
         const localCenter = this.getLocalCenter();
-        const globalCenter = startingMatrix.transformPoint({
-          x: localCenter.x,
-          y: localCenter.y,
-        });
-        this.matrix = new DOMMatrix()
-          .translateSelf(globalCenter.x, globalCenter.y)
-          .rotateSelf(0, 0, angleDelta)
-          .translateSelf(-globalCenter.x, -globalCenter.y)
-          .multiply(startingMatrix);
+        this.transform.applyRotate(
+          delta.angle ?? 0,
+          localCenter,
+          startingMatrix,
+        );
         break;
       }
-
-      case 'scale': {
-        const baseScaleX =
-          Math.sqrt(startingMatrix.a * startingMatrix.a + startingMatrix.b * startingMatrix.b) *
-          (startingMatrix.a < 0 ? -1 : 1);
-        const baseScaleY =
-          Math.sqrt(startingMatrix.c * startingMatrix.c + startingMatrix.d * startingMatrix.d) *
-          (startingMatrix.d < 0 ? -1 : 1);
-        const localDeltaX = (delta.x ?? 0) / baseScaleX;
-        const localDeltaY = (delta.y ?? 0) / baseScaleY;
-        const factorX = 1 + localDeltaX / (delta.width || 1);
-        const factorY = 1 + localDeltaY / (delta.height || 1);
-        if (factorX <= 0 || factorY <= 0) return;
-        const localOrigin = new DOMMatrix(startingMatrix.toString())
-          .invertSelf()
-          .transformPoint({ x: delta.originX ?? 0, y: delta.originY ?? 0 });
-        const m = new DOMMatrix()
-          .translateSelf(startingMatrix.e, startingMatrix.f)
-          .rotateSelf(0, 0, (Math.atan2(startingMatrix.b, startingMatrix.a) * 180) / Math.PI)
-          .translateSelf(localOrigin.x, localOrigin.y)
-          .scaleSelf(factorX, factorY)
-          .translateSelf(-localOrigin.x, -localOrigin.y);
-        this.matrix = m;
-        this.decomposeMatrix();
-        this.setDirty();
-        return;
-      }
-
+      case 'scale':
+        this.transform.applyScale(delta, startingMatrix);
+        break;
       default:
         return;
     }
 
-    this.decomposeMatrix();
+    this.matrix = this.transform.matrix;
     this.invalidateHitArea();
   }
 
-  public decomposeMatrix(): void {
-    this.x = this.matrix.e;
-    this.y = this.matrix.f;
-    this.scaleX =
-      Math.sqrt(this.matrix.a * this.matrix.a + this.matrix.b * this.matrix.b) *
-      (this.matrix.a < 0 ? -1 : 1);
-    this.scaleY =
-      Math.sqrt(this.matrix.c * this.matrix.c + this.matrix.d * this.matrix.d) *
-      (this.matrix.d < 0 ? -1 : 1);
-    this.angle = Math.atan2(this.matrix.b, this.matrix.a) * (180 / Math.PI);
-  }
-
   public transformPoint(p: Point): Point {
-    return this.matrix.transformPoint({ x: p.x, y: p.y });
-  }
-
-  public abstract buildHitArea(): void;
-
-  public getBBox(): BoundingBox {
-    try {
-      const graphicsEl = this.element as SVGGraphicsElement;
-      const bbox = graphicsEl.getBBox();
-      return { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height };
-    } catch {
-      return { x: 0, y: 0, width: 0, height: 0 };
-    }
+    return this.transform.transformPoint(p);
   }
 
   public getLocalCenter(): Point {
@@ -180,7 +121,6 @@ export abstract class SvgElement implements DirtyTracker {
   public getTransformedBBox(): BoundingBox {
     const pts = this.hitArea;
     if (pts.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
-
     let minX = Infinity,
       minY = Infinity,
       maxX = -Infinity,
@@ -200,93 +140,45 @@ export abstract class SvgElement implements DirtyTracker {
     return { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
   }
 
-  public setX(x: number): void {
-    this.applyTransformation('translate', { x: x - this.x, y: 0 });
-  }
-  public setY(y: number): void {
-    this.applyTransformation('translate', { x: 0, y: y - this.y });
-  }
-
-  public setWidth(w: number): void {
-    const bbox = this.getTransformedBBox();
-    if (bbox.width === 0) return;
-    this.applyTransformation('resize', {
-      sx: w / bbox.width,
-      sy: 1,
-      originX: bbox.x,
-      originY: bbox.y,
-    });
-  }
-
-  public setHeight(h: number): void {
-    const bbox = this.getTransformedBBox();
-    if (bbox.height === 0) return;
-    this.applyTransformation('resize', {
-      sx: 1,
-      sy: h / bbox.height,
-      originX: bbox.x,
-      originY: bbox.y,
-    });
-  }
-
   public translate(dx: number, dy: number): void {
     this.applyTransformation('translate', { x: dx, y: dy });
   }
+
+  public applyDelta(dx: number, dy: number): void {
+    this.translate(dx, dy);
+  }
+
   public rotate(angle: number): void {
     this.applyTransformation('rotate', { angle });
   }
 
-  public scale(sx: number, sy?: number): void {
-    const bbox = this.getTransformedBBox();
-    const sY = sy ?? sx;
-    this.applyTransformation('resize', {
-      sx,
-      sy: sY,
-      originX: bbox.x + bbox.width / 2,
-      originY: bbox.y + bbox.height / 2,
-    });
-  }
-
-  public flushTransformToCoords(): void {
-    this.matrix = new DOMMatrix();
-    this.decomposeMatrix();
-    this.element.removeAttribute('transform');
-    this.invalidateHitArea();
-    this.setDirty();
-  }
-
-  public flattenTransformToAttrs(): void {
-    this.flushTransformToCoords();
-  }
-
-  public applyDelta(dx: number, dy: number): void {
-    this.applyTransformation('translate', { x: dx, y: dy });
-  }
-
-  protected getAttrAsNum(name: string, fallback: number): number {
-    const v = this.element.getAttribute(name);
-    return v !== null ? parseFloat(v) : fallback;
-  }
-
   public setFill(color: string): void {
+    this.style.fill = color;
     this.element.setAttribute('fill', color);
     this.invalidateHitArea();
   }
+
   public setStroke(color: string): void {
+    this.style.stroke = color;
     this.element.setAttribute('stroke', color);
     this.invalidateHitArea();
   }
+
   public setStrokeWidth(w: number): void {
+    this.style.strokeWidth = w;
     this.element.setAttribute('stroke-width', String(w));
     this.invalidateHitArea();
   }
+
   public setOpacity(v: number): void {
+    this.style.opacity = v;
     this.element.setAttribute('opacity', String(v));
     this.setDirty();
   }
 
   public setVisible(v: boolean): void {
     this.visible = v;
+    this.style.visible = v;
     this.element.setAttribute('visibility', v ? 'visible' : 'hidden');
     this.setDirty();
   }
@@ -294,6 +186,7 @@ export abstract class SvgElement implements DirtyTracker {
   public setLock(v: boolean): void {
     this.lock = v;
   }
+
   public setName(v: string): void {
     this.name = v;
   }
@@ -310,6 +203,89 @@ export abstract class SvgElement implements DirtyTracker {
     };
   }
 
+  public toSnapshot(): Record<string, unknown> {
+    return {
+      id: this.id,
+      type: this.type,
+      groupId: this.groupId,
+      name: this.name,
+      visible: this.visible,
+      lock: this.lock,
+      data: { ...this.data },
+      fill: this.style.fill,
+      stroke: this.style.stroke,
+      strokeWidth: this.style.strokeWidth,
+      opacity: this.style.opacity,
+      matrix: this.transform.matrix.toString(),
+      ...this.getGeometrySnapshot(),
+    };
+  }
+
+  public fromSnapshot(data: Record<string, unknown>): void {
+    this.applyCommonSnapshot(data);
+    this.applyGeometrySnapshot(data);
+    this.matrix = this.transform.matrix;
+    this.invalidateHitArea();
+  }
+
+  protected applyCommonSnapshot(data: Record<string, unknown>): void {
+    if (typeof data.groupId === 'string') this.groupId = data.groupId;
+    if (typeof data.name === 'string') this.name = data.name;
+    if (typeof data.visible === 'boolean') {
+      this.visible = data.visible;
+      this.style.visible = data.visible;
+    }
+    if (typeof data.lock === 'boolean') this.lock = data.lock;
+    if (data.data && typeof data.data === 'object')
+      this.data = { ...(data.data as Record<string, unknown>) };
+    if (typeof data.fill === 'string') {
+      this.style.fill = data.fill;
+      this.element.setAttribute('fill', data.fill);
+    }
+    if (typeof data.stroke === 'string') {
+      this.style.stroke = data.stroke;
+      this.element.setAttribute('stroke', data.stroke);
+    }
+    if (typeof data.strokeWidth === 'number') {
+      this.style.strokeWidth = data.strokeWidth;
+      this.element.setAttribute('stroke-width', String(data.strokeWidth));
+    }
+    if (typeof data.opacity === 'number') {
+      this.style.opacity = data.opacity;
+      this.element.setAttribute('opacity', String(data.opacity));
+    }
+    if (typeof data.matrix === 'string') {
+      this.transform.matrix = new DOMMatrix(data.matrix);
+    } else {
+      this.transform.reset();
+    }
+  }
+
+  public clone(): SvgElement {
+    const Cls = this.constructor as new (...args: any[]) => SvgElement;
+    const cloned = new Cls(this.id);
+    cloned.groupId = this.groupId;
+    cloned.laserGroupId = this.laserGroupId;
+    cloned.laserType = this.laserType;
+    cloned.name = this.name;
+    cloned.visible = this.visible;
+    cloned.lock = this.lock;
+    cloned.data = { ...this.data };
+    cloned.style.fill = this.style.fill;
+    cloned.style.stroke = this.style.stroke;
+    cloned.style.strokeWidth = this.style.strokeWidth;
+    cloned.style.opacity = this.style.opacity;
+    cloned.style.visible = this.style.visible;
+    cloned.transform.matrix = new DOMMatrix(this.transform.matrix.toString());
+    cloned.matrix = cloned.transform.matrix;
+    this.copyGeometryTo(cloned);
+    return cloned;
+  }
+
+  protected abstract getGeometrySnapshot(): Record<string, unknown>;
+  protected abstract applyGeometrySnapshot(data: Record<string, unknown>): void;
+  protected abstract copyGeometryTo(clone: SvgElement): void;
+
   public applyDTO(dto: Record<string, unknown>): void {
     const attrs = dto.attributes as Record<string, string> | undefined;
     if (attrs) {
@@ -318,7 +294,10 @@ export abstract class SvgElement implements DirtyTracker {
     }
     if (typeof dto.groupId === 'string') this.groupId = dto.groupId;
     if (typeof dto.name === 'string') this.name = dto.name;
-    if (typeof dto.visible === 'boolean') this.visible = dto.visible;
+    if (typeof dto.visible === 'boolean') {
+      this.visible = dto.visible;
+      this.style.visible = dto.visible;
+    }
     if (typeof dto.lock === 'boolean') this.lock = dto.lock;
     if (dto.data && typeof dto.data === 'object')
       this.data = { ...(dto.data as Record<string, unknown>) };
@@ -327,11 +306,10 @@ export abstract class SvgElement implements DirtyTracker {
       this.element.textContent !== null
     )
       this.element.textContent = dto.textContent;
-    this.matrix = new DOMMatrix();
-    this.decomposeMatrix();
-    this._hitArea = [];
+    this.transform.reset();
+    this.matrix = this.transform.matrix;
     this._dirty = true;
-    this.onDTOApplied();
+    this.setDirty();
   }
 
   public toDTO(): Record<string, unknown> {
@@ -354,34 +332,50 @@ export abstract class SvgElement implements DirtyTracker {
     return result;
   }
 
-  public clone(): SvgElement {
-    const cloned = this.createClone();
-    cloned.groupId = this.groupId;
-    cloned.laserGroupId = this.laserGroupId;
-    cloned.laserType = this.laserType;
-    cloned.name = this.name;
-    cloned.visible = this.visible;
-    cloned.lock = this.lock;
-    cloned.data = { ...this.data };
-    return cloned;
+  public get x(): number {
+    return this.transform.x;
+  }
+  public get y(): number {
+    return this.transform.y;
+  }
+  public get scaleX(): number {
+    return this.transform.scaleX;
+  }
+  public get scaleY(): number {
+    return this.transform.scaleY;
+  }
+  public get angle(): number {
+    return this.transform.angle;
   }
 
-  protected abstract createClone(): SvgElement;
-  protected onDTOApplied(): void {}
+  protected abstract getGeometryProps(): Record<string, unknown>;
 
-  public setDirty(): void {
-    this._dirty = true;
-    globalQueue?.add(this);
-    this.onDirty?.();
+  protected getAttrNum(name: string, fallback: number): number {
+    const v = this.element.getAttribute(name);
+    return v !== null ? parseFloat(v) : fallback;
   }
 
-  protected getStrokeWidth(): number {
-    const sw = this.element.getAttribute('stroke-width');
-    return sw ? parseFloat(sw) : 0;
+  protected parsePoints(points: string): Point[] {
+    const nums = points
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number)
+      .filter((n) => !isNaN(n));
+    const result: Point[] = [];
+    for (let i = 0; i < nums.length - 1; i += 2) {
+      result.push({ x: nums[i], y: nums[i + 1] });
+    }
+    return result;
   }
 
-  protected hasFill(): boolean {
-    const fill = this.element.getAttribute('fill');
-    return fill !== null && fill !== 'none' && fill !== '';
+  public getRenderSnapshot(): RenderSnapshot {
+    return {
+      id: this.id,
+      type: this.type,
+      visible: this.visible,
+      matrix: this.transform.toArray(),
+      style: this.style.getProps(),
+      geometry: this.getGeometryProps(),
+    };
   }
 }

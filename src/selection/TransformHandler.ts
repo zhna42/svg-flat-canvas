@@ -54,10 +54,15 @@ export class TransformHandler {
     this.globalOrigins.clear();
 
     for (const el of currentSelected) {
-      const saved = el.element.getAttribute('transform');
-      el.element.removeAttribute('transform');
-      const localBBox = el.getBBox();
-      if (saved) el.element.setAttribute('transform', saved);
+      const ha = el.hitArea;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const p of ha) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+        if (p.x > maxX) maxX = p.x;
+        if (p.y > maxY) maxY = p.y;
+      }
+      const localBBox = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
       const startMatrix = new DOMMatrix(el.matrix.toString());
       this.startMatrices.set(el.id, startMatrix);
       this.localBBoxes.set(el.id, {

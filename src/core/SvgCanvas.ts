@@ -207,7 +207,12 @@ export class SvgCanvas {
 
   public setNonScalingStroke(id: string, v: boolean): void {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
-    el?.setNonScalingStroke(v);
+    if (el) {
+      const attr = v ? 'non-scaling-stroke' : null;
+      if (attr) el.element.setAttribute('vector-effect', attr);
+      else el.element.removeAttribute('vector-effect');
+      el.setDirty();
+    }
   }
 
   public on<E extends Events>(event: E, fn: (data: import('./EventBus').EventMap[E]) => void): () => void {
@@ -257,11 +262,15 @@ export class SvgCanvas {
 
   public endTransform(): void { if (this.transformHandler.isActive) this.transformHandler.end(); }
 
-  public resizeElement(id: string, width: number, height: number): void {
+  public resizeElement(id: string, _width: number, _height: number): void {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
-    el.setWidth(width);
-    el.setHeight(height);
+    const bbox = el.getTransformedBBox();
+    if (bbox.width > 0) {
+      el.applyTransformation('scale', {
+        x: 0, y: 0, originX: bbox.x, originY: bbox.y, width: bbox.width, height: bbox.height,
+      });
+    }
   }
 
   public rotateElement(id: string, angle: number): void {

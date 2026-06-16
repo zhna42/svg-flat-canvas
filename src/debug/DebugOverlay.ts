@@ -27,7 +27,7 @@ export class DebugOverlay {
       const pts = el.hitArea;
       if (pts.length < 3) continue;
 
-      const m = el.toDOMMatrix();
+      const m = el.transform.matrix;
       const transformed = pts.map((p) => m.transformPoint({ x: p.x, y: p.y }));
 
       const pointsStr = transformed.map((p) => `${p.x},${p.y}`).join(' ');
