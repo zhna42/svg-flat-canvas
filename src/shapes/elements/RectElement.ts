@@ -1,14 +1,14 @@
-import { SvgElement } from './SvgElement';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { RectHitArea } from '../modules/HitArea';
 
-export class RectElement extends SvgElement {
+export class RectElement extends AbstractGraphicElement {
   private _ha = new RectHitArea();
 
   public geometry = { x: 0, y: 0, width: 0, height: 0, rx: 0, ry: 0 };
 
   public constructor(id: string) {
-    super(id, 'rect', 'rect');
+    super(id, 'rect');
   }
 
   public get hitArea(): Point[] {
@@ -54,7 +54,7 @@ export class RectElement extends SvgElement {
     this.buildHitArea();
   }
 
-  protected copyGeometryTo(clone: SvgElement): void {
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
     const el = clone as RectElement;
     el.geometry = { ...this.geometry };
     el.buildHitArea();
@@ -84,7 +84,6 @@ export class RectElement extends SvgElement {
     this.geometry.width = bbox.width;
     this.geometry.height = bbox.height;
     this.transform.reset();
-    this.matrix = this.transform.matrix;
     this.invalidateHitArea();
   }
 }

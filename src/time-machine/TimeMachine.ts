@@ -1,4 +1,6 @@
-export type TimeMachineRecordType = 'ROOT' | import('@/commands/types').CommandType;
+export type TimeMachineRecordType =
+  | 'ROOT'
+  | import('@/commands/types').CommandType;
 
 export interface TimeMachineRecord {
   type: TimeMachineRecordType;
@@ -15,7 +17,9 @@ export class TimeMachine {
   private getElements: () => { id: string; toDTO(): Record<string, unknown> }[];
   private getGroups: () => { id: string; toDTO(): Record<string, unknown> }[];
   private applyElementDTO: (dto: Record<string, unknown>) => void;
-  private applyGroupsCb: (groups: Record<string, Record<string, unknown>>) => void;
+  private applyGroupsCb: (
+    groups: Record<string, Record<string, unknown>>,
+  ) => void;
   private onUpdate: (() => void) | null = null;
 
   public constructor(
@@ -32,11 +36,21 @@ export class TimeMachine {
     this.maxRecords = maxRecords;
   }
 
-  public setOnUpdate(fn: (() => void) | null): void { this.onUpdate = fn; }
-  public get canUndo(): boolean { return this.pointer >= (this.root ? -1 : 0); }
-  public get canRedo(): boolean { return this.pointer < this.records.length - 1; }
-  public get index(): number { return this.pointer; }
-  public get totalRecords(): number { return this.records.length; }
+  public setOnUpdate(fn: (() => void) | null): void {
+    this.onUpdate = fn;
+  }
+  public get canUndo(): boolean {
+    return this.pointer >= (this.root ? -1 : 0);
+  }
+  public get canRedo(): boolean {
+    return this.pointer < this.records.length - 1;
+  }
+  public get index(): number {
+    return this.pointer;
+  }
+  public get totalRecords(): number {
+    return this.records.length;
+  }
 
   public captureRoot(): void {
     const elements: Record<string, Record<string, unknown>> = {};
@@ -56,7 +70,10 @@ export class TimeMachine {
     this.pointer++;
     this.records.length = this.pointer;
     this.records.push({ type, elements, groups, timestamp: Date.now() });
-    if (this.records.length > this.maxRecords) { this.records.shift(); this.pointer--; }
+    if (this.records.length > this.maxRecords) {
+      this.records.shift();
+      this.pointer--;
+    }
     this.onUpdate?.();
   }
 
@@ -75,15 +92,25 @@ export class TimeMachine {
     this.onUpdate?.();
   }
 
-  public clear(): void { this.root = null; this.records = []; this.pointer = -1; this.onUpdate?.(); }
+  public clear(): void {
+    this.root = null;
+    this.records = [];
+    this.pointer = -1;
+    this.onUpdate?.();
+  }
 
-  public toJSON(): TimeMachineRecord[] { return this.root ? [this.root, ...this.records] : this.records; }
+  public toJSON(): TimeMachineRecord[] {
+    return this.root ? [this.root, ...this.records] : this.records;
+  }
 
   public fromJSON(records: TimeMachineRecord[]): void {
     if (records.length > 0 && records[0].type === 'ROOT') {
       this.root = records[0];
       this.records = records.slice(1);
-    } else { this.root = null; this.records = records; }
+    } else {
+      this.root = null;
+      this.records = records;
+    }
     this.pointer = this.records.length - 1;
   }
 

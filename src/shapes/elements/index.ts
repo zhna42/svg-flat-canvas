@@ -1,4 +1,4 @@
-export { SvgElement } from './SvgElement';
+export { AbstractGraphicElement } from './AbstractGraphicElement';
 export { RectElement } from './RectElement';
 export { CircleElement } from './CircleElement';
 export { EllipseElement } from './EllipseElement';

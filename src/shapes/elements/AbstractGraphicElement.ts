@@ -1,4 +1,3 @@
-import { SVG_NS } from '@/constants';
 import type { Point, BoundingBox, ElementType } from '@/types';
 import { Transform } from '../modules/Transform';
 import { Style } from '../modules/Style';
@@ -19,14 +18,11 @@ export function setRenderQueue(queue: RenderQueue | null): void {
   globalQueue = queue;
 }
 
-export abstract class SvgElement {
+export abstract class AbstractGraphicElement {
   public readonly id: string;
   public readonly type: ElementType;
-  public readonly element: SVGElement;
   public readonly transform = new Transform();
   public readonly style = new Style();
-
-  public matrix: DOMMatrix;
 
   public groupId = '';
   public laserGroupId = '';
@@ -39,12 +35,10 @@ export abstract class SvgElement {
 
   protected _dirty = false;
 
-  public constructor(id: string, type: ElementType, tag: string) {
+  public constructor(id: string, type: ElementType) {
     this.id = id;
     this.type = type;
     this.name = type;
-    this.element = document.createElementNS(SVG_NS, tag);
-    this.matrix = this.transform.matrix;
   }
 
   public get dirty(): boolean {
@@ -66,6 +60,7 @@ export abstract class SvgElement {
   public abstract buildHitArea(): void;
 
   public invalidateHitArea(): void {
+    this.buildHitArea();
     this.setDirty();
   }
 
@@ -105,7 +100,6 @@ export abstract class SvgElement {
         return;
     }
 
-    this.matrix = this.transform.matrix;
     this.invalidateHitArea();
   }
 
@@ -154,32 +148,27 @@ export abstract class SvgElement {
 
   public setFill(color: string): void {
     this.style.fill = color;
-    this.element.setAttribute('fill', color);
     this.invalidateHitArea();
   }
 
   public setStroke(color: string): void {
     this.style.stroke = color;
-    this.element.setAttribute('stroke', color);
     this.invalidateHitArea();
   }
 
   public setStrokeWidth(w: number): void {
     this.style.strokeWidth = w;
-    this.element.setAttribute('stroke-width', String(w));
     this.invalidateHitArea();
   }
 
   public setOpacity(v: number): void {
     this.style.opacity = v;
-    this.element.setAttribute('opacity', String(v));
     this.setDirty();
   }
 
   public setVisible(v: boolean): void {
     this.visible = v;
     this.style.visible = v;
-    this.element.setAttribute('visibility', v ? 'visible' : 'hidden');
     this.setDirty();
   }
 
@@ -224,7 +213,6 @@ export abstract class SvgElement {
   public fromSnapshot(data: Record<string, unknown>): void {
     this.applyCommonSnapshot(data);
     this.applyGeometrySnapshot(data);
-    this.matrix = this.transform.matrix;
     this.invalidateHitArea();
   }
 
@@ -238,18 +226,11 @@ export abstract class SvgElement {
     if (typeof data.lock === 'boolean') this.lock = data.lock;
     if (data.data && typeof data.data === 'object')
       this.data = { ...(data.data as Record<string, unknown>) };
-    if (typeof data.fill === 'string') {
-      this.style.fill = data.fill;
-    }
-    if (typeof data.stroke === 'string') {
-      this.style.stroke = data.stroke;
-    }
-    if (typeof data.strokeWidth === 'number') {
+    if (typeof data.fill === 'string') this.style.fill = data.fill;
+    if (typeof data.stroke === 'string') this.style.stroke = data.stroke;
+    if (typeof data.strokeWidth === 'number')
       this.style.strokeWidth = data.strokeWidth;
-    }
-    if (typeof data.opacity === 'number') {
-      this.style.opacity = data.opacity;
-    }
+    if (typeof data.opacity === 'number') this.style.opacity = data.opacity;
     if (typeof data.matrix === 'string') {
       this.transform.matrix = new DOMMatrix(data.matrix);
     } else {
@@ -257,8 +238,8 @@ export abstract class SvgElement {
     }
   }
 
-  public clone(): SvgElement {
-    const Cls = this.constructor as new (...args: any[]) => SvgElement;
+  public clone(): AbstractGraphicElement {
+    const Cls = this.constructor as new (id: string) => AbstractGraphicElement;
     const cloned = new Cls(this.id);
     cloned.groupId = this.groupId;
     cloned.laserGroupId = this.laserGroupId;
@@ -273,60 +254,32 @@ export abstract class SvgElement {
     cloned.style.opacity = this.style.opacity;
     cloned.style.visible = this.style.visible;
     cloned.transform.matrix = new DOMMatrix(this.transform.matrix.toString());
-    cloned.matrix = cloned.transform.matrix;
     this.copyGeometryTo(cloned);
     return cloned;
   }
 
-  protected abstract getGeometrySnapshot(): Record<string, unknown>;
-  protected abstract applyGeometrySnapshot(data: Record<string, unknown>): void;
-  protected abstract copyGeometryTo(clone: SvgElement): void;
-
   public applyDTO(dto: Record<string, unknown>): void {
-    const attrs = dto.attributes as Record<string, string> | undefined;
-    if (attrs) {
-      for (const [key, value] of Object.entries(attrs))
-        this.element.setAttribute(key, value);
-    }
-    if (typeof dto.groupId === 'string') this.groupId = dto.groupId;
-    if (typeof dto.name === 'string') this.name = dto.name;
-    if (typeof dto.visible === 'boolean') {
-      this.visible = dto.visible;
-      this.style.visible = dto.visible;
-    }
-    if (typeof dto.lock === 'boolean') this.lock = dto.lock;
-    if (dto.data && typeof dto.data === 'object')
-      this.data = { ...(dto.data as Record<string, unknown>) };
-    if (
-      typeof dto.textContent === 'string' &&
-      this.element.textContent !== null
-    )
-      this.element.textContent = dto.textContent;
-    this.transform.reset();
-    this.matrix = this.transform.matrix;
-    this._dirty = true;
-    this.setDirty();
+    const geometry = dto as Record<string, unknown>;
+    this.applyCommonSnapshot(geometry);
+    this.applyGeometrySnapshot(geometry);
   }
 
   public toDTO(): Record<string, unknown> {
-    const attrs: Record<string, string> = {};
-    for (let i = 0; i < this.element.attributes.length; i++) {
-      const attr = this.element.attributes[i];
-      attrs[attr.name] = attr.value;
-    }
-    const result: Record<string, unknown> = {
+    return {
       id: this.id,
       type: this.type,
-      attributes: attrs,
+      attributes: this.getGeometryProps() as Record<string, string>,
       groupId: this.groupId,
       name: this.name,
       visible: this.visible,
       lock: this.lock,
       data: { ...this.data },
     };
-    if (this.element.textContent) result.textContent = this.element.textContent;
-    return result;
   }
+
+  protected abstract getGeometrySnapshot(): Record<string, unknown>;
+  protected abstract applyGeometrySnapshot(data: Record<string, unknown>): void;
+  protected abstract copyGeometryTo(clone: AbstractGraphicElement): void;
 
   public get x(): number {
     return this.transform.x;
@@ -345,11 +298,6 @@ export abstract class SvgElement {
   }
 
   protected abstract getGeometryProps(): Record<string, unknown>;
-
-  protected getAttrNum(name: string, fallback: number): number {
-    const v = this.element.getAttribute(name);
-    return v !== null ? parseFloat(v) : fallback;
-  }
 
   protected parsePoints(points: string): Point[] {
     const nums = points

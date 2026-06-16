@@ -1,9 +1,9 @@
 import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
 export interface DragHandlerContext {
-  getElements: () => SvgElement[];
+  getElements: () => AbstractGraphicElement[];
   onDragEnd?: (elementIds: string[]) => void;
 }
 

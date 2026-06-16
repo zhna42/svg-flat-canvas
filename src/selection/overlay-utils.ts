@@ -73,7 +73,10 @@ export function createLassoOverlay(
   return { element: poly };
 }
 
-export function updateLassoOverlay(overlay: LassoOverlay, points: readonly { x: number; y: number }[]): void {
+export function updateLassoOverlay(
+  overlay: LassoOverlay,
+  points: readonly { x: number; y: number }[],
+): void {
   if (!overlay.element) return;
   const str = points.map((p) => `${p.x},${p.y}`).join(' ');
   overlay.element.setAttribute('points', str);

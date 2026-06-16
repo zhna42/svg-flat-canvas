@@ -1,14 +1,14 @@
-import { SvgElement } from './SvgElement';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { EllipseHitArea } from '../modules/HitArea';
 
-export class EllipseElement extends SvgElement {
+export class EllipseElement extends AbstractGraphicElement {
   private _ha = new EllipseHitArea();
 
   public geometry = { cx: 0, cy: 0, rx: 0, ry: 0 };
 
   public constructor(id: string) {
-    super(id, 'ellipse', 'ellipse');
+    super(id, 'ellipse');
   }
 
   public get hitArea(): Point[] {
@@ -48,7 +48,7 @@ export class EllipseElement extends SvgElement {
     this.buildHitArea();
   }
 
-  protected copyGeometryTo(clone: SvgElement): void {
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
     (clone as EllipseElement).geometry = { ...this.geometry };
     clone.buildHitArea();
   }
@@ -66,7 +66,6 @@ export class EllipseElement extends SvgElement {
     this.geometry.rx = bbox.width / 2;
     this.geometry.ry = bbox.height / 2;
     this.transform.reset();
-    this.matrix = this.transform.matrix;
     this.invalidateHitArea();
   }
 }

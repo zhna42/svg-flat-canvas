@@ -1,5 +1,5 @@
 import type { SvgNodeDto } from '@/dto/svg-node-dto';
-import { SvgElement } from '@/shapes/elements/SvgElement';
+import { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import { RectElement } from '@/shapes/elements/RectElement';
 import { CircleElement } from '@/shapes/elements/CircleElement';
 import { EllipseElement } from '@/shapes/elements/EllipseElement';
@@ -10,7 +10,7 @@ import { PolylineElement } from '@/shapes/elements/PolylineElement';
 import { TextElement } from '@/shapes/elements/TextElement';
 import { ImageElement } from '@/shapes/elements/ImageElement';
 
-function createByTag(id: string, tag: string): SvgElement {
+function createByTag(id: string, tag: string): AbstractGraphicElement {
   switch (tag) {
     case 'rect':
       return new RectElement(id);
@@ -35,7 +35,9 @@ function createByTag(id: string, tag: string): SvgElement {
   }
 }
 
-export function svgNodesToElements(dtos: SvgNodeDto[]): SvgElement[] {
+export function svgNodesToElements(
+  dtos: SvgNodeDto[],
+): AbstractGraphicElement[] {
   return dtos.map((dto) => {
     const el = createByTag(dto.id, dto.tag);
 
@@ -128,6 +130,8 @@ export function svgNodesToElements(dtos: SvgNodeDto[]): SvgElement[] {
   });
 }
 
-export function toSvgCanvasFormat(dtos: SvgNodeDto[]): SvgElement[] {
+export function toSvgCanvasFormat(
+  dtos: SvgNodeDto[],
+): AbstractGraphicElement[] {
   return svgNodesToElements(dtos);
 }

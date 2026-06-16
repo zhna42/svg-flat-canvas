@@ -1,15 +1,16 @@
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SelectionMode } from './SelectionMode';
 import type { SelectionFilter } from './selection-filter';
 
 export class SelectionState {
-  private _selected: SvgElement[] = [];
+  private _selected: AbstractGraphicElement[] = [];
   private _mode: SelectionMode = 'element';
   private _filter: SelectionFilter | null = null;
-  private _onChange: ((selected: SvgElement[]) => void) | null = null;
+  private _onChange: ((selected: AbstractGraphicElement[]) => void) | null =
+    null;
   private _onModeChange: ((mode: SelectionMode) => void) | null = null;
 
-  public get selected(): readonly SvgElement[] {
+  public get selected(): readonly AbstractGraphicElement[] {
     return this._selected;
   }
 
@@ -27,7 +28,9 @@ export class SelectionState {
     this._filter = fn;
   }
 
-  public setOnChange(fn: ((selected: SvgElement[]) => void) | null): void {
+  public setOnChange(
+    fn: ((selected: AbstractGraphicElement[]) => void) | null,
+  ): void {
     this._onChange = fn;
   }
 
@@ -35,7 +38,7 @@ export class SelectionState {
     this._onModeChange = fn;
   }
 
-  public add(elements: SvgElement[]): void {
+  public add(elements: AbstractGraphicElement[]): void {
     const filtered = this._filter ? this._filter(elements) : elements;
     const existing = new Set(this._selected.map((e) => e.id));
     for (const el of filtered) {
@@ -46,17 +49,17 @@ export class SelectionState {
     this._onChange?.(this._selected);
   }
 
-  public remove(elements: SvgElement[]): void {
+  public remove(elements: AbstractGraphicElement[]): void {
     const ids = new Set(elements.map((e) => e.id));
     this._selected = this._selected.filter((e) => !ids.has(e.id));
     this._onChange?.(this._selected);
   }
 
-  public toggle(elements: SvgElement[]): void {
+  public toggle(elements: AbstractGraphicElement[]): void {
     const filtered = this._filter ? this._filter(elements) : elements;
     const ids = new Set(this._selected.map((e) => e.id));
-    const toRemove: SvgElement[] = [];
-    const toAdd: SvgElement[] = [];
+    const toRemove: AbstractGraphicElement[] = [];
+    const toAdd: AbstractGraphicElement[] = [];
 
     for (const el of filtered) {
       if (ids.has(el.id)) {
@@ -74,7 +77,7 @@ export class SelectionState {
     this._onChange?.(this._selected);
   }
 
-  public replace(elements: SvgElement[]): void {
+  public replace(elements: AbstractGraphicElement[]): void {
     const filtered = this._filter ? this._filter(elements) : elements;
     this._selected = [...filtered];
     this._onChange?.(this._selected);

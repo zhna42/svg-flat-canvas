@@ -12,9 +12,7 @@ export function createDragMoveCommand(
   };
 }
 
-export function createDragEndCommand(
-  elementIds: string[],
-): DragEndCommand {
+export function createDragEndCommand(elementIds: string[]): DragEndCommand {
   return {
     type: 'DRAG_END',
     options: { elementIds },

@@ -1,10 +1,21 @@
-import type { ResizeCommand, RotateCommand, TransformCommand, BBox } from '../types';
+import type {
+  ResizeCommand,
+  RotateCommand,
+  TransformCommand,
+  BBox,
+} from '../types';
 
-export function createResizeCommand(elementIds: string[], bbox: BBox): ResizeCommand {
+export function createResizeCommand(
+  elementIds: string[],
+  bbox: BBox,
+): ResizeCommand {
   return { type: 'RESIZE', options: { elementIds, bbox } };
 }
 
-export function createRotateCommand(elementIds: string[], angle: number): RotateCommand {
+export function createRotateCommand(
+  elementIds: string[],
+  angle: number,
+): RotateCommand {
   return { type: 'ROTATE', options: { elementIds, angle } };
 }
 

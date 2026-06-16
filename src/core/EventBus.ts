@@ -11,7 +11,7 @@ export enum Events {
 }
 
 export interface EventMap {
-  [Events.SelectionChange]: readonly import('@/shapes/elements/SvgElement').SvgElement[];
+  [Events.SelectionChange]: readonly import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[];
   [Events.GroupSelect]: string[];
   [Events.GroupsChange]: void;
   [Events.DragStart]: void;

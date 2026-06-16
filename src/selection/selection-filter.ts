@@ -1,3 +1,5 @@
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
-export type SelectionFilter = (elements: SvgElement[]) => SvgElement[];
+export type SelectionFilter = (
+  elements: AbstractGraphicElement[],
+) => AbstractGraphicElement[];

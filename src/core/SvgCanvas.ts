@@ -2,7 +2,7 @@ import { EventManager } from '@/events/EventManager';
 import { Renderer } from '@/renderer/Renderer';
 import { ShapeManager } from '@/shapes/ShapeManager';
 import { Camera } from '@/camera/Camera';
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import { createFromJSONArray } from '@/shapes/elements/factory';
 import type { ElementJSON } from '@/shapes/elements/factory';
 import type { SvgCanvasOptions } from '@/types';
@@ -18,17 +18,27 @@ import { GroupSelectionOverlay } from '@/selection/GroupSelectionOverlay';
 import { TransformHandler } from '@/selection/TransformHandler';
 import type { TransformMode } from '@/selection/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
-import { GroupManager, type GroupData, type GroupConflictAction } from '@/group';
+import {
+  GroupManager,
+  type GroupData,
+  type GroupConflictAction,
+} from '@/group';
 import type { Group } from '@/group';
 import { EventBus, Events } from './EventBus';
 import { CommandBus } from '@/commands';
 import { TimeMachine, type TimeMachineRecord } from '@/time-machine';
 import {
-  createGroupCreateCommand, createGroupDeleteCommand, createGroupAddCommand,
-  createGroupRemoveCommand, createGroupClearCommand,
+  createGroupCreateCommand,
+  createGroupDeleteCommand,
+  createGroupAddCommand,
+  createGroupRemoveCommand,
+  createGroupClearCommand,
 } from '@/commands/factories/group-command-factory';
 import { createSelectHandler } from '@/commands/handlers/select-handler';
-import { createDragMoveHandler, createDragEndHandler } from '@/commands/handlers/drag-handler';
+import {
+  createDragMoveHandler,
+  createDragEndHandler,
+} from '@/commands/handlers/drag-handler';
 import { createGroupHandler } from '@/commands/handlers/group-handler';
 import { createDeleteHandler } from '@/commands/handlers/delete-handler';
 import { createDeleteCommand } from '@/commands/factories/delete-command-factory';
@@ -57,7 +67,7 @@ export class SvgCanvas {
 
   public constructor(container: HTMLElement, options?: SvgCanvasOptions) {
     this.element = container;
-    this.svg = this.createSvgElement(options);
+    this.svg = this.createAbstractGraphicElement(options);
     this.camera = new Camera();
     this.renderer = new Renderer(this.svg, this.camera);
     this.shapeManager = new ShapeManager(this.renderer);
@@ -78,13 +88,23 @@ export class SvgCanvas {
     this.selectionOverlay = new SelectionOverlay(this.camera);
     this.selectionOverlay.setCallbacks({
       onHandleMouseDown: (handle, bbox, element, event) => {
-        const wp = this.camera.screenToWorld({ x: event.clientX, y: event.clientY });
-        this.transformHandler.tryStart(handle, bbox, element, wp, this.selectionState.selected);
+        const wp = this.camera.screenToWorld({
+          x: event.clientX,
+          y: event.clientY,
+        });
+        this.transformHandler.tryStart(
+          handle,
+          bbox,
+          element,
+          wp,
+          this.selectionState.selected,
+        );
       },
     });
     this.selectionState.setOnChange((selected) => {
       for (const el of selected) {
-        el.onDirty = () => this.selectionOverlay.setPositions(this.selectionState.selected);
+        el.onDirty = () =>
+          this.selectionOverlay.setPositions(this.selectionState.selected);
       }
       this.selectionOverlay.setElements(selected);
       this.events.emit(Events.SelectionChange, selected);
@@ -92,18 +112,25 @@ export class SvgCanvas {
 
     // TransformHandler
     this.transformHandler = new TransformHandler(this.camera, this.commandBus);
-    this.transformHandler.onTransformStart = (mode) => this.events.emit(Events.TransformStart, mode);
-    this.transformHandler.onTransformMove = () => this.events.emit(Events.TransformMove, undefined);
-    this.transformHandler.onTransformEnd = (mode) => this.events.emit(Events.TransformEnd, mode);
+    this.transformHandler.onTransformStart = (mode) =>
+      this.events.emit(Events.TransformStart, mode);
+    this.transformHandler.onTransformMove = () =>
+      this.events.emit(Events.TransformMove, undefined);
+    this.transformHandler.onTransformEnd = (mode) =>
+      this.events.emit(Events.TransformEnd, mode);
 
     // Command registrations
-    this.commandBus.register('SELECT', createSelectHandler({
-      state: this.selectionState,
-      getElements: () => this.shapeManager.getAll(),
-      grid: this.spatialGrid,
-      cameraGroup: this.renderer.getCameraGroup(),
-      lookupGroup: (elementId) => this.groupManager.getGroupByElement(elementId)?.id,
-    }));
+    this.commandBus.register(
+      'SELECT',
+      createSelectHandler({
+        state: this.selectionState,
+        getElements: () => this.shapeManager.getAll(),
+        grid: this.spatialGrid,
+        cameraGroup: this.renderer.getCameraGroup(),
+        lookupGroup: (elementId) =>
+          this.groupManager.getGroupByElement(elementId)?.id,
+      }),
+    );
 
     const dragCtx = {
       getElements: () => this.shapeManager.getAll(),
@@ -132,7 +159,8 @@ export class SvgCanvas {
       grid: this.spatialGrid,
       bus: this.commandBus,
       isPanning: () => panActive.value,
-      getGroupIdForElement: (elementId) => this.groupManager.getGroupByElement(elementId)?.id,
+      getGroupIdForElement: (elementId) =>
+        this.groupManager.getGroupByElement(elementId)?.id,
       onGroupSelect,
       onDragStart: () => this.events.emit(Events.DragStart, undefined),
       onDragMove: () => this.events.emit(Events.DragMove, undefined),
@@ -142,7 +170,9 @@ export class SvgCanvas {
     // Transform mousemove/mouseup
     this.svg.addEventListener('mousemove', (e: MouseEvent) => {
       if (this.transformHandler.isActive) {
-        this.transformHandler.move(this.camera.screenToWorld({ x: e.clientX, y: e.clientY }));
+        this.transformHandler.move(
+          this.camera.screenToWorld({ x: e.clientX, y: e.clientY }),
+        );
       }
     });
     this.svg.addEventListener('mouseup', () => {
@@ -151,35 +181,62 @@ export class SvgCanvas {
 
     this.element.appendChild(this.svg);
 
-    const overlaysGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    const overlaysGroup = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'g',
+    );
     this.renderer.appendOverlay(overlaysGroup);
     overlaysGroup.appendChild(this.selectionOverlay.getElement());
 
-    this.groupSelectionOverlay = new GroupSelectionOverlay(this.camera, this.renderer.getQueue());
+    this.groupSelectionOverlay = new GroupSelectionOverlay(
+      this.camera,
+      this.renderer.getQueue(),
+    );
     overlaysGroup.appendChild(this.groupSelectionOverlay.getElement());
 
     this.debugOverlay = new DebugOverlay(this.camera);
     overlaysGroup.appendChild(this.debugOverlay.getElement());
     this._debugShowHitArea = options?.debugShowHitArea ?? false;
 
-    this.groupManager = new GroupManager(null as any, () => this.shapeManager.getAll());
+    this.groupManager = new GroupManager(null as any, () =>
+      this.shapeManager.getAll(),
+    );
     this.groupManager.setOnChange(() => {
       this.syncGroupSelectionOverlay();
       this.events.emit(Events.GroupsChange, undefined);
     });
 
-    this.commandBus.register('GROUP_CREATE', createGroupHandler(this.groupManager));
-    this.commandBus.register('GROUP_DELETE', createGroupHandler(this.groupManager));
-    this.commandBus.register('GROUP_ADD', createGroupHandler(this.groupManager));
-    this.commandBus.register('GROUP_REMOVE', createGroupHandler(this.groupManager));
-    this.commandBus.register('GROUP_CLEAR', createGroupHandler(this.groupManager));
+    this.commandBus.register(
+      'GROUP_CREATE',
+      createGroupHandler(this.groupManager),
+    );
+    this.commandBus.register(
+      'GROUP_DELETE',
+      createGroupHandler(this.groupManager),
+    );
+    this.commandBus.register(
+      'GROUP_ADD',
+      createGroupHandler(this.groupManager),
+    );
+    this.commandBus.register(
+      'GROUP_REMOVE',
+      createGroupHandler(this.groupManager),
+    );
+    this.commandBus.register(
+      'GROUP_CLEAR',
+      createGroupHandler(this.groupManager),
+    );
     this.commandBus.register('DELETE', createDeleteHandler(this.shapeManager));
   }
 
-  public getSVG(): SVGSVGElement { return this.svg; }
-  public getCamera(): Camera { return this.camera; }
+  public getSVG(): SVGSVGElement {
+    return this.svg;
+  }
+  public getCamera(): Camera {
+    return this.camera;
+  }
 
-  public addShape(shape: SvgElement): void {
+  public addShape(shape: AbstractGraphicElement): void {
     this.shapeManager.add(shape);
     this.indexShape(shape);
     shape.setDirty();
@@ -187,7 +244,11 @@ export class SvgCanvas {
 
   public loadJSON(items: ElementJSON[]): void {
     const elements = createFromJSONArray(items);
-    for (const el of elements) { this.shapeManager.add(el); this.indexShape(el); el.setDirty(); }
+    for (const el of elements) {
+      this.shapeManager.add(el);
+      this.indexShape(el);
+      el.setDirty();
+    }
     this.timeMachine.captureRoot();
   }
 
@@ -196,38 +257,76 @@ export class SvgCanvas {
     artboard.setSize(widthMM, heightMM);
     const vb = this.svg.getAttribute('viewBox') || '0 0 800 600';
     const parts = vb.split(/\s+/).map(Number);
-    this.camera.fitToViewport(widthMM * 3.7795, heightMM * 3.7795, parts[2] || 800, parts[3] || 600, 40);
+    this.camera.fitToViewport(
+      widthMM * 3.7795,
+      heightMM * 3.7795,
+      parts[2] || 800,
+      parts[3] || 600,
+      40,
+    );
   }
 
-  public setSelectionMode(mode: SelectionMode): void { this.selectionState.setMode(mode); }
-  public getSelectionMode(): SelectionMode { return this.selectionState.mode; }
-  public set onSelectionModeChange(fn: ((mode: SelectionMode) => void) | null) { this.selectionState.setOnModeChange(fn); }
-  public set selectionFilter(fn: SelectionFilter | null) { this.selectionState.setFilter(fn); }
-  public set onSelectionChange(fn: ((selected: SvgElement[]) => void) | null) { this.selectionState.setOnChange(fn); }
-  public getSelected(): readonly SvgElement[] { return this.selectionState.selected; }
+  public setSelectionMode(mode: SelectionMode): void {
+    this.selectionState.setMode(mode);
+  }
+  public getSelectionMode(): SelectionMode {
+    return this.selectionState.mode;
+  }
+  public set onSelectionModeChange(fn: ((mode: SelectionMode) => void) | null) {
+    this.selectionState.setOnModeChange(fn);
+  }
+  public set selectionFilter(fn: SelectionFilter | null) {
+    this.selectionState.setFilter(fn);
+  }
+  public set onSelectionChange(
+    fn: ((selected: AbstractGraphicElement[]) => void) | null,
+  ) {
+    this.selectionState.setOnChange(fn);
+  }
+  public getSelected(): readonly AbstractGraphicElement[] {
+    return this.selectionState.selected;
+  }
 
   public setNonScalingStroke(id: string, v: boolean): void {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (el) {
-      const attr = v ? 'non-scaling-stroke' : null;
-      if (attr) el.element.setAttribute('vector-effect', attr);
-      else el.element.removeAttribute('vector-effect');
+      const node = this.renderer.getNode(id);
+      if (node) {
+        if (v) node.setAttribute('vector-effect', 'non-scaling-stroke');
+        else node.removeAttribute('vector-effect');
+      }
       el.setDirty();
     }
   }
 
-  public on<E extends Events>(event: E, fn: (data: import('./EventBus').EventMap[E]) => void): () => void {
+  public on<E extends Events>(
+    event: E,
+    fn: (data: import('./EventBus').EventMap[E]) => void,
+  ): () => void {
     return this.events.on(event, fn as any);
   }
-  public off<E extends Events>(event: E, fn: (data: import('./EventBus').EventMap[E]) => void): void {
+  public off<E extends Events>(
+    event: E,
+    fn: (data: import('./EventBus').EventMap[E]) => void,
+  ): void {
     this.events.off(event, fn as any);
   }
 
-  public setSelectionShortcuts(s: Partial<SelectionShortcuts>): void { this.selectionHandler.setShortcuts(s); }
-  public setSelectionGesture(g: SelectionGesture): void { this.selectionHandler.setGesture(g); }
-  public getSelectionGesture(): SelectionGesture { return this.selectionHandler.getGesture(); }
-  public getCommandBus(): CommandBus { return this.commandBus; }
-  public getTimeMachine(): TimeMachine { return this.timeMachine; }
+  public setSelectionShortcuts(s: Partial<SelectionShortcuts>): void {
+    this.selectionHandler.setShortcuts(s);
+  }
+  public setSelectionGesture(g: SelectionGesture): void {
+    this.selectionHandler.setGesture(g);
+  }
+  public getSelectionGesture(): SelectionGesture {
+    return this.selectionHandler.getGesture();
+  }
+  public getCommandBus(): CommandBus {
+    return this.commandBus;
+  }
+  public getTimeMachine(): TimeMachine {
+    return this.timeMachine;
+  }
 
   public undo(): void {
     this.selectionState.clear();
@@ -235,7 +334,10 @@ export class SvgCanvas {
     this.groupSelectionOverlay.clear();
     this.timeMachine.undo();
     this.reindexSpatialGrid();
-    for (const el of this.shapeManager.getAll()) { el.setDirty(); el.markClean(); }
+    for (const el of this.shapeManager.getAll()) {
+      el.setDirty();
+      el.markClean();
+    }
   }
 
   public redo(): void {
@@ -244,11 +346,18 @@ export class SvgCanvas {
     this.groupSelectionOverlay.clear();
     this.timeMachine.redo();
     this.reindexSpatialGrid();
-    for (const el of this.shapeManager.getAll()) { el.setDirty(); el.markClean(); }
+    for (const el of this.shapeManager.getAll()) {
+      el.setDirty();
+      el.markClean();
+    }
   }
 
-  public get canUndo(): boolean { return this.timeMachine.canUndo; }
-  public get canRedo(): boolean { return this.timeMachine.canRedo; }
+  public get canUndo(): boolean {
+    return this.timeMachine.canUndo;
+  }
+  public get canRedo(): boolean {
+    return this.timeMachine.canRedo;
+  }
 
   public startTransform(_mode: TransformMode): void {
     const selected = this.selectionState.selected;
@@ -257,11 +366,15 @@ export class SvgCanvas {
     this.transformHandler.tryStart(
       'se',
       new DOMRect(bbox.x, bbox.y, bbox.width, bbox.height),
-      selected[0], { x: 0, y: 0 }, selected,
+      selected[0],
+      { x: 0, y: 0 },
+      selected,
     );
   }
 
-  public endTransform(): void { if (this.transformHandler.isActive) this.transformHandler.end(); }
+  public endTransform(): void {
+    if (this.transformHandler.isActive) this.transformHandler.end();
+  }
 
   public resizeElement(id: string, _width: number, _height: number): void {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
@@ -269,7 +382,12 @@ export class SvgCanvas {
     const bbox = el.getTransformedBBox();
     if (bbox.width > 0) {
       el.applyTransformation('scale', {
-        x: 0, y: 0, originX: bbox.x, originY: bbox.y, width: bbox.width, height: bbox.height,
+        x: 0,
+        y: 0,
+        originX: bbox.x,
+        originY: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
       });
     }
   }
@@ -280,33 +398,47 @@ export class SvgCanvas {
     el.rotate(angle);
   }
 
-  public transformElement(id: string, matrix: [number, number, number, number, number, number]): void {
+  public transformElement(
+    id: string,
+    matrix: [number, number, number, number, number, number],
+  ): void {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
-    el.element.setAttribute('transform', `matrix(${matrix.join(',')})`);
+    el.transform.matrix = new DOMMatrix(matrix);
     el.invalidateHitArea();
   }
 
   public deleteElements(ids: string[]): void {
     for (const id of ids) {
-      this.selectionState.remove(Array.from(this.selectionState.selected).filter((e) => e.id === id));
+      this.selectionState.remove(
+        Array.from(this.selectionState.selected).filter((e) => e.id === id),
+      );
     }
     const cmd = createDeleteCommand(ids);
     this.commandBus.execute(cmd);
   }
 
-  public deleteElement(id: string): void { this.deleteElements([id]); }
+  public deleteElement(id: string): void {
+    this.deleteElements([id]);
+  }
 
-  public get debugShowHitArea(): boolean { return this._debugShowHitArea; }
+  public get debugShowHitArea(): boolean {
+    return this._debugShowHitArea;
+  }
   public set debugShowHitArea(v: boolean) {
     this._debugShowHitArea = v;
     this.debugOverlay.update(v ? this.shapeManager.getAll() : []);
   }
 
   // ---- Group API ----
-  public get groups(): Group[] { return this.groupManager.getGroups(); }
+  public get groups(): Group[] {
+    return this.groupManager.getGroups();
+  }
 
-  public setGroups(data: GroupData[]): void { this.groupManager.setGroups(data); this.timeMachine.captureRoot(); }
+  public setGroups(data: GroupData[]): void {
+    this.groupManager.setGroups(data);
+    this.timeMachine.captureRoot();
+  }
 
   public createGroup(name?: string): string {
     const cmd = createGroupCreateCommand(name);
@@ -315,51 +447,93 @@ export class SvgCanvas {
     return created[created.length - 1]?.id ?? '';
   }
 
-  public deleteGroup(id: string): void { this.commandBus.execute(createGroupDeleteCommand(id)); }
+  public deleteGroup(id: string): void {
+    this.commandBus.execute(createGroupDeleteCommand(id));
+  }
   public addToGroup(groupId: string, elementId: string): void;
   public addToGroup(groupId: string, elementOrIds: string | string[]): void {
     const ids = Array.isArray(elementOrIds) ? elementOrIds : [elementOrIds];
     this.commandBus.execute(createGroupAddCommand(groupId, ids));
   }
   public removeFromGroup(groupId: string, elementId: string): void;
-  public removeFromGroup(groupId: string, elementOrIds: string | string[]): void {
+  public removeFromGroup(
+    groupId: string,
+    elementOrIds: string | string[],
+  ): void {
     const ids = Array.isArray(elementOrIds) ? elementOrIds : [elementOrIds];
     this.commandBus.execute(createGroupRemoveCommand(groupId, ids));
   }
-  public clearGroup(id: string): void { this.commandBus.execute(createGroupClearCommand(id)); }
-  public getElementIdsInGroup(id: string): string[] { return this.groupManager.getElementIdsInGroup(id); }
+  public clearGroup(id: string): void {
+    this.commandBus.execute(createGroupClearCommand(id));
+  }
+  public getElementIdsInGroup(id: string): string[] {
+    return this.groupManager.getElementIdsInGroup(id);
+  }
 
   public selectGroupElements(id: string): void {
     const ids = this.groupManager.getElementIdsInGroup(id);
-    this.selectionState.replace(this.shapeManager.getAll().filter((e) => ids.includes(e.id)));
+    this.selectionState.replace(
+      this.shapeManager.getAll().filter((e) => ids.includes(e.id)),
+    );
   }
 
-  public selectGroup(id: string): void { this.selectionState.clear(); this.groupManager.setSelectedGroupIds([id]); this.syncGroupSelectionOverlay(); }
-  public selectMultipleGroups(ids: string[]): void { this.groupManager.setSelectedGroupIds(ids); this.syncGroupSelectionOverlay(); }
+  public selectGroup(id: string): void {
+    this.selectionState.clear();
+    this.groupManager.setSelectedGroupIds([id]);
+    this.syncGroupSelectionOverlay();
+  }
+  public selectMultipleGroups(ids: string[]): void {
+    this.groupManager.setSelectedGroupIds(ids);
+    this.syncGroupSelectionOverlay();
+  }
 
   public selectGroupWithElements(id: string): void {
     this.groupManager.setSelectedGroupIds([id]);
     this.syncGroupSelectionOverlay();
     const ids = this.groupManager.getElementIdsInGroup(id);
-    this.selectionState.replace(this.shapeManager.getAll().filter((e) => ids.includes(e.id)));
-  }
-
-  public getSelectedGroupIds(): string[] { return Array.from(this.groupManager.selectedGroupIds); }
-
-  public highlightGroupElements(id: string): void {
     this.selectionState.replace(
-      this.shapeManager.getAll().filter((e) => this.groupManager.getElementIdsInGroup(id).includes(e.id)),
+      this.shapeManager.getAll().filter((e) => ids.includes(e.id)),
     );
   }
 
-  public set onGroupsChange(fn: (() => void) | null) { this.groupManager.setOnChange(fn); }
-  public set onGroupConflict(fn: ((elementId: string, fromGroup: string, toGroup: string) => GroupConflictAction | null) | null) {
+  public getSelectedGroupIds(): string[] {
+    return Array.from(this.groupManager.selectedGroupIds);
+  }
+
+  public highlightGroupElements(id: string): void {
+    this.selectionState.replace(
+      this.shapeManager
+        .getAll()
+        .filter((e) =>
+          this.groupManager.getElementIdsInGroup(id).includes(e.id),
+        ),
+    );
+  }
+
+  public set onGroupsChange(fn: (() => void) | null) {
+    this.groupManager.setOnChange(fn);
+  }
+  public set onGroupConflict(
+    fn:
+      | ((
+          elementId: string,
+          fromGroup: string,
+          toGroup: string,
+        ) => GroupConflictAction | null)
+      | null,
+  ) {
     this.groupManager.onConflict = fn;
   }
-  public get groupConflictSuppressed(): boolean { return this.groupManager.conflictSuppressed; }
-  public set groupConflictSuppressed(v: boolean) { this.groupManager.conflictSuppressed = v; }
+  public get groupConflictSuppressed(): boolean {
+    return this.groupManager.conflictSuppressed;
+  }
+  public set groupConflictSuppressed(v: boolean) {
+    this.groupManager.conflictSuppressed = v;
+  }
 
-  public saveTimeMachine(): TimeMachineRecord[] { return this.timeMachine.toJSON(); }
+  public saveTimeMachine(): TimeMachineRecord[] {
+    return this.timeMachine.toJSON();
+  }
 
   public loadTimeMachine(records: TimeMachineRecord[]): void {
     this.shapeManager.clear();
@@ -376,16 +550,21 @@ export class SvgCanvas {
     this.svg.remove();
   }
 
-  private createSvgElement(options?: SvgCanvasOptions): SVGSVGElement {
+  private createAbstractGraphicElement(
+    options?: SvgCanvasOptions,
+  ): SVGSVGElement {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.setAttribute('width', '100%');
     svg.setAttribute('height', '100%');
-    svg.setAttribute('viewBox', `0 0 ${options?.width ?? 800} ${options?.height ?? 600}`);
+    svg.setAttribute(
+      'viewBox',
+      `0 0 ${options?.width ?? 800} ${options?.height ?? 600}`,
+    );
     svg.style.display = 'block';
     return svg;
   }
 
-  private indexShape(shape: SvgElement): void {
+  private indexShape(shape: AbstractGraphicElement): void {
     const bbox = shape.getTransformedBBox();
     this.spatialGrid.insert(shape.id, bbox.x, bbox.y, bbox.width, bbox.height);
   }
@@ -405,9 +584,13 @@ export class SvgCanvas {
       const type = dto.type as string;
       const attrs = (dto.attributes ?? {}) as Record<string, string>;
       const elementJSON: ElementJSON = {
-        id, type: type as any, attributes: attrs,
-        groupId: dto.groupId as string | undefined, name: dto.name as string | undefined,
-        visible: dto.visible as boolean | undefined, lock: dto.lock as boolean | undefined,
+        id,
+        type: type as any,
+        attributes: attrs,
+        groupId: dto.groupId as string | undefined,
+        name: dto.name as string | undefined,
+        visible: dto.visible as boolean | undefined,
+        lock: dto.lock as boolean | undefined,
         data: dto.data as Record<string, unknown> | undefined,
         textContent: dto.textContent as string | undefined,
       };
@@ -430,7 +613,9 @@ export class SvgCanvas {
 
   private restoreGroups(groups: Record<string, Record<string, unknown>>): void {
     const data: GroupData[] = Object.values(groups).map((g) => ({
-      id: g.id as string, name: g.name as string, elementIds: (g.elementIds as string[]) ?? [],
+      id: g.id as string,
+      name: g.name as string,
+      elementIds: (g.elementIds as string[]) ?? [],
     }));
     this.groupManager.setGroups(data);
     this.groupManager.refreshOverlay();

@@ -1,6 +1,18 @@
 import type { Point } from '@/types';
 
-export type CommandType = 'SELECT' | 'DRAG_MOVE' | 'DRAG_END' | 'GROUP_CREATE' | 'GROUP_DELETE' | 'GROUP_ADD' | 'GROUP_REMOVE' | 'GROUP_CLEAR' | 'DELETE' | 'RESIZE' | 'ROTATE' | 'TRANSFORM';
+export type CommandType =
+  | 'SELECT'
+  | 'DRAG_MOVE'
+  | 'DRAG_END'
+  | 'GROUP_CREATE'
+  | 'GROUP_DELETE'
+  | 'GROUP_ADD'
+  | 'GROUP_REMOVE'
+  | 'GROUP_CLEAR'
+  | 'DELETE'
+  | 'RESIZE'
+  | 'ROTATE'
+  | 'TRANSFORM';
 
 export type SelectionMode = 'element' | 'group';
 export type SelectionGesture = 'click' | 'rect' | 'lasso';
@@ -59,7 +71,10 @@ export interface DeleteCommand {
 }
 
 export interface BBox {
-  x: number; y: number; width: number; height: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
 }
 
 export interface ResizeCommand {
@@ -74,9 +89,22 @@ export interface RotateCommand {
 
 export interface TransformCommand {
   type: 'TRANSFORM';
-  options: { elementIds: string[]; matrix: [number, number, number, number, number, number] };
+  options: {
+    elementIds: string[];
+    matrix: [number, number, number, number, number, number];
+  };
 }
 
-export type Command = SelectCommand | DragMoveCommand | DragEndCommand
-  | GroupCreateCommand | GroupDeleteCommand | GroupAddCommand | GroupRemoveCommand | GroupClearCommand
-  | DeleteCommand | ResizeCommand | RotateCommand | TransformCommand;
+export type Command =
+  | SelectCommand
+  | DragMoveCommand
+  | DragEndCommand
+  | GroupCreateCommand
+  | GroupDeleteCommand
+  | GroupAddCommand
+  | GroupRemoveCommand
+  | GroupClearCommand
+  | DeleteCommand
+  | ResizeCommand
+  | RotateCommand
+  | TransformCommand;

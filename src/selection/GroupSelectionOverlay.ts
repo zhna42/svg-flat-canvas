@@ -1,13 +1,13 @@
 import { SVG_NS } from '@/constants';
 import type { Camera } from '@/camera/Camera';
 import type { Group } from '@/group/Group';
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import { GroupSelectionRect, setGroupRectQueue } from './GroupSelectionRect';
 import { RenderQueue } from '@/renderer/RenderQueue';
 
 function computeGroupBBox(
   g: Group,
-  findElement: (id: string) => SvgElement | undefined,
+  findElement: (id: string) => AbstractGraphicElement | undefined,
   _z: number,
 ): { x: number; y: number; width: number; height: number } | null {
   if (g.elementIds.size === 0) return null;
@@ -56,7 +56,7 @@ export class GroupSelectionOverlay {
 
   public sync(
     groups: Group[],
-    findElement: (id: string) => SvgElement | undefined,
+    findElement: (id: string) => AbstractGraphicElement | undefined,
   ): void {
     const z = this.camera.zoom;
     const pad = 2 / z;

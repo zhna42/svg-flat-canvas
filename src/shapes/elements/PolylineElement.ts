@@ -1,15 +1,15 @@
-import { SvgElement } from './SvgElement';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { PolylineHitArea } from '../modules/HitArea';
 import { flattenPointsTransform } from '../modules/geometry-utils';
 
-export class PolylineElement extends SvgElement {
+export class PolylineElement extends AbstractGraphicElement {
   private _ha = new PolylineHitArea();
 
   public points = '';
 
   public constructor(id: string) {
-    super(id, 'polyline', 'polyline');
+    super(id, 'polyline');
   }
 
   public get hitArea(): Point[] {
@@ -49,7 +49,7 @@ export class PolylineElement extends SvgElement {
     this.buildHitArea();
   }
 
-  protected copyGeometryTo(clone: SvgElement): void {
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
     (clone as PolylineElement).points = this.points;
     clone.buildHitArea();
   }
@@ -77,7 +77,6 @@ export class PolylineElement extends SvgElement {
     );
     this.points = scaled.map((p) => `${p.x},${p.y}`).join(' ');
     this.transform.reset();
-    this.matrix = this.transform.matrix;
     this.invalidateHitArea();
   }
 }

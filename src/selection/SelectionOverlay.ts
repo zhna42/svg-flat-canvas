@@ -1,11 +1,16 @@
 import { SVG_NS } from '@/constants';
 import type { Camera } from '@/camera/Camera';
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
 export interface SelectionOverlayCallbacks {
-  onHandleMouseDown: (handle: HandlePosition, bbox: DOMRect, element: SvgElement, event: MouseEvent) => void;
+  onHandleMouseDown: (
+    handle: HandlePosition,
+    bbox: DOMRect,
+    element: AbstractGraphicElement,
+    event: MouseEvent,
+  ) => void;
 }
 
 interface ElementGroup {
@@ -24,10 +29,14 @@ export class SelectionOverlay {
     this.root.setAttribute('pointer-events', 'none');
   }
 
-  public setCallbacks(cb: SelectionOverlayCallbacks): void { this.callbacks = cb; }
-  public getElement(): SVGGElement { return this.root; }
+  public setCallbacks(cb: SelectionOverlayCallbacks): void {
+    this.callbacks = cb;
+  }
+  public getElement(): SVGGElement {
+    return this.root;
+  }
 
-  public setElements(elements: readonly SvgElement[]): void {
+  public setElements(elements: readonly AbstractGraphicElement[]): void {
     this.clear();
     if (elements.length === 0) return;
 
@@ -61,11 +70,14 @@ export class SelectionOverlay {
       this.createHandles(group, bbox.width, bbox.height, handleSize, z, el);
 
       this.root.appendChild(group);
-      this.elementGroups.push({ group, bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height } });
+      this.elementGroups.push({
+        group,
+        bbox: { x: bbox.x, y: bbox.y, width: bbox.width, height: bbox.height },
+      });
     }
   }
 
-  public setPositions(elements: readonly SvgElement[]): void {
+  public setPositions(elements: readonly AbstractGraphicElement[]): void {
     const pad = 2 / this.camera.zoom;
     for (let i = 0; i < elements.length && i < this.elementGroups.length; i++) {
       const bbox = elements[i].getTransformedBBox();
@@ -93,7 +105,14 @@ export class SelectionOverlay {
     this.elementGroups = [];
   }
 
-  private createHandles(group: SVGGElement, w: number, h: number, size: number, z: number, el: SvgElement): void {
+  private createHandles(
+    group: SVGGElement,
+    w: number,
+    h: number,
+    size: number,
+    z: number,
+    el: AbstractGraphicElement,
+  ): void {
     const hh = size / 2;
     const positions: { pos: HandlePosition; cx: number; cy: number }[] = [
       { pos: 'nw', cx: 0, cy: 0 },
@@ -122,7 +141,8 @@ export class SelectionOverlay {
       handle.setAttribute('cursor', this.handleCursor(pos));
       handle.setAttribute('pointer-events', 'all');
       handle.addEventListener('mousedown', (e) => {
-        if (this.callbacks) this.callbacks.onHandleMouseDown(pos, new DOMRect(0, 0, w, h), el, e);
+        if (this.callbacks)
+          this.callbacks.onHandleMouseDown(pos, new DOMRect(0, 0, w, h), el, e);
       });
       handlesGroup.appendChild(handle);
     }
@@ -132,17 +152,28 @@ export class SelectionOverlay {
 
   private handleCursor(pos: HandlePosition): string {
     switch (pos) {
-      case 'nw': return 'nw-resize';
-      case 'n': return 'n-resize';
-      case 'ne': return 'ne-resize';
-      case 'e': return 'e-resize';
-      case 'se': return 'se-resize';
-      case 's': return 's-resize';
-      case 'sw': return 'sw-resize';
-      case 'w': return 'w-resize';
-      default: return 'default';
+      case 'nw':
+        return 'nw-resize';
+      case 'n':
+        return 'n-resize';
+      case 'ne':
+        return 'ne-resize';
+      case 'e':
+        return 'e-resize';
+      case 'se':
+        return 'se-resize';
+      case 's':
+        return 's-resize';
+      case 'sw':
+        return 'sw-resize';
+      case 'w':
+        return 'w-resize';
+      default:
+        return 'default';
     }
   }
 
-  public destroy(): void { this.root.remove(); }
+  public destroy(): void {
+    this.root.remove();
+  }
 }

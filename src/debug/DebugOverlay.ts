@@ -1,4 +1,4 @@
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { Camera } from '@/camera/Camera';
 import { SVG_NS } from '@/constants';
 
@@ -16,7 +16,7 @@ export class DebugOverlay {
     return this.group;
   }
 
-  public update(elements: readonly SvgElement[]): void {
+  public update(elements: readonly AbstractGraphicElement[]): void {
     while (this.group.firstChild) {
       this.group.removeChild(this.group.firstChild);
     }

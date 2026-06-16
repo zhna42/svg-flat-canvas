@@ -1,8 +1,8 @@
-import { SvgElement } from './SvgElement';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { RectHitAreaSimple } from '../modules/HitArea';
 
-export class TextElement extends SvgElement {
+export class TextElement extends AbstractGraphicElement {
   private _ha = new RectHitAreaSimple();
 
   public posX = '0';
@@ -13,7 +13,7 @@ export class TextElement extends SvgElement {
   public textContent = '';
 
   public constructor(id: string) {
-    super(id, 'text', 'text');
+    super(id, 'text');
   }
 
   public get hitArea(): Point[] {
@@ -80,7 +80,7 @@ export class TextElement extends SvgElement {
     this.buildHitArea();
   }
 
-  protected copyGeometryTo(clone: SvgElement): void {
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
     const el = clone as TextElement;
     el.posX = this.posX;
     el.posY = this.posY;

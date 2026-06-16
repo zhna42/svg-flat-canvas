@@ -1,4 +1,4 @@
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SelectionState } from '@/selection/SelectionState';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
 import type { Camera } from '@/camera/Camera';
@@ -8,9 +8,19 @@ import { DragHandler } from '@/selection/DragHandler';
 import { GroupSelectionHandler } from '@/selection/GroupSelectionHandler';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { SelectionGesture } from '@/commands/types';
-import { createSelectPickCommand, createSelectRectCommand } from '@/commands/factories/select-command-factory';
+import {
+  createSelectPickCommand,
+  createSelectRectCommand,
+} from '@/commands/factories/select-command-factory';
 import { hitTestPoint } from '@/selection/hit-test';
-import { createRectOverlay, updateRectOverlay, hideRectOverlay, createLassoOverlay, updateLassoOverlay, hideLassoOverlay } from '@/selection/overlay-utils';
+import {
+  createRectOverlay,
+  updateRectOverlay,
+  hideRectOverlay,
+  createLassoOverlay,
+  updateLassoOverlay,
+  hideLassoOverlay,
+} from '@/selection/overlay-utils';
 import type { RectOverlay, LassoOverlay } from '@/selection/overlay-utils';
 
 export interface SelectionHandlerOptions {
@@ -18,7 +28,7 @@ export interface SelectionHandlerOptions {
   cameraGroup: SVGGElement;
   camera: Camera;
   state: SelectionState;
-  getElements: () => SvgElement[];
+  getElements: () => AbstractGraphicElement[];
   grid: SpatialGrid;
   bus: CommandBus;
   isPanning?: () => boolean;
@@ -111,7 +121,13 @@ export class SelectionHandler {
 
   private tryDragFromHitTest(wp: { x: number; y: number }): boolean {
     const all = this.opts.getElements();
-    const hits = hitTestPoint(wp.x, wp.y, all, this.opts.grid, this.opts.cameraGroup);
+    const hits = hitTestPoint(
+      wp.x,
+      wp.y,
+      all,
+      this.opts.grid,
+      this.opts.cameraGroup,
+    );
     if (hits.length === 0) return false;
 
     const picked = hits[hits.length - 1];
@@ -148,18 +164,30 @@ export class SelectionHandler {
       const useRect = this.gesture === 'rect' || this.shiftOverride;
 
       if (isGroup()) {
-        const started = this.groupHandler.onMouseDown(wp, this.ctrlHeld, this.shiftOverride);
+        const started = this.groupHandler.onMouseDown(
+          wp,
+          this.ctrlHeld,
+          this.shiftOverride,
+        );
         if (started) {
           e.preventDefault();
         } else if (useRect) {
           this.rectActive = true;
           this.rectStart = { x: wp.x, y: wp.y };
-          this.rectOverlay = createRectOverlay(this.opts.cameraGroup, this.opts.camera, wp.x, wp.y);
+          this.rectOverlay = createRectOverlay(
+            this.opts.cameraGroup,
+            this.opts.camera,
+            wp.x,
+            wp.y,
+          );
           if (!this.ctrlHeld) this.opts.state.clear();
         } else if (this.gesture === 'lasso') {
           this.lassoActive = true;
           this.lassoPoints = [{ x: wp.x, y: wp.y }];
-          this.lassoOverlay = createLassoOverlay(this.opts.cameraGroup, this.opts.camera);
+          this.lassoOverlay = createLassoOverlay(
+            this.opts.cameraGroup,
+            this.opts.camera,
+          );
           if (!this.ctrlHeld) this.opts.state.clear();
         }
         return;
@@ -175,12 +203,20 @@ export class SelectionHandler {
       if (useRect) {
         this.rectActive = true;
         this.rectStart = { x: wp.x, y: wp.y };
-        this.rectOverlay = createRectOverlay(this.opts.cameraGroup, this.opts.camera, wp.x, wp.y);
+        this.rectOverlay = createRectOverlay(
+          this.opts.cameraGroup,
+          this.opts.camera,
+          wp.x,
+          wp.y,
+        );
         if (!this.ctrlHeld) this.opts.state.clear();
       } else if (this.gesture === 'lasso') {
         this.lassoActive = true;
         this.lassoPoints = [{ x: wp.x, y: wp.y }];
-        this.lassoOverlay = createLassoOverlay(this.opts.cameraGroup, this.opts.camera);
+        this.lassoOverlay = createLassoOverlay(
+          this.opts.cameraGroup,
+          this.opts.camera,
+        );
         if (!this.ctrlHeld) this.opts.state.clear();
       } else {
         const cmd = createSelectPickCommand('element', wp, this.ctrlHeld);
@@ -203,7 +239,12 @@ export class SelectionHandler {
             w: Math.abs(wp.x - this.rectStart.x),
             h: Math.abs(wp.y - this.rectStart.y),
           };
-          updateRectOverlay(this.rectOverlay, r, wp.x >= this.rectStart.x, this.opts.camera);
+          updateRectOverlay(
+            this.rectOverlay,
+            r,
+            wp.x >= this.rectStart.x,
+            this.opts.camera,
+          );
         }
         if (this.lassoActive) {
           this.lassoPoints.push({ x: wp.x, y: wp.y });
@@ -224,7 +265,12 @@ export class SelectionHandler {
           w: Math.abs(wp.x - this.rectStart.x),
           h: Math.abs(wp.y - this.rectStart.y),
         };
-        updateRectOverlay(this.rectOverlay, r, wp.x >= this.rectStart.x, this.opts.camera);
+        updateRectOverlay(
+          this.rectOverlay,
+          r,
+          wp.x >= this.rectStart.x,
+          this.opts.camera,
+        );
       }
 
       if (this.lassoActive) {
@@ -266,10 +312,17 @@ export class SelectionHandler {
         const wasDrag = dx >= 3 || dy >= 3;
         this.shiftOverride = false;
         if (wasDrag) {
-          const cmd = createSelectRectCommand('element', {
-            x: Math.min(this.rectStart.x, wp.x), y: Math.min(this.rectStart.y, wp.y),
-            width: Math.abs(wp.x - this.rectStart.x), height: Math.abs(wp.y - this.rectStart.y),
-          }, this.ctrlHeld, wp.x >= this.rectStart.x ? 'left-to-right' : 'right-to-left');
+          const cmd = createSelectRectCommand(
+            'element',
+            {
+              x: Math.min(this.rectStart.x, wp.x),
+              y: Math.min(this.rectStart.y, wp.y),
+              width: Math.abs(wp.x - this.rectStart.x),
+              height: Math.abs(wp.y - this.rectStart.y),
+            },
+            this.ctrlHeld,
+            wp.x >= this.rectStart.x ? 'left-to-right' : 'right-to-left',
+          );
           this.opts.bus.execute(cmd);
         } else {
           const cmd = createSelectPickCommand('element', wp, this.ctrlHeld);
@@ -281,11 +334,21 @@ export class SelectionHandler {
         this.lassoActive = false;
         hideLassoOverlay(this.lassoOverlay);
         if (this.lassoPoints.length >= 3) {
-          const cmd = createSelectRectCommand('element', {
-            x: Math.min(...this.lassoPoints.map(p => p.x)), y: Math.min(...this.lassoPoints.map(p => p.y)),
-            width: Math.max(...this.lassoPoints.map(p => p.x)) - Math.min(...this.lassoPoints.map(p => p.x)),
-            height: Math.max(...this.lassoPoints.map(p => p.y)) - Math.min(...this.lassoPoints.map(p => p.y)),
-          }, this.ctrlHeld, 'left-to-right');
+          const cmd = createSelectRectCommand(
+            'element',
+            {
+              x: Math.min(...this.lassoPoints.map((p) => p.x)),
+              y: Math.min(...this.lassoPoints.map((p) => p.y)),
+              width:
+                Math.max(...this.lassoPoints.map((p) => p.x)) -
+                Math.min(...this.lassoPoints.map((p) => p.x)),
+              height:
+                Math.max(...this.lassoPoints.map((p) => p.y)) -
+                Math.min(...this.lassoPoints.map((p) => p.y)),
+            },
+            this.ctrlHeld,
+            'left-to-right',
+          );
           this.opts.bus.execute(cmd);
         } else {
           const cmd = createSelectPickCommand('element', wp, this.ctrlHeld);

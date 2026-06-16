@@ -1,8 +1,8 @@
 import type { Point } from '@/types';
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
 
-function getTransformedHitArea(el: SvgElement): Point[] {
+function getTransformedHitArea(el: AbstractGraphicElement): Point[] {
   const ha = el.hitArea;
   return ha.map((p) => el.transformPoint(p));
 }
@@ -122,7 +122,11 @@ function polyInPoly(outer: Point[], inner: Point[]): boolean {
  * Hit-test a group element as if it has a fill — uses hitArea polygon directly
  * regardless of the element's actual fill/stroke.
  */
-function hitElementAsFilled(px: number, py: number, el: SvgElement): boolean {
+function hitElementAsFilled(
+  px: number,
+  py: number,
+  el: AbstractGraphicElement,
+): boolean {
   const ha = getTransformedHitArea(el);
   return ha.length >= 3 && pointInPolygon(px, py, ha);
 }
@@ -132,7 +136,7 @@ function rectHitElementAsFilled(
   ry: number,
   rw: number,
   rh: number,
-  el: SvgElement,
+  el: AbstractGraphicElement,
   requireFullContain: boolean,
 ): boolean {
   const ha = getTransformedHitArea(el);
@@ -141,7 +145,10 @@ function rectHitElementAsFilled(
   return rectIntersectsPoly(rx, ry, rw, rh, ha);
 }
 
-function lassoHitElementAsFilled(polygon: Point[], el: SvgElement): boolean {
+function lassoHitElementAsFilled(
+  polygon: Point[],
+  el: AbstractGraphicElement,
+): boolean {
   const ha = getTransformedHitArea(el);
   return ha.length >= 3 && polyInPoly(polygon, ha);
 }
@@ -151,21 +158,14 @@ function lassoHitElementAsFilled(polygon: Point[], el: SvgElement): boolean {
 export function hitTestGroupsPoint(
   px: number,
   py: number,
-  elements: SvgElement[],
+  elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   lookupGroup: (id: string) => string | undefined,
-  cameraGroup?: SVGGElement,
+  _cameraGroup?: SVGGElement,
 ): string[] {
   const size = 1;
   const ids = grid.query(px, py, size, size);
   const candidates = elements.filter((e) => ids.includes(e.id));
-
-  if (candidates.length > 1 && cameraGroup) {
-    const children = Array.from(cameraGroup.children);
-    candidates.sort(
-      (a, b) => children.indexOf(a.element) - children.indexOf(b.element),
-    );
-  }
 
   const seen = new Set<string>();
   for (const el of candidates) {
@@ -182,7 +182,7 @@ export function hitTestGroupsRect(
   ry: number,
   rw: number,
   rh: number,
-  elements: SvgElement[],
+  elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   lookupGroup: (id: string) => string | undefined,
   requireFullContain: boolean,
@@ -202,7 +202,7 @@ export function hitTestGroupsRect(
 
 export function hitTestGroupsLasso(
   polygon: Point[],
-  elements: SvgElement[],
+  elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   lookupGroup: (id: string) => string | undefined,
 ): string[] {

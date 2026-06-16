@@ -1,8 +1,8 @@
 import type { Point } from '@/types';
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
 
-function getTransformedHitArea(el: SvgElement): Point[] {
+function getTransformedHitArea(el: AbstractGraphicElement): Point[] {
   const ha = el.hitArea;
   return ha.map((p) => el.transformPoint(p));
 }
@@ -134,15 +134,15 @@ function polyInPoly(outer: Point[], inner: Point[]): boolean {
 export function hitTestPoint(
   px: number,
   py: number,
-  elements: SvgElement[],
+  elements: AbstractGraphicElement[],
   grid: SpatialGrid,
-  cameraGroup?: SVGGElement,
-): SvgElement[] {
+  _cameraGroup?: SVGGElement,
+): AbstractGraphicElement[] {
   const size = 1;
   const ids = grid.query(px, py, size, size);
   const candidates = elements.filter((e) => ids.includes(e.id));
 
-  const hits: SvgElement[] = [];
+  const hits: AbstractGraphicElement[] = [];
   for (const el of candidates) {
     const ha = getTransformedHitArea(el);
     if (ha.length >= 3 && pointInPolygon(px, py, ha)) {
@@ -150,13 +150,7 @@ export function hitTestPoint(
     }
   }
 
-  if (hits.length > 1 && cameraGroup) {
-    const children = Array.from(cameraGroup.children);
-    hits.sort(
-      (a, b) => children.indexOf(a.element) - children.indexOf(b.element),
-    );
-  }
-
+  // hits sorted by z-order from spatial grid order
   return hits;
 }
 
@@ -165,10 +159,10 @@ export function hitTestRect(
   ry: number,
   rw: number,
   rh: number,
-  elements: SvgElement[],
+  elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   requireFullContain: boolean,
-): SvgElement[] {
+): AbstractGraphicElement[] {
   const ids = grid.query(rx, ry, rw, rh);
   const candidates = elements.filter((e) => ids.includes(e.id));
 
@@ -184,9 +178,9 @@ export function hitTestRect(
 
 export function hitTestLasso(
   lassoPoints: Point[],
-  elements: SvgElement[],
+  elements: AbstractGraphicElement[],
   grid: SpatialGrid,
-): SvgElement[] {
+): AbstractGraphicElement[] {
   if (lassoPoints.length < 3) return [];
 
   let minX = Infinity;

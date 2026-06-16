@@ -1,4 +1,4 @@
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { HandlePosition } from './SelectionOverlay';
 import type { Camera } from '@/camera/Camera';
 import type { CommandBus } from '@/commands/CommandBus';
@@ -6,20 +6,31 @@ import type { CommandBus } from '@/commands/CommandBus';
 export type TransformMode = 'resize' | 'rotate';
 
 const ORIGIN_INDEX: Record<string, number> = {
-  se: 0, e:  0, ne: 2, n:  2, nw: 3, w:  3, sw: 1, s:  1,
+  se: 0,
+  e: 0,
+  ne: 2,
+  n: 2,
+  nw: 3,
+  w: 3,
+  sw: 1,
+  s: 1,
 };
 
 const FLIP: Record<string, { x: number; y: number }> = {
-  se: { x: 1,  y: 1  }, e:  { x: 1,  y: 0  },
-  ne: { x: 1,  y: -1 }, n:  { x: 0,  y: -1 },
-  nw: { x: -1, y: -1 }, w:  { x: -1, y: 0  },
-  sw: { x: -1, y: 1  }, s:  { x: 0,  y: 1  },
+  se: { x: 1, y: 1 },
+  e: { x: 1, y: 0 },
+  ne: { x: 1, y: -1 },
+  n: { x: 0, y: -1 },
+  nw: { x: -1, y: -1 },
+  w: { x: -1, y: 0 },
+  sw: { x: -1, y: 1 },
+  s: { x: 0, y: 1 },
 };
 
 export class TransformHandler {
   private _active = false;
   private _handle: HandlePosition = 'se';
-  private targets: SvgElement[] = [];
+  private targets: AbstractGraphicElement[] = [];
   private startMouse = { x: 0, y: 0 };
   private startMatrices = new Map<string, DOMMatrix>();
   private localBBoxes = new Map<
@@ -41,9 +52,9 @@ export class TransformHandler {
   public tryStart(
     handle: HandlePosition,
     _bbox: DOMRect,
-    _element: SvgElement,
+    _element: AbstractGraphicElement,
     worldPoint: { x: number; y: number },
-    currentSelected: readonly SvgElement[],
+    currentSelected: readonly AbstractGraphicElement[],
   ): boolean {
     const oppIdx = ORIGIN_INDEX[handle] ?? 0;
     this._handle = handle;
@@ -55,15 +66,23 @@ export class TransformHandler {
 
     for (const el of currentSelected) {
       const ha = el.hitArea;
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
       for (const p of ha) {
         if (p.x < minX) minX = p.x;
         if (p.y < minY) minY = p.y;
         if (p.x > maxX) maxX = p.x;
         if (p.y > maxY) maxY = p.y;
       }
-      const localBBox = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
-      const startMatrix = new DOMMatrix(el.matrix.toString());
+      const localBBox = {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      };
+      const startMatrix = new DOMMatrix(el.transform.matrix.toString());
       this.startMatrices.set(el.id, startMatrix);
       this.localBBoxes.set(el.id, {
         x: localBBox.x,
@@ -87,7 +106,10 @@ export class TransformHandler {
           y: localBBox.y + localBBox.height,
         }),
       ];
-      this.globalOrigins.set(el.id, { x: corners[oppIdx].x, y: corners[oppIdx].y });
+      this.globalOrigins.set(el.id, {
+        x: corners[oppIdx].x,
+        y: corners[oppIdx].y,
+      });
     }
 
     this._active = true;

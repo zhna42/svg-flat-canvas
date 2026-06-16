@@ -1,11 +1,14 @@
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { CommandBus } from '@/commands/CommandBus';
-import { createDragMoveCommand, createDragEndCommand } from '@/commands/factories/drag-command-factory';
+import {
+  createDragMoveCommand,
+  createDragEndCommand,
+} from '@/commands/factories/drag-command-factory';
 
 export class DragHandler {
   private _active = false;
   private prevWorld = { x: 0, y: 0 };
-  private targets: SvgElement[] = [];
+  private targets: AbstractGraphicElement[] = [];
   private bus: CommandBus;
 
   public onDragStart: (() => void) | null = null;
@@ -26,11 +29,14 @@ export class DragHandler {
 
   public tryStart(
     worldPoint: { x: number; y: number },
-    currentSelected: readonly SvgElement[],
+    currentSelected: readonly AbstractGraphicElement[],
   ): boolean {
     if (currentSelected.length === 0) return false;
 
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const el of currentSelected) {
       const bbox = el.getTransformedBBox();
       if (bbox.width === 0 && bbox.height === 0) continue;
@@ -43,8 +49,10 @@ export class DragHandler {
 
     const pad = Math.max((maxX - minX) * 0.25, (maxY - minY) * 0.25, 10);
     if (
-      worldPoint.x < minX - pad || worldPoint.x > maxX + pad ||
-      worldPoint.y < minY - pad || worldPoint.y > maxY + pad
+      worldPoint.x < minX - pad ||
+      worldPoint.x > maxX + pad ||
+      worldPoint.y < minY - pad ||
+      worldPoint.y > maxY + pad
     ) {
       return false;
     }
@@ -55,7 +63,7 @@ export class DragHandler {
 
   public startWithoutCheck(
     worldPoint: { x: number; y: number },
-    currentSelected: readonly SvgElement[],
+    currentSelected: readonly AbstractGraphicElement[],
   ): void {
     if (currentSelected.length === 0) return;
     this._active = true;

@@ -7,7 +7,7 @@ import { PolygonElement } from './PolygonElement';
 import { PolylineElement } from './PolylineElement';
 import { TextElement } from './TextElement';
 import { ImageElement } from './ImageElement';
-import { SvgElement } from './SvgElement';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { ElementType } from '@/types';
 
 export interface ElementJSON {
@@ -22,7 +22,7 @@ export interface ElementJSON {
   textContent?: string;
 }
 
-export function createFromJSON(json: ElementJSON): SvgElement {
+export function createFromJSON(json: ElementJSON): AbstractGraphicElement {
   const el = createElement(json.type, json.id);
 
   for (const [key, value] of Object.entries(json.attributes)) {
@@ -105,11 +105,13 @@ export function createFromJSON(json: ElementJSON): SvgElement {
   return el;
 }
 
-export function createFromJSONArray(items: ElementJSON[]): SvgElement[] {
+export function createFromJSONArray(
+  items: ElementJSON[],
+): AbstractGraphicElement[] {
   return items.map(createFromJSON);
 }
 
-function createElement(type: ElementType, id: string): SvgElement {
+function createElement(type: ElementType, id: string): AbstractGraphicElement {
   switch (type) {
     case 'rect':
       return new RectElement(id);

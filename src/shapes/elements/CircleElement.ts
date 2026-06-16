@@ -1,14 +1,14 @@
-import { SvgElement } from './SvgElement';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { CircleHitArea } from '../modules/HitArea';
 
-export class CircleElement extends SvgElement {
+export class CircleElement extends AbstractGraphicElement {
   private _ha = new CircleHitArea();
 
   public geometry = { cx: 0, cy: 0, r: 0 };
 
   public constructor(id: string) {
-    super(id, 'circle', 'circle');
+    super(id, 'circle');
   }
 
   public get hitArea(): Point[] {
@@ -42,7 +42,7 @@ export class CircleElement extends SvgElement {
     this.buildHitArea();
   }
 
-  protected copyGeometryTo(clone: SvgElement): void {
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
     (clone as CircleElement).geometry = { ...this.geometry };
     clone.buildHitArea();
   }
@@ -59,7 +59,6 @@ export class CircleElement extends SvgElement {
     this.geometry.cy = bbox.y + bbox.height / 2;
     this.geometry.r = Math.max(bbox.width, bbox.height) / 2;
     this.transform.reset();
-    this.matrix = this.transform.matrix;
     this.invalidateHitArea();
   }
 }
