@@ -17,6 +17,17 @@ const HANDLE_TO_ANCHOR: Record<HandlePosition, HandlePosition> = {
   s: 'n',
 };
 
+const HANDLE_FLIP: Record<string, { x: number; y: number }> = {
+  se: { x: 1, y: 1 },
+  e: { x: 1, y: 0 },
+  ne: { x: 1, y: -1 },
+  n: { x: 0, y: -1 },
+  nw: { x: -1, y: -1 },
+  w: { x: -1, y: 0 },
+  sw: { x: -1, y: 1 },
+  s: { x: 0, y: 1 },
+};
+
 export class TransformHandler {
   private _active = false;
   private handle: HandlePosition = 'se';
@@ -50,13 +61,12 @@ export class TransformHandler {
 
     const anchorCorner = HANDLE_TO_ANCHOR[handle];
 
-    console.log('[TransformHandler] tryStart', {
+    console.log(
+      '[TransformHandler] tryStart handle:',
       handle,
+      'anchor:',
       anchorCorner,
-      startWorldPoint: this.startWorldPoint,
-      selectedCount: currentSelected.length,
-      selectedIds: currentSelected.map((e) => e.id),
-    });
+    );
 
     for (const el of currentSelected) {
       const startMatrix = new DOMMatrix(el.transform.matrix.toString());
@@ -70,11 +80,14 @@ export class TransformHandler {
       );
       this.anchorWorldPoints.set(el.id, anchorGlobal);
 
-      console.log('[TransformHandler] element', el.id, {
+      console.log(
+        '[TransformHandler] element:',
+        el.id,
+        'localBBox:',
         localBBox,
-        anchorGlobal,
-        startMatrix: startMatrix.toString(),
-      });
+        'matrix:',
+        startMatrix.toString(),
+      );
     }
 
     this._active = true;
@@ -86,19 +99,23 @@ export class TransformHandler {
     if (!this._active) return;
     const totalDx = worldPoint.x - this.startWorldPoint.x;
     const totalDy = worldPoint.y - this.startWorldPoint.y;
-    console.log('[TransformHandler] move', {
+    console.log(
+      '[TransformHandler] move handle:',
+      this.handle,
+      'worldPt:',
       worldPoint,
-      startWorldPoint: this.startWorldPoint,
-      totalDx,
-      totalDy,
-    });
+      'totalDx:',
+      totalDx.toFixed(2),
+      'totalDy:',
+      totalDy.toFixed(2),
+    );
     this.applyResize(totalDx, totalDy);
     this.onTransformMove?.();
   }
 
   public end(): void {
     if (!this._active) return;
-    console.log('[TransformHandler] end');
+    console.log('[TransformHandler] end handle:', this.handle);
     this._active = false;
     for (const el of this.targets) {
       el.buildHitArea();
@@ -117,15 +134,6 @@ export class TransformHandler {
 
   private applyResize(totalDx: number, totalDy: number): void {
     const anchorCorner = HANDLE_TO_ANCHOR[this.handle];
-
-    console.log('[TransformHandler] applyResize', {
-      totalDx,
-      totalDy,
-      handle: this.handle,
-      anchorCorner,
-      targetIds: this.targets.map((e) => e.id),
-      matrixBefore: this.targets.map((e) => e.transform.matrix.toString()),
-    });
 
     for (const el of this.targets) {
       const startMatrix = this.startMatrices.get(el.id);
@@ -161,8 +169,12 @@ export class TransformHandler {
       const scaleDx = rawDx / s.sx;
       const scaleDy = rawDy / s.sy;
 
-      const factorX = 1 + scaleDx / effectiveW;
-      const factorY = 1 + scaleDy / effectiveH;
+      const flip = HANDLE_FLIP[this.handle] ?? { x: 1, y: 1 };
+      const localDx = scaleDx * flip.x;
+      const localDy = scaleDy * flip.y;
+
+      const factorX = 1 + localDx / effectiveW;
+      const factorY = 1 + localDy / effectiveH;
       if (factorX <= 0 || factorY <= 0) continue;
 
       const m = new DOMMatrix(startMatrix.toString())
@@ -172,18 +184,6 @@ export class TransformHandler {
 
       el.transform.matrix = m;
       el.invalidateHitArea();
-
-      console.log('[TransformHandler] matrix after apply', {
-        id: el.id,
-        newMatrix: m.toString(),
-        localBBox: this.getLocalBBox(el),
-        anchorWorld: anchorWorld,
-        localAnchor: localAnchor,
-        factorX,
-        factorY,
-        effectiveW,
-        effectiveH,
-      });
     }
   }
 
