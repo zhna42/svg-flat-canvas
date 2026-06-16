@@ -1,63 +1,110 @@
-import { SvgElement } from './SvgElement';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
+import type { Point, BoundingBox } from '@/types';
+import { RectHitAreaSimple } from '../modules/HitArea';
 
-export class TextElement extends SvgElement {
+export class TextElement extends AbstractGraphicElement {
+  private _ha = new RectHitAreaSimple();
+
+  public posX = '0';
+  public posY = '0';
+  public fontSize = '16';
+  public fontFamily = '';
+  public textAnchor = 'start';
+  public textContent = '';
+
   public constructor(id: string) {
-    super(id, 'text', 'text');
+    super(id, 'text');
+  }
+
+  public get hitArea(): Point[] {
+    return this._ha.points;
   }
 
   public buildHitArea(): void {
-    const x = parseFloat(this.element.getAttribute('x') || '0');
-    const y = parseFloat(this.element.getAttribute('y') || '0');
-    const fontSize = parseFloat(this.element.getAttribute('font-size') || '16');
-    const text = this.element.textContent || '';
-    const approxWidth = text.length * fontSize * 0.6;
+    const fx = parseFloat(this.posX),
+      fy = parseFloat(this.posY),
+      fsize = parseFloat(this.fontSize);
+    const approxWidth = this.textContent.length * fsize * 0.6;
+    this._ha.set([
+      { x: fx, y: fy - fsize },
+      { x: fx + approxWidth, y: fy - fsize },
+      { x: fx + approxWidth, y: fy },
+      { x: fx, y: fy },
+    ]);
+  }
 
-    this._hitArea = [
-      { x, y: y - fontSize },
-      { x: x + approxWidth, y: y - fontSize },
-      { x: x + approxWidth, y },
-      { x, y },
-    ];
+  public getBBox(): BoundingBox {
+    const fx = parseFloat(this.posX),
+      fy = parseFloat(this.posY),
+      fsize = parseFloat(this.fontSize);
+    return {
+      x: fx,
+      y: fy - fsize,
+      width: this.textContent.length * fsize * 0.6,
+      height: fsize,
+    };
+  }
+
+  protected getGeometryProps(): Record<string, unknown> {
+    return {
+      x: this.posX,
+      y: this.posY,
+      'font-size': this.fontSize,
+      'font-family': this.fontFamily,
+      'text-anchor': this.textAnchor,
+      textContent: this.textContent,
+    };
+  }
+
+  protected getGeometrySnapshot(): Record<string, unknown> {
+    return {
+      x: this.posX,
+      y: this.posY,
+      fontSize: this.fontSize,
+      fontFamily: this.fontFamily,
+      textAnchor: this.textAnchor,
+      textContent: this.textContent,
+    };
+  }
+
+  protected applyGeometrySnapshot(data: Record<string, unknown>): void {
+    if (data.x !== undefined) this.posX = data.x as string;
+    if (data.y !== undefined) this.posY = data.y as string;
+    if (data.fontSize !== undefined) this.fontSize = data.fontSize as string;
+    if (data.fontFamily !== undefined)
+      this.fontFamily = data.fontFamily as string;
+    if (data.textAnchor !== undefined)
+      this.textAnchor = data.textAnchor as string;
+    if (data.textContent !== undefined)
+      this.textContent = data.textContent as string;
+    this.buildHitArea();
+  }
+
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
+    const el = clone as TextElement;
+    el.posX = this.posX;
+    el.posY = this.posY;
+    el.fontSize = this.fontSize;
+    el.fontFamily = this.fontFamily;
+    el.textAnchor = this.textAnchor;
+    el.textContent = this.textContent;
+    el.buildHitArea();
   }
 
   public setTextContent(text: string): void {
-    this.element.textContent = text;
+    this.textContent = text;
+    this.buildHitArea();
     this.setDirty();
   }
-
   public getTextContent(): string {
-    return this.element.textContent || '';
-  }
-
-  public clone(): TextElement {
-    const el = new TextElement(this.id);
-    [
-      'x',
-      'y',
-      'fill',
-      'stroke',
-      'stroke-width',
-      'opacity',
-      'transform',
-      'font-size',
-      'font-family',
-      'text-anchor',
-    ].forEach((attr) => {
-      const v = this.element.getAttribute(attr);
-      if (v !== null) el.element.setAttribute(attr, v);
-    });
-    el.setTextContent(this.getTextContent());
-    return el;
-  }
-
-  protected createClone(): TextElement {
-    return new TextElement(this.id);
+    return this.textContent;
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const x = parseFloat(this.element.getAttribute('x') || '0') + dx;
-    const y = parseFloat(this.element.getAttribute('y') || '0') + dy;
-    this.element.setAttribute('x', String(x));
-    this.element.setAttribute('y', String(y));
+    const fx = parseFloat(this.posX) + dx,
+      fy = parseFloat(this.posY) + dy;
+    this.posX = String(fx);
+    this.posY = String(fy);
+    this.buildHitArea();
   }
 }

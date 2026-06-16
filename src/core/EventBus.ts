@@ -5,15 +5,21 @@ export enum Events {
   DragStart = 'dragStart',
   DragMove = 'dragMove',
   DragEnd = 'dragEnd',
+  TransformStart = 'transformStart',
+  TransformMove = 'transformMove',
+  TransformEnd = 'transformEnd',
 }
 
 export interface EventMap {
-  [Events.SelectionChange]: readonly import('@/shapes/elements/SvgElement').SvgElement[];
+  [Events.SelectionChange]: readonly import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[];
   [Events.GroupSelect]: string[];
   [Events.GroupsChange]: void;
   [Events.DragStart]: void;
   [Events.DragMove]: void;
   [Events.DragEnd]: void;
+  [Events.TransformStart]: import('@/selection/TransformHandler').TransformMode;
+  [Events.TransformMove]: void;
+  [Events.TransformEnd]: import('@/selection/TransformHandler').TransformMode;
 }
 
 type Listener<T> = (data: T) => void;

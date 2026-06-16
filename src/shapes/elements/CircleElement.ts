@@ -1,55 +1,64 @@
-import { SvgElement } from './SvgElement';
-import { MAX_HIT_POINTS } from '@/constants';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
+import type { Point, BoundingBox } from '@/types';
+import { CircleHitArea } from '../modules/HitArea';
 
-export class CircleElement extends SvgElement {
+export class CircleElement extends AbstractGraphicElement {
+  private _ha = new CircleHitArea();
+
+  public geometry = { cx: 0, cy: 0, r: 0 };
+
   public constructor(id: string) {
-    super(id, 'circle', 'circle');
+    super(id, 'circle');
+  }
+
+  public get hitArea(): Point[] {
+    return this._ha.points;
   }
 
   public buildHitArea(): void {
-    const cx = this.getAttrAsNum('cx', 0);
-    const cy = this.getAttrAsNum('cy', 0);
-    const r = this.getAttrAsNum('r', 0);
-
-    if (r <= 0) return;
-
-    const points = MAX_HIT_POINTS;
-    this._hitArea = [];
-    for (let i = 0; i < points; i++) {
-      const angle = (2 * Math.PI * i) / points;
-      this._hitArea.push({
-        x: cx + r * Math.cos(angle),
-        y: cy + r * Math.sin(angle),
-      });
-    }
+    this._ha.set(this.geometry.cx, this.geometry.cy, this.geometry.r);
   }
 
-  public clone(): CircleElement {
-    const el = new CircleElement(this.id);
-    [
-      'cx',
-      'cy',
-      'r',
-      'fill',
-      'stroke',
-      'stroke-width',
-      'opacity',
-      'transform',
-    ].forEach((attr) => {
-      const v = this.element.getAttribute(attr);
-      if (v !== null) el.element.setAttribute(attr, v);
-    });
-    return el;
+  public getBBox(): BoundingBox {
+    return {
+      x: this.geometry.cx - this.geometry.r,
+      y: this.geometry.cy - this.geometry.r,
+      width: this.geometry.r * 2,
+      height: this.geometry.r * 2,
+    };
   }
 
-  protected createClone(): CircleElement {
-    return new CircleElement(this.id);
+  protected getGeometryProps(): Record<string, unknown> {
+    return { ...this.geometry };
+  }
+  protected getGeometrySnapshot(): Record<string, unknown> {
+    return { ...this.geometry };
+  }
+
+  protected applyGeometrySnapshot(data: Record<string, unknown>): void {
+    if (data.cx !== undefined) this.geometry.cx = data.cx as number;
+    if (data.cy !== undefined) this.geometry.cy = data.cy as number;
+    if (data.r !== undefined) this.geometry.r = data.r as number;
+    this.buildHitArea();
+  }
+
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
+    (clone as CircleElement).geometry = { ...this.geometry };
+    clone.buildHitArea();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const cx = this.getAttrAsNum('cx', 0) + dx;
-    const cy = this.getAttrAsNum('cy', 0) + dy;
-    this.element.setAttribute('cx', String(cx));
-    this.element.setAttribute('cy', String(cy));
+    this.geometry.cx += dx;
+    this.geometry.cy += dy;
+    this.buildHitArea();
+  }
+
+  public flattenTransformToAttrs(): void {
+    const bbox = this.getTransformedBBox();
+    this.geometry.cx = bbox.x + bbox.width / 2;
+    this.geometry.cy = bbox.y + bbox.height / 2;
+    this.geometry.r = Math.max(bbox.width, bbox.height) / 2;
+    this.transform.reset();
+    this.invalidateHitArea();
   }
 }

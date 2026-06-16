@@ -3,7 +3,8 @@ import { Camera } from '@/camera/Camera';
 import { Background } from './Background';
 import { Artboard } from './Artboard';
 import { RenderQueue } from './RenderQueue';
-import { setRenderQueue } from '@/shapes/elements/SvgElement';
+import { setRenderQueue } from '@/utils/render-queue-utils';
+import { TAG_BY_TYPE, applyRenderSnapshot } from '@/utils/render-utils';
 
 export class Renderer {
   private readonly svg: SVGSVGElement;
@@ -11,7 +12,9 @@ export class Renderer {
   private readonly cameraGroup: SVGGElement;
   private readonly camera: Camera;
   private readonly artboard: Artboard;
+  private readonly background: Background;
   private readonly queue: RenderQueue;
+  private readonly nodeMap = new Map<string, SVGElement>();
 
   private rafId: number | null = null;
 
@@ -19,45 +22,57 @@ export class Renderer {
     this.svg = svg;
     this.camera = camera;
     this.queue = new RenderQueue();
-
     setRenderQueue(this.queue);
 
     const ns = SVG_NS;
     this.defs = document.createElementNS(ns, 'defs');
     this.svg.appendChild(this.defs);
 
-    new Background(svg, this.defs);
+    this.background = new Background();
+    this.bootstrapBackgroundDom();
 
     this.cameraGroup = document.createElementNS(ns, 'g');
     this.svg.appendChild(this.cameraGroup);
-
-    this.artboard = new Artboard(this.cameraGroup);
-
+    this.artboard = new Artboard();
+    this.bootstrapArtboardDom();
     this.startLoop();
   }
 
   public getCameraGroup(): SVGGElement {
     return this.cameraGroup;
   }
-
   public getArtboard(): Artboard {
     return this.artboard;
   }
-
   public getQueue(): RenderQueue {
     return this.queue;
   }
 
-  public addElement(element: SVGElement): void {
-    this.cameraGroup.appendChild(element);
+  public addElement(id: string, type: string): SVGElement {
+    const tag = TAG_BY_TYPE[type] || 'rect';
+    const el = document.createElementNS(SVG_NS, tag);
+    this.nodeMap.set(id, el);
+    this.cameraGroup.appendChild(el);
+    return el;
   }
 
-  public removeElement(element: SVGElement): void {
-    this.cameraGroup.removeChild(element);
+  public removeElement(id: string): void {
+    const el = this.nodeMap.get(id);
+    if (el) {
+      this.cameraGroup.removeChild(el);
+      this.nodeMap.delete(id);
+    }
   }
 
-  public appendOverlay(element: SVGElement): void {
-    this.cameraGroup.appendChild(element);
+  public clear(): void {
+    for (const [, el] of this.nodeMap) {
+      this.cameraGroup.removeChild(el);
+    }
+    this.nodeMap.clear();
+  }
+
+  public getNode(id: string): SVGElement | undefined {
+    return this.nodeMap.get(id);
   }
 
   public destroy(): void {
@@ -68,6 +83,51 @@ export class Renderer {
     }
   }
 
+  private bootstrapBackgroundDom(): void {
+    const bg = this.background;
+    const p = bg.pattern;
+
+    const patternNode = document.createElementNS(SVG_NS, 'pattern');
+    patternNode.id = p.id;
+    patternNode.setAttribute('width', String(p.geometry.width));
+    patternNode.setAttribute('height', String(p.geometry.height));
+    patternNode.setAttribute('patternUnits', p.geometry.patternUnits);
+
+    const bgRect = document.createElementNS(SVG_NS, 'rect');
+    bgRect.setAttribute('width', String(p.geometry.width));
+    bgRect.setAttribute('height', String(p.geometry.height));
+    bgRect.setAttribute('fill', '#f0f0f0');
+    patternNode.appendChild(bgRect);
+
+    for (const cell of p.cells) {
+      const cellNode = document.createElementNS(SVG_NS, 'rect');
+      cellNode.setAttribute('x', String(cell.x));
+      cellNode.setAttribute('y', String(cell.y));
+      cellNode.setAttribute('width', String(cell.width));
+      cellNode.setAttribute('height', String(cell.height));
+      cellNode.setAttribute('fill', cell.fill);
+      patternNode.appendChild(cellNode);
+    }
+
+    this.defs.appendChild(patternNode);
+
+    const fillNode = document.createElementNS(SVG_NS, 'rect');
+    fillNode.setAttribute('pointer-events', 'none');
+    this.svg.insertBefore(fillNode, this.svg.firstChild);
+    this.nodeMap.set('bg-fill', fillNode);
+
+    applyRenderSnapshot(bg.fillRect.getRenderSnapshot(), fillNode);
+  }
+
+  private bootstrapArtboardDom(): void {
+    const artboardNode = document.createElementNS(SVG_NS, 'rect');
+    artboardNode.setAttribute('pointer-events', 'none');
+    this.cameraGroup.appendChild(artboardNode);
+    this.nodeMap.set('artboard', artboardNode);
+
+    applyRenderSnapshot(this.artboard.rect.getRenderSnapshot(), artboardNode);
+  }
+
   private startLoop(): void {
     const tick = (): void => {
       if (this.camera.dirty) {
@@ -75,21 +135,20 @@ export class Renderer {
         this.camera.markClean();
       }
 
+      if (this.artboard.dirty) {
+        const node = this.nodeMap.get('artboard');
+        if (node) {
+          applyRenderSnapshot(this.artboard.rect.getRenderSnapshot(), node);
+        }
+        this.artboard.markClean();
+      }
+
       const pending = this.queue.drain();
       for (const el of pending) {
-        const tx = (el as any)._translate?.x;
-        const ty = (el as any)._translate?.y;
-        if (tx !== undefined && (tx !== 0 || ty !== 0)) {
-          (el as any).element.setAttribute(
-            'transform',
-            `translate(${tx}, ${ty})`,
-          );
-        }
-        if ('markClean' in el) el.markClean();
-      }
-      // Also re-render selection overlay when elements are dirty
-      if (pending.length > 0) {
-        // this is just a render tick; overlay update is triggered externally
+        const node = this.nodeMap.get(el.id);
+        if (!node) continue;
+        applyRenderSnapshot(el.getRenderSnapshot(), node);
+        el.markClean();
       }
 
       this.rafId = requestAnimationFrame(tick);

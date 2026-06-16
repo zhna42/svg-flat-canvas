@@ -1,4 +1,4 @@
-export { SvgElement } from './elements/SvgElement';
+export { AbstractGraphicElement } from './elements/AbstractGraphicElement';
 export type { Point, BoundingBox, DirtyTracker, ElementType } from '@/types';
 export {
   RectElement,

@@ -9,6 +9,11 @@ export type {
   GroupAddCommand,
   GroupRemoveCommand,
   GroupClearCommand,
+  DeleteCommand,
+  ResizeCommand,
+  RotateCommand,
+  TransformCommand,
+  BBox,
   SelectionMode,
   SelectionGesture,
 } from './types';
@@ -21,12 +26,10 @@ export {
   createSelectRectCommand,
   createSelectLassoCommand,
 } from './factories/select-command-factory';
-
 export {
   createDragMoveCommand,
   createDragEndCommand,
 } from './factories/drag-command-factory';
-
 export {
   createGroupCreateCommand,
   createGroupDeleteCommand,
@@ -34,3 +37,9 @@ export {
   createGroupRemoveCommand,
   createGroupClearCommand,
 } from './factories/group-command-factory';
+export { createDeleteCommand } from './factories/delete-command-factory';
+export {
+  createResizeCommand,
+  createRotateCommand,
+  createTransformCommand,
+} from './factories/transform-command-factory';

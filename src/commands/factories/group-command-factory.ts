@@ -1,21 +1,38 @@
-import type { GroupCreateCommand, GroupDeleteCommand, GroupAddCommand, GroupRemoveCommand, GroupClearCommand } from '../types';
+import type {
+  GroupCreateCommand,
+  GroupDeleteCommand,
+  GroupAddCommand,
+  GroupRemoveCommand,
+  GroupClearCommand,
+} from '../types';
 
-export function createGroupCreateCommand(name?: string): GroupCreateCommand {
-  return { type: 'GROUP_CREATE', options: { name } };
-}
+export const createGroupCreateCommand = (
+  name?: string,
+): GroupCreateCommand => ({
+  type: 'GROUP_CREATE',
+  options: { name },
+});
 
-export function createGroupDeleteCommand(groupId: string): GroupDeleteCommand {
-  return { type: 'GROUP_DELETE', options: { groupId } };
-}
+export const createGroupDeleteCommand = (
+  groupId: string,
+): GroupDeleteCommand => ({ type: 'GROUP_DELETE', options: { groupId } });
 
-export function createGroupAddCommand(groupId: string, elementIds: string[]): GroupAddCommand {
-  return { type: 'GROUP_ADD', options: { groupId, elementIds } };
-}
+export const createGroupAddCommand = (
+  groupId: string,
+  elementIds: string[],
+): GroupAddCommand => ({
+  type: 'GROUP_ADD',
+  options: { groupId, elementIds },
+});
 
-export function createGroupRemoveCommand(groupId: string, elementIds: string[]): GroupRemoveCommand {
-  return { type: 'GROUP_REMOVE', options: { groupId, elementIds } };
-}
+export const createGroupRemoveCommand = (
+  groupId: string,
+  elementIds: string[],
+): GroupRemoveCommand => ({
+  type: 'GROUP_REMOVE',
+  options: { groupId, elementIds },
+});
 
-export function createGroupClearCommand(groupId: string): GroupClearCommand {
-  return { type: 'GROUP_CLEAR', options: { groupId } };
-}
+export const createGroupClearCommand = (
+  groupId: string,
+): GroupClearCommand => ({ type: 'GROUP_CLEAR', options: { groupId } });

@@ -1,13 +1,13 @@
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
 export class RenderQueue {
-  private set = new Set<SvgElement>();
+  private set = new Set<AbstractGraphicElement>();
 
-  public add(el: SvgElement): void {
+  public add(el: AbstractGraphicElement): void {
     this.set.add(el);
   }
 
-  public drain(): SvgElement[] {
+  public drain(): AbstractGraphicElement[] {
     const items = Array.from(this.set);
     this.set.clear();
     return items;
@@ -19,20 +19,5 @@ export class RenderQueue {
 
   public clear(): void {
     this.set.clear();
-  }
-
-  public drainForced(): void {
-    const items = this.drain();
-    for (const el of items) {
-      const tx = (el as any)._translate?.x;
-      const ty = (el as any)._translate?.y;
-      if (tx !== undefined && (tx !== 0 || ty !== 0)) {
-        (el as any).element.setAttribute(
-          'transform',
-          `translate(${tx}, ${ty})`,
-        );
-      }
-      if ('markClean' in el) el.markClean();
-    }
   }
 }

@@ -1,18 +1,19 @@
-import { SVG_NS, MM_TO_PX } from '@/constants';
+import { RectElement } from '@/shapes/elements/RectElement';
+import { MM_TO_PX } from '@/constants';
 
 export class Artboard {
-  private readonly rect: SVGRectElement;
+  public readonly rect: RectElement;
   private _dirty = false;
   private _widthMM = 210;
   private _heightMM = 297;
 
-  public constructor(parent: Node) {
-    this.rect = document.createElementNS(SVG_NS, 'rect');
-    this.rect.setAttribute('fill', '#ffffff');
-    this.rect.setAttribute('stroke', '#cccccc');
-    this.rect.setAttribute('stroke-width', '1');
-    this.rect.setAttribute('pointer-events', 'none');
-    parent.appendChild(this.rect);
+  public constructor() {
+    this.rect = new RectElement('artboard');
+    this.rect.style.fill = '#ffffff';
+    this.rect.style.stroke = '#cccccc';
+    this.rect.style.strokeWidth = 1;
+    this.rect.visible = true;
+    this.rect.data = { pointerEvents: 'none' };
   }
 
   public get dirty(): boolean {
@@ -45,23 +46,12 @@ export class Artboard {
   private updateRect(vw?: number, vh?: number): void {
     const w = this._widthMM * MM_TO_PX;
     const h = this._heightMM * MM_TO_PX;
-    let viewW: number;
-    let viewH: number;
-    if (vw !== undefined && vh !== undefined) {
-      viewW = vw;
-      viewH = vh;
-    } else {
-      const svg = this.rect.closest('svg');
-      const vb = svg?.getAttribute('viewBox') || '0 0 800 600';
-      const parts = vb.split(/\s+/).map(Number);
-      viewW = parts[2] || 800;
-      viewH = parts[3] || 600;
-    }
-    const x = (viewW - w) / 2;
-    const y = (viewH - h) / 2;
-    this.rect.setAttribute('x', String(x));
-    this.rect.setAttribute('y', String(y));
-    this.rect.setAttribute('width', String(w));
-    this.rect.setAttribute('height', String(h));
+    const viewW = vw ?? 800;
+    const viewH = vh ?? 600;
+    this.rect.geometry.x = (viewW - w) / 2;
+    this.rect.geometry.y = (viewH - h) / 2;
+    this.rect.geometry.width = w;
+    this.rect.geometry.height = h;
+    this.rect.setDirty();
   }
 }

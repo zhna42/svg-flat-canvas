@@ -1,11 +1,14 @@
-export type { SelectionMode } from './SelectionMode';
+export type { SelectionMode } from '@/commands/types';
 export type { SelectionFilter } from './selection-filter';
 export type { SelectionShortcuts } from './selection-defaults';
 export { DEFAULT_SELECTION_SHORTCUTS } from './selection-defaults';
 export { SpatialGrid } from './SpatialGrid';
 export { SelectionState } from './SelectionState';
-export { hitTestPoint, hitTestRect, hitTestLasso } from './hit-test';
+export { SelectionOverlay } from './SelectionOverlay';
+export type { HandlePosition } from './SelectionOverlay';
+export { TransformHandler } from './TransformHandler';
+export type { TransformMode } from './TransformHandler';
+export { hitTestPoint, hitTestRect, hitTestLasso } from '@/utils/hit-test';
 export { SelectionHandler } from './handlers/SelectionHandler';
 export { GroupSelectionHandler } from './GroupSelectionHandler';
 export { DragHandler } from './DragHandler';
-export type { RectOverlay, LassoOverlay } from './overlay-utils';

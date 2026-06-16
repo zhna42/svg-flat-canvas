@@ -7,4 +7,5 @@ export type ElementType =
   | 'polygon'
   | 'polyline'
   | 'text'
-  | 'image';
+  | 'image'
+  | 'pattern';

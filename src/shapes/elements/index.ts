@@ -1,4 +1,4 @@
-export { SvgElement } from './SvgElement';
+export { AbstractGraphicElement } from './AbstractGraphicElement';
 export { RectElement } from './RectElement';
 export { CircleElement } from './CircleElement';
 export { EllipseElement } from './EllipseElement';
@@ -8,5 +8,6 @@ export { PolygonElement } from './PolygonElement';
 export { PolylineElement } from './PolylineElement';
 export { TextElement } from './TextElement';
 export { ImageElement } from './ImageElement';
+export { PatternElement } from './PatternElement';
 export { createFromJSON, createFromJSONArray } from './factory';
 export type { ElementJSON } from './factory';

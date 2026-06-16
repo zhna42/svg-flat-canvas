@@ -1,4 +1,4 @@
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { Camera } from '@/camera/Camera';
 import { SVG_NS } from '@/constants';
 
@@ -16,7 +16,7 @@ export class DebugOverlay {
     return this.group;
   }
 
-  public update(elements: readonly SvgElement[]): void {
+  public update(elements: readonly AbstractGraphicElement[]): void {
     while (this.group.firstChild) {
       this.group.removeChild(this.group.firstChild);
     }
@@ -24,13 +24,10 @@ export class DebugOverlay {
     const z = this.camera.zoom;
 
     for (const el of elements) {
-      const pts = el.hitArea;
+      const pts = el.getWorldHitPoints();
       if (pts.length < 3) continue;
 
-      const m = el.toDOMMatrix();
-      const transformed = pts.map((p) => m.transformPoint({ x: p.x, y: p.y }));
-
-      const pointsStr = transformed.map((p) => `${p.x},${p.y}`).join(' ');
+      const pointsStr = pts.map((p) => `${p.x},${p.y}`).join(' ');
 
       const poly = document.createElementNS(SVG_NS, 'polygon');
       poly.setAttribute('points', pointsStr);

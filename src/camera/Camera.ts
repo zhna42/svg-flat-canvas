@@ -6,6 +6,7 @@ export class Camera {
   public zoom = 1;
 
   private _dirty = false;
+  public onChange: (() => void) | null = null;
 
   public get dirty(): boolean {
     return this._dirty;
@@ -23,6 +24,7 @@ export class Camera {
     this.x += dx;
     this.y += dy;
     this._dirty = true;
+    this.onChange?.();
   }
 
   public setZoom(svgPoint: Point, factor: number): void {
@@ -35,17 +37,20 @@ export class Camera {
     this.y = svgPoint.y - worldY * newZoom;
     this.zoom = newZoom;
     this._dirty = true;
+    this.onChange?.();
   }
 
   public setPosition(x: number, y: number): void {
     this.x = x;
     this.y = y;
     this._dirty = true;
+    this.onChange?.();
   }
 
   public setZoomLevel(zoom: number): void {
     this.zoom = Math.max(0.05, Math.min(zoom, 50));
     this._dirty = true;
+    this.onChange?.();
   }
 
   public screenToWorld(screenPoint: Point): Point {
@@ -53,6 +58,19 @@ export class Camera {
       x: (screenPoint.x - this.x) / this.zoom,
       y: (screenPoint.y - this.y) / this.zoom,
     };
+  }
+
+  public worldToScreen(worldPoint: Point): Point {
+    return {
+      x: worldPoint.x * this.zoom + this.x,
+      y: worldPoint.y * this.zoom + this.y,
+    };
+  }
+
+  public worldRectToScreen(worldRect: { x: number; y: number; width: number; height: number }): { x: number; y: number; width: number; height: number } {
+    const tl = this.worldToScreen({ x: worldRect.x, y: worldRect.y });
+    const br = this.worldToScreen({ x: worldRect.x + worldRect.width, y: worldRect.y + worldRect.height });
+    return { x: tl.x, y: tl.y, width: br.x - tl.x, height: br.y - tl.y };
   }
 
   public toDTO(): Record<string, unknown> {
@@ -64,6 +82,7 @@ export class Camera {
     if (typeof dto.y === 'number') this.y = dto.y;
     if (typeof dto.zoom === 'number') this.zoom = dto.zoom;
     this._dirty = true;
+    this.onChange?.();
   }
 
   public fitToViewport(
@@ -82,5 +101,6 @@ export class Camera {
     this.x = (viewWidth - viewWidth * this.zoom) / 2;
     this.y = (viewHeight - viewHeight * this.zoom) / 2;
     this._dirty = true;
+    this.onChange?.();
   }
 }

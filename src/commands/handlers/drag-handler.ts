@@ -1,13 +1,15 @@
 import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
-import type { SvgElement } from '@/shapes/elements/SvgElement';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
 export interface DragHandlerContext {
-  getElements: () => SvgElement[];
+  getElements: () => AbstractGraphicElement[];
   onDragEnd?: (elementIds: string[]) => void;
 }
 
-export function createDragMoveHandler(ctx: DragHandlerContext): CommandHandler {
+export const createDragMoveHandler = (
+  ctx: DragHandlerContext,
+): CommandHandler => {
   return (command: Command): void => {
     if (command.type !== 'DRAG_MOVE') return;
     const { delta, elementIds } = command.options;
@@ -18,22 +20,21 @@ export function createDragMoveHandler(ctx: DragHandlerContext): CommandHandler {
       el.applyDelta(delta.x, delta.y);
     }
   };
-}
+};
 
-export function createDragEndHandler(ctx: DragHandlerContext): CommandHandler {
+export const createDragEndHandler = (
+  ctx: DragHandlerContext,
+): CommandHandler => {
   return (command: Command): void => {
     if (command.type !== 'DRAG_END') return;
     const { elementIds } = command.options;
     const all = ctx.getElements();
-
-    const targets = elementIds
-      .map((id) => all.find((e) => e.id === id))
-      .filter((e): e is SvgElement => !!e);
-
-    for (const el of targets) {
-      el.flushTransformToCoords();
+    for (const id of elementIds) {
+      const el = all.find((e) => e.id === id);
+      if (!el) continue;
+      el.buildHitArea();
+      el.setDirty();
     }
-
     ctx.onDragEnd?.(elementIds);
   };
-}
+};

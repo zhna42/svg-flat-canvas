@@ -1,125 +1,89 @@
-import { SvgElement } from './SvgElement';
-import type { Point } from '@/types';
-import { MAX_HIT_POINTS, MIN_HIT_STROKE_WIDTH } from '@/constants';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
+import type { Point, BoundingBox } from '@/types';
+import { RectHitArea } from '../modules/HitArea';
 
-export class RectElement extends SvgElement {
+export class RectElement extends AbstractGraphicElement {
+  private _ha = new RectHitArea();
+
+  public geometry = { x: 0, y: 0, width: 0, height: 0, rx: 0, ry: 0 };
+
   public constructor(id: string) {
-    super(id, 'rect', 'rect');
+    super(id, 'rect');
+  }
+
+  public get hitArea(): Point[] {
+    return this._ha.points;
   }
 
   public buildHitArea(): void {
-    const x = this.getAttrAsNum('x', 0);
-    const y = this.getAttrAsNum('y', 0);
-    const w = this.getAttrAsNum('width', 0);
-    const h = this.getAttrAsNum('height', 0);
-    const rx = this.getAttrAsNum('rx', 0);
-    const ry = this.getAttrAsNum('ry', 0);
-
-    if (w <= 0 || h <= 0) return;
-
-    if (!this.hasFill() || rx > 0 || ry > 0) {
-      this._hitArea = this.buildRoundedRectHitArea(x, y, w, h, rx, ry);
-      return;
-    }
-
-    this._hitArea = [
-      { x, y },
-      { x: x + w, y },
-      { x: x + w, y: y + h },
-      { x, y: y + h },
-    ];
+    this._ha.set(
+      this.geometry.x,
+      this.geometry.y,
+      this.geometry.width,
+      this.geometry.height,
+      this.geometry.rx,
+      this.geometry.ry,
+      this.style.strokeWidth,
+      this.style.hasFill,
+    );
   }
 
-  private buildRoundedRectHitArea(
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    rx: number,
-    ry: number,
-  ): Point[] {
-    const rX = Math.min(rx || ry, w / 2);
-    const rY = Math.min(ry || rx, h / 2);
-    const sw = this.hasFill()
-      ? 0
-      : Math.max(this.getStrokeWidth(), MIN_HIT_STROKE_WIDTH);
-    const offset = sw / 2;
-
-    const pts = this.approximateArc(rX + offset, rY + offset, MAX_HIT_POINTS);
-    const n = pts.length;
-    const cx = x + w / 2;
-    const cy = y + h / 2;
-    const innerW = w / 2 - rX;
-    const innerH = h / 2 - rY;
-
-    const result: Point[] = [];
-
-    for (let i = 0; i < n; i++) {
-      result.push({
-        x: cx + pts[i].x + innerW,
-        y: cy + pts[i].y + innerH,
-      });
-    }
-    for (let i = 0; i < n; i++) {
-      result.push({
-        x: cx - pts[n - 1 - i].x - innerW,
-        y: cy + pts[n - 1 - i].y + innerH,
-      });
-    }
-    for (let i = 0; i < n; i++) {
-      result.push({
-        x: cx - pts[i].x - innerW,
-        y: cy - pts[i].y - innerH,
-      });
-    }
-    for (let i = 0; i < n; i++) {
-      result.push({
-        x: cx + pts[n - 1 - i].x + innerW,
-        y: cy - pts[n - 1 - i].y - innerH,
-      });
-    }
-
-    return result;
+  public getBBox(): BoundingBox {
+    return {
+      x: this.geometry.x,
+      y: this.geometry.y,
+      width: this.geometry.width,
+      height: this.geometry.height,
+    };
   }
 
-  private approximateArc(rx: number, ry: number, segments: number): Point[] {
-    const pts: Point[] = [];
-    for (let i = 0; i < segments; i++) {
-      const angle = (Math.PI / 2 / segments) * i;
-      pts.push({ x: rx * Math.cos(angle), y: ry * Math.sin(angle) });
-    }
-    return pts;
+  protected getGeometryProps(): Record<string, unknown> {
+    return { ...this.geometry };
+  }
+  protected getGeometrySnapshot(): Record<string, unknown> {
+    return { ...this.geometry };
   }
 
-  public clone(): RectElement {
-    const el = new RectElement(this.id);
-    [
-      'x',
-      'y',
-      'width',
-      'height',
-      'rx',
-      'ry',
-      'fill',
-      'stroke',
-      'stroke-width',
-      'opacity',
-      'transform',
-    ].forEach((attr) => {
-      const v = this.element.getAttribute(attr);
-      if (v !== null) el.element.setAttribute(attr, v);
-    });
-    return el;
+  protected applyGeometrySnapshot(data: Record<string, unknown>): void {
+    if (data.x !== undefined) this.geometry.x = data.x as number;
+    if (data.y !== undefined) this.geometry.y = data.y as number;
+    if (data.width !== undefined) this.geometry.width = data.width as number;
+    if (data.height !== undefined) this.geometry.height = data.height as number;
+    if (data.rx !== undefined) this.geometry.rx = data.rx as number;
+    if (data.ry !== undefined) this.geometry.ry = data.ry as number;
+    this.buildHitArea();
   }
 
-  protected createClone(): RectElement {
-    return new RectElement(this.id);
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
+    const el = clone as RectElement;
+    el.geometry = { ...this.geometry };
+    el.buildHitArea();
+  }
+
+  public setX(x: number): void {
+    this.geometry.x = x;
+    this.buildHitArea();
+    this.setDirty();
+  }
+  public setY(y: number): void {
+    this.geometry.y = y;
+    this.buildHitArea();
+    this.setDirty();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const x = this.getAttrAsNum('x', 0) + dx;
-    const y = this.getAttrAsNum('y', 0) + dy;
-    this.element.setAttribute('x', String(x));
-    this.element.setAttribute('y', String(y));
+    this.geometry.x += dx;
+    this.geometry.y += dy;
+    this.buildHitArea();
+  }
+
+  public flattenTransformToAttrs(): void {
+    const bbox = this.getTransformedBBox();
+    this.geometry.x = bbox.x;
+    this.geometry.y = bbox.y;
+    this.geometry.width = bbox.width;
+    this.geometry.height = bbox.height;
+    this.transform.reset();
+    this.invalidateHitArea();
   }
 }

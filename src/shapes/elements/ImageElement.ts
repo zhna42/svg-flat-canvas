@@ -1,55 +1,79 @@
-import { SvgElement } from './SvgElement';
+import { AbstractGraphicElement } from './AbstractGraphicElement';
+import type { Point, BoundingBox } from '@/types';
+import { RectHitAreaSimple } from '../modules/HitArea';
 
-export class ImageElement extends SvgElement {
+export class ImageElement extends AbstractGraphicElement {
+  private _ha = new RectHitAreaSimple();
+
+  public geometry = { x: 0, y: 0, width: 0, height: 0 };
+  public href = '';
+
   public constructor(id: string) {
-    super(id, 'image', 'image');
+    super(id, 'image');
+  }
+
+  public get hitArea(): Point[] {
+    return this._ha.points;
   }
 
   public buildHitArea(): void {
-    const x = this.getAttrAsNum('x', 0);
-    const y = this.getAttrAsNum('y', 0);
-    const w = this.getAttrAsNum('width', 0);
-    const h = this.getAttrAsNum('height', 0);
+    if (this.geometry.width <= 0 || this.geometry.height <= 0) return;
+    this._ha.set([
+      { x: this.geometry.x, y: this.geometry.y },
+      { x: this.geometry.x + this.geometry.width, y: this.geometry.y },
+      {
+        x: this.geometry.x + this.geometry.width,
+        y: this.geometry.y + this.geometry.height,
+      },
+      { x: this.geometry.x, y: this.geometry.y + this.geometry.height },
+    ]);
+  }
 
-    if (w <= 0 || h <= 0) return;
+  public getBBox(): BoundingBox {
+    return { ...this.geometry };
+  }
 
-    this._hitArea = [
-      { x, y },
-      { x: x + w, y },
-      { x: x + w, y: y + h },
-      { x, y: y + h },
-    ];
+  protected getGeometryProps(): Record<string, unknown> {
+    return { ...this.geometry, href: this.href };
+  }
+  protected getGeometrySnapshot(): Record<string, unknown> {
+    return { ...this.geometry, href: this.href };
+  }
+
+  protected applyGeometrySnapshot(data: Record<string, unknown>): void {
+    if (data.x !== undefined) this.geometry.x = data.x as number;
+    if (data.y !== undefined) this.geometry.y = data.y as number;
+    if (data.width !== undefined) this.geometry.width = data.width as number;
+    if (data.height !== undefined) this.geometry.height = data.height as number;
+    if (data.href !== undefined) this.href = data.href as string;
+    this.buildHitArea();
+  }
+
+  protected copyGeometryTo(clone: AbstractGraphicElement): void {
+    const el = clone as ImageElement;
+    el.geometry = { ...this.geometry };
+    el.href = this.href;
+    el.buildHitArea();
   }
 
   public setHref(href: string): void {
-    this.element.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href);
+    this.href = href;
     this.setDirty();
   }
 
-  public clone(): ImageElement {
-    const el = new ImageElement(this.id);
-    ['x', 'y', 'width', 'height', 'opacity', 'transform'].forEach((attr) => {
-      const v = this.element.getAttribute(attr);
-      if (v !== null) el.element.setAttribute(attr, v);
-    });
-    const href = this.element.getAttributeNS(
-      'http://www.w3.org/1999/xlink',
-      'href',
-    );
-    if (href !== null) {
-      el.element.setAttributeNS('http://www.w3.org/1999/xlink', 'href', href);
-    }
-    return el;
-  }
-
-  protected createClone(): ImageElement {
-    return new ImageElement(this.id);
-  }
-
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    const x = this.getAttrAsNum('x', 0) + dx;
-    const y = this.getAttrAsNum('y', 0) + dy;
-    this.element.setAttribute('x', String(x));
-    this.element.setAttribute('y', String(y));
+    this.geometry.x += dx;
+    this.geometry.y += dy;
+    this.buildHitArea();
+  }
+
+  public flattenTransformToAttrs(): void {
+    const bbox = this.getTransformedBBox();
+    this.geometry.x = bbox.x;
+    this.geometry.y = bbox.y;
+    this.geometry.width = bbox.width;
+    this.geometry.height = bbox.height;
+    this.transform.reset();
+    this.invalidateHitArea();
   }
 }
