@@ -1,11 +1,9 @@
-import type { CreateCommand, CreationElementType } from '../types';
+import type { CreateCommand } from '../types';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
 export const createCreateCommand = (
-  elementType: CreationElementType,
-  elementId: string,
-  geometry: Record<string, unknown>,
-  style: Record<string, unknown>,
+  element: AbstractGraphicElement,
 ): CreateCommand => ({
   type: 'CREATE',
-  options: { elementType, elementId, geometry, style },
+  options: { element },
 });

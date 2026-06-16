@@ -33,6 +33,7 @@ export class CreationHandler {
   private svg: SVGSVGElement;
   private camera: Camera;
   private addElementToScene: (el: AbstractGraphicElement) => void;
+  private removeFromScene: (el: AbstractGraphicElement) => void;
 
   private _activeType: CreationElementType | null = null;
   private currentPreview: AbstractGraphicElement | null = null;
@@ -49,11 +50,13 @@ export class CreationHandler {
     camera: Camera,
     bus: CommandBus,
     addElementToScene: (el: AbstractGraphicElement) => void,
+    removeFromScene: (el: AbstractGraphicElement) => void,
   ) {
     this.svg = svg;
     this.camera = camera;
     this.bus = bus;
     this.addElementToScene = addElementToScene;
+    this.removeFromScene = removeFromScene;
   }
 
   public get isActive(): boolean {
@@ -383,8 +386,13 @@ export class CreationHandler {
   }
 
   private finalizeCreation(el: AbstractGraphicElement): void {
-    el.setDirty();
-    this.bus.getTimeMachine().push('CREATE');
+    this.removeFromScene(el);
+    el.isPreview = false;
+
+    this.bus.execute({
+      type: 'CREATE',
+      options: { element: el },
+    });
 
     this.onElementFinalize?.(el);
     this.onCreationEnd?.(el);

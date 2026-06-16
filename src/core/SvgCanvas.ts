@@ -42,6 +42,7 @@ import {
 } from '@/commands/handlers/drag-handler';
 import { createGroupHandler } from '@/commands/handlers/group-handler';
 import { createDeleteHandler } from '@/commands/handlers/delete-handler';
+import { createCreateHandler } from '@/commands/handlers/create-handler';
 import { createDeleteCommand } from '@/commands/factories/delete-command-factory';
 
 export class SvgCanvas {
@@ -220,12 +221,14 @@ export class SvgCanvas {
       createGroupHandler(this.groupManager),
     );
     this.commandBus.register('DELETE', createDeleteHandler(this.shapeManager));
+    this.commandBus.register('CREATE', createCreateHandler(this.shapeManager));
 
     this.creationHandler = new CreationHandler(
       this.svg,
       this.camera,
       this.commandBus,
       (el) => this.addShape(el),
+      (el) => this.shapeManager.remove(el.id),
     );
     this.creationHandler.onElementFinalize = (el) => {
       this.indexShape(el);

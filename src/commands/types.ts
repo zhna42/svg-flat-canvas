@@ -1,4 +1,5 @@
 import type { Point } from '@/types';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
 export type CommandType =
   | 'SELECT'
@@ -29,10 +30,7 @@ export type CreationElementType =
 export interface CreateCommand {
   type: 'CREATE';
   options: {
-    elementType: CreationElementType;
-    elementId: string;
-    geometry: Record<string, unknown>;
-    style: Record<string, unknown>;
+    element: AbstractGraphicElement;
   };
 }
 
