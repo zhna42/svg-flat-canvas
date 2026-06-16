@@ -1,6 +1,7 @@
 import { SVG_NS } from '@/constants';
 import type { Camera } from '@/camera/Camera';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { Point } from '@/types';
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
@@ -15,6 +16,24 @@ interface HandleGroup {
   rect: SVGRectElement;
   handlesGroup: SVGGElement;
 }
+
+const screenCorners = (el: AbstractGraphicElement, camera: Camera): Point[] => {
+  return el.getWorldCorners().map((p) => camera.worldToScreen(p));
+};
+
+const handlePositions = (
+  w: number,
+  h: number,
+): { pos: HandlePosition; cx: number; cy: number }[] => [
+  { pos: 'nw', cx: 0, cy: 0 },
+  { pos: 'n', cx: w / 2, cy: 0 },
+  { pos: 'ne', cx: w, cy: 0 },
+  { pos: 'e', cx: w, cy: h / 2 },
+  { pos: 'se', cx: w, cy: h },
+  { pos: 's', cx: w / 2, cy: h },
+  { pos: 'sw', cx: 0, cy: h },
+  { pos: 'w', cx: 0, cy: h / 2 },
+];
 
 export class SelectionOverlay {
   private readonly root: SVGGElement;
@@ -36,23 +55,31 @@ export class SelectionOverlay {
     if (elements.length === 0) return;
 
     for (const el of elements) {
-      const worldBBox = el.getWorldBBox();
-      if (worldBBox.width === 0 && worldBBox.height === 0) continue;
+      const local = el.getBBox();
+      if (local.width === 0 && local.height === 0) continue;
 
-      const screenBBox = this.camera.worldRectToScreen(worldBBox);
+      const sc = screenCorners(el, this.camera);
+      const sx = sc[0].x;
+      const sy = sc[0].y;
+      const sw = Math.sqrt((sc[1].x - sx) ** 2 + (sc[1].y - sy) ** 2);
+      const sh = Math.sqrt((sc[3].x - sx) ** 2 + (sc[3].y - sy) ** 2);
+      const angleRad = Math.atan2(sc[1].y - sy, sc[1].x - sx);
+      const angleDeg = (angleRad * 180) / Math.PI;
+
+      if (sw === 0 && sh === 0) continue;
 
       const group = document.createElementNS(SVG_NS, 'g');
       (group as any).__element = el;
       group.setAttribute(
         'transform',
-        `translate(${screenBBox.x - PADDING}, ${screenBBox.y - PADDING})`,
+        `translate(${sx - PADDING}, ${sy - PADDING}) rotate(${angleDeg})`,
       );
 
       const rect = document.createElementNS(SVG_NS, 'rect');
       rect.setAttribute('x', '0');
       rect.setAttribute('y', '0');
-      rect.setAttribute('width', String(screenBBox.width + PADDING * 2));
-      rect.setAttribute('height', String(screenBBox.height + PADDING * 2));
+      rect.setAttribute('width', String(sw + PADDING * 2));
+      rect.setAttribute('height', String(sh + PADDING * 2));
       rect.setAttribute('fill', 'none');
       rect.setAttribute('stroke', STROKE_COLOR);
       rect.setAttribute('stroke-width', '1.5');
@@ -60,10 +87,7 @@ export class SelectionOverlay {
       rect.setAttribute('pointer-events', 'none');
       group.appendChild(rect);
 
-      const handlesGroup = this.createHandles(
-        screenBBox.width,
-        screenBBox.height,
-      );
+      const handlesGroup = this.createHandles(sw, sh);
       group.appendChild(handlesGroup);
 
       this.root.appendChild(group);
@@ -73,18 +97,28 @@ export class SelectionOverlay {
 
   public setPositions(elements: readonly AbstractGraphicElement[]): void {
     for (let i = 0; i < elements.length && i < this.groups.length; i++) {
-      const worldBBox = elements[i].getWorldBBox();
-      const screenBBox = this.camera.worldRectToScreen(worldBBox);
-      const g = this.groups[i];
+      const el = elements[i];
+      const local = el.getBBox();
+      if (local.width === 0 && local.height === 0) continue;
 
+      const sc = screenCorners(el, this.camera);
+      const sx = sc[0].x;
+      const sy = sc[0].y;
+      const sw = Math.sqrt((sc[1].x - sx) ** 2 + (sc[1].y - sy) ** 2);
+      const sh = Math.sqrt((sc[3].x - sx) ** 2 + (sc[3].y - sy) ** 2);
+      const angleRad = Math.atan2(sc[1].y - sy, sc[1].x - sx);
+
+      if (sw === 0 && sh === 0) continue;
+
+      const g = this.groups[i];
       g.group.setAttribute(
         'transform',
-        `translate(${screenBBox.x - PADDING}, ${screenBBox.y - PADDING})`,
+        `translate(${sx - PADDING}, ${sy - PADDING}) rotate(${(angleRad * 180) / Math.PI})`,
       );
-      g.rect.setAttribute('width', String(screenBBox.width + PADDING * 2));
-      g.rect.setAttribute('height', String(screenBBox.height + PADDING * 2));
+      g.rect.setAttribute('width', String(sw + PADDING * 2));
+      g.rect.setAttribute('height', String(sh + PADDING * 2));
 
-      this.updateHandlePositions(g.handlesGroup, screenBBox.width, screenBBox.height);
+      this.updateHandlePositions(g.handlesGroup, sw, sh);
     }
   }
 
@@ -94,40 +128,32 @@ export class SelectionOverlay {
     }
   }
 
-  /**
-   * Хит-тест в SVG координатах.
-   * Проверяет, попал ли клик в одну из ручек выделенного элемента.
-   * Возвращает { handle, element, screenBBox } или null.
-   */
   public hitTestHandle(
     svgX: number,
     svgY: number,
-  ): { handle: HandlePosition; element: AbstractGraphicElement; screenBBox: { x: number; y: number; width: number; height: number } } | null {
+  ): { handle: HandlePosition; element: AbstractGraphicElement } | null {
     for (const g of this.groups) {
       const el = (g.group as any).__element as AbstractGraphicElement;
       if (!el) continue;
 
-      const worldBBox = el.getWorldBBox();
-      const screenBBox = this.camera.worldRectToScreen(worldBBox);
+      const local = el.getBBox();
+      if (local.width === 0 && local.height === 0) continue;
 
-      const groupX = screenBBox.x - PADDING;
-      const groupY = screenBBox.y - PADDING;
-      const localX = svgX - groupX;
-      const localY = svgY - groupY;
+      const sc = screenCorners(el, this.camera);
+      const sx = sc[0].x;
+      const sy = sc[0].y;
+      const sw = Math.sqrt((sc[1].x - sx) ** 2 + (sc[1].y - sy) ** 2);
+      const sh = Math.sqrt((sc[3].x - sx) ** 2 + (sc[3].y - sy) ** 2);
+      const angleRad = Math.atan2(sc[1].y - sy, sc[1].x - sx);
 
-      const w = screenBBox.width;
-      const h = screenBBox.height;
+      const dx = svgX - (sx - PADDING);
+      const dy = svgY - (sy - PADDING);
+      const cos = Math.cos(-angleRad);
+      const sin = Math.sin(-angleRad);
+      const localX = dx * cos - dy * sin;
+      const localY = dx * sin + dy * cos;
 
-      const positions: { pos: HandlePosition; cx: number; cy: number }[] = [
-        { pos: 'nw', cx: 0, cy: 0 },
-        { pos: 'n', cx: w / 2, cy: 0 },
-        { pos: 'ne', cx: w, cy: 0 },
-        { pos: 'e', cx: w, cy: h / 2 },
-        { pos: 'se', cx: w, cy: h },
-        { pos: 's', cx: w / 2, cy: h },
-        { pos: 'sw', cx: 0, cy: h },
-        { pos: 'w', cx: 0, cy: h / 2 },
-      ];
+      const positions = handlePositions(sw, sh);
 
       for (const { pos, cx, cy } of positions) {
         const hx = cx - HANDLE_OFFSET;
@@ -138,7 +164,7 @@ export class SelectionOverlay {
           localY >= hy &&
           localY <= hy + HANDLE_SIZE
         ) {
-          return { handle: pos, element: el, screenBBox: { x: 0, y: 0, width: w, height: h } };
+          return { handle: pos, element: el };
         }
       }
     }
@@ -152,19 +178,7 @@ export class SelectionOverlay {
 
   private createHandles(w: number, h: number): SVGGElement {
     const handlesGroup = document.createElementNS(SVG_NS, 'g');
-
-    const positions: { pos: HandlePosition; cx: number; cy: number }[] = [
-      { pos: 'nw', cx: 0, cy: 0 },
-      { pos: 'n', cx: w / 2, cy: 0 },
-      { pos: 'ne', cx: w, cy: 0 },
-      { pos: 'e', cx: w, cy: h / 2 },
-      { pos: 'se', cx: w, cy: h },
-      { pos: 's', cx: w / 2, cy: h },
-      { pos: 'sw', cx: 0, cy: h },
-      { pos: 'w', cx: 0, cy: h / 2 },
-    ];
-
-    for (const { pos, cx, cy } of positions) {
+    for (const { pos, cx, cy } of handlePositions(w, h)) {
       const handle = document.createElementNS(SVG_NS, 'rect');
       handle.setAttribute('x', String(cx - HANDLE_OFFSET));
       handle.setAttribute('y', String(cy - HANDLE_OFFSET));
@@ -177,7 +191,6 @@ export class SelectionOverlay {
       handle.setAttribute('pointer-events', 'none');
       handlesGroup.appendChild(handle);
     }
-
     return handlesGroup;
   }
 
@@ -187,17 +200,7 @@ export class SelectionOverlay {
     h: number,
   ): void {
     const children = handlesGroup.children;
-    const positions = [
-      { cx: 0, cy: 0 },
-      { cx: w / 2, cy: 0 },
-      { cx: w, cy: 0 },
-      { cx: w, cy: h / 2 },
-      { cx: w, cy: h },
-      { cx: w / 2, cy: h },
-      { cx: 0, cy: h },
-      { cx: 0, cy: h / 2 },
-    ];
-
+    const positions = handlePositions(w, h);
     for (let i = 0; i < children.length && i < positions.length; i++) {
       const handle = children[i] as SVGRectElement;
       const { cx, cy } = positions[i];

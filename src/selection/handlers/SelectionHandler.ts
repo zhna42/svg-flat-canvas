@@ -38,6 +38,12 @@ export interface SelectionHandlerOptions {
   isPanning?: () => boolean;
   shortcuts?: Partial<SelectionShortcuts>;
   getGroupIdForElement?: (elementId: string) => string | undefined;
+  getArtboardRect?: () => {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
   onGroupSelect?: (ids: string[]) => void;
   onDragStart?: () => void;
   onDragMove?: () => void;
@@ -66,7 +72,12 @@ export class SelectionHandler {
   public constructor(opts: SelectionHandlerOptions) {
     this.opts = opts;
     this.shortcuts = { ...DEFAULT_SELECTION_SHORTCUTS, ...opts.shortcuts };
-    this.dragHandler = new DragHandler(opts.bus);
+    this.dragHandler = new DragHandler(
+      opts.bus,
+      opts.camera,
+      opts.getElements,
+      opts.getArtboardRect ?? (() => null),
+    );
 
     const groupLookup = opts.getGroupIdForElement ?? (() => undefined);
     this.groupHandler = new GroupSelectionHandler({
@@ -108,6 +119,14 @@ export class SelectionHandler {
 
   public getGesture(): SelectionGesture {
     return this.gesture;
+  }
+
+  public setSnapEnabled(enabled: boolean): void {
+    this.dragHandler.setSnapEnabled(enabled);
+  }
+
+  public setSnapToArtboard(enabled: boolean): void {
+    this.dragHandler.setSnapToArtboard(enabled);
   }
 
   private clientToSvg(e: MouseEvent): { x: number; y: number } {

@@ -94,6 +94,27 @@ document.getElementById('btn-debug-hitarea')!.onclick = () => {
   info(canvas.debugShowHitArea ? 'HitArea debug: ON' : 'HitArea debug: OFF');
 };
 
+// ----- snap toggles -----
+let snapElements = false;
+document.getElementById('btn-snap-elements')!.onclick = () => {
+  snapElements = !snapElements;
+  canvas.setSnapToElements(snapElements);
+  const btn = document.getElementById('btn-snap-elements')!;
+  btn.textContent = snapElements ? 'Snap elements: on' : 'Snap elements: off';
+  btn.classList.toggle('active', snapElements);
+  info(snapElements ? 'Snap to elements: ON' : 'Snap to elements: OFF');
+};
+
+let snapArtboard = false;
+document.getElementById('btn-snap-artboard')!.onclick = () => {
+  snapArtboard = !snapArtboard;
+  canvas.setSnapToArtboard(snapArtboard);
+  const btn = document.getElementById('btn-snap-artboard')!;
+  btn.textContent = snapArtboard ? 'Snap artboard: on' : 'Snap artboard: off';
+  btn.classList.toggle('active', snapArtboard);
+  info(snapArtboard ? 'Snap to artboard: ON' : 'Snap to artboard: OFF');
+};
+
 // ----- toggle pan button -----
 let panLocked = false;
 document.getElementById('btn-toggle-pan')!.onclick = () => {

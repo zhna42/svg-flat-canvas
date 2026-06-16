@@ -181,6 +181,7 @@ export class SvgCanvas {
       getGroupIdForElement: (elementId) =>
         this.groupManager.getGroupByElement(elementId)?.id,
       onGroupSelect,
+      getArtboardRect: () => this.getArtboardRect(),
       onDragStart: () => this.events.emit(Events.DragStart, undefined),
       onDragMove: () => this.events.emit(Events.DragMove, undefined),
       onDragEnd: () => this.events.emit(Events.DragEnd, undefined),
@@ -396,6 +397,29 @@ export class SvgCanvas {
     if (!el) return;
     el.transform.matrix = new DOMMatrix(matrix);
     el.invalidateHitArea();
+  }
+
+  public setSnapToElements(enabled: boolean): void {
+    this.selectionHandler.setSnapEnabled(enabled);
+  }
+
+  public setSnapToArtboard(enabled: boolean): void {
+    this.selectionHandler.setSnapToArtboard(enabled);
+  }
+
+  private getArtboardRect(): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null {
+    const r = this.renderer.getArtboard().rect;
+    return {
+      x: r.geometry.x,
+      y: r.geometry.y,
+      width: r.geometry.width,
+      height: r.geometry.height,
+    };
   }
 
   public deleteElements(ids: string[]): void {
