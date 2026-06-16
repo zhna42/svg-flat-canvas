@@ -23,6 +23,15 @@ for (const el of elements) {
   canvas.addShape(el);
 }
 
+// debug: log first rect world bbox
+const rectEl = elements.find(e => e.id === 'rect-fill-001');
+if (rectEl) {
+  console.log('[Example] rect-fill-001 getBBox:', rectEl.getBBox());
+  console.log('[Example] rect-fill-001 getWorldBBox:', rectEl.getWorldBBox());
+  console.log('[Example] rect-fill-001 getWorldHitPoints:', rectEl.getWorldHitPoints());
+  console.log('[Example] rect-fill-001 matrix:', rectEl.transform.matrix.toString());
+}
+
 info(`Loaded ${elements.length} shapes from svg-nodes.json`);
 info('Scroll to zoom, drag to pan');
 info('Artboard: A4 (210×297 mm)');

@@ -29,11 +29,19 @@ const handleElementSelect = (
       const pt = options.point as { x: number; y: number };
       if (!pt) return;
       const hits = hitTestPoint(pt.x, pt.y, all, ctx.grid);
+      console.log(
+        '[SelectHandler] click hits:',
+        hits.map((h) => ({ id: h.id, type: h.type })),
+      );
       if (hits.length === 0) {
         if (!toggle) ctx.state.clear();
         return;
       }
       const picked = hits[hits.length - 1];
+      console.log('[SelectHandler] picked element:', {
+        id: picked.id,
+        type: picked.type,
+      });
       if (toggle) {
         ctx.state.toggle([picked]);
       } else {
@@ -157,6 +165,12 @@ export const createSelectHandler = (
     const { options } = command;
     const { mode, gesture, toggle } = options;
     const all = ctx.getElements();
+    console.log('[SelectHandler] processing SELECT command', {
+      mode,
+      gesture,
+      toggle,
+      options,
+    });
 
     if (mode === 'group') {
       handleGroupSelect(gesture, options, toggle, all, ctx);

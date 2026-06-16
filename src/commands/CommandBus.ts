@@ -23,7 +23,7 @@ export class CommandBus {
 
     handler(command);
 
-    if (command.type === 'DRAG_MOVE' || command.type === 'SELECT') return;
+    if (command.type === 'DRAG_MOVE') return;
 
     this.timeMachine.push(command.type);
   }

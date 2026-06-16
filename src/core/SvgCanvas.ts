@@ -67,6 +67,8 @@ export class SvgCanvas {
 
   public constructor(container: HTMLElement, options?: SvgCanvasOptions) {
     this.element = container;
+    this.element.style.userSelect = 'none';
+    this.element.style.webkitUserSelect = 'none';
     this.svg = this.createAbstractGraphicElement(options);
     this.camera = new Camera();
     this.renderer = new Renderer(this.svg, this.camera);
@@ -116,6 +118,17 @@ export class SvgCanvas {
       this.events.emit(Events.SelectionChange, selected);
     });
 
+    // Camera onChange — перерисовка оверлеев при pan/zoom
+    this.camera.onChange = () => {
+      const selected = this.selectionState.selected;
+      if (selected.length > 0) {
+        this.selectionOverlay.setPositions(selected);
+      }
+      if (this.groupManager.selectedGroupIds.size > 0) {
+        this.syncGroupSelectionOverlay();
+      }
+    };
+
     // TransformHandler
     this.transformHandler = new TransformHandler(this.camera, this.commandBus);
     this.transformHandler.onTransformStart = (mode) =>
@@ -132,6 +145,10 @@ export class SvgCanvas {
     );
     overlayRoot.setAttribute('pointer-events', 'none');
     this.svg.appendChild(overlayRoot);
+
+    console.log('[SvgCanvas] DOM structure:', {
+      svgChildren: Array.from(this.svg.children).map(c => c.tagName + (c.getAttribute('transform') ? ' (with transform)' : '')),
+    });
 
     overlayRoot.appendChild(this.selectionOverlay.getElement());
 
