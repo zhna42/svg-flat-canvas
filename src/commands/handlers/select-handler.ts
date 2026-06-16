@@ -3,12 +3,12 @@ import type { CommandHandler } from '../registry';
 import type { SelectionState } from '@/selection/SelectionState';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
-import { hitTestPoint, hitTestRect, hitTestLasso } from '@/selection/hit-test';
+import { hitTestPoint, hitTestRect, hitTestLasso } from '@/utils/hit-test';
 import {
   hitTestGroupsPoint,
   hitTestGroupsRect,
   hitTestGroupsLasso,
-} from '@/selection/group-hit-test';
+} from '@/utils/group-hit-test';
 
 export interface SelectHandlerContext {
   state: SelectionState;

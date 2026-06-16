@@ -1,5 +1,5 @@
 import { SVG_NS } from '@/constants';
-import { getGroupRectQueue } from './group-rect-queue';
+import { getGroupRectQueue } from '@/utils/group-rect-queue';
 
 export class GroupSelectionRect {
   public readonly element: SVGRectElement;

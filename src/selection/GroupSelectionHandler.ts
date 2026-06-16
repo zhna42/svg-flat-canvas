@@ -5,7 +5,7 @@ import {
   hitTestGroupsPoint,
   hitTestGroupsRect,
   hitTestGroupsLasso,
-} from '@/selection/group-hit-test';
+} from '@/utils/group-hit-test';
 import type { CommandBus } from '@/commands/CommandBus';
 import {
   createSelectPickCommand,

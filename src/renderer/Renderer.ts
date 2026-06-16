@@ -3,8 +3,8 @@ import { Camera } from '@/camera/Camera';
 import { Background } from './Background';
 import { Artboard } from './Artboard';
 import { RenderQueue } from './RenderQueue';
-import { setRenderQueue } from '@/shapes/elements/render-queue-utils';
-import { TAG_BY_TYPE, applyRenderSnapshot } from './render-utils';
+import { setRenderQueue } from '@/utils/render-queue-utils';
+import { TAG_BY_TYPE, applyRenderSnapshot } from '@/utils/render-utils';
 
 export class Renderer {
   private readonly svg: SVGSVGElement;

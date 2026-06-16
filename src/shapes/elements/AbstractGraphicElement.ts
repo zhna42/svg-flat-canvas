@@ -1,7 +1,7 @@
 import type { Point, BoundingBox, ElementType } from '@/types';
 import { Transform } from '../modules/Transform';
 import { Style } from '../modules/Style';
-import { getRenderQueue } from './render-queue-utils';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export interface RenderSnapshot {
   id: string;

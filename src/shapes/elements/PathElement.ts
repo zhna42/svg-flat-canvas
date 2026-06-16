@@ -6,7 +6,7 @@ import {
   commandsToString,
   flattenCommands,
   transformCommands,
-} from '../modules/path-utils';
+} from '@/utils/path-utils';
 
 interface ParsedPath {
   commands: PathCommand[];

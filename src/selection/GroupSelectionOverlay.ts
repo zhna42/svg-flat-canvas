@@ -3,9 +3,9 @@ import type { Camera } from '@/camera/Camera';
 import type { Group } from '@/group/Group';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import { GroupSelectionRect } from './GroupSelectionRect';
-import { setGroupRectQueue } from './group-rect-queue';
+import { setGroupRectQueue } from '@/utils/group-rect-queue';
 import { RenderQueue } from '@/renderer/RenderQueue';
-import { computeGroupBBox } from './group-bbox-utils';
+import { computeGroupBBox } from '@/utils/group-bbox-utils';
 
 export class GroupSelectionOverlay {
   private readonly group: SVGGElement;

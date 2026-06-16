@@ -12,7 +12,7 @@ import {
   createSelectPickCommand,
   createSelectRectCommand,
 } from '@/commands/factories/select-command-factory';
-import { hitTestPoint } from '@/selection/hit-test';
+import { hitTestPoint } from '@/utils/hit-test';
 import {
   createRectOverlay,
   updateRectOverlay,
@@ -20,8 +20,8 @@ import {
   createLassoOverlay,
   updateLassoOverlay,
   hideLassoOverlay,
-} from '@/selection/overlay-utils';
-import type { RectOverlay, LassoOverlay } from '@/selection/overlay-utils';
+} from '@/utils/overlay-utils';
+import type { RectOverlay, LassoOverlay } from '@/utils/overlay-utils';
 
 export interface SelectionHandlerOptions {
   svg: SVGSVGElement;

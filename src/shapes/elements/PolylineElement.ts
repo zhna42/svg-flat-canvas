@@ -1,7 +1,7 @@
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { PolylineHitArea } from '../modules/HitArea';
-import { flattenPointsTransform } from '../modules/geometry-utils';
+import { flattenPointsTransform } from '@/utils/geometry-utils';
 
 export class PolylineElement extends AbstractGraphicElement {
   private _ha = new PolylineHitArea();
