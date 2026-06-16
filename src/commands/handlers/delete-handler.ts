@@ -2,9 +2,9 @@ import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { ShapeManager } from '@/shapes/ShapeManager';
 
-export function createDeleteHandler(
+export const createDeleteHandler = (
   shapeManager: ShapeManager,
-): CommandHandler {
+): CommandHandler => {
   return (command: Command): void => {
     if (command.type !== 'DELETE') return;
     const { elementIds } = command.options;
@@ -12,4 +12,4 @@ export function createDeleteHandler(
       shapeManager.remove(id);
     }
   };
-}
+};

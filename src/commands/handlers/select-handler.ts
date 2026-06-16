@@ -18,28 +18,13 @@ export interface SelectHandlerContext {
   lookupGroup: (elementId: string) => string | undefined;
 }
 
-export function createSelectHandler(ctx: SelectHandlerContext): CommandHandler {
-  return (command: Command): void => {
-    if (command.type !== 'SELECT') return;
-    const { options } = command;
-    const { mode, gesture, toggle } = options;
-    const all = ctx.getElements();
-
-    if (mode === 'group') {
-      handleGroupSelect(gesture, options, toggle, all, ctx);
-    } else {
-      handleElementSelect(gesture, options, toggle, all, ctx);
-    }
-  };
-}
-
-function handleElementSelect(
+const handleElementSelect = (
   gesture: string,
   options: Record<string, unknown>,
   toggle: boolean,
   all: AbstractGraphicElement[],
   ctx: SelectHandlerContext,
-): void {
+): void => {
   switch (gesture) {
     case 'click': {
       const pt = options.point as { x: number; y: number };
@@ -96,15 +81,15 @@ function handleElementSelect(
       break;
     }
   }
-}
+};
 
-function handleGroupSelect(
+const handleGroupSelect = (
   gesture: string,
   options: Record<string, unknown>,
   _toggle: boolean,
   all: AbstractGraphicElement[],
   ctx: SelectHandlerContext,
-): void {
+): void => {
   switch (gesture) {
     case 'click': {
       const pt = options.point as { x: number; y: number };
@@ -164,4 +149,21 @@ function handleGroupSelect(
       break;
     }
   }
-}
+};
+
+export const createSelectHandler = (
+  ctx: SelectHandlerContext,
+): CommandHandler => {
+  return (command: Command): void => {
+    if (command.type !== 'SELECT') return;
+    const { options } = command;
+    const { mode, gesture, toggle } = options;
+    const all = ctx.getElements();
+
+    if (mode === 'group') {
+      handleGroupSelect(gesture, options, toggle, all, ctx);
+    } else {
+      handleElementSelect(gesture, options, toggle, all, ctx);
+    }
+  };
+};

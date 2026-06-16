@@ -1,11 +1,5 @@
 import { SVG_NS } from '@/constants';
-import { RenderQueue } from '@/renderer/RenderQueue';
-
-let globalQueue: RenderQueue | null = null;
-
-export function setGroupRectQueue(queue: RenderQueue | null): void {
-  globalQueue = queue;
-}
+import { getGroupRectQueue } from './group-rect-queue';
 
 export class GroupSelectionRect {
   public readonly element: SVGRectElement;
@@ -21,11 +15,11 @@ export class GroupSelectionRect {
   public applyDelta(dx: number, dy: number): void {
     this._translate.x += dx;
     this._translate.y += dy;
-    if (globalQueue) globalQueue.add(this as any);
+    getGroupRectQueue()?.add(this as any);
   }
 
   public setDirty(): void {
-    if (globalQueue) globalQueue.add(this as any);
+    getGroupRectQueue()?.add(this as any);
   }
 
   public toDOM(): SVGRectElement {

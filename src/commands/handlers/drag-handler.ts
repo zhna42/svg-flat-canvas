@@ -7,7 +7,9 @@ export interface DragHandlerContext {
   onDragEnd?: (elementIds: string[]) => void;
 }
 
-export function createDragMoveHandler(ctx: DragHandlerContext): CommandHandler {
+export const createDragMoveHandler = (
+  ctx: DragHandlerContext,
+): CommandHandler => {
   return (command: Command): void => {
     if (command.type !== 'DRAG_MOVE') return;
     const { delta, elementIds } = command.options;
@@ -18,9 +20,11 @@ export function createDragMoveHandler(ctx: DragHandlerContext): CommandHandler {
       el.applyDelta(delta.x, delta.y);
     }
   };
-}
+};
 
-export function createDragEndHandler(ctx: DragHandlerContext): CommandHandler {
+export const createDragEndHandler = (
+  ctx: DragHandlerContext,
+): CommandHandler => {
   return (command: Command): void => {
     if (command.type !== 'DRAG_END') return;
     const { elementIds } = command.options;
@@ -33,4 +37,4 @@ export function createDragEndHandler(ctx: DragHandlerContext): CommandHandler {
     }
     ctx.onDragEnd?.(elementIds);
   };
-}
+};

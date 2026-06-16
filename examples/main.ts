@@ -35,7 +35,9 @@ const independentEl = elements.find(
   (e) => e.id === 'independent-inside-cutout',
 );
 if (independentEl) {
-  info(`  independent-inside-cutout hitArea points: ${independentEl.hitArea.length}`);
+  info(
+    `  independent-inside-cutout hitArea points: ${independentEl.hitArea.length}`,
+  );
 }
 
 // ----- groups -----
@@ -51,10 +53,14 @@ canvas.on(Events.SelectionChange, (selected) => {
 function setMode(mode: 'element' | 'group') {
   canvas.setSelectionMode(mode);
   info(`Mode: ${mode}`);
-  document.querySelectorAll('.mode-btn').forEach((b) => b.classList.remove('active'));
+  document
+    .querySelectorAll('.mode-btn')
+    .forEach((b) => b.classList.remove('active'));
   document.getElementById(`btn-mode-${mode}`)?.classList.add('active');
-  document.getElementById('btn-mode-element')!.textContent = mode === 'element' ? '● Element' : '○ Element';
-  document.getElementById('btn-mode-group')!.textContent = mode === 'group' ? '● Group' : '○ Group';
+  document.getElementById('btn-mode-element')!.textContent =
+    mode === 'element' ? '● Element' : '○ Element';
+  document.getElementById('btn-mode-group')!.textContent =
+    mode === 'group' ? '● Group' : '○ Group';
 }
 document.getElementById('btn-mode-element')!.onclick = () => setMode('element');
 document.getElementById('btn-mode-group')!.onclick = () => setMode('group');
@@ -66,13 +72,17 @@ function setGesture(g: string) {
   currentGesture = g;
   canvas.setSelectionGesture(g as any);
   info(`Gesture: ${g}`);
-  document.querySelectorAll('.gesture-btn').forEach((b) => b.classList.remove('active'));
+  document
+    .querySelectorAll('.gesture-btn')
+    .forEach((b) => b.classList.remove('active'));
   document.getElementById(`btn-gesture-${g}`)?.classList.add('active');
 }
 
-document.getElementById('btn-gesture-click')!.onclick = () => setGesture('click');
+document.getElementById('btn-gesture-click')!.onclick = () =>
+  setGesture('click');
 document.getElementById('btn-gesture-rect')!.onclick = () => setGesture('rect');
-document.getElementById('btn-gesture-lasso')!.onclick = () => setGesture('lasso');
+document.getElementById('btn-gesture-lasso')!.onclick = () =>
+  setGesture('lasso');
 setGesture('click');
 
 // ----- debug hitArea button -----
@@ -128,7 +138,11 @@ window.addEventListener('keyup', (e: KeyboardEvent) => {
 });
 
 svgEl.addEventListener('mousedown', (e: MouseEvent) => {
-  if (e.button === 1 || (e.button === 0 && spaceHeld) || (e.button === 0 && panLocked)) {
+  if (
+    e.button === 1 ||
+    (e.button === 0 && spaceHeld) ||
+    (e.button === 0 && panLocked)
+  ) {
     canvas.panActive.value = true;
     isPanning = true;
     panStartX = e.clientX;
@@ -202,7 +216,10 @@ document.getElementById('btn-group-create')!.onclick = () => {
 };
 
 document.getElementById('btn-group-delete')!.onclick = () => {
-  if (!selectedGroupId) { info('No group selected'); return; }
+  if (!selectedGroupId) {
+    info('No group selected');
+    return;
+  }
   canvas.deleteGroup(selectedGroupId);
   selectedGroupId = null;
   renderGroupList();
@@ -210,14 +227,20 @@ document.getElementById('btn-group-delete')!.onclick = () => {
 };
 
 document.getElementById('btn-group-clear')!.onclick = () => {
-  if (!selectedGroupId) { info('No group selected'); return; }
+  if (!selectedGroupId) {
+    info('No group selected');
+    return;
+  }
   canvas.clearGroup(selectedGroupId);
   renderGroupList();
   info('Group cleared');
 };
 
 document.getElementById('btn-group-select')!.onclick = () => {
-  if (!selectedGroupId) { info('No group selected'); return; }
+  if (!selectedGroupId) {
+    info('No group selected');
+    return;
+  }
   canvas.selectGroupElements(selectedGroupId);
   canvas.selectMultipleGroups([]);
   renderGroupList();
@@ -227,10 +250,19 @@ document.getElementById('btn-group-select')!.onclick = () => {
 document.getElementById('btn-group-add')!.onclick = () => {
   const sel = document.getElementById('group-select') as HTMLSelectElement;
   const gid = sel.value;
-  if (!gid) { info('Select a group first'); return; }
+  if (!gid) {
+    info('Select a group first');
+    return;
+  }
   const selected = Array.from(canvas.getSelected());
-  if (selected.length === 0) { info('No elements selected'); return; }
-  canvas.addToGroup(gid, selected.map(e => e.id));
+  if (selected.length === 0) {
+    info('No elements selected');
+    return;
+  }
+  canvas.addToGroup(
+    gid,
+    selected.map((e) => e.id),
+  );
   renderGroupList();
   info(`Added ${selected.length} element(s) to group`);
 };
@@ -238,10 +270,19 @@ document.getElementById('btn-group-add')!.onclick = () => {
 document.getElementById('btn-group-remove')!.onclick = () => {
   const sel = document.getElementById('group-select') as HTMLSelectElement;
   const gid = sel.value;
-  if (!gid) { info('Select a group first'); return; }
+  if (!gid) {
+    info('Select a group first');
+    return;
+  }
   const selected = Array.from(canvas.getSelected());
-  if (selected.length === 0) { info('No elements selected'); return; }
-  canvas.removeFromGroup(gid, selected.map(e => e.id));
+  if (selected.length === 0) {
+    info('No elements selected');
+    return;
+  }
+  canvas.removeFromGroup(
+    gid,
+    selected.map((e) => e.id),
+  );
   renderGroupList();
   info(`Removed ${selected.length} element(s) from group`);
 };
@@ -249,7 +290,10 @@ document.getElementById('btn-group-remove')!.onclick = () => {
 // ----- transform buttons -----
 document.getElementById('btn-transform-resize')!.onclick = () => {
   const sel = canvas.getSelected();
-  if (sel.length === 0) { info('No element selected'); return; }
+  if (sel.length === 0) {
+    info('No element selected');
+    return;
+  }
   const el = sel[0];
   const bbox = el.getTransformedBBox();
   canvas.resizeElement(el.id, bbox.width * 1.2, bbox.height * 1.2);
@@ -258,7 +302,10 @@ document.getElementById('btn-transform-resize')!.onclick = () => {
 };
 document.getElementById('btn-transform-rotate')!.onclick = () => {
   const sel = canvas.getSelected();
-  if (sel.length === 0) { info('No element selected'); return; }
+  if (sel.length === 0) {
+    info('No element selected');
+    return;
+  }
   const el = sel[0];
   const bbox = el.getBBox();
   canvas.rotateElement(el.id, 15);
@@ -267,7 +314,10 @@ document.getElementById('btn-transform-rotate')!.onclick = () => {
 };
 document.getElementById('btn-transform-matrix')!.onclick = () => {
   const sel = canvas.getSelected();
-  if (sel.length === 0) { info('No element selected'); return; }
+  if (sel.length === 0) {
+    info('No element selected');
+    return;
+  }
   const el = sel[0];
   canvas.transformElement(el.id, [1, 0.2, 0, 1, 0, 0]);
   canvas.getTimeMachine().push('TRANSFORM');
@@ -311,7 +361,10 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
       canvas.undo();
       info('Undo');
     }
-  } else if ((isCmd && e.key === 'z' && e.shiftKey) || (isCmd && e.key === 'y')) {
+  } else if (
+    (isCmd && e.key === 'z' && e.shiftKey) ||
+    (isCmd && e.key === 'y')
+  ) {
     e.preventDefault();
     if (canvas.canRedo) {
       canvas.redo();

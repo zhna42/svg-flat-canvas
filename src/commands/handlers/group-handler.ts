@@ -2,7 +2,9 @@ import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { GroupManager } from '@/group/GroupManager';
 
-export function createGroupHandler(groupManager: GroupManager): CommandHandler {
+export const createGroupHandler = (
+  groupManager: GroupManager,
+): CommandHandler => {
   return (command: Command): void => {
     switch (command.type) {
       case 'GROUP_CREATE':
@@ -30,4 +32,4 @@ export function createGroupHandler(groupManager: GroupManager): CommandHandler {
         break;
     }
   };
-}
+};

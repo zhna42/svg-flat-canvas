@@ -9,12 +9,12 @@ export interface LassoOverlay {
   element: SVGPolylineElement | null;
 }
 
-export function createRectOverlay(
+export const createRectOverlay = (
   cameraGroup: SVGGElement,
   camera: Camera,
   x: number,
   y: number,
-): RectOverlay {
+): RectOverlay => {
   const rect = document.createElementNS(SVG_NS, 'rect');
   rect.setAttribute('fill', 'rgba(66, 133, 244, 0.12)');
   rect.setAttribute('stroke', '#4285f4');
@@ -26,14 +26,14 @@ export function createRectOverlay(
   rect.setAttribute('height', '0');
   cameraGroup.appendChild(rect);
   return { element: rect };
-}
+};
 
-export function updateRectOverlay(
+export const updateRectOverlay = (
   overlay: RectOverlay,
   r: { x: number; y: number; w: number; h: number },
   leftToRight: boolean,
   _camera: Camera,
-): void {
+): void => {
   if (!overlay.element) return;
   if (leftToRight) {
     overlay.element.setAttribute('fill', 'rgba(200, 120, 0, 0.12)');
@@ -46,19 +46,19 @@ export function updateRectOverlay(
   overlay.element.setAttribute('y', String(r.y));
   overlay.element.setAttribute('width', String(r.w));
   overlay.element.setAttribute('height', String(r.h));
-}
+};
 
-export function hideRectOverlay(overlay: RectOverlay): void {
+export const hideRectOverlay = (overlay: RectOverlay): void => {
   if (overlay.element) {
     overlay.element.remove();
     overlay.element = null;
   }
-}
+};
 
-export function createLassoOverlay(
+export const createLassoOverlay = (
   cameraGroup: SVGGElement,
   camera: Camera,
-): LassoOverlay {
+): LassoOverlay => {
   const poly = document.createElementNS(SVG_NS, 'polyline');
   poly.setAttribute('fill', 'rgba(255, 165, 0, 0.1)');
   poly.setAttribute('stroke', '#ff8c00');
@@ -71,20 +71,20 @@ export function createLassoOverlay(
   poly.setAttribute('stroke-linejoin', 'round');
   cameraGroup.appendChild(poly);
   return { element: poly };
-}
+};
 
-export function updateLassoOverlay(
+export const updateLassoOverlay = (
   overlay: LassoOverlay,
   points: readonly { x: number; y: number }[],
-): void {
+): void => {
   if (!overlay.element) return;
   const str = points.map((p) => `${p.x},${p.y}`).join(' ');
   overlay.element.setAttribute('points', str);
-}
+};
 
-export function hideLassoOverlay(overlay: LassoOverlay): void {
+export const hideLassoOverlay = (overlay: LassoOverlay): void => {
   if (overlay.element) {
     overlay.element.remove();
     overlay.element = null;
   }
-}
+};

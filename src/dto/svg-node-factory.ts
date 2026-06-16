@@ -10,7 +10,7 @@ import { PolylineElement } from '@/shapes/elements/PolylineElement';
 import { TextElement } from '@/shapes/elements/TextElement';
 import { ImageElement } from '@/shapes/elements/ImageElement';
 
-function createByTag(id: string, tag: string): AbstractGraphicElement {
+const createByTag = (id: string, tag: string): AbstractGraphicElement => {
   switch (tag) {
     case 'rect':
       return new RectElement(id);
@@ -33,12 +33,12 @@ function createByTag(id: string, tag: string): AbstractGraphicElement {
     default:
       return new RectElement(id);
   }
-}
+};
 
-export function svgNodesToElements(
+export const svgNodesToElements = (
   dtos: SvgNodeDto[],
-): AbstractGraphicElement[] {
-  return dtos.map((dto) => {
+): AbstractGraphicElement[] =>
+  dtos.map((dto) => {
     const el = createByTag(dto.id, dto.tag);
 
     for (const [key, value] of Object.entries(dto.properties)) {
@@ -128,10 +128,7 @@ export function svgNodesToElements(
 
     return el;
   });
-}
 
-export function toSvgCanvasFormat(
+export const toSvgCanvasFormat = (
   dtos: SvgNodeDto[],
-): AbstractGraphicElement[] {
-  return svgNodesToElements(dtos);
-}
+): AbstractGraphicElement[] => svgNodesToElements(dtos);

@@ -2,12 +2,12 @@ import type { Point } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
 
-function getTransformedHitArea(el: AbstractGraphicElement): Point[] {
+const getTransformedHitArea = (el: AbstractGraphicElement): Point[] => {
   const ha = el.hitArea;
   return ha.map((p) => el.transformPoint(p));
-}
+};
 
-function pointInPolygon(px: number, py: number, poly: Point[]): boolean {
+const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
   let inside = false;
   const n = poly.length;
   for (let i = 0, j = n - 1; i < n; j = i++) {
@@ -20,31 +20,31 @@ function pointInPolygon(px: number, py: number, poly: Point[]): boolean {
     }
   }
   return inside;
-}
+};
 
-function rectContainsPoly(
+const rectContainsPoly = (
   rx: number,
   ry: number,
   rw: number,
   rh: number,
   poly: Point[],
-): boolean {
+): boolean => {
   for (const p of poly) {
     if (p.x < rx || p.x > rx + rw || p.y < ry || p.y > ry + rh) {
       return false;
     }
   }
   return true;
-}
+};
 
-function segmentIntersectsRect(
+const segmentIntersectsRect = (
   a: Point,
   b: Point,
   left: number,
   right: number,
   top: number,
   bottom: number,
-): boolean {
+): boolean => {
   const INSIDE = 0,
     LEFT = 1,
     RIGHT = 2,
@@ -80,15 +80,15 @@ function segmentIntersectsRect(
       cb = code(b);
     }
   }
-}
+};
 
-function rectIntersectsPoly(
+const rectIntersectsPoly = (
   rx: number,
   ry: number,
   rw: number,
   rh: number,
   poly: Point[],
-): boolean {
+): boolean => {
   const left = rx,
     right = rx + rw,
     top = ry,
@@ -120,24 +120,24 @@ function rectIntersectsPoly(
   }
 
   return false;
-}
+};
 
-function polyInPoly(outer: Point[], inner: Point[]): boolean {
+const polyInPoly = (outer: Point[], inner: Point[]): boolean => {
   for (const p of inner) {
     if (!pointInPolygon(p.x, p.y, outer)) {
       return false;
     }
   }
   return true;
-}
+};
 
-export function hitTestPoint(
+export const hitTestPoint = (
   px: number,
   py: number,
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   _cameraGroup?: SVGGElement,
-): AbstractGraphicElement[] {
+): AbstractGraphicElement[] => {
   const size = 1;
   const ids = grid.query(px, py, size, size);
   const candidates = elements.filter((e) => ids.includes(e.id));
@@ -150,11 +150,10 @@ export function hitTestPoint(
     }
   }
 
-  // hits sorted by z-order from spatial grid order
   return hits;
-}
+};
 
-export function hitTestRect(
+export const hitTestRect = (
   rx: number,
   ry: number,
   rw: number,
@@ -162,7 +161,7 @@ export function hitTestRect(
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   requireFullContain: boolean,
-): AbstractGraphicElement[] {
+): AbstractGraphicElement[] => {
   const ids = grid.query(rx, ry, rw, rh);
   const candidates = elements.filter((e) => ids.includes(e.id));
 
@@ -174,13 +173,13 @@ export function hitTestRect(
     }
     return rectIntersectsPoly(rx, ry, rw, rh, ha);
   });
-}
+};
 
-export function hitTestLasso(
+export const hitTestLasso = (
   lassoPoints: Point[],
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
-): AbstractGraphicElement[] {
+): AbstractGraphicElement[] => {
   if (lassoPoints.length < 3) return [];
 
   let minX = Infinity;
@@ -202,4 +201,4 @@ export function hitTestLasso(
     if (ha.length < 3) return false;
     return polyInPoly(lassoPoints, ha);
   });
-}
+};

@@ -1,7 +1,7 @@
 import type { Point, BoundingBox, ElementType } from '@/types';
 import { Transform } from '../modules/Transform';
 import { Style } from '../modules/Style';
-import { RenderQueue } from '@/renderer/RenderQueue';
+import { getRenderQueue } from './render-queue-utils';
 
 export interface RenderSnapshot {
   id: string;
@@ -10,12 +10,6 @@ export interface RenderSnapshot {
   matrix: number[];
   style: Record<string, unknown>;
   geometry: Record<string, unknown>;
-}
-
-let globalQueue: RenderQueue | null = null;
-
-export function setRenderQueue(queue: RenderQueue | null): void {
-  globalQueue = queue;
 }
 
 export abstract class AbstractGraphicElement {
@@ -51,7 +45,7 @@ export abstract class AbstractGraphicElement {
 
   public setDirty(): void {
     this._dirty = true;
-    globalQueue?.add(this);
+    getRenderQueue()?.add(this);
     this.onDirty?.();
   }
 

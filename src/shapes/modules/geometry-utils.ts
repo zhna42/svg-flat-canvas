@@ -1,19 +1,19 @@
 import type { Point, BoundingBox } from '@/types';
 
-export function approximateArc(
+export const approximateArc = (
   rx: number,
   ry: number,
   segments: number,
-): Point[] {
+): Point[] => {
   const pts: Point[] = [];
   for (let i = 0; i < segments; i++) {
     const angle = (Math.PI / 2 / segments) * i;
     pts.push({ x: rx * Math.cos(angle), y: ry * Math.sin(angle) });
   }
   return pts;
-}
+};
 
-export function offsetPolygon(poly: Point[], offset: number): Point[] {
+export const offsetPolygon = (poly: Point[], offset: number): Point[] => {
   if (poly.length < 3) return poly;
   const n = poly.length;
   const result: Point[] = [];
@@ -38,14 +38,15 @@ export function offsetPolygon(poly: Point[], offset: number): Point[] {
     result.push({ x: curr.x + bisX * scale, y: curr.y + bisY * scale });
   }
   return result;
-}
+};
 
-export function offsetOpenPath(poly: Point[], offset: number): Point[] {
-  if (poly.length < 2) return poly;
-  const left: Point[] = [];
-  const right: Point[] = [];
-
-  const dir = (ax: number, ay: number, bx: number, by: number) => {
+export const offsetOpenPath = (poly: Point[], offset: number): Point[] => {
+  const dir = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+  ): { dx: number; dy: number } => {
     const dx = bx - ax;
     const dy = by - ay;
     const len = Math.sqrt(dx * dx + dy * dy);
@@ -53,7 +54,12 @@ export function offsetOpenPath(poly: Point[], offset: number): Point[] {
     return { dx: dx / len, dy: dy / len };
   };
 
-  const perp = (ax: number, ay: number, bx: number, by: number) => {
+  const perp = (
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
+  ): { nx: number; ny: number } => {
     const d = dir(ax, ay, bx, by);
     return { nx: -d.dy * offset, ny: d.dx * offset };
   };
@@ -64,7 +70,7 @@ export function offsetOpenPath(poly: Point[], offset: number): Point[] {
     pny: number,
     nnx: number,
     nny: number,
-  ) => {
+  ): Point => {
     const mx = (pnx + nnx) / 2;
     const my = (pny + nny) / 2;
     const len = Math.sqrt(mx * mx + my * my);
@@ -72,6 +78,9 @@ export function offsetOpenPath(poly: Point[], offset: number): Point[] {
     const scale = offset / len;
     return { x: p.x + mx * scale, y: p.y + my * scale };
   };
+  if (poly.length < 2) return poly;
+  const left: Point[] = [];
+  const right: Point[] = [];
 
   const startDir = dir(poly[0].x, poly[0].y, poly[1].x, poly[1].y);
   const startN = { nx: -startDir.dy * offset, ny: startDir.dx * offset };
@@ -119,13 +128,13 @@ export function offsetOpenPath(poly: Point[], offset: number): Point[] {
     y: poly[0].y - startDir.dy * offset - startN.ny,
   });
   return [...left, ...right];
-}
+};
 
-export function flattenPointsTransform(
+export const flattenPointsTransform = (
   pts: Point[],
   oldBBox: BoundingBox,
   newBBox: BoundingBox,
-): Point[] {
+): Point[] => {
   const cx = newBBox.x + newBBox.width / 2,
     cy = newBBox.y + newBBox.height / 2;
   const oldCx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
@@ -134,4 +143,4 @@ export function flattenPointsTransform(
     x: cx + (p.x - oldCx) * (newBBox.width / (oldBBox.width || 1)),
     y: cy + (p.y - oldCy) * (newBBox.height / (oldBBox.height || 1)),
   }));
-}
+};

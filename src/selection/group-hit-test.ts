@@ -2,12 +2,12 @@ import type { Point } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
 
-function getTransformedHitArea(el: AbstractGraphicElement): Point[] {
+const getTransformedHitArea = (el: AbstractGraphicElement): Point[] => {
   const ha = el.hitArea;
   return ha.map((p) => el.transformPoint(p));
-}
+};
 
-function pointInPolygon(px: number, py: number, poly: Point[]): boolean {
+const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
   let inside = false;
   const n = poly.length;
   for (let i = 0, j = n - 1; i < n; j = i++) {
@@ -20,29 +20,29 @@ function pointInPolygon(px: number, py: number, poly: Point[]): boolean {
     }
   }
   return inside;
-}
+};
 
-function rectContainsPoly(
+const rectContainsPoly = (
   rx: number,
   ry: number,
   rw: number,
   rh: number,
   poly: Point[],
-): boolean {
+): boolean => {
   for (const p of poly) {
     if (p.x < rx || p.x > rx + rw || p.y < ry || p.y > ry + rh) return false;
   }
   return true;
-}
+};
 
-function segmentIntersectsRect(
+const segmentIntersectsRect = (
   a: Point,
   b: Point,
   left: number,
   right: number,
   top: number,
   bottom: number,
-): boolean {
+): boolean => {
   const INSIDE = 0,
     LEFT = 1,
     RIGHT = 2,
@@ -78,15 +78,15 @@ function segmentIntersectsRect(
       cb = code(b);
     }
   }
-}
+};
 
-function rectIntersectsPoly(
+const rectIntersectsPoly = (
   rx: number,
   ry: number,
   rw: number,
   rh: number,
   poly: Point[],
-): boolean {
+): boolean => {
   const left = rx,
     right = rx + rw,
     top = ry,
@@ -109,60 +109,54 @@ function rectIntersectsPoly(
       return true;
   }
   return false;
-}
+};
 
-function polyInPoly(outer: Point[], inner: Point[]): boolean {
+const polyInPoly = (outer: Point[], inner: Point[]): boolean => {
   for (const p of inner) {
     if (!pointInPolygon(p.x, p.y, outer)) return false;
   }
   return true;
-}
+};
 
-/**
- * Hit-test a group element as if it has a fill — uses hitArea polygon directly
- * regardless of the element's actual fill/stroke.
- */
-function hitElementAsFilled(
+const hitElementAsFilled = (
   px: number,
   py: number,
   el: AbstractGraphicElement,
-): boolean {
+): boolean => {
   const ha = getTransformedHitArea(el);
   return ha.length >= 3 && pointInPolygon(px, py, ha);
-}
+};
 
-function rectHitElementAsFilled(
+const rectHitElementAsFilled = (
   rx: number,
   ry: number,
   rw: number,
   rh: number,
   el: AbstractGraphicElement,
   requireFullContain: boolean,
-): boolean {
+): boolean => {
   const ha = getTransformedHitArea(el);
   if (ha.length < 3) return false;
   if (requireFullContain) return rectContainsPoly(rx, ry, rw, rh, ha);
   return rectIntersectsPoly(rx, ry, rw, rh, ha);
-}
+};
 
-function lassoHitElementAsFilled(
+const lassoHitElementAsFilled = (
   polygon: Point[],
   el: AbstractGraphicElement,
-): boolean {
+): boolean => {
   const ha = getTransformedHitArea(el);
   return ha.length >= 3 && polyInPoly(polygon, ha);
-}
+};
 
-// ---- Group hit-test: checks elements via fill-mode, returns unique group IDs ----
-
-export function hitTestGroupsPoint(
+export const hitTestGroupsPoint = (
   px: number,
   py: number,
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   lookupGroup: (id: string) => string | undefined,
   _cameraGroup?: SVGGElement,
-): string[] {
+): string[] => {
   const size = 1;
   const ids = grid.query(px, py, size, size);
   const candidates = elements.filter((e) => ids.includes(e.id));
@@ -175,9 +169,9 @@ export function hitTestGroupsPoint(
     }
   }
   return Array.from(seen);
-}
+};
 
-export function hitTestGroupsRect(
+export const hitTestGroupsRect = (
   rx: number,
   ry: number,
   rw: number,
@@ -186,7 +180,7 @@ export function hitTestGroupsRect(
   grid: SpatialGrid,
   lookupGroup: (id: string) => string | undefined,
   requireFullContain: boolean,
-): string[] {
+): string[] => {
   const ids = grid.query(rx, ry, rw, rh);
   const candidates = elements.filter((e) => ids.includes(e.id));
 
@@ -198,14 +192,14 @@ export function hitTestGroupsRect(
     }
   }
   return Array.from(seen);
-}
+};
 
-export function hitTestGroupsLasso(
+export const hitTestGroupsLasso = (
   polygon: Point[],
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
   lookupGroup: (id: string) => string | undefined,
-): string[] {
+): string[] => {
   if (polygon.length < 3) return [];
 
   let minX = Infinity,
@@ -230,4 +224,4 @@ export function hitTestGroupsLasso(
     }
   }
   return Array.from(seen);
-}
+};

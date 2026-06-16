@@ -1,5 +1,6 @@
 import type { DeleteCommand } from '../types';
 
-export function createDeleteCommand(elementIds: string[]): DeleteCommand {
-  return { type: 'DELETE', options: { elementIds } };
-}
+export const createDeleteCommand = (elementIds: string[]): DeleteCommand => ({
+  type: 'DELETE',
+  options: { elementIds },
+});

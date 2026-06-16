@@ -22,7 +22,33 @@ export interface ElementJSON {
   textContent?: string;
 }
 
-export function createFromJSON(json: ElementJSON): AbstractGraphicElement {
+const createElement = (
+  type: ElementType,
+  id: string,
+): AbstractGraphicElement => {
+  switch (type) {
+    case 'rect':
+      return new RectElement(id);
+    case 'circle':
+      return new CircleElement(id);
+    case 'ellipse':
+      return new EllipseElement(id);
+    case 'line':
+      return new LineElement(id);
+    case 'path':
+      return new PathElement(id);
+    case 'polygon':
+      return new PolygonElement(id);
+    case 'polyline':
+      return new PolylineElement(id);
+    case 'text':
+      return new TextElement(id);
+    case 'image':
+      return new ImageElement(id);
+  }
+};
+
+export const createFromJSON = (json: ElementJSON): AbstractGraphicElement => {
   const el = createElement(json.type, json.id);
 
   for (const [key, value] of Object.entries(json.attributes)) {
@@ -103,33 +129,8 @@ export function createFromJSON(json: ElementJSON): AbstractGraphicElement {
 
   el.buildHitArea();
   return el;
-}
+};
 
-export function createFromJSONArray(
+export const createFromJSONArray = (
   items: ElementJSON[],
-): AbstractGraphicElement[] {
-  return items.map(createFromJSON);
-}
-
-function createElement(type: ElementType, id: string): AbstractGraphicElement {
-  switch (type) {
-    case 'rect':
-      return new RectElement(id);
-    case 'circle':
-      return new CircleElement(id);
-    case 'ellipse':
-      return new EllipseElement(id);
-    case 'line':
-      return new LineElement(id);
-    case 'path':
-      return new PathElement(id);
-    case 'polygon':
-      return new PolygonElement(id);
-    case 'polyline':
-      return new PolylineElement(id);
-    case 'text':
-      return new TextElement(id);
-    case 'image':
-      return new ImageElement(id);
-  }
-}
+): AbstractGraphicElement[] => items.map(createFromJSON);

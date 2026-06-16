@@ -1,6 +1,106 @@
 import type { Point, PathCommand } from '@/types';
 
-export function parseD(d: string): PathCommand[] {
+const flattenCubic = (
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  x3: number,
+  y3: number,
+): Point[] => {
+  const pts: Point[] = [];
+  for (let i = 1; i <= 12; i++) {
+    const t = i / 12;
+    const mt = 1 - t;
+    pts.push({
+      x:
+        mt * mt * mt * x0 +
+        3 * mt * mt * t * x1 +
+        3 * mt * t * t * x2 +
+        t * t * t * x3,
+      y:
+        mt * mt * mt * y0 +
+        3 * mt * mt * t * y1 +
+        3 * mt * t * t * y2 +
+        t * t * t * y3,
+    });
+  }
+  return pts;
+};
+
+const flattenQuadratic = (
+  x0: number,
+  y0: number,
+  x1: number | undefined,
+  y1: number | undefined,
+  x2: number,
+  y2: number,
+): Point[] => {
+  const pts: Point[] = [];
+  for (let i = 1; i <= 10; i++) {
+    const t = i / 10;
+    const mt = 1 - t;
+    pts.push({
+      x: mt * mt * x0 + 2 * mt * t * (x1 ?? (x0 + x2) / 2) + t * t * x2,
+      y: mt * mt * y0 + 2 * mt * t * (y1 ?? (y0 + y2) / 2) + t * t * y2,
+    });
+  }
+  return pts;
+};
+
+const flattenArc = (
+  x0: number,
+  y0: number,
+  rx: number,
+  ry: number,
+  xAxisRot: number,
+  largeArc: number,
+  sweep: number,
+  x2: number,
+  y2: number,
+): Point[] => {
+  const pts: Point[] = [];
+  const angle = (xAxisRot * Math.PI) / 180;
+  const cosA = Math.cos(angle),
+    sinA = Math.sin(angle);
+  const dx = (x0 - x2) / 2,
+    dy = (y0 - y2) / 2;
+  const x1p = cosA * dx + sinA * dy,
+    y1p = -sinA * dx + cosA * dy;
+  let rX = Math.abs(rx),
+    rY = Math.abs(ry);
+  const sq = (x1p * x1p) / (rX * rX) + (y1p * y1p) / (rY * rY);
+  if (sq > 1) {
+    rX *= Math.sqrt(sq);
+    rY *= Math.sqrt(sq);
+  }
+  const sign = largeArc === sweep ? -1 : 1;
+  const sq2 =
+    (rX * rX * rY * rY - rX * rX * y1p * y1p - rY * rY * x1p * x1p) /
+    (rX * rX * y1p * y1p + rY * rY * x1p * x1p);
+  const coef = sign * Math.sqrt(Math.max(0, sq2));
+  const cxp = (coef * rX * y1p) / rY,
+    cyp = (coef * -rY * x1p) / rX;
+  const cx = cosA * cxp - sinA * cyp + (x0 + x2) / 2,
+    cy = sinA * cxp + cosA * cyp + (y0 + y2) / 2;
+  const startAngle = Math.atan2((y1p - cyp) / rY, (x1p - cxp) / rX);
+  const endAngle = Math.atan2((-y1p - cyp) / rY, (-x1p - cxp) / rX);
+  let deltaA = endAngle - startAngle;
+  if (sweep === 0 && deltaA > 0) deltaA -= 2 * Math.PI;
+  if (sweep === 1 && deltaA < 0) deltaA += 2 * Math.PI;
+  for (let i = 1; i <= 12; i++) {
+    const a = startAngle + (deltaA * i) / 12;
+    pts.push({
+      x: cx + rX * Math.cos(a) * cosA - rY * Math.sin(a) * sinA,
+      y: cy + rX * Math.cos(a) * sinA + rY * Math.sin(a) * cosA,
+    });
+  }
+  return pts;
+};
+
+export const parseD = (d: string): PathCommand[] => {
   const commands: PathCommand[] = [];
   const regex = /([MLHVCSQTAZ])\s*([^MLHVCSQTAZ]*)/gi;
   let match: RegExpExecArray | null;
@@ -16,13 +116,12 @@ export function parseD(d: string): PathCommand[] {
     commands.push({ command, args });
   }
   return commands;
-}
+};
 
-export function commandsToString(commands: PathCommand[]): string {
-  return commands.map((cmd) => `${cmd.command}${cmd.args.join(' ')}`).join(' ');
-}
+export const commandsToString = (commands: PathCommand[]): string =>
+  commands.map((cmd) => `${cmd.command}${cmd.args.join(' ')}`).join(' ');
 
-export function flattenCommands(commands: PathCommand[]): Point[] {
+export const flattenCommands = (commands: PathCommand[]): Point[] => {
   const points: Point[] = [];
   let currentX = 0,
     currentY = 0,
@@ -120,113 +219,13 @@ export function flattenCommands(commands: PathCommand[]): Point[] {
     }
   }
   return points;
-}
+};
 
-function flattenCubic(
-  x0: number,
-  y0: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number,
-  x3: number,
-  y3: number,
-): Point[] {
-  const pts: Point[] = [];
-  for (let i = 1; i <= 12; i++) {
-    const t = i / 12;
-    const mt = 1 - t;
-    pts.push({
-      x:
-        mt * mt * mt * x0 +
-        3 * mt * mt * t * x1 +
-        3 * mt * t * t * x2 +
-        t * t * t * x3,
-      y:
-        mt * mt * mt * y0 +
-        3 * mt * mt * t * y1 +
-        3 * mt * t * t * y2 +
-        t * t * t * y3,
-    });
-  }
-  return pts;
-}
-
-function flattenQuadratic(
-  x0: number,
-  y0: number,
-  x1: number | undefined,
-  y1: number | undefined,
-  x2: number,
-  y2: number,
-): Point[] {
-  const pts: Point[] = [];
-  for (let i = 1; i <= 10; i++) {
-    const t = i / 10;
-    const mt = 1 - t;
-    pts.push({
-      x: mt * mt * x0 + 2 * mt * t * (x1 ?? (x0 + x2) / 2) + t * t * x2,
-      y: mt * mt * y0 + 2 * mt * t * (y1 ?? (y0 + y2) / 2) + t * t * y2,
-    });
-  }
-  return pts;
-}
-
-function flattenArc(
-  x0: number,
-  y0: number,
-  rx: number,
-  ry: number,
-  xAxisRot: number,
-  largeArc: number,
-  sweep: number,
-  x2: number,
-  y2: number,
-): Point[] {
-  const pts: Point[] = [];
-  const angle = (xAxisRot * Math.PI) / 180;
-  const cosA = Math.cos(angle),
-    sinA = Math.sin(angle);
-  const dx = (x0 - x2) / 2,
-    dy = (y0 - y2) / 2;
-  const x1p = cosA * dx + sinA * dy,
-    y1p = -sinA * dx + cosA * dy;
-  let rX = Math.abs(rx),
-    rY = Math.abs(ry);
-  const sq = (x1p * x1p) / (rX * rX) + (y1p * y1p) / (rY * rY);
-  if (sq > 1) {
-    rX *= Math.sqrt(sq);
-    rY *= Math.sqrt(sq);
-  }
-  const sign = largeArc === sweep ? -1 : 1;
-  const sq2 =
-    (rX * rX * rY * rY - rX * rX * y1p * y1p - rY * rY * x1p * x1p) /
-    (rX * rX * y1p * y1p + rY * rY * x1p * x1p);
-  const coef = sign * Math.sqrt(Math.max(0, sq2));
-  const cxp = (coef * rX * y1p) / rY,
-    cyp = (coef * -rY * x1p) / rX;
-  const cx = cosA * cxp - sinA * cyp + (x0 + x2) / 2,
-    cy = sinA * cxp + cosA * cyp + (y0 + y2) / 2;
-  const startAngle = Math.atan2((y1p - cyp) / rY, (x1p - cxp) / rX);
-  const endAngle = Math.atan2((-y1p - cyp) / rY, (-x1p - cxp) / rX);
-  let deltaA = endAngle - startAngle;
-  if (sweep === 0 && deltaA > 0) deltaA -= 2 * Math.PI;
-  if (sweep === 1 && deltaA < 0) deltaA += 2 * Math.PI;
-  for (let i = 1; i <= 12; i++) {
-    const a = startAngle + (deltaA * i) / 12;
-    pts.push({
-      x: cx + rX * Math.cos(a) * cosA - rY * Math.sin(a) * sinA,
-      y: cy + rX * Math.cos(a) * sinA + rY * Math.sin(a) * cosA,
-    });
-  }
-  return pts;
-}
-
-export function transformCommands(
+export const transformCommands = (
   commands: PathCommand[],
   m: DOMMatrix,
-): PathCommand[] {
-  return commands.map((cmd) => {
+): PathCommand[] =>
+  commands.map((cmd) => {
     if (cmd.command === 'M' || cmd.command === 'L') {
       const pt = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
       return { command: cmd.command, args: [pt.x, pt.y] };
@@ -276,9 +275,12 @@ export function transformCommands(
     }
     return cmd;
   });
-}
 
-export function applyMatrixToPoint(m: DOMMatrix, x: number, y: number): Point {
+export const applyMatrixToPoint = (
+  m: DOMMatrix,
+  x: number,
+  y: number,
+): Point => {
   const pt = new DOMPoint(x, y).matrixTransform(m);
   return { x: pt.x, y: pt.y };
-}
+};
