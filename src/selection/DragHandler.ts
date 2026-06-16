@@ -13,7 +13,7 @@ import {
   offsetOpenPath,
   approximateArc,
 } from '@/utils/geometry-utils';
-import { polyIntersectsPoly } from '@/utils/hit-test';
+import { polyIntersectsPoly, segmentIntersectsSegment } from '@/utils/hit-test';
 
 function generateCirclePoints(
   cx: number,
@@ -497,16 +497,31 @@ export class DragHandler {
         const candidatePts = getVisualWorldPoints(candidate, this.camera);
         if (candidatePts.length === 0) continue;
 
-        if (!polyIntersectsPoly(movingPts, candidatePts)) continue;
+        const isClosed = candidate.type !== 'polyline' &&
+          candidate.type !== 'line' &&
+          !(candidate instanceof PathElement && candidate.parsedD.commands.length > 0 &&
+            !(candidate.parsedD.commands[candidate.parsedD.commands.length - 1].command === 'Z' ||
+              candidate.parsedD.commands[candidate.parsedD.commands.length - 1].command === 'z'));
 
-        let isClosed = true;
-        if (candidate.type === 'polyline' || candidate.type === 'line') {
-          isClosed = false;
-        } else if (candidate instanceof PathElement) {
-          const cmds = candidate.parsedD.commands;
-          isClosed = cmds.length > 0 &&
-            (cmds[cmds.length - 1].command === 'Z' || cmds[cmds.length - 1].command === 'z');
+        let collision = false;
+
+        if (isClosed) {
+          collision = polyIntersectsPoly(movingPts, candidatePts);
+        } else {
+          const movingN = movingPts.length;
+          const candidateN = candidatePts.length;
+          for (let mi = 0; mi < movingN && !collision; mi++) {
+            const ma = movingPts[mi];
+            const mb = movingPts[(mi + 1) % movingN];
+            for (let ci = 0; ci < candidateN - 1 && !collision; ci++) {
+              if (segmentIntersectsSegment(ma, mb, candidatePts[ci], candidatePts[ci + 1])) {
+                collision = true;
+              }
+            }
+          }
         }
+
+        if (!collision) continue;
 
         let bestDist = Infinity;
         let bestNx = 0;
