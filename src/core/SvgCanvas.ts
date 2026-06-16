@@ -9,7 +9,7 @@ import type { SvgCanvasOptions } from '@/types';
 import { SelectionState } from '@/selection/SelectionState';
 import { SpatialGrid } from '@/selection/SpatialGrid';
 import { SelectionHandler } from '@/selection/handlers/SelectionHandler';
-import type { SelectionMode } from '@/commands/types';
+import type { SelectionMode, CreationElementType } from '@/commands/types';
 import type { SelectionFilter } from '@/selection/selection-filter';
 import type { SelectionShortcuts } from '@/selection/selection-defaults';
 import type { SelectionGesture } from '@/commands';
@@ -18,6 +18,7 @@ import { GroupSelectionOverlay } from '@/selection/GroupSelectionOverlay';
 import { TransformHandler } from '@/selection/TransformHandler';
 import type { TransformMode } from '@/selection/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
+import { CreationHandler } from '@/creation/CreationHandler';
 import {
   GroupManager,
   type GroupData,
@@ -60,6 +61,7 @@ export class SvgCanvas {
   private readonly groupManager: GroupManager;
   private readonly commandBus: CommandBus;
   private readonly timeMachine: TimeMachine;
+  private readonly creationHandler: CreationHandler;
   private _debugShowHitArea: boolean;
 
   public readonly panActive = { value: false };
@@ -218,6 +220,61 @@ export class SvgCanvas {
       createGroupHandler(this.groupManager),
     );
     this.commandBus.register('DELETE', createDeleteHandler(this.shapeManager));
+
+    this.creationHandler = new CreationHandler(
+      this.svg,
+      this.camera,
+      this.commandBus,
+      (el) => this.addShape(el),
+    );
+    this.creationHandler.onElementFinalize = (el) => {
+      this.indexShape(el);
+    };
+
+    const rootSvg = this.svg;
+
+    rootSvg.addEventListener(
+      'mousedown',
+      (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        this.creationHandler.handleMouseDown(e);
+      },
+      true,
+    );
+
+    window.addEventListener(
+      'mousemove',
+      (e: MouseEvent) => {
+        this.creationHandler.handleMouseMove(e);
+      },
+      true,
+    );
+
+    window.addEventListener(
+      'mouseup',
+      (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        this.creationHandler.handleMouseUp(e);
+      },
+      true,
+    );
+
+    rootSvg.addEventListener(
+      'dblclick',
+      (e: MouseEvent) => {
+        if (e.button !== 0) return;
+        this.creationHandler.handleDblClick(e);
+      },
+      true,
+    );
+
+    window.addEventListener(
+      'keydown',
+      (e: KeyboardEvent) => {
+        this.creationHandler.handleKeyDown(e);
+      },
+      true,
+    );
   }
 
   public getSVG(): SVGSVGElement {
@@ -317,6 +374,13 @@ export class SvgCanvas {
   }
   public getTimeMachine(): TimeMachine {
     return this.timeMachine;
+  }
+  public getCreationHandler(): CreationHandler {
+    return this.creationHandler;
+  }
+
+  public setActiveCreationTool(type: CreationElementType | null): void {
+    this.creationHandler.setActiveType(type);
   }
 
   public undo(): void {

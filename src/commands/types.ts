@@ -9,6 +9,7 @@ export type CommandType =
   | 'GROUP_ADD'
   | 'GROUP_REMOVE'
   | 'GROUP_CLEAR'
+  | 'CREATE'
   | 'DELETE'
   | 'RESIZE'
   | 'ROTATE'
@@ -16,6 +17,24 @@ export type CommandType =
 
 export type SelectionMode = 'element' | 'group';
 export type SelectionGesture = 'click' | 'rect' | 'lasso';
+
+export type CreationElementType =
+  | 'rect'
+  | 'circle'
+  | 'ellipse'
+  | 'line'
+  | 'polyline'
+  | 'polygon';
+
+export interface CreateCommand {
+  type: 'CREATE';
+  options: {
+    elementType: CreationElementType;
+    elementId: string;
+    geometry: Record<string, unknown>;
+    style: Record<string, unknown>;
+  };
+}
 
 export interface SelectCommand {
   type: 'SELECT';
@@ -96,6 +115,7 @@ export interface TransformCommand {
 }
 
 export type Command =
+  | CreateCommand
   | SelectCommand
   | DragMoveCommand
   | DragEndCommand

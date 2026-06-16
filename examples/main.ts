@@ -407,3 +407,34 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
 
 canvas.onGroupsChange = renderGroupList;
 renderGroupList();
+
+// ----- creation tools -----
+type CreationTool = 'select' | 'rect' | 'circle' | 'ellipse' | 'line' | 'polyline' | 'polygon';
+
+const TOOL_TO_CREATION_TYPE: Record<string, CreationTool | null> = {
+  select: null,
+  rect: 'rect',
+  circle: 'circle',
+  ellipse: 'ellipse',
+  line: 'line',
+  polyline: 'polyline',
+  polygon: 'polygon',
+};
+
+function setActiveTool(tool: CreationTool) {
+  document.querySelectorAll('.tool-btn').forEach((b) => b.classList.remove('active'));
+  document.getElementById(`btn-tool-${tool}`)?.classList.add('active');
+
+  const creationType = TOOL_TO_CREATION_TYPE[tool];
+  canvas.setActiveCreationTool(creationType ?? null);
+  info(`Tool: ${tool}`);
+}
+
+document.querySelectorAll('.tool-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const tool = (btn as HTMLElement).id.replace('btn-tool-', '') as CreationTool;
+    setActiveTool(tool);
+  });
+});
+
+setActiveTool('select');
