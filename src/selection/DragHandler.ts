@@ -448,6 +448,31 @@ export class DragHandler {
     this.onDragMove?.();
   }
 
+  private pointToSegmentDist(
+    px: number, py: number,
+    ax: number, ay: number,
+    bx: number, by: number,
+  ): { dist: number; closestX: number; closestY: number } {
+    const abX = bx - ax;
+    const abY = by - ay;
+    const apX = px - ax;
+    const apY = py - ay;
+
+    const abLenSq = abX * abX + abY * abY;
+    if (abLenSq === 0) {
+      const d = Math.hypot(px - ax, py - ay);
+      return { dist: d, closestX: ax, closestY: ay };
+    }
+
+    let t = (apX * abX + apY * abY) / abLenSq;
+    t = Math.max(0, Math.min(1, t));
+
+    const closestX = ax + t * abX;
+    const closestY = ay + t * abY;
+
+    return { dist: Math.hypot(px - closestX, py - closestY), closestX, closestY };
+  }
+
   private checkSceneCollisions(dx: number, dy: number): Point | null {
     const allElements = this.getElements();
     const targetIdSet = new Set(this.targets.map((e) => e.id));
@@ -461,23 +486,12 @@ export class DragHandler {
       virtualMatrix.e += dx;
       virtualMatrix.f += dy;
 
-      const movingPts = getVisualWorldPoints(
-        movingEl,
-        this.camera,
-        virtualMatrix,
-      );
+      const movingPts = getVisualWorldPoints(movingEl, this.camera, virtualMatrix);
       if (movingPts.length === 0) continue;
 
       const movingBBox = getMovingBBox(movingPts);
-      const candidateIds = this.grid.query(
-        movingBBox.x,
-        movingBBox.y,
-        movingBBox.width,
-        movingBBox.height,
-      );
-      const candidates = targetElements.filter((el) =>
-        candidateIds.includes(el.id),
-      );
+      const candidateIds = this.grid.query(movingBBox.x, movingBBox.y, movingBBox.width, movingBBox.height);
+      const candidates = targetElements.filter((el) => candidateIds.includes(el.id));
 
       for (const candidate of candidates) {
         const candidatePts = getVisualWorldPoints(candidate, this.camera);
@@ -485,42 +499,49 @@ export class DragHandler {
 
         if (!polyIntersectsPoly(movingPts, candidatePts)) continue;
 
-        if (
-          movingEl instanceof CircleElement &&
-          candidate instanceof CircleElement
-        ) {
-          const movingCenter = movingEl.getCenter();
-          const candidateCenter = candidate.getCenter();
-          const nx = movingCenter.x + dx - candidateCenter.x;
-          const ny = movingCenter.y + dy - candidateCenter.y;
-          const len = Math.hypot(nx, ny);
-          return len > 0 ? { x: nx / len, y: ny / len } : { x: 0, y: -1 };
+        let isClosed = true;
+        if (candidate.type === 'polyline' || candidate.type === 'line') {
+          isClosed = false;
+        } else if (candidate instanceof PathElement) {
+          const cmds = candidate.parsedD.commands;
+          isClosed = cmds.length > 0 &&
+            (cmds[cmds.length - 1].command === 'Z' || cmds[cmds.length - 1].command === 'z');
         }
 
-        let bestNormal: Point = { x: 0, y: -1 };
-        let maxPenetration = -Infinity;
+        let bestDist = Infinity;
+        let bestNx = 0;
+        let bestNy = 0;
 
-        for (let i = 0; i < candidatePts.length; i++) {
-          const p1 = candidatePts[i];
-          const p2 = candidatePts[(i + 1) % candidatePts.length];
+        for (const mp of movingPts) {
+          const n = candidatePts.length;
+          const edgeCount = isClosed ? n : n - 1;
+          for (let i = 0; i < edgeCount; i++) {
+            const j = isClosed ? (i + 1) % n : i + 1;
+            const { dist, closestX, closestY } = this.pointToSegmentDist(
+              mp.x, mp.y,
+              candidatePts[i].x, candidatePts[i].y,
+              candidatePts[j].x, candidatePts[j].y,
+            );
 
-          const edgeX = p2.x - p1.x;
-          const edgeY = p2.y - p1.y;
-          const edgeLen = Math.hypot(edgeX, edgeY);
-          if (edgeLen === 0) continue;
-
-          const nX = -edgeY / edgeLen;
-          const nY = edgeX / edgeLen;
-
-          for (const mp of movingPts) {
-            const pen = (p1.x - mp.x) * nX + (p1.y - mp.y) * nY;
-            if (pen > maxPenetration) {
-              maxPenetration = pen;
-              bestNormal = { x: nX, y: nY };
+            if (dist < bestDist) {
+              bestDist = dist;
+              const nx = mp.x - closestX;
+              const ny = mp.y - closestY;
+              const len = Math.hypot(nx, ny);
+              if (len > 0) {
+                bestNx = nx / len;
+                bestNy = ny / len;
+              } else {
+                bestNx = 0;
+                bestNy = -1;
+              }
             }
           }
         }
-        return bestNormal;
+
+        if (bestDist < Infinity) {
+          return { x: bestNx, y: bestNy };
+        }
       }
     }
     return null;
