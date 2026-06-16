@@ -8,5 +8,6 @@ export { PolygonElement } from './PolygonElement';
 export { PolylineElement } from './PolylineElement';
 export { TextElement } from './TextElement';
 export { ImageElement } from './ImageElement';
+export { PatternElement } from './PatternElement';
 export { createFromJSON, createFromJSONArray } from './factory';
 export type { ElementJSON } from './factory';

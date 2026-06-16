@@ -1,42 +1,25 @@
-import { SVG_NS } from '@/constants';
+import { RectElement } from '@/shapes/elements/RectElement';
+import { PatternElement } from '@/shapes/elements/PatternElement';
 
 export class Background {
-  public constructor(svg: SVGSVGElement, defs: SVGDefsElement) {
-    const pattern = document.createElementNS(SVG_NS, 'pattern');
-    pattern.id = 'bg-checkers';
-    pattern.setAttribute('width', '16');
-    pattern.setAttribute('height', '16');
-    pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+  public readonly pattern: PatternElement;
+  public readonly fillRect: RectElement;
 
-    const bg = document.createElementNS(SVG_NS, 'rect');
-    bg.setAttribute('width', '16');
-    bg.setAttribute('height', '16');
-    bg.setAttribute('fill', '#f0f0f0');
-    pattern.appendChild(bg);
+  public constructor() {
+    this.pattern = new PatternElement('bg-checkers');
+    this.pattern.cells = [
+      { x: 0, y: 0, width: 8, height: 8, fill: '#e0e0e0' },
+      { x: 8, y: 8, width: 8, height: 8, fill: '#e0e0e0' },
+    ];
+    this.pattern.geometry.patternUnits = 'userSpaceOnUse';
 
-    const cell = document.createElementNS(SVG_NS, 'rect');
-    cell.setAttribute('width', '8');
-    cell.setAttribute('height', '8');
-    cell.setAttribute('fill', '#e0e0e0');
-    pattern.appendChild(cell);
-
-    const cell2 = document.createElementNS(SVG_NS, 'rect');
-    cell2.setAttribute('x', '8');
-    cell2.setAttribute('y', '8');
-    cell2.setAttribute('width', '8');
-    cell2.setAttribute('height', '8');
-    cell2.setAttribute('fill', '#e0e0e0');
-    pattern.appendChild(cell2);
-
-    defs.appendChild(pattern);
-
-    const rect = document.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('x', '-10000');
-    rect.setAttribute('y', '-10000');
-    rect.setAttribute('width', '20000');
-    rect.setAttribute('height', '20000');
-    rect.setAttribute('fill', 'url(#bg-checkers)');
-    rect.setAttribute('pointer-events', 'none');
-    svg.insertBefore(rect, svg.firstChild);
+    this.fillRect = new RectElement('bg-fill');
+    this.fillRect.geometry.x = -10000;
+    this.fillRect.geometry.y = -10000;
+    this.fillRect.geometry.width = 20000;
+    this.fillRect.geometry.height = 20000;
+    this.fillRect.style.fill = 'url(#bg-checkers)';
+    this.fillRect.style.visible = true;
+    this.fillRect.visible = true;
   }
 }

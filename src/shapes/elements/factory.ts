@@ -45,6 +45,8 @@ const createElement = (
       return new TextElement(id);
     case 'image':
       return new ImageElement(id);
+    case 'pattern':
+      throw new Error('PatternElement cannot be created via factory');
   }
 };
 
