@@ -7,9 +7,35 @@ import { createDragEndCommand } from '@/commands/factories/drag-command-factory'
 import { CircleElement } from '@/shapes/elements/CircleElement';
 import { PathElement } from '@/shapes/elements/PathElement';
 import { flattenCommands } from '@/utils/path-utils';
+import { offsetPolygon, offsetOpenPath } from '@/utils/geometry-utils';
 
 function transformPointWithMatrix(p: Point, m: DOMMatrix): Point {
   return m.transformPoint(p);
+}
+
+function offsetScreenPoints(
+  screenPts: { x: number; y: number }[],
+  strokeOffsetPx: number,
+  hasFill: boolean,
+  isClosed: boolean,
+): { x: number; y: number }[] {
+  if (strokeOffsetPx <= 0) return screenPts;
+  if (hasFill) {
+    const cx = screenPts.reduce((s, p) => s + p.x, 0) / screenPts.length;
+    const cy = screenPts.reduce((s, p) => s + p.y, 0) / screenPts.length;
+    return screenPts.map((p) => {
+      const dx = p.x - cx;
+      const dy = p.y - cy;
+      const len = Math.hypot(dx, dy);
+      if (len === 0) return { ...p };
+      return {
+        x: p.x + (dx / len) * strokeOffsetPx,
+        y: p.y + (dy / len) * strokeOffsetPx,
+      };
+    });
+  }
+  if (isClosed) return offsetPolygon(screenPts, strokeOffsetPx);
+  return offsetOpenPath(screenPts, strokeOffsetPx);
 }
 
 export class DragHandler {
@@ -140,12 +166,14 @@ export class DragHandler {
       for (const el of this.getElements()) {
         if (selectedIds.has(el.id)) continue;
 
+        const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
+
         if (el instanceof CircleElement) {
           const cx = el.geometry.cx;
           const cy = el.geometry.cy;
           const wp = el.transformPoint({ x: cx, y: cy });
           const sp = this.camera.worldToScreen(wp);
-          const worldR = el.geometry.r;
+          const worldR = el.geometry.r + el.style.strokeWidth / 2;
           const screenR = Math.abs(worldR * this.camera.zoom);
           allCircles.push({ cx: sp.x, cy: sp.y, r: screenR });
           continue;
@@ -168,7 +196,11 @@ export class DragHandler {
         }
 
         if (worldPts.length === 0) continue;
-        const screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
+        let screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
+        if (strokeOffsetPx > 0) {
+          const isClosed = !(el.type === 'polyline' || el.type === 'line');
+          screenPts = offsetScreenPoints(screenPts, strokeOffsetPx, el.style.hasFill, isClosed);
+        }
         allElementsScreenPoints.push(screenPts);
       }
 
@@ -193,9 +225,19 @@ export class DragHandler {
         virtualMatrix.f += worldDy;
 
         const localPts = el.hitArea;
+        const rawScreenPts: Point[] = [];
         for (const lp of localPts) {
           const vp = transformPointWithMatrix(lp, virtualMatrix);
-          movingScreenPoints.push(this.camera.worldToScreen(vp));
+          rawScreenPts.push(this.camera.worldToScreen(vp));
+        }
+
+        const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
+        if (strokeOffsetPx > 0 && rawScreenPts.length > 0) {
+          const isClosed = !(el.type === 'polyline' || el.type === 'line');
+          const offset = offsetScreenPoints(rawScreenPts, strokeOffsetPx, el.style.hasFill, isClosed);
+          movingScreenPoints.push(...offset);
+        } else {
+          movingScreenPoints.push(...rawScreenPts);
         }
       }
 

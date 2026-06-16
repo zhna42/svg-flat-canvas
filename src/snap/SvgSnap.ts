@@ -128,9 +128,12 @@ export class SvgSnap {
   }
 
   private pointToSegmentDist(
-    px: number, py: number,
-    ax: number, ay: number,
-    bx: number, by: number,
+    px: number,
+    py: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
   ): { dist: number; closestX: number; closestY: number } {
     const abX = bx - ax;
     const abY = by - ay;
@@ -149,10 +152,16 @@ export class SvgSnap {
     const closestX = ax + t * abX;
     const closestY = ay + t * abY;
 
-    return { dist: Math.hypot(px - closestX, py - closestY), closestX, closestY };
+    return {
+      dist: Math.hypot(px - closestX, py - closestY),
+      closestX,
+      closestY,
+    };
   }
 
-  private buildMovingLines(movingPoints: { x: number; y: number }[]): SnapLine[] {
+  private buildMovingLines(
+    movingPoints: { x: number; y: number }[],
+  ): SnapLine[] {
     const lines: SnapLine[] = [];
     if (movingPoints.length < 2) return lines;
     for (let i = 0; i < movingPoints.length; i++) {
@@ -167,36 +176,45 @@ export class SvgSnap {
   computeCorrection(movingPoints: { x: number; y: number }[]): SnapResult {
     let bestCorrX = 0;
     let bestCorrY = 0;
-    let bestDist = Infinity;
+    let bestDistX = Infinity;
+    let bestDistY = Infinity;
 
+    // Храним минимальную общую дистанцию для приоритетов (Узлы важнее линий)
+    let bestNodeDist = Infinity;
+    let bestLineDist = Infinity;
+
+    // ТИП 1: Точка в Точку (Node Snap) - Высший приоритет
     for (const mPt of movingPoints) {
       for (const tNode of this.snapNodes) {
         const dist = Math.hypot(mPt.x - tNode.x, mPt.y - tNode.y);
 
-        if (dist < SNAP_DISTANCE_PX && dist < bestDist) {
-          bestDist = dist;
+        if (dist < SNAP_DISTANCE_PX && dist < bestNodeDist) {
+          bestNodeDist = dist;
+          bestDistX = Math.abs(tNode.x - mPt.x);
+          bestDistY = Math.abs(tNode.y - mPt.y);
           bestCorrX = tNode.x - mPt.x;
           bestCorrY = tNode.y - mPt.y;
         }
       }
     }
 
-    if (bestDist === Infinity) {
+    // ТИП 2: Точка к Контуру Круга
+    if (bestNodeDist === Infinity) {
       for (const mPt of movingPoints) {
         for (const circle of this.snapCircles) {
           const dx = mPt.x - circle.cx;
           const dy = mPt.y - circle.cy;
           const distToCenter = Math.hypot(dx, dy);
-
           if (distToCenter === 0) continue;
 
           const closestX = circle.cx + (dx / distToCenter) * circle.r;
           const closestY = circle.cy + (dy / distToCenter) * circle.r;
-
           const dist = Math.hypot(mPt.x - closestX, mPt.y - closestY);
 
-          if (dist < SNAP_DISTANCE_PX && dist < bestDist) {
-            bestDist = dist;
+          if (dist < SNAP_DISTANCE_PX && dist < bestLineDist) {
+            bestLineDist = dist;
+            bestDistX = Math.abs(closestX - mPt.x);
+            bestDistY = Math.abs(closestY - mPt.y);
             bestCorrX = closestX - mPt.x;
             bestCorrY = closestY - mPt.y;
           }
@@ -204,33 +222,50 @@ export class SvgSnap {
       }
     }
 
-    if (bestDist === Infinity) {
+    // ТИП 3: Направление А (Точки движущегося -> К линиям холста)
+    // ТИП 4: Направление Б (Узлы холста -> К линиям движущегося элемента)
+    // Проверяем их ОДНОВРЕМЕННО в одном балансе расстояний
+    if (bestNodeDist === Infinity) {
+      // Направление А
       for (const pt of movingPoints) {
         for (const line of this.snapLines) {
           const { dist, closestX, closestY } = this.pointToSegmentDist(
-            pt.x, pt.y, line.x, line.y, line.x2, line.y2,
+            pt.x,
+            pt.y,
+            line.x,
+            line.y,
+            line.x2,
+            line.y2,
           );
 
-          if (dist < SNAP_DISTANCE_PX && dist < bestDist) {
-            bestDist = dist;
+          if (dist < SNAP_DISTANCE_PX && dist < bestLineDist) {
+            bestLineDist = dist;
+            bestDistX = Math.abs(closestX - pt.x);
+            bestDistY = Math.abs(closestY - pt.y);
             bestCorrX = closestX - pt.x;
             bestCorrY = closestY - pt.y;
           }
         }
       }
-    }
 
-    if (bestDist === Infinity) {
+      // Направление Б (Прилипание плоскостей ребрами к точкам)
       const movingLines = this.buildMovingLines(movingPoints);
-
       for (const tNode of this.snapNodes) {
         for (const mLine of movingLines) {
           const { dist, closestX, closestY } = this.pointToSegmentDist(
-            tNode.x, tNode.y, mLine.x, mLine.y, mLine.x2, mLine.y2,
+            tNode.x,
+            tNode.y,
+            mLine.x,
+            mLine.y,
+            mLine.x2,
+            mLine.y2,
           );
 
-          if (dist < SNAP_DISTANCE_PX && dist < bestDist) {
-            bestDist = dist;
+          if (dist < SNAP_DISTANCE_PX && dist < bestLineDist) {
+            bestLineDist = dist;
+            // Коррекция для оси X и Y считается раздельно по расстоянию до точки проекции
+            bestDistX = Math.abs(tNode.x - closestX);
+            bestDistY = Math.abs(tNode.y - closestY);
             bestCorrX = tNode.x - closestX;
             bestCorrY = tNode.y - closestY;
           }
@@ -238,15 +273,17 @@ export class SvgSnap {
       }
     }
 
-    if (bestDist === Infinity) {
+    // Финальная проверка: если вообще ничего не замагнитилось
+    if (bestNodeDist === Infinity && bestLineDist === Infinity) {
       this.resetAxis('x');
       this.resetAxis('y');
       return { correctionX: 0, correctionY: 0 };
     }
 
+    // Возвращаем точные проекции осей для логики resolveAxis
     return {
-      correctionX: this.resolveAxis('x', bestCorrX, bestDist, false),
-      correctionY: this.resolveAxis('y', bestCorrY, bestDist, false),
+      correctionX: this.resolveAxis('x', bestCorrX, bestDistX, false),
+      correctionY: this.resolveAxis('y', bestCorrY, bestDistY, false),
     };
   }
 
