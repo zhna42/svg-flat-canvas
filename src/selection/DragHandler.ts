@@ -2,15 +2,84 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/camera/Camera';
 import type { Point } from '@/types';
-import { SvgSnap, type SnapCircle } from '@/snap/SvgSnap';
+import { SvgSnap } from '@/snap/SvgSnap';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
 import { CircleElement } from '@/shapes/elements/CircleElement';
 import { PathElement } from '@/shapes/elements/PathElement';
 import { flattenCommands } from '@/utils/path-utils';
-import { offsetPolygon, offsetOpenPath } from '@/utils/geometry-utils';
+import { offsetPolygon, offsetOpenPath, approximateArc } from '@/utils/geometry-utils';
 
-function transformPointWithMatrix(p: Point, m: DOMMatrix): Point {
-  return m.transformPoint(p);
+function generateCirclePoints(cx: number, cy: number, r: number, count: number): Point[] {
+  const pts: Point[] = [];
+  for (let i = 0; i < count; i++) {
+    const a = (2 * Math.PI * i) / count;
+    pts.push({ x: cx + r * Math.cos(a), y: cy + r * Math.sin(a) });
+  }
+  return pts;
+}
+
+function getCenterlinePoints(el: AbstractGraphicElement, camera: Camera, local = false): Point[] | null {
+  const toWorld = (pts: Point[]) => local ? pts : pts.map((p) => el.transformPoint(p));
+
+  if (el instanceof CircleElement) {
+    const count = Math.max(16, Math.round(16 * camera.zoom));
+    const localPts = generateCirclePoints(el.geometry.cx, el.geometry.cy, el.geometry.r, count);
+    return toWorld(localPts);
+  }
+
+  if (el instanceof PathElement) {
+    const steps = Math.max(12, Math.round(12 * camera.zoom));
+    const cmds = el.parsedD.commands;
+    if (cmds.length === 0) return [];
+    return toWorld(flattenCommands(cmds, steps));
+  }
+
+  if (el.type === 'rect') {
+    const g = (el as any).geometry as { x: number; y: number; width: number; height: number; rx: number; ry: number };
+    if (g.rx || g.ry) {
+      const quadrants = 16;
+      const rx = Math.min(g.rx || g.ry, g.width / 2);
+      const ry = Math.min(g.ry || g.rx, g.height / 2);
+      const arcPts = approximateArc(rx, ry, quadrants);
+      const cx = g.x + g.width / 2, cy = g.y + g.height / 2;
+      const iw = g.width / 2 - rx, ih = g.height / 2 - ry;
+      const result: Point[] = [];
+      for (let i = 0; i < quadrants; i++) result.push({ x: cx + arcPts[i].x + iw, y: cy + arcPts[i].y + ih });
+      for (let i = 0; i < quadrants; i++) result.push({ x: cx - arcPts[quadrants - 1 - i].x - iw, y: cy + arcPts[quadrants - 1 - i].y + ih });
+      for (let i = 0; i < quadrants; i++) result.push({ x: cx - arcPts[i].x - iw, y: cy - arcPts[i].y - ih });
+      for (let i = 0; i < quadrants; i++) result.push({ x: cx + arcPts[quadrants - 1 - i].x + iw, y: cy - arcPts[quadrants - 1 - i].y - ih });
+      return toWorld(result);
+    }
+    const localPts: Point[] = [
+      { x: g.x, y: g.y },
+      { x: g.x + g.width, y: g.y },
+      { x: g.x + g.width, y: g.y + g.height },
+      { x: g.x, y: g.y + g.height },
+    ];
+    return toWorld(localPts);
+  }
+
+  if (el.type === 'line') {
+    const g = (el as any).geometry as { x1: number; y1: number; x2: number; y2: number };
+    const localPts: Point[] = [
+      { x: g.x1, y: g.y1 },
+      { x: g.x2, y: g.y2 },
+    ];
+    return toWorld(localPts);
+  }
+
+  if (el.type === 'polygon' || el.type === 'polyline') {
+    const raw = (el as any).points as string;
+    const nums = raw.trim().split(/[\s,]+/).map(Number).filter((n) => !isNaN(n));
+    const pts: Point[] = [];
+    for (let i = 0; i + 1 < nums.length; i += 2) pts.push({ x: nums[i], y: nums[i + 1] });
+    return toWorld(pts);
+  }
+
+  el.buildHitArea();
+  const pts = el.hitArea;
+  if (pts.length === 0) return [];
+  return toWorld(pts);
 }
 
 function offsetScreenPoints(
@@ -161,51 +230,24 @@ export class DragHandler {
       const selectedIds = new Set(this.targets.map((t) => t.id));
 
       const allElementsScreenPoints: { x: number; y: number }[][] = [];
-      const allCircles: SnapCircle[] = [];
 
       for (const el of this.getElements()) {
         if (selectedIds.has(el.id)) continue;
 
         const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
 
-        if (el instanceof CircleElement) {
-          const cx = el.geometry.cx;
-          const cy = el.geometry.cy;
-          const wp = el.transformPoint({ x: cx, y: cy });
-          const sp = this.camera.worldToScreen(wp);
-          const worldR = el.geometry.r + el.style.strokeWidth / 2;
-          const screenR = Math.abs(worldR * this.camera.zoom);
-          allCircles.push({ cx: sp.x, cy: sp.y, r: screenR });
-          continue;
-        }
+        const worldPts = getCenterlinePoints(el, this.camera);
+        if (!worldPts || worldPts.length === 0) continue;
 
-        let worldPts: Point[];
-
-        if (el instanceof PathElement) {
-          const steps = Math.max(12, Math.round(12 * this.camera.zoom));
-          const cmds = el.parsedD.commands;
-          if (cmds.length > 0) {
-            worldPts = flattenCommands(cmds, steps).map((p) =>
-              el.transformPoint(p),
-            );
-          } else {
-            worldPts = el.getWorldHitPoints();
-          }
-        } else {
-          worldPts = el.getWorldHitPoints();
-        }
-
-        if (worldPts.length === 0) continue;
         let screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
         if (strokeOffsetPx > 0) {
-          const isClosed = !(el.type === 'polyline' || el.type === 'line');
+          const isClosed = el.type !== 'polyline' && el.type !== 'line';
           screenPts = offsetScreenPoints(screenPts, strokeOffsetPx, el.style.hasFill, isClosed);
         }
         allElementsScreenPoints.push(screenPts);
       }
 
       this.snap.buildTargetLinesAndNodes(allElementsScreenPoints);
-      this.snap.buildTargetCircles(allCircles);
 
       if (this.snapToArtboard) {
         const artboard = this.getArtboardRect();
@@ -220,20 +262,22 @@ export class DragHandler {
         const start = this.startMatrices.get(el.id);
         if (!start) continue;
 
+        const localPts = getCenterlinePoints(el, this.camera, true);
+        if (!localPts || localPts.length === 0) continue;
+
         const virtualMatrix = new DOMMatrix(start.toString());
         virtualMatrix.e += worldDx;
         virtualMatrix.f += worldDy;
 
-        const localPts = el.hitArea;
         const rawScreenPts: Point[] = [];
         for (const lp of localPts) {
-          const vp = transformPointWithMatrix(lp, virtualMatrix);
+          const vp = virtualMatrix.transformPoint(lp);
           rawScreenPts.push(this.camera.worldToScreen(vp));
         }
 
         const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
-        if (strokeOffsetPx > 0 && rawScreenPts.length > 0) {
-          const isClosed = !(el.type === 'polyline' || el.type === 'line');
+        if (strokeOffsetPx > 0) {
+          const isClosed = el.type !== 'polyline' && el.type !== 'line';
           const offset = offsetScreenPoints(rawScreenPts, strokeOffsetPx, el.style.hasFill, isClosed);
           movingScreenPoints.push(...offset);
         } else {

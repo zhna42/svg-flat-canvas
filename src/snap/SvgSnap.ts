@@ -13,12 +13,6 @@ export interface SnapLine {
   isOrthogonal: boolean;
 }
 
-export interface SnapCircle {
-  cx: number;
-  cy: number;
-  r: number;
-}
-
 const SNAP_DISTANCE_PX = 16;
 const SNAP_RELEASE_DISTANCE_PX = 24;
 const SNAP_PULL_BREAK_DISTANCE_PX = 400;
@@ -30,7 +24,6 @@ export class SvgSnap {
 
   private snapLines: SnapLine[] = [];
   private snapNodes: { x: number; y: number }[] = [];
-  private snapCircles: SnapCircle[] = [];
 
   get isActiveX(): boolean {
     return Boolean(this.active.x);
@@ -46,7 +39,6 @@ export class SvgSnap {
     this.pull = { x: 0, y: 0 };
     this.snapLines = [];
     this.snapNodes = [];
-    this.snapCircles = [];
   }
 
   updatePull(deltaXPx: number, deltaYPx: number): void {
@@ -59,7 +51,6 @@ export class SvgSnap {
   buildTargetLinesAndNodes(elementsPoints: { x: number; y: number }[][]): void {
     this.snapLines = [];
     this.snapNodes = [];
-    this.snapCircles = [];
 
     for (const points of elementsPoints) {
       if (points.length === 0) continue;
@@ -94,12 +85,6 @@ export class SvgSnap {
           isOrthogonal,
         });
       }
-    }
-  }
-
-  buildTargetCircles(circles: SnapCircle[]): void {
-    for (const c of circles) {
-      this.snapCircles.push(c);
     }
   }
 
@@ -198,35 +183,9 @@ export class SvgSnap {
       }
     }
 
-    // ТИП 2: Точка к Контуру Круга
+    // ТИП 2-3: Если узлы не замагнитились — проверяем линии (А) и рёбра (Б) вместе
     if (bestNodeDist === Infinity) {
-      for (const mPt of movingPoints) {
-        for (const circle of this.snapCircles) {
-          const dx = mPt.x - circle.cx;
-          const dy = mPt.y - circle.cy;
-          const distToCenter = Math.hypot(dx, dy);
-          if (distToCenter === 0) continue;
-
-          const closestX = circle.cx + (dx / distToCenter) * circle.r;
-          const closestY = circle.cy + (dy / distToCenter) * circle.r;
-          const dist = Math.hypot(mPt.x - closestX, mPt.y - closestY);
-
-          if (dist < SNAP_DISTANCE_PX && dist < bestLineDist) {
-            bestLineDist = dist;
-            bestDistX = Math.abs(closestX - mPt.x);
-            bestDistY = Math.abs(closestY - mPt.y);
-            bestCorrX = closestX - mPt.x;
-            bestCorrY = closestY - mPt.y;
-          }
-        }
-      }
-    }
-
-    // ТИП 3: Направление А (Точки движущегося -> К линиям холста)
-    // ТИП 4: Направление Б (Узлы холста -> К линиям движущегося элемента)
-    // Проверяем их ОДНОВРЕМЕННО в одном балансе расстояний
-    if (bestNodeDist === Infinity) {
-      // Направление А
+      // ТИП 2: Направление А (Точки движущегося -> К линиям холста)
       for (const pt of movingPoints) {
         for (const line of this.snapLines) {
           const { dist, closestX, closestY } = this.pointToSegmentDist(
@@ -248,7 +207,7 @@ export class SvgSnap {
         }
       }
 
-      // Направление Б (Прилипание плоскостей ребрами к точкам)
+      // ТИП 3: Направление Б (Узлы холста -> К линиям движущегося элемента)
       const movingLines = this.buildMovingLines(movingPoints);
       for (const tNode of this.snapNodes) {
         for (const mLine of movingLines) {
@@ -263,7 +222,6 @@ export class SvgSnap {
 
           if (dist < SNAP_DISTANCE_PX && dist < bestLineDist) {
             bestLineDist = dist;
-            // Коррекция для оси X и Y считается раздельно по расстоянию до точки проекции
             bestDistX = Math.abs(tNode.x - closestX);
             bestDistY = Math.abs(tNode.y - closestY);
             bestCorrX = tNode.x - closestX;
