@@ -140,6 +140,80 @@ export class PathElement extends AbstractGraphicElement {
     this.applyMatrixToD(1, 0, 0, 1, dx, dy);
   }
 
+  // ---- Subpath utilities ----
+
+  public getSubpathRanges(): Array<{ start: number; end: number }> {
+    const ranges: Array<{ start: number; end: number }> = [];
+    const cmds = this.geometry.commands;
+    let start = -1;
+    for (let i = 0; i < cmds.length; i++) {
+      if (cmds[i].command.toUpperCase() === 'M') {
+        if (start >= 0) ranges.push({ start, end: i - 1 });
+        start = i;
+      }
+    }
+    if (start >= 0) ranges.push({ start, end: cmds.length - 1 });
+    return ranges;
+  }
+
+  public addNodeAt(cmdIdx: number, x: number, y: number): void {
+    this.geometry.commands.splice(cmdIdx + 1, 0, {
+      command: 'L',
+      args: [x, y],
+    });
+  }
+
+  public changeNodeType(cmdIdx: number, newType: 'L' | 'C'): void {
+    const cmd = this.geometry.commands[cmdIdx];
+    if (!cmd) return;
+    const c = cmd.command.toUpperCase();
+    if (newType === 'L') {
+      if (c === 'C' && cmd.args.length >= 6) {
+        cmd.args = [cmd.args[4], cmd.args[5]];
+      } else if (c === 'S' && cmd.args.length >= 4) {
+        cmd.args = [cmd.args[2], cmd.args[3]];
+      } else if (c === 'Q' && cmd.args.length >= 4) {
+        cmd.args = [cmd.args[2], cmd.args[3]];
+      }
+      cmd.command = 'L';
+    } else if (newType === 'C') {
+      if (cmd.args.length >= 2) {
+        const x = cmd.args[0];
+        const y = cmd.args[1];
+        cmd.args = [x - 25, y, x, y - 25, x, y];
+        cmd.command = 'C';
+      }
+    }
+  }
+
+  public removeNodeAt(cmdIdx: number): void {
+    const cmds = this.geometry.commands;
+    if (cmdIdx < 0 || cmdIdx >= cmds.length) return;
+    cmds.splice(cmdIdx, 1);
+    if (cmdIdx === 0 && cmds.length > 0) {
+      const next = cmds[0];
+      const nc = next.command.toUpperCase();
+      if (nc === 'L' || nc === 'C' || nc === 'S' || nc === 'Q' || nc === 'T') {
+        next.command = 'M';
+      }
+    }
+  }
+
+  public translateSubpath(subpathIdx: number, dx: number, dy: number): void {
+    const ranges = this.getSubpathRanges();
+    if (subpathIdx < 0 || subpathIdx >= ranges.length) return;
+    const { start, end } = ranges[subpathIdx];
+    for (let i = start; i <= end; i++) {
+      const cmd = this.geometry.commands[i];
+      for (let j = 0; j < cmd.args.length; j++) {
+        if (j % 2 === 0) cmd.args[j] += dx;
+        else cmd.args[j] += dy;
+      }
+    }
+  }
+
+  // ---- Node editing ----
+
   public getNodeEditPoints(): NodeEditPoint[] {
     const result: NodeEditPoint[] = [];
     const cmds = this.geometry.commands;
@@ -193,7 +267,6 @@ export class PathElement extends AbstractGraphicElement {
           y: cmd.args[3],
         });
 
-        // Control 1 — привязан к предыдущему anchor
         if (prevAnchor) {
           result.push({
             x: control1World.x,
@@ -205,7 +278,6 @@ export class PathElement extends AbstractGraphicElement {
           });
         }
 
-        // Control 2 — привязан к конечному anchor
         result.push({
           x: control2World.x,
           y: control2World.y,
@@ -215,7 +287,6 @@ export class PathElement extends AbstractGraphicElement {
           parentAnchor: { x: endWorld.x, y: endWorld.y },
         });
 
-        // Anchor — конечная точка C
         result.push({
           x: endWorld.x,
           y: endWorld.y,

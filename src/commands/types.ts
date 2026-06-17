@@ -16,7 +16,11 @@ export type CommandType =
   | 'RESIZE'
   | 'ROTATE'
   | 'TRANSFORM'
-  | 'GEOMETRY_MUTATE';
+  | 'GEOMETRY_MUTATE'
+  | 'PATH_ADD_NODE'
+  | 'PATH_CHANGE_NODE_TYPE'
+  | 'PATH_REMOVE_NODE'
+  | 'PATH_MOVE_SUBPATH';
 
 export type SelectionMode = 'element' | 'group';
 export type SelectionGesture = 'click' | 'rect' | 'lasso';
@@ -123,6 +127,42 @@ export interface GeometryMutateCommand {
   };
 }
 
+export interface PathAddNodeCommand {
+  type: 'PATH_ADD_NODE';
+  options: {
+    id: string;
+    cmdIdx: number;
+    x: number;
+    y: number;
+  };
+}
+
+export interface PathChangeNodeTypeCommand {
+  type: 'PATH_CHANGE_NODE_TYPE';
+  options: {
+    id: string;
+    cmdIdx: number;
+    newType: 'L' | 'C';
+  };
+}
+
+export interface PathRemoveNodeCommand {
+  type: 'PATH_REMOVE_NODE';
+  options: {
+    id: string;
+    cmdIdx: number;
+  };
+}
+
+export interface PathMoveSubpathCommand {
+  type: 'PATH_MOVE_SUBPATH';
+  options: {
+    id: string;
+    subpathIdx: number;
+    delta: Point;
+  };
+}
+
 export type Command =
   | CreateCommand
   | SelectCommand
@@ -137,4 +177,8 @@ export type Command =
   | ResizeCommand
   | RotateCommand
   | TransformCommand
-  | GeometryMutateCommand;
+  | GeometryMutateCommand
+  | PathAddNodeCommand
+  | PathChangeNodeTypeCommand
+  | PathRemoveNodeCommand
+  | PathMoveSubpathCommand;

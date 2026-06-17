@@ -144,3 +144,28 @@ export const flattenPointsTransform = (
     y: cy + (p.y - oldCy) * (newBBox.height / (oldBBox.height || 1)),
   }));
 };
+
+export const pointToSegmentDist = (
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): { dist: number; closestX: number; closestY: number } => {
+  const abX = bx - ax;
+  const abY = by - ay;
+  const apX = px - ax;
+  const apY = py - ay;
+  const abLenSq = abX * abX + abY * abY;
+  if (abLenSq === 0) {
+    const d = Math.hypot(px - ax, py - ay);
+    return { dist: d, closestX: ax, closestY: ay };
+  }
+  let t = (apX * abX + apY * abY) / abLenSq;
+  t = Math.max(0, Math.min(1, t));
+  const closestX = ax + abX * t;
+  const closestY = ay + abY * t;
+  const dist = Math.hypot(px - closestX, py - closestY);
+  return { dist, closestX, closestY };
+};

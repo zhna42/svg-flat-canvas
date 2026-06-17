@@ -18,6 +18,9 @@ export class PathNodeHandler {
 
   public onNodeDragStart: ((el: AbstractGraphicElement) => void) | null = null;
   public onNodeDragEnd: (() => void) | null = null;
+  public onNodeActivate:
+    | ((cmdIdx: number) => void)
+    | null = null;
 
   public constructor(bus: CommandBus) {
     this.bus = bus;
@@ -56,6 +59,8 @@ export class PathNodeHandler {
       startCommands: cmds,
       lastMouseWorld: { x: worldPoint.x, y: worldPoint.y },
     };
+
+    this.onNodeActivate?.(cmdIdx);
 
     return true;
   }
@@ -101,6 +106,7 @@ export class PathNodeHandler {
 
     this.active = null;
     this.onNodeDragEnd?.();
+    this.onNodeActivate?.(-1);
   }
 
   public abort(): void {
@@ -112,5 +118,6 @@ export class PathNodeHandler {
     path.setDirty();
 
     this.active = null;
+    this.onNodeActivate?.(-1);
   }
 }

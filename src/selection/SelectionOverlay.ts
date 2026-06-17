@@ -41,6 +41,7 @@ export class SelectionOverlay {
   private readonly camera: Camera;
   private groups: HandleGroup[] = [];
   private pathNodesGroup: SVGGElement;
+  private _activeCmdIdx = -1;
 
   public constructor(camera: Camera) {
     this.camera = camera;
@@ -48,6 +49,14 @@ export class SelectionOverlay {
     this.root.setAttribute('pointer-events', 'none');
     this.pathNodesGroup = document.createElementNS(SVG_NS, 'g');
     this.root.appendChild(this.pathNodesGroup);
+  }
+
+  public get activeCmdIdx(): number {
+    return this._activeCmdIdx;
+  }
+
+  public set activeCmdIdx(idx: number) {
+    this._activeCmdIdx = idx;
   }
 
   public getElement(): SVGGElement {
@@ -266,13 +275,15 @@ export class SelectionOverlay {
     // Потом рисуем ручки
     for (const node of nodes) {
       const screen = this.camera.worldToScreen({ x: node.x, y: node.y });
+      const isActive = node.type === 'anchor' && node.cmdIdx === this._activeCmdIdx;
+      const fillColor = isActive ? STROKE_COLOR : HANDLE_FILL;
 
       if (node.type === 'control') {
         const circle = document.createElementNS(SVG_NS, 'circle');
         circle.setAttribute('cx', String(screen.x));
         circle.setAttribute('cy', String(screen.y));
         circle.setAttribute('r', '3.5');
-        circle.setAttribute('fill', HANDLE_FILL);
+        circle.setAttribute('fill', fillColor);
         circle.setAttribute('stroke', STROKE_COLOR);
         circle.setAttribute('stroke-width', '1.5');
         circle.setAttribute('data-type', 'path-node');
@@ -286,7 +297,7 @@ export class SelectionOverlay {
         handle.setAttribute('y', String(screen.y - HANDLE_OFFSET));
         handle.setAttribute('width', String(HANDLE_SIZE));
         handle.setAttribute('height', String(HANDLE_SIZE));
-        handle.setAttribute('fill', HANDLE_FILL);
+        handle.setAttribute('fill', fillColor);
         handle.setAttribute('stroke', STROKE_COLOR);
         handle.setAttribute('stroke-width', '1.5');
         handle.setAttribute('data-type', 'path-node');

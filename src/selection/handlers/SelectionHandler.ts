@@ -12,6 +12,7 @@ import { PathNodeHandler } from '@/selection/PathNodeHandler';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { SelectionGesture } from '@/commands/types';
 import { hitTestPoint } from '@/utils/hit-test';
+import { pointToSegmentDist } from '@/utils/geometry-utils';
 import {
   createSelectPickCommand,
   createSelectRectCommand,
@@ -86,6 +87,13 @@ export class SelectionHandler {
 
     const groupLookup = opts.getGroupIdForElement ?? (() => undefined);
     this.pathNodeHandler = new PathNodeHandler(opts.bus);
+    this.pathNodeHandler.onNodeActivate = (cmdIdx) => {
+      opts.selectionOverlay.activeCmdIdx = cmdIdx;
+      const editingPath = opts.getEditingPath?.();
+      if (editingPath) {
+        opts.selectionOverlay.updatePathNodes(editingPath);
+      }
+    };
     this.groupHandler = new GroupSelectionHandler({
       getElements: opts.getElements,
       grid: opts.grid,
@@ -424,6 +432,66 @@ export class SelectionHandler {
       if (e.button !== 0) return;
       if (e.defaultPrevented) return;
       const worldPt = this.screenToWorld(e);
+
+      // Feature 1: Добавление точки на отрезок, если режим редактирования активен
+      const editingPath = this.opts.getEditingPath?.();
+      if (editingPath && editingPath.type === 'path') {
+        // Не добавлять точку если клик попал в ручку узла
+        const svgPt = this.clientToSvg(e);
+        const handleHit = this.opts.selectionOverlay.hitTestPathNode(
+          svgPt.x,
+          svgPt.y,
+        );
+        if (handleHit) return;
+
+        const pathEl = editingPath as any as import('@/shapes/elements/PathElement').PathElement;
+        const cmds = pathEl.geometry.commands;
+        let closestDist = Infinity;
+        let closestCmdIdx = -1;
+        let closestX = 0;
+        let closestY = 0;
+
+        for (let i = 0; i < cmds.length - 1; i++) {
+          const c0 = cmds[i];
+          const c1 = cmds[i + 1];
+          const c0c = c0.command.toUpperCase();
+          const c1c = c1.command.toUpperCase();
+          if ((c0c === 'M' || c0c === 'L' || c0c === 'C' || c0c === 'S' || c0c === 'Q' || c0c === 'T') && c0.args.length >= 2) {
+            let ax: number, ay: number;
+            if (c0c === 'C' && c0.args.length >= 6) { ax = c0.args[4]; ay = c0.args[5]; }
+            else if (c0c === 'S' && c0.args.length >= 4) { ax = c0.args[2]; ay = c0.args[3]; }
+            else if (c0c === 'Q' && c0.args.length >= 4) { ax = c0.args[2]; ay = c0.args[3]; }
+            else { ax = c0.args[0]; ay = c0.args[1]; }
+
+            let bx: number, by: number;
+            if (c1c === 'C' && c1.args.length >= 6) { bx = c1.args[4]; by = c1.args[5]; }
+            else if (c1c === 'S' && c1.args.length >= 4) { bx = c1.args[2]; by = c1.args[3]; }
+            else if (c1c === 'Q' && c1.args.length >= 4) { bx = c1.args[2]; by = c1.args[3]; }
+            else if ((c1c === 'M' || c1c === 'L' || c1c === 'T') && c1.args.length >= 2) { bx = c1.args[0]; by = c1.args[1]; }
+            else continue;
+
+            const { dist, closestX: cx, closestY: cy } = pointToSegmentDist(
+              worldPt.x, worldPt.y, ax, ay, bx, by,
+            );
+            if (dist < closestDist) {
+              closestDist = dist;
+              closestCmdIdx = i;
+              closestX = cx;
+              closestY = cy;
+            }
+          }
+        }
+
+        if (closestCmdIdx >= 0 && closestDist < 15) {
+          this.opts.bus.execute({
+            type: 'PATH_ADD_NODE',
+            options: { id: editingPath.id, cmdIdx: closestCmdIdx, x: closestX, y: closestY },
+          });
+          e.preventDefault();
+          return;
+        }
+      }
+
       const all = this.opts.getElements();
       const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
       if (hits.length > 0) {
@@ -449,6 +517,39 @@ export class SelectionHandler {
         const selected = this.opts.state.selected;
         if (selected.length === 1 && selected[0].type === 'path') {
           this.opts.onSetEditingPath?.(selected[0]);
+          e.preventDefault();
+        }
+      } else if ((e.key === 'Delete' || e.key === 'Backspace') && this.pathNodeHandler.isActive) {
+        const editingPath = this.opts.getEditingPath?.();
+        if (editingPath) {
+          const act = this.pathNodeHandler.activation;
+          if (act) {
+            this.opts.bus.execute({
+              type: 'PATH_REMOVE_NODE',
+              options: { id: editingPath.id, cmdIdx: act.cmdIdx },
+            });
+            this.pathNodeHandler.abort();
+            e.preventDefault();
+          }
+        }
+      } else if (this.pathNodeHandler.isActive && (key === 'c')) {
+        const editingPath = this.opts.getEditingPath?.();
+        const act = this.pathNodeHandler.activation;
+        if (editingPath && act) {
+          this.opts.bus.execute({
+            type: 'PATH_CHANGE_NODE_TYPE',
+            options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'C' },
+          });
+          e.preventDefault();
+        }
+      } else if (this.pathNodeHandler.isActive && (key === 'l')) {
+        const editingPath = this.opts.getEditingPath?.();
+        const act = this.pathNodeHandler.activation;
+        if (editingPath && act) {
+          this.opts.bus.execute({
+            type: 'PATH_CHANGE_NODE_TYPE',
+            options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'L' },
+          });
           e.preventDefault();
         }
       } else if (key === 'escape') {

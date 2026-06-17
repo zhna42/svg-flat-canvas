@@ -39,8 +39,17 @@ export class CreationHandler {
   private _activeType: CreationElementType | null = null;
   private currentPreview: AbstractGraphicElement | null = null;
   private startWorld: Point = { x: 0, y: 0 };
+  private _editingPath: AbstractGraphicElement | null = null;
 
   private multiPointPoints: Point[] = [];
+
+  public get editingPathElement(): AbstractGraphicElement | null {
+    return this._editingPath;
+  }
+
+  public set editingPathElement(el: AbstractGraphicElement | null) {
+    this._editingPath = el;
+  }
 
   public onCreationStart: ((type: CreationElementType) => void) | null = null;
   public onCreationEnd: ((el: AbstractGraphicElement) => void) | null = null;
@@ -171,6 +180,28 @@ export class CreationHandler {
     if (!type) return;
 
     this.startWorld = { x: worldPoint.x, y: worldPoint.y };
+
+    // Feature 4: Мульти-контур — добавляем суб-путь прямо в editingPath
+    if (
+      type === 'path' &&
+      this._editingPath &&
+      this._editingPath.type === 'path'
+    ) {
+      const existingPath = this._editingPath as PathElement;
+      if (this.currentPreview === this._editingPath) {
+        this.addPointToMulti(worldPoint);
+        return;
+      }
+      this.multiPointPoints = [{ x: worldPoint.x, y: worldPoint.y }];
+      const existingCmds = existingPath.geometry.commands;
+      existingCmds.push({ command: 'M', args: [worldPoint.x, worldPoint.y] });
+      existingCmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
+      existingPath.buildHitArea();
+      existingPath.setDirty();
+      this.currentPreview = existingPath as any;
+      this.onCreationStart?.(type);
+      return;
+    }
 
     if (type === 'polyline' || type === 'polygon' || type === 'path') {
       if (this.currentPreview) {
@@ -349,7 +380,6 @@ export class CreationHandler {
       const cmds = path.geometry.commands;
       if (cmds.length > 1) {
         if (worldPoint) {
-          // При dblclick последняя L — это зафиксированная точка, удаляем предпоследнюю L (старую резиновую нить)
           if (cmds.length >= 3) {
             cmds.splice(cmds.length - 2, 1);
           }
@@ -362,6 +392,23 @@ export class CreationHandler {
         path.buildHitArea();
         path.setDirty();
       }
+    }
+
+    // Feature 4: Если рисуем суб-путь внутри editingPath — финализируем через GEOMETRY_MUTATE
+    if (el === this._editingPath && el.type === 'path') {
+      const path = el as PathElement;
+      const newCommands = path.geometry.commands.map((c) => ({
+        ...c,
+        args: [...c.args],
+      }));
+      this.bus.execute({
+        type: 'GEOMETRY_MUTATE',
+        options: { id: path.id, newCommands },
+      });
+      this.currentPreview = null;
+      this.multiPointPoints = [];
+      this._activeType = null;
+      return;
     }
 
     this.finalizeCreation(el);

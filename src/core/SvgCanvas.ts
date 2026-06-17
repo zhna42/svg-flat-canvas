@@ -249,6 +249,58 @@ export class SvgCanvas {
       }
     });
 
+    this.commandBus.register('PATH_ADD_NODE', (command) => {
+      if (command.type !== 'PATH_ADD_NODE') return;
+      const el = this.shapeManager
+        .getAll()
+        .find((e) => e.id === command.options.id);
+      if (el instanceof PathElement) {
+        el.addNodeAt(command.options.cmdIdx, command.options.x, command.options.y);
+        el.buildHitArea();
+        el.setDirty();
+      }
+    });
+
+    this.commandBus.register('PATH_CHANGE_NODE_TYPE', (command) => {
+      if (command.type !== 'PATH_CHANGE_NODE_TYPE') return;
+      const el = this.shapeManager
+        .getAll()
+        .find((e) => e.id === command.options.id);
+      if (el instanceof PathElement) {
+        el.changeNodeType(command.options.cmdIdx, command.options.newType);
+        el.buildHitArea();
+        el.setDirty();
+      }
+    });
+
+    this.commandBus.register('PATH_REMOVE_NODE', (command) => {
+      if (command.type !== 'PATH_REMOVE_NODE') return;
+      const el = this.shapeManager
+        .getAll()
+        .find((e) => e.id === command.options.id);
+      if (el instanceof PathElement) {
+        el.removeNodeAt(command.options.cmdIdx);
+        el.buildHitArea();
+        el.setDirty();
+      }
+    });
+
+    this.commandBus.register('PATH_MOVE_SUBPATH', (command) => {
+      if (command.type !== 'PATH_MOVE_SUBPATH') return;
+      const el = this.shapeManager
+        .getAll()
+        .find((e) => e.id === command.options.id);
+      if (el instanceof PathElement) {
+        el.translateSubpath(
+          command.options.subpathIdx,
+          command.options.delta.x,
+          command.options.delta.y,
+        );
+        el.buildHitArea();
+        el.setDirty();
+      }
+    });
+
     this.creationHandler = new CreationHandler(
       this.svg,
       this.camera,
@@ -423,6 +475,7 @@ export class SvgCanvas {
       this._editingPath.onDirty = null;
     }
     this._editingPath = path;
+    this.creationHandler.editingPathElement = path;
     if (path) {
       path.isNodeEditing = true;
       path.onDirty = () => {
