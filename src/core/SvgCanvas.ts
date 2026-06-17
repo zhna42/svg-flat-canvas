@@ -255,7 +255,14 @@ export class SvgCanvas {
         .getAll()
         .find((e) => e.id === command.options.id);
       if (el instanceof PathElement) {
-        el.addNodeAt(command.options.cmdIdx, command.options.x, command.options.y);
+        el.addNodeAt(
+          command.options.cmdIdx,
+          command.options.x,
+          command.options.y,
+          command.options.t,
+          command.options.prevEndX,
+          command.options.prevEndY,
+        );
         el.buildHitArea();
         el.setDirty();
       }

@@ -134,6 +134,9 @@ export interface PathAddNodeCommand {
     cmdIdx: number;
     x: number;
     y: number;
+    t: number;
+    prevEndX: number;
+    prevEndY: number;
   };
 }
 

@@ -436,7 +436,6 @@ export class SelectionHandler {
       // Feature 1: Добавление точки на отрезок, если режим редактирования активен
       const editingPath = this.opts.getEditingPath?.();
       if (editingPath && editingPath.type === 'path') {
-        // Не добавлять точку если клик попал в ручку узла
         const svgPt = this.clientToSvg(e);
         const handleHit = this.opts.selectionOverlay.hitTestPathNode(
           svgPt.x,
@@ -446,46 +445,152 @@ export class SelectionHandler {
 
         const pathEl = editingPath as any as import('@/shapes/elements/PathElement').PathElement;
         const cmds = pathEl.geometry.commands;
+
+        // Инвертируем мировые координаты в локальные через матрицу элемента
+        const inv = pathEl.transform.matrix.inverse();
+        const localPt = inv.transformPoint({ x: worldPt.x, y: worldPt.y });
+
         let closestDist = Infinity;
         let closestCmdIdx = -1;
-        let closestX = 0;
-        let closestY = 0;
+        let closestT = 0;
+        let closestPrevEndX = 0;
+        let closestPrevEndY = 0;
 
-        for (let i = 0; i < cmds.length - 1; i++) {
-          const c0 = cmds[i];
-          const c1 = cmds[i + 1];
-          const c0c = c0.command.toUpperCase();
-          const c1c = c1.command.toUpperCase();
-          if ((c0c === 'M' || c0c === 'L' || c0c === 'C' || c0c === 'S' || c0c === 'Q' || c0c === 'T') && c0.args.length >= 2) {
-            let ax: number, ay: number;
-            if (c0c === 'C' && c0.args.length >= 6) { ax = c0.args[4]; ay = c0.args[5]; }
-            else if (c0c === 'S' && c0.args.length >= 4) { ax = c0.args[2]; ay = c0.args[3]; }
-            else if (c0c === 'Q' && c0.args.length >= 4) { ax = c0.args[2]; ay = c0.args[3]; }
-            else { ax = c0.args[0]; ay = c0.args[1]; }
+        for (let i = 1; i < cmds.length; i++) {
+          const cmd = cmds[i];
+          const cc = cmd.command.toUpperCase();
+          if (cc === 'M') continue;
 
-            let bx: number, by: number;
-            if (c1c === 'C' && c1.args.length >= 6) { bx = c1.args[4]; by = c1.args[5]; }
-            else if (c1c === 'S' && c1.args.length >= 4) { bx = c1.args[2]; by = c1.args[3]; }
-            else if (c1c === 'Q' && c1.args.length >= 4) { bx = c1.args[2]; by = c1.args[3]; }
-            else if ((c1c === 'M' || c1c === 'L' || c1c === 'T') && c1.args.length >= 2) { bx = c1.args[0]; by = c1.args[1]; }
-            else continue;
+          const prev = cmds[i - 1];
+          let ax: number, ay: number;
+          if (prev.command.toUpperCase() === 'M' || prev.command.toUpperCase() === 'L' || prev.command.toUpperCase() === 'T') {
+            ax = prev.args[0]; ay = prev.args[1];
+          } else if (prev.command.toUpperCase() === 'C' && prev.args.length >= 6) {
+            ax = prev.args[4]; ay = prev.args[5];
+          } else if (prev.command.toUpperCase() === 'S' && prev.args.length >= 4) {
+            ax = prev.args[2]; ay = prev.args[3];
+          } else if (prev.command.toUpperCase() === 'Q' && prev.args.length >= 4) {
+            ax = prev.args[2]; ay = prev.args[3];
+          } else continue;
 
+          if (cc === 'L' || cc === 'T') {
+            const bx = cmd.args[0], by = cmd.args[1];
             const { dist, closestX: cx, closestY: cy } = pointToSegmentDist(
-              worldPt.x, worldPt.y, ax, ay, bx, by,
+              localPt.x, localPt.y, ax, ay, bx, by,
             );
             if (dist < closestDist) {
               closestDist = dist;
-              closestCmdIdx = i;
-              closestX = cx;
-              closestY = cy;
+              closestCmdIdx = i - 1;
+              closestPrevEndX = ax;
+              closestPrevEndY = ay;
+              const dx = bx - ax, dy = by - ay;
+              const lenSq = dx * dx + dy * dy;
+              closestT = lenSq > 0 ? ((cx - ax) * dx + (cy - ay) * dy) / lenSq : 0;
+            }
+          } else if (cc === 'C' && cmd.args.length >= 6) {
+            const [c1x, c1y, c2x, c2y, ex, ey] = cmd.args;
+            let bestT = 0;
+            let bestDistC = Infinity;
+            for (let s = 0; s <= 20; s++) {
+              const t = s / 20;
+              const mt = 1 - t;
+              const px = mt * mt * mt * ax + 3 * mt * mt * t * c1x + 3 * mt * t * t * c2x + t * t * t * ex;
+              const py = mt * mt * mt * ay + 3 * mt * mt * t * c1y + 3 * mt * t * t * c2y + t * t * t * ey;
+              const d = Math.hypot(localPt.x - px, localPt.y - py);
+              if (d < bestDistC) { bestDistC = d; bestT = t; }
+            }
+            if (bestDistC < closestDist) {
+              closestDist = bestDistC;
+              closestCmdIdx = i - 1;
+              closestT = bestT;
+              closestPrevEndX = ax;
+              closestPrevEndY = ay;
+            }
+          } else if (cc === 'Q' && cmd.args.length >= 4) {
+            const [c1x, c1y, ex, ey] = cmd.args;
+            let bestT = 0;
+            let bestDistQ = Infinity;
+            for (let s = 0; s <= 20; s++) {
+              const t = s / 20;
+              const mt = 1 - t;
+              const px = mt * mt * ax + 2 * mt * t * c1x + t * t * ex;
+              const py = mt * mt * ay + 2 * mt * t * c1y + t * t * ey;
+              const d = Math.hypot(localPt.x - px, localPt.y - py);
+              if (d < bestDistQ) { bestDistQ = d; bestT = t; }
+            }
+            if (bestDistQ < closestDist) {
+              closestDist = bestDistQ;
+              closestCmdIdx = i - 1;
+              closestT = bestT;
+              closestPrevEndX = ax;
+              closestPrevEndY = ay;
+            }
+          } else if (cc === 'S' && cmd.args.length >= 4) {
+            const prevCmd = cmds[i - 1];
+            const pc = prevCmd?.command.toUpperCase();
+            let reflectX = ax, reflectY = ay;
+            if (pc === 'C' && prevCmd.args.length >= 6) {
+              reflectX = 2 * ax - prevCmd.args[2];
+              reflectY = 2 * ay - prevCmd.args[3];
+            }
+            const [c2x, c2y, ex, ey] = cmd.args;
+            let bestT = 0;
+            let bestDistS = Infinity;
+            for (let s = 0; s <= 20; s++) {
+              const t = s / 20;
+              const mt = 1 - t;
+              const px = mt * mt * mt * ax + 3 * mt * mt * t * reflectX + 3 * mt * t * t * c2x + t * t * t * ex;
+              const py = mt * mt * mt * ay + 3 * mt * mt * t * reflectY + 3 * mt * t * t * c2y + t * t * t * ey;
+              const d = Math.hypot(localPt.x - px, localPt.y - py);
+              if (d < bestDistS) { bestDistS = d; bestT = t; }
+            }
+            if (bestDistS < closestDist) {
+              closestDist = bestDistS;
+              closestCmdIdx = i - 1;
+              closestT = bestT;
+              closestPrevEndX = ax;
+              closestPrevEndY = ay;
             }
           }
         }
 
-        if (closestCmdIdx >= 0 && closestDist < 15) {
+        if (closestCmdIdx >= 0 && closestDist < 40) {
+          // Вычисляем точку на кривой в локальных координатах
+          const nextCmd = cmds[closestCmdIdx + 1];
+          const ncc = nextCmd.command.toUpperCase();
+          let localX = localPt.x, localY = localPt.y;
+
+          if ((ncc === 'C' || ncc === 'S' || ncc === 'Q') && closestT >= 0 && closestT <= 1) {
+            const Ax = closestPrevEndX, Ay = closestPrevEndY;
+            if (ncc === 'C' && nextCmd.args.length >= 6) {
+              const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
+              const t = closestT, mt = 1 - t;
+              localX = mt * mt * mt * Ax + 3 * mt * mt * t * c1x + 3 * mt * t * t * c2x + t * t * t * ex;
+              localY = mt * mt * mt * Ay + 3 * mt * mt * t * c1y + 3 * mt * t * t * c2y + t * t * t * ey;
+            } else if (ncc === 'Q' && nextCmd.args.length >= 4) {
+              const [c1x, c1y, ex, ey] = nextCmd.args;
+              const t = closestT, mt = 1 - t;
+              localX = mt * mt * Ax + 2 * mt * t * c1x + t * t * ex;
+              localY = mt * mt * Ay + 2 * mt * t * c1y + t * t * ey;
+            } else if (ncc === 'S' && nextCmd.args.length >= 4) {
+              const [c2x, c2y, ex, ey] = nextCmd.args;
+              const t = closestT, mt = 1 - t;
+              localX = mt * mt * mt * Ax + 3 * mt * mt * t * (2 * Ax - (cmds[closestCmdIdx]?.args?.[2] ?? Ax)) + 3 * mt * t * t * c2x + t * t * t * ex;
+              localY = mt * mt * mt * Ay + 3 * mt * mt * t * (2 * Ay - (cmds[closestCmdIdx]?.args?.[3] ?? Ay)) + 3 * mt * t * t * c2y + t * t * t * ey;
+            }
+          }
+
           this.opts.bus.execute({
             type: 'PATH_ADD_NODE',
-            options: { id: editingPath.id, cmdIdx: closestCmdIdx, x: closestX, y: closestY },
+            options: {
+              id: editingPath.id,
+              cmdIdx: closestCmdIdx,
+              x: localX,
+              y: localY,
+              t: closestT,
+              prevEndX: closestPrevEndX,
+              prevEndY: closestPrevEndY,
+            },
           });
           e.preventDefault();
           return;

@@ -156,11 +156,93 @@ export class PathElement extends AbstractGraphicElement {
     return ranges;
   }
 
-  public addNodeAt(cmdIdx: number, x: number, y: number): void {
-    this.geometry.commands.splice(cmdIdx + 1, 0, {
-      command: 'L',
-      args: [x, y],
-    });
+  private static splitCubic(
+    P0x: number, P0y: number,
+    P1x: number, P1y: number,
+    P2x: number, P2y: number,
+    P3x: number, P3y: number,
+    t: number,
+  ): {
+    left: [number, number, number, number, number, number, number, number];
+    right: [number, number, number, number, number, number, number, number];
+  } {
+    const A = { x: P0x + (P1x - P0x) * t, y: P0y + (P1y - P0y) * t };
+    const B = { x: P1x + (P2x - P1x) * t, y: P1y + (P2y - P1y) * t };
+    const C = { x: P2x + (P3x - P2x) * t, y: P2y + (P3y - P2y) * t };
+    const D = { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t };
+    const E = { x: B.x + (C.x - B.x) * t, y: B.y + (C.y - B.y) * t };
+    const F = { x: D.x + (E.x - D.x) * t, y: D.y + (E.y - D.y) * t };
+
+    return {
+      left: [P0x, P0y, A.x, A.y, D.x, D.y, F.x, F.y],
+      right: [F.x, F.y, E.x, E.y, C.x, C.y, P3x, P3y],
+    };
+  }
+
+  public addNodeAt(
+    cmdIdx: number,
+    x: number,
+    y: number,
+    t: number,
+    prevEndX: number,
+    prevEndY: number,
+  ): void {
+    const cmds = this.geometry.commands;
+    const nextCmd = cmds[cmdIdx + 1];
+    if (!nextCmd) {
+      cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
+      return;
+    }
+
+    const nc = nextCmd.command.toUpperCase();
+
+    if (nc === 'C' && nextCmd.args.length >= 6) {
+      const sx = prevEndX;
+      const sy = prevEndY;
+      const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
+      const { left, right } = PathElement.splitCubic(sx, sy, c1x, c1y, c2x, c2y, ex, ey, t);
+      nextCmd.args = [left[2], left[3], left[4], left[5], left[6], left[7]];
+      cmds.splice(cmdIdx + 1, 0, {
+        command: 'C',
+        args: [right[2], right[3], right[4], right[5], right[6], right[7]],
+      });
+
+    } else if (nc === 'S' && nextCmd.args.length >= 4) {
+      const sx = prevEndX;
+      const sy = prevEndY;
+      const prevCmd = cmds[cmdIdx];
+      const pc = prevCmd?.command.toUpperCase();
+      let reflectX = sx;
+      let reflectY = sy;
+      if (pc === 'C' && prevCmd.args.length >= 6) {
+        reflectX = 2 * sx - prevCmd.args[2];
+        reflectY = 2 * sy - prevCmd.args[3];
+      }
+      const [c2x, c2y, ex, ey] = nextCmd.args;
+      const { left, right } = PathElement.splitCubic(
+        sx, sy, reflectX, reflectY, c2x, c2y, ex, ey, t,
+      );
+      nextCmd.args = [left[4], left[5], left[6], left[7]];
+      nextCmd.command = 'S';
+      cmds.splice(cmdIdx + 1, 0, {
+        command: 'S',
+        args: [right[4], right[5], right[6], right[7]],
+      });
+
+    } else if (nc === 'Q' && nextCmd.args.length >= 4) {
+      const [c1x, c1y, ex, ey] = nextCmd.args;
+      const A = { x: prevEndX + (c1x - prevEndX) * t, y: prevEndY + (c1y - prevEndY) * t };
+      const B = { x: c1x + (ex - c1x) * t, y: c1y + (ey - c1y) * t };
+      const F = { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t };
+      nextCmd.args = [A.x, A.y, F.x, F.y];
+      cmds.splice(cmdIdx + 1, 0, {
+        command: 'Q',
+        args: [B.x, B.y, ex, ey],
+      });
+
+    } else {
+      cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
+    }
   }
 
   public changeNodeType(cmdIdx: number, newType: 'L' | 'C'): void {
