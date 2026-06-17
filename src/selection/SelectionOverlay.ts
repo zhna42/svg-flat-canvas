@@ -199,20 +199,31 @@ export class SelectionOverlay {
       '[data-type="path-node"]',
     );
     for (const handle of handles) {
-      const x = parseFloat(handle.getAttribute('x') ?? '0');
-      const y = parseFloat(handle.getAttribute('y') ?? '0');
-      if (
-        svgX >= x &&
-        svgX <= x + HANDLE_SIZE &&
-        svgY >= y &&
-        svgY <= y + HANDLE_SIZE
-      ) {
-        const elementId = handle.getAttribute('data-element-id');
-        const cmdIdx = parseInt(handle.getAttribute('data-cmd-idx') ?? '', 10);
-        const ptIdx = parseInt(handle.getAttribute('data-pt-idx') ?? '', 10);
-        if (elementId && !isNaN(cmdIdx) && !isNaN(ptIdx)) {
-          return { elementId, cmdIdx, ptIdx };
-        }
+      let hx: number;
+      let hy: number;
+      const tag = handle.tagName;
+
+      if (tag === 'circle') {
+        const cx = parseFloat(handle.getAttribute('cx') ?? '0');
+        const cy = parseFloat(handle.getAttribute('cy') ?? '0');
+        const r = parseFloat(handle.getAttribute('r') ?? '3.5');
+        const dx = svgX - cx;
+        const dy = svgY - cy;
+        if (dx * dx + dy * dy > r * r) continue;
+        hx = cx - r;
+        hy = cy - r;
+      } else {
+        hx = parseFloat(handle.getAttribute('x') ?? '0');
+        hy = parseFloat(handle.getAttribute('y') ?? '0');
+        const w = HANDLE_SIZE;
+        if (svgX < hx || svgX > hx + w || svgY < hy || svgY > hy + w) continue;
+      }
+
+      const elementId = handle.getAttribute('data-element-id');
+      const cmdIdx = parseInt(handle.getAttribute('data-cmd-idx') ?? '', 10);
+      const ptIdx = parseInt(handle.getAttribute('data-pt-idx') ?? '', 10);
+      if (elementId && !isNaN(cmdIdx) && !isNaN(ptIdx)) {
+        return { elementId, cmdIdx, ptIdx };
       }
     }
     return null;
@@ -235,21 +246,55 @@ export class SelectionOverlay {
     if (!('getNodeEditPoints' in el)) return;
     const pathEl = el as unknown as PathElement;
     const nodes = pathEl.getNodeEditPoints();
+
+    // Сначала рисуем линии для control точек
+    for (const node of nodes) {
+      if (node.type !== 'control' || !node.parentAnchor) continue;
+      const screen = this.camera.worldToScreen({ x: node.x, y: node.y });
+      const parentScreen = this.camera.worldToScreen(node.parentAnchor);
+      const line = document.createElementNS(SVG_NS, 'line');
+      line.setAttribute('x1', String(parentScreen.x));
+      line.setAttribute('y1', String(parentScreen.y));
+      line.setAttribute('x2', String(screen.x));
+      line.setAttribute('y2', String(screen.y));
+      line.setAttribute('stroke', '#a0a0a0');
+      line.setAttribute('stroke-width', '1');
+      line.setAttribute('pointer-events', 'none');
+      this.pathNodesGroup.appendChild(line);
+    }
+
+    // Потом рисуем ручки
     for (const node of nodes) {
       const screen = this.camera.worldToScreen({ x: node.x, y: node.y });
-      const handle = document.createElementNS(SVG_NS, 'rect');
-      handle.setAttribute('x', String(screen.x - HANDLE_OFFSET));
-      handle.setAttribute('y', String(screen.y - HANDLE_OFFSET));
-      handle.setAttribute('width', String(HANDLE_SIZE));
-      handle.setAttribute('height', String(HANDLE_SIZE));
-      handle.setAttribute('fill', HANDLE_FILL);
-      handle.setAttribute('stroke', STROKE_COLOR);
-      handle.setAttribute('stroke-width', '1.5');
-      handle.setAttribute('data-type', 'path-node');
-      handle.setAttribute('data-element-id', el.id);
-      handle.setAttribute('data-cmd-idx', String(node.cmdIdx));
-      handle.setAttribute('data-pt-idx', String(node.ptIdx));
-      this.pathNodesGroup.appendChild(handle);
+
+      if (node.type === 'control') {
+        const circle = document.createElementNS(SVG_NS, 'circle');
+        circle.setAttribute('cx', String(screen.x));
+        circle.setAttribute('cy', String(screen.y));
+        circle.setAttribute('r', '3.5');
+        circle.setAttribute('fill', HANDLE_FILL);
+        circle.setAttribute('stroke', STROKE_COLOR);
+        circle.setAttribute('stroke-width', '1.5');
+        circle.setAttribute('data-type', 'path-node');
+        circle.setAttribute('data-element-id', el.id);
+        circle.setAttribute('data-cmd-idx', String(node.cmdIdx));
+        circle.setAttribute('data-pt-idx', String(node.ptIdx));
+        this.pathNodesGroup.appendChild(circle);
+      } else {
+        const handle = document.createElementNS(SVG_NS, 'rect');
+        handle.setAttribute('x', String(screen.x - HANDLE_OFFSET));
+        handle.setAttribute('y', String(screen.y - HANDLE_OFFSET));
+        handle.setAttribute('width', String(HANDLE_SIZE));
+        handle.setAttribute('height', String(HANDLE_SIZE));
+        handle.setAttribute('fill', HANDLE_FILL);
+        handle.setAttribute('stroke', STROKE_COLOR);
+        handle.setAttribute('stroke-width', '1.5');
+        handle.setAttribute('data-type', 'path-node');
+        handle.setAttribute('data-element-id', el.id);
+        handle.setAttribute('data-cmd-idx', String(node.cmdIdx));
+        handle.setAttribute('data-pt-idx', String(node.ptIdx));
+        this.pathNodesGroup.appendChild(handle);
+      }
     }
   }
 

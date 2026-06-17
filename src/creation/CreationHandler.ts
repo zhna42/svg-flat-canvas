@@ -342,13 +342,22 @@ export class CreationHandler {
     }
 
     // Убираем последнюю временную команду L (резиновую нить) у path
+    // Если передан worldPoint (dblclick), последняя L уже зафиксирована — удаляем предыдущую L
+    // Если worldPoint нет (Enter), удаляем последнюю L (она всё ещё резиновая)
     if (el.type === 'path') {
       const path = el as PathElement;
       const cmds = path.geometry.commands;
       if (cmds.length > 1) {
-        const last = cmds[cmds.length - 1];
-        if (last.command === 'L' || last.command === 'Z') {
-          cmds.pop();
+        if (worldPoint) {
+          // При dblclick последняя L — это зафиксированная точка, удаляем предпоследнюю L (старую резиновую нить)
+          if (cmds.length >= 3) {
+            cmds.splice(cmds.length - 2, 1);
+          }
+        } else {
+          const last = cmds[cmds.length - 1];
+          if (last.command === 'L' || last.command === 'Z') {
+            cmds.pop();
+          }
         }
         path.buildHitArea();
         path.setDirty();

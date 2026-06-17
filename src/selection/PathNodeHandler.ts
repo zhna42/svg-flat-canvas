@@ -71,18 +71,10 @@ export class PathNodeHandler {
     const cmd = path.geometry.commands[this.active.cmdIdx];
     if (!cmd) return;
 
-    const c = cmd.command.toUpperCase();
-    if (c === 'M' || c === 'L') {
-      if (cmd.args.length >= 2) {
-        cmd.args[0] += frameDx;
-        cmd.args[1] += frameDy;
-      }
-    } else if (c === 'C' && cmd.args.length >= 6) {
-      cmd.args[4] += frameDx;
-      cmd.args[5] += frameDy;
-    } else if (c === 'Q' && cmd.args.length >= 4) {
-      cmd.args[2] += frameDx;
-      cmd.args[3] += frameDy;
+    const idx = this.active.ptIdx;
+    if (idx >= 0 && idx + 1 < cmd.args.length) {
+      cmd.args[idx] += frameDx;
+      cmd.args[idx + 1] += frameDy;
     }
 
     path.buildHitArea();

@@ -11,8 +11,10 @@ import {
 export interface NodeEditPoint {
   x: number;
   y: number;
+  type: 'anchor' | 'control';
   cmdIdx: number;
   ptIdx: number;
+  parentAnchor?: { x: number; y: number };
 }
 
 export class PathElement extends AbstractGraphicElement {
@@ -141,29 +143,159 @@ export class PathElement extends AbstractGraphicElement {
   public getNodeEditPoints(): NodeEditPoint[] {
     const result: NodeEditPoint[] = [];
     const cmds = this.geometry.commands;
+    let prevAnchor: Point | null = null;
+
     for (let cmdIdx = 0; cmdIdx < cmds.length; cmdIdx++) {
       const cmd = cmds[cmdIdx];
       const c = cmd.command.toUpperCase();
-      if (c === 'M' || c === 'L') {
+
+      if (c === 'M') {
         if (cmd.args.length >= 2) {
           const world = this.transformPoint({
             x: cmd.args[0],
             y: cmd.args[1],
           });
-          result.push({ x: world.x, y: world.y, cmdIdx, ptIdx: 0 });
+          result.push({
+            x: world.x,
+            y: world.y,
+            type: 'anchor',
+            cmdIdx,
+            ptIdx: 0,
+          });
+          prevAnchor = world;
+        }
+      } else if (c === 'L') {
+        if (cmd.args.length >= 2) {
+          const world = this.transformPoint({
+            x: cmd.args[0],
+            y: cmd.args[1],
+          });
+          result.push({
+            x: world.x,
+            y: world.y,
+            type: 'anchor',
+            cmdIdx,
+            ptIdx: 0,
+          });
+          prevAnchor = world;
         }
       } else if (c === 'C' && cmd.args.length >= 6) {
-        const world = this.transformPoint({
+        const endWorld = this.transformPoint({
           x: cmd.args[4],
           y: cmd.args[5],
         });
-        result.push({ x: world.x, y: world.y, cmdIdx, ptIdx: 2 });
-      } else if (c === 'Q' && cmd.args.length >= 4) {
-        const world = this.transformPoint({
+        const control1World = this.transformPoint({
+          x: cmd.args[0],
+          y: cmd.args[1],
+        });
+        const control2World = this.transformPoint({
           x: cmd.args[2],
           y: cmd.args[3],
         });
-        result.push({ x: world.x, y: world.y, cmdIdx, ptIdx: 1 });
+
+        // Control 1 — привязан к предыдущему anchor
+        if (prevAnchor) {
+          result.push({
+            x: control1World.x,
+            y: control1World.y,
+            type: 'control',
+            cmdIdx,
+            ptIdx: 0,
+            parentAnchor: { x: prevAnchor.x, y: prevAnchor.y },
+          });
+        }
+
+        // Control 2 — привязан к конечному anchor
+        result.push({
+          x: control2World.x,
+          y: control2World.y,
+          type: 'control',
+          cmdIdx,
+          ptIdx: 2,
+          parentAnchor: { x: endWorld.x, y: endWorld.y },
+        });
+
+        // Anchor — конечная точка C
+        result.push({
+          x: endWorld.x,
+          y: endWorld.y,
+          type: 'anchor',
+          cmdIdx,
+          ptIdx: 4,
+        });
+        prevAnchor = endWorld;
+      } else if (c === 'Q' && cmd.args.length >= 4) {
+        const endWorld = this.transformPoint({
+          x: cmd.args[2],
+          y: cmd.args[3],
+        });
+        const controlWorld = this.transformPoint({
+          x: cmd.args[0],
+          y: cmd.args[1],
+        });
+
+        if (prevAnchor) {
+          result.push({
+            x: controlWorld.x,
+            y: controlWorld.y,
+            type: 'control',
+            cmdIdx,
+            ptIdx: 0,
+            parentAnchor: { x: prevAnchor.x, y: prevAnchor.y },
+          });
+        }
+
+        result.push({
+          x: endWorld.x,
+          y: endWorld.y,
+          type: 'anchor',
+          cmdIdx,
+          ptIdx: 2,
+        });
+        prevAnchor = endWorld;
+      } else if (c === 'S' && cmd.args.length >= 4) {
+        const controlWorld = this.transformPoint({
+          x: cmd.args[0],
+          y: cmd.args[1],
+        });
+        const endWorld = this.transformPoint({
+          x: cmd.args[2],
+          y: cmd.args[3],
+        });
+
+        if (prevAnchor) {
+          result.push({
+            x: controlWorld.x,
+            y: controlWorld.y,
+            type: 'control',
+            cmdIdx,
+            ptIdx: 0,
+            parentAnchor: { x: prevAnchor.x, y: prevAnchor.y },
+          });
+        }
+
+        result.push({
+          x: endWorld.x,
+          y: endWorld.y,
+          type: 'anchor',
+          cmdIdx,
+          ptIdx: 2,
+        });
+        prevAnchor = endWorld;
+      } else if (c === 'T' && cmd.args.length >= 2) {
+        const endWorld = this.transformPoint({
+          x: cmd.args[0],
+          y: cmd.args[1],
+        });
+
+        result.push({
+          x: endWorld.x,
+          y: endWorld.y,
+          type: 'anchor',
+          cmdIdx,
+          ptIdx: 0,
+        });
+        prevAnchor = endWorld;
       }
     }
     return result;
