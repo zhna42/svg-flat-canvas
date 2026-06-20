@@ -46,7 +46,10 @@ export {
   createGroupClearCommand,
 } from './factories/group-command-factory';
 export { createDeleteCommand } from './factories/delete-command-factory';
-export { createCreateCommand, createCreateFileCommand } from './factories/create-command-factory';
+export {
+  createCreateCommand,
+  createCreateFileCommand,
+} from './factories/create-command-factory';
 export {
   createResizeCommand,
   createRotateCommand,

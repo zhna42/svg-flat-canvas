@@ -1,4 +1,5 @@
 import type { RenderSnapshot } from '@/shapes/elements/AbstractGraphicElement';
+import { DirtyFlag } from '@/renderer/RenderQueue';
 
 export const TAG_BY_TYPE: Record<string, string> = {
   rect: 'rect',
@@ -35,10 +36,14 @@ export const applySpecialProperty = (
 export const applyRenderSnapshot = (
   snapshot: RenderSnapshot,
   element: SVGElement,
+  flags: number = DirtyFlag.Transform |
+    DirtyFlag.Style |
+    DirtyFlag.Geometry |
+    DirtyFlag.Visibility,
 ): void => {
   const { matrix, style, visible } = snapshot;
 
-  if (matrix && matrix.length === 6) {
+  if (flags & DirtyFlag.Transform && matrix && matrix.length === 6) {
     const [a, b, c, d, e, f] = matrix;
     if (a !== 1 || b !== 0 || c !== 0 || d !== 1 || e !== 0 || f !== 0) {
       element.setAttribute(
@@ -50,23 +55,30 @@ export const applyRenderSnapshot = (
     }
   }
 
-  const s = style as Record<string, unknown>;
-  if (s.fill !== undefined && s.fill !== '')
-    element.setAttribute('fill', s.fill as string);
-  else element.removeAttribute('fill');
-  if (s.stroke !== undefined && s.stroke !== '')
-    element.setAttribute('stroke', s.stroke as string);
-  else element.removeAttribute('stroke');
-  if (s.strokeWidth !== undefined)
-    element.setAttribute('stroke-width', String(s.strokeWidth));
-  if (s.opacity !== undefined)
-    element.setAttribute('opacity', String(s.opacity));
-  element.setAttribute('visibility', visible ? 'visible' : 'hidden');
+  if (flags & DirtyFlag.Style) {
+    const s = style as Record<string, unknown>;
+    if (s.fill !== undefined && s.fill !== '')
+      element.setAttribute('fill', s.fill as string);
+    else element.removeAttribute('fill');
+    if (s.stroke !== undefined && s.stroke !== '')
+      element.setAttribute('stroke', s.stroke as string);
+    else element.removeAttribute('stroke');
+    if (s.strokeWidth !== undefined)
+      element.setAttribute('stroke-width', String(s.strokeWidth));
+    if (s.opacity !== undefined)
+      element.setAttribute('opacity', String(s.opacity));
+  }
 
-  for (const [key, value] of Object.entries(snapshot.geometry)) {
-    if (value !== undefined) {
-      if (!applySpecialProperty(element, key, value)) {
-        element.setAttribute(key, String(value));
+  if (flags & DirtyFlag.Visibility) {
+    element.setAttribute('visibility', visible ? 'visible' : 'hidden');
+  }
+
+  if (flags & DirtyFlag.Geometry) {
+    for (const [key, value] of Object.entries(snapshot.geometry)) {
+      if (value !== undefined) {
+        if (!applySpecialProperty(element, key, value)) {
+          element.setAttribute(key, String(value));
+        }
       }
     }
   }

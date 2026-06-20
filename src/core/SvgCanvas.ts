@@ -69,6 +69,8 @@ export class SvgCanvas {
   private _debugShowHitArea: boolean;
   private readonly _externalApi: ExternalApi;
   private _editingPath: PathElement | null = null;
+  private _dragOverlayDx = 0;
+  private _dragOverlayDy = 0;
 
   public readonly panActive = { value: false };
   public readonly events = new EventBus();
@@ -98,14 +100,6 @@ export class SvgCanvas {
     // SelectionOverlay — вне cameraGroup (screen coords)
     this.selectionOverlay = new SelectionOverlay(this.camera);
     this.selectionState.setOnChange((selected) => {
-      for (const el of selected) {
-        el.onDirty = () => {
-          this.selectionOverlay.setPositions(this.selectionState.selected);
-          if (this.groupManager.selectedGroupIds.size > 0) {
-            this.syncGroupSelectionOverlay();
-          }
-        };
-      }
       this.selectionOverlay.setElements(selected);
       this.events.emit(Events.SelectionChange, selected);
     });
@@ -116,8 +110,10 @@ export class SvgCanvas {
       this.events.emit(Events.TransformStart, mode);
     this.transformHandler.onTransformMove = () =>
       this.events.emit(Events.TransformMove, undefined);
-    this.transformHandler.onTransformEnd = (mode) =>
+    this.transformHandler.onTransformEnd = (mode) => {
+      updateOverlay();
       this.events.emit(Events.TransformEnd, mode);
+    };
 
     // Camera onChange — перерисовка оверлеев при pan/zoom
     this.camera.onChange = () => {
@@ -161,10 +157,21 @@ export class SvgCanvas {
       }),
     );
 
+    const updateOverlay = (): void => {
+      const selected = this.selectionState.selected;
+      if (selected.length > 0) {
+        this.selectionOverlay.setPositions(selected);
+      }
+      if (this.groupManager.selectedGroupIds.size > 0) {
+        this.syncGroupSelectionOverlay();
+      }
+    };
+
     const dragCtx = {
       getElements: () => this.shapeManager.getAll(),
       onDragEnd: (_ids: string[]) => {
         this.reindexSpatialGrid();
+        updateOverlay();
         this.events.emit(Events.DragEnd, undefined);
       },
     };
@@ -194,9 +201,26 @@ export class SvgCanvas {
         this.groupManager.getGroupByElement(elementId)?.id,
       onGroupSelect,
       getArtboardRect: () => this.getArtboardRect(),
-      onDragStart: () => this.events.emit(Events.DragStart, undefined),
-      onDragMove: () => this.events.emit(Events.DragMove, undefined),
-      onDragEnd: () => this.events.emit(Events.DragEnd, undefined),
+      onDragStart: () => {
+        this._dragOverlayDx = 0;
+        this._dragOverlayDy = 0;
+        this.events.emit(Events.DragStart, undefined);
+      },
+      onDragMove: (dx: number, dy: number) => {
+        const frameDx = dx - this._dragOverlayDx;
+        const frameDy = dy - this._dragOverlayDy;
+        this._dragOverlayDx = dx;
+        this._dragOverlayDy = dy;
+        for (const overlayEl of this.selectionOverlay.getOverlayElements()) {
+          overlayEl.translateBy(frameDx, frameDy);
+        }
+        this.events.emit(Events.DragMove, undefined);
+      },
+      onDragEnd: () => {
+        this._dragOverlayDx = 0;
+        this._dragOverlayDy = 0;
+        this.events.emit(Events.DragEnd, undefined);
+      },
       onSetEditingPath: (el) => {
         if (el) {
           this.editingPath = el as PathElement;
@@ -241,10 +265,8 @@ export class SvgCanvas {
     this.commandBus.register('CREATE', createCreateHandler(this.shapeManager));
     this.commandBus.register(
       'CREATE_FILE',
-      createCreateFileHandler(
-        this.shapeManager,
-        this.groupManager,
-        (el) => this.indexShape(el),
+      createCreateFileHandler(this.shapeManager, this.groupManager, (el) =>
+        this.indexShape(el),
       ),
     );
     this.commandBus.register('GEOMETRY_MUTATE', (command) => {
@@ -255,7 +277,7 @@ export class SvgCanvas {
       if (el instanceof PathElement) {
         el.geometry.commands = command.options.newCommands;
         el.buildHitArea();
-        el.setDirty();
+        el.setDirtyAll();
       }
     });
 
@@ -274,7 +296,7 @@ export class SvgCanvas {
           command.options.prevEndY,
         );
         el.buildHitArea();
-        el.setDirty();
+        el.setDirtyAll();
       }
     });
 
@@ -286,7 +308,7 @@ export class SvgCanvas {
       if (el instanceof PathElement) {
         el.changeNodeType(command.options.cmdIdx, command.options.newType);
         el.buildHitArea();
-        el.setDirty();
+        el.setDirtyAll();
       }
     });
 
@@ -298,7 +320,7 @@ export class SvgCanvas {
       if (el instanceof PathElement) {
         el.removeNodeAt(command.options.cmdIdx);
         el.buildHitArea();
-        el.setDirty();
+        el.setDirtyAll();
       }
     });
 
@@ -314,7 +336,7 @@ export class SvgCanvas {
           command.options.delta.y,
         );
         el.buildHitArea();
-        el.setDirty();
+        el.setDirtyAll();
       }
     });
 
@@ -407,7 +429,7 @@ export class SvgCanvas {
   public addShape(shape: AbstractGraphicElement): void {
     this.shapeManager.add(shape);
     this.indexShape(shape);
-    shape.setDirty();
+    shape.setDirtyAll();
   }
 
   public loadJSON(items: ElementJSON[]): void {
@@ -415,7 +437,7 @@ export class SvgCanvas {
     for (const el of elements) {
       this.shapeManager.add(el);
       this.indexShape(el);
-      el.setDirty();
+      el.setDirtyAll();
     }
     this.timeMachine.captureRoot();
   }
@@ -466,7 +488,7 @@ export class SvgCanvas {
         if (v) node.setAttribute('vector-effect', 'non-scaling-stroke');
         else node.removeAttribute('vector-effect');
       }
-      el.setDirty();
+      el.setDirtyAll();
     }
   }
 
@@ -543,7 +565,7 @@ export class SvgCanvas {
     this.timeMachine.undo();
     this.reindexSpatialGrid();
     for (const el of this.shapeManager.getAll()) {
-      el.setDirty();
+      el.setDirtyAll();
       el.markClean();
     }
   }
@@ -555,7 +577,7 @@ export class SvgCanvas {
     this.timeMachine.redo();
     this.reindexSpatialGrid();
     for (const el of this.shapeManager.getAll()) {
-      el.setDirty();
+      el.setDirtyAll();
       el.markClean();
     }
   }
@@ -613,7 +635,8 @@ export class SvgCanvas {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
     el.transform.matrix = new DOMMatrix(matrix);
-    el.invalidateHitArea();
+    el.buildHitArea();
+    el.setDirtyTransform();
   }
 
   public setSnapToElements(enabled: boolean): void {

@@ -3,6 +3,7 @@ import type { Camera } from '@/camera/Camera';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { PathElement } from '@/shapes/elements/PathElement';
 import type { Point } from '@/types';
+import { SelectionOverlayElement } from './SelectionOverlayElement';
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
@@ -40,6 +41,7 @@ export class SelectionOverlay {
   private readonly root: SVGGElement;
   private readonly camera: Camera;
   private groups: HandleGroup[] = [];
+  private overlayElements: SelectionOverlayElement[] = [];
   private pathNodesGroup: SVGGElement;
   private _activeCmdIdx = -1;
 
@@ -83,34 +85,22 @@ export class SelectionOverlay {
       const sw = Math.sqrt((sc[1].x - sx) ** 2 + (sc[1].y - sy) ** 2);
       const sh = Math.sqrt((sc[3].x - sx) ** 2 + (sc[3].y - sy) ** 2);
       const angleRad = Math.atan2(sc[1].y - sy, sc[1].x - sx);
-      const angleDeg = (angleRad * 180) / Math.PI;
 
       if (sw === 0 && sh === 0) continue;
 
-      const group = document.createElementNS(SVG_NS, 'g');
-      (group as any).__element = el;
-      group.setAttribute(
-        'transform',
-        `translate(${sx - PADDING}, ${sy - PADDING}) rotate(${angleDeg})`,
-      );
+      const overlayEl = new SelectionOverlayElement(el.id);
+      (overlayEl.group as any).__element = el;
+      overlayEl.setTransform(sx, sy, (angleRad * 180) / Math.PI, PADDING);
+      overlayEl.setRect(sw, sh, PADDING);
 
-      const rect = document.createElementNS(SVG_NS, 'rect');
-      rect.setAttribute('x', '0');
-      rect.setAttribute('y', '0');
-      rect.setAttribute('width', String(sw + PADDING * 2));
-      rect.setAttribute('height', String(sh + PADDING * 2));
-      rect.setAttribute('fill', 'none');
-      rect.setAttribute('stroke', STROKE_COLOR);
-      rect.setAttribute('stroke-width', '1.5');
-      rect.setAttribute('stroke-dasharray', '4 2');
-      rect.setAttribute('pointer-events', 'none');
-      group.appendChild(rect);
-
-      const handlesGroup = this.createHandles(sw, sh);
-      group.appendChild(handlesGroup);
-
-      this.root.appendChild(group);
-      this.groups.push({ group, rect, handlesGroup });
+      this.createHandlesDOM(overlayEl.handlesGroup, sw, sh);
+      this.root.appendChild(overlayEl.group);
+      this.groups.push({
+        group: overlayEl.group,
+        rect: overlayEl.rect,
+        handlesGroup: overlayEl.handlesGroup,
+      });
+      this.overlayElements.push(overlayEl);
     }
   }
 
@@ -135,16 +125,17 @@ export class SelectionOverlay {
 
       if (sw === 0 && sh === 0) continue;
 
-      const g = this.groups[i];
-      g.group.setAttribute(
-        'transform',
-        `translate(${sx - PADDING}, ${sy - PADDING}) rotate(${(angleRad * 180) / Math.PI})`,
-      );
-      g.rect.setAttribute('width', String(sw + PADDING * 2));
-      g.rect.setAttribute('height', String(sh + PADDING * 2));
+      const overlayEl = this.overlayElements[i];
+      overlayEl.setTransform(sx, sy, (angleRad * 180) / Math.PI, PADDING);
+      overlayEl.setRect(sw, sh, PADDING);
 
+      const g = this.groups[i];
       this.updateHandlePositions(g.handlesGroup, sw, sh);
     }
+  }
+
+  public getOverlayElements(): readonly SelectionOverlayElement[] {
+    return this.overlayElements;
   }
 
   public showHandles(show: boolean): void {
@@ -241,6 +232,7 @@ export class SelectionOverlay {
   private clear(): void {
     while (this.root.firstChild) this.root.removeChild(this.root.firstChild);
     this.groups = [];
+    this.overlayElements = [];
     this.pathNodesGroup = document.createElementNS(SVG_NS, 'g');
     this.root.appendChild(this.pathNodesGroup);
   }
@@ -256,7 +248,6 @@ export class SelectionOverlay {
     const pathEl = el as unknown as PathElement;
     const nodes = pathEl.getNodeEditPoints();
 
-    // Сначала рисуем линии для control точек
     for (const node of nodes) {
       if (node.type !== 'control' || !node.parentAnchor) continue;
       const screen = this.camera.worldToScreen({ x: node.x, y: node.y });
@@ -272,10 +263,10 @@ export class SelectionOverlay {
       this.pathNodesGroup.appendChild(line);
     }
 
-    // Потом рисуем ручки
     for (const node of nodes) {
       const screen = this.camera.worldToScreen({ x: node.x, y: node.y });
-      const isActive = node.type === 'anchor' && node.cmdIdx === this._activeCmdIdx;
+      const isActive =
+        node.type === 'anchor' && node.cmdIdx === this._activeCmdIdx;
       const fillColor = isActive ? STROKE_COLOR : HANDLE_FILL;
 
       if (node.type === 'control') {
@@ -314,8 +305,11 @@ export class SelectionOverlay {
     this.renderPathNodes(el);
   }
 
-  private createHandles(w: number, h: number): SVGGElement {
-    const handlesGroup = document.createElementNS(SVG_NS, 'g');
+  private createHandlesDOM(
+    handlesGroup: SVGGElement,
+    w: number,
+    h: number,
+  ): void {
     for (const { pos, cx, cy } of handlePositions(w, h)) {
       const handle = document.createElementNS(SVG_NS, 'rect');
       handle.setAttribute('x', String(cx - HANDLE_OFFSET));
@@ -329,7 +323,6 @@ export class SelectionOverlay {
       handle.setAttribute('pointer-events', 'none');
       handlesGroup.appendChild(handle);
     }
-    return handlesGroup;
   }
 
   private updateHandlePositions(

@@ -100,7 +100,9 @@ export class ExternalApi {
 
   public deleteShapes(dto: DeleteShapesDTO): void {
     this.canvas.deleteElements(dto.elementIds);
-    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
+    this.canvas.events.emit(Events.ElementChanged, {
+      elementIds: dto.elementIds,
+    });
   }
 
   public updateShapes(dto: UpdateShapesDTO): void {
@@ -116,7 +118,9 @@ export class ExternalApi {
       if (dto.data !== undefined) el.data = { ...el.data, ...dto.data };
     }
     if (elements.length > 0) {
-      this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
+      this.canvas.events.emit(Events.ElementChanged, {
+        elementIds: dto.elementIds,
+      });
     }
   }
 
@@ -124,7 +128,9 @@ export class ExternalApi {
     this.canvas
       .getCommandBus()
       .execute(createDragMoveCommand('element', dto.delta, dto.elementIds));
-    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
+    this.canvas.events.emit(Events.ElementChanged, {
+      elementIds: dto.elementIds,
+    });
   }
 
   public rotateShapes(dto: RotateShapesDTO): void {
@@ -134,14 +140,18 @@ export class ExternalApi {
     this.canvas
       .getCommandBus()
       .execute(createRotateCommand(dto.elementIds, dto.angle));
-    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
+    this.canvas.events.emit(Events.ElementChanged, {
+      elementIds: dto.elementIds,
+    });
   }
 
   public resizeShapes(dto: ResizeShapesDTO): void {
     this.canvas
       .getCommandBus()
       .execute(createResizeCommand(dto.elementIds, dto.bbox));
-    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
+    this.canvas.events.emit(Events.ElementChanged, {
+      elementIds: dto.elementIds,
+    });
   }
 
   public setTransformShapes(dto: SetTransformShapesDTO): void {
@@ -151,7 +161,9 @@ export class ExternalApi {
     this.canvas
       .getCommandBus()
       .execute(createTransformCommand(dto.elementIds, dto.matrix));
-    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
+    this.canvas.events.emit(Events.ElementChanged, {
+      elementIds: dto.elementIds,
+    });
   }
 
   public groupCreate(dto: GroupCreateDTO): string {
@@ -384,7 +396,13 @@ export class ExternalApi {
     }
   }
 
-  public getCanvasSize(): { widthMM: number; heightMM: number; widthPx: number; heightPx: number; pxPerMM: number } {
+  public getCanvasSize(): {
+    widthMM: number;
+    heightMM: number;
+    widthPx: number;
+    heightPx: number;
+    pxPerMM: number;
+  } {
     const artboard = this.canvas.getArtboard();
     const wMM = artboard.widthMM;
     const hMM = artboard.heightMM;

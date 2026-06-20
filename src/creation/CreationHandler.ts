@@ -197,7 +197,7 @@ export class CreationHandler {
       existingCmds.push({ command: 'M', args: [worldPoint.x, worldPoint.y] });
       existingCmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
       existingPath.buildHitArea();
-      existingPath.setDirty();
+      existingPath.setDirtyGeometry();
       this.currentPreview = existingPath as any;
       this.onCreationStart?.(type);
       return;
@@ -251,7 +251,7 @@ export class CreationHandler {
       ];
       poly.points = pointsToString(pts);
       poly.buildHitArea();
-      poly.setDirty();
+      poly.setDirtyGeometry();
       return;
     }
 
@@ -262,7 +262,7 @@ export class CreationHandler {
       const last = cmds[cmds.length - 1];
       last.args = [worldPoint.x, worldPoint.y];
       path.buildHitArea();
-      path.setDirty();
+      path.setDirtyGeometry();
       return;
     }
 
@@ -308,7 +308,7 @@ export class CreationHandler {
       const pts = [...this.multiPointPoints];
       poly.points = pointsToString(pts);
       poly.buildHitArea();
-      poly.setDirty();
+      poly.setDirtyGeometry();
       return;
     }
 
@@ -322,7 +322,7 @@ export class CreationHandler {
       }
       cmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
       path.buildHitArea();
-      path.setDirty();
+      path.setDirtyGeometry();
       return;
     }
   }
@@ -357,7 +357,7 @@ export class CreationHandler {
             cmds.pop();
             cmds.push({ command: 'Z', args: [] });
             path.buildHitArea();
-            path.setDirty();
+            path.setDirtyGeometry();
           }
         }
       } else {
@@ -368,7 +368,7 @@ export class CreationHandler {
         ];
         poly.points = pointsToString(pts);
         poly.buildHitArea();
-        poly.setDirty();
+        poly.setDirtyGeometry();
       }
     }
 
@@ -390,7 +390,7 @@ export class CreationHandler {
           }
         }
         path.buildHitArea();
-        path.setDirty();
+        path.setDirtyGeometry();
       }
     }
 
@@ -488,7 +488,7 @@ export class CreationHandler {
           rect.geometry.height = Math.abs(current.y - start.y);
         }
         rect.buildHitArea();
-        rect.setDirty();
+        rect.setDirtyGeometry();
         break;
       }
 
@@ -501,7 +501,7 @@ export class CreationHandler {
           current.y - start.y,
         );
         circle.buildHitArea();
-        circle.setDirty();
+        circle.setDirtyGeometry();
         break;
       }
 
@@ -514,7 +514,7 @@ export class CreationHandler {
         ellipse.geometry.rx = rx;
         ellipse.geometry.ry = ry;
         ellipse.buildHitArea();
-        ellipse.setDirty();
+        ellipse.setDirtyGeometry();
         break;
       }
 
@@ -533,7 +533,7 @@ export class CreationHandler {
           line.geometry.y2 = current.y;
         }
         line.buildHitArea();
-        line.setDirty();
+        line.setDirtyGeometry();
         break;
       }
     }

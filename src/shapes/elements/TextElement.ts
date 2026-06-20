@@ -94,7 +94,7 @@ export class TextElement extends AbstractGraphicElement {
   public setTextContent(text: string): void {
     this.textContent = text;
     this.buildHitArea();
-    this.setDirty();
+    this.setDirtyAll();
   }
   public getTextContent(): string {
     return this.textContent;

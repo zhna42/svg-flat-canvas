@@ -48,7 +48,7 @@ export interface SelectionHandlerOptions {
   } | null;
   onGroupSelect?: (ids: string[]) => void;
   onDragStart?: () => void;
-  onDragMove?: () => void;
+  onDragMove?: (dx: number, dy: number) => void;
   onDragEnd?: () => void;
   onSetEditingPath?: (path: AbstractGraphicElement | null) => void;
   getEditingPath?: () => AbstractGraphicElement | null;
@@ -108,7 +108,7 @@ export class SelectionHandler {
       opts.svg.style.cursor = 'grabbing';
       opts.onDragStart?.();
     };
-    this.dragHandler.onDragMove = () => opts.onDragMove?.();
+    this.dragHandler.onDragMove = (dx: number, dy: number) => opts.onDragMove?.(dx, dy);
     this.dragHandler.onDragEnd = () => {
       opts.svg.style.cursor = '';
       opts.onDragEnd?.();
@@ -443,7 +443,8 @@ export class SelectionHandler {
         );
         if (handleHit) return;
 
-        const pathEl = editingPath as any as import('@/shapes/elements/PathElement').PathElement;
+        const pathEl =
+          editingPath as any as import('@/shapes/elements/PathElement').PathElement;
         const cmds = pathEl.geometry.commands;
 
         // Инвертируем мировые координаты в локальные через матрицу элемента
@@ -463,29 +464,51 @@ export class SelectionHandler {
 
           const prev = cmds[i - 1];
           let ax: number, ay: number;
-          if (prev.command.toUpperCase() === 'M' || prev.command.toUpperCase() === 'L' || prev.command.toUpperCase() === 'T') {
-            ax = prev.args[0]; ay = prev.args[1];
-          } else if (prev.command.toUpperCase() === 'C' && prev.args.length >= 6) {
-            ax = prev.args[4]; ay = prev.args[5];
-          } else if (prev.command.toUpperCase() === 'S' && prev.args.length >= 4) {
-            ax = prev.args[2]; ay = prev.args[3];
-          } else if (prev.command.toUpperCase() === 'Q' && prev.args.length >= 4) {
-            ax = prev.args[2]; ay = prev.args[3];
+          if (
+            prev.command.toUpperCase() === 'M' ||
+            prev.command.toUpperCase() === 'L' ||
+            prev.command.toUpperCase() === 'T'
+          ) {
+            ax = prev.args[0];
+            ay = prev.args[1];
+          } else if (
+            prev.command.toUpperCase() === 'C' &&
+            prev.args.length >= 6
+          ) {
+            ax = prev.args[4];
+            ay = prev.args[5];
+          } else if (
+            prev.command.toUpperCase() === 'S' &&
+            prev.args.length >= 4
+          ) {
+            ax = prev.args[2];
+            ay = prev.args[3];
+          } else if (
+            prev.command.toUpperCase() === 'Q' &&
+            prev.args.length >= 4
+          ) {
+            ax = prev.args[2];
+            ay = prev.args[3];
           } else continue;
 
           if (cc === 'L' || cc === 'T') {
-            const bx = cmd.args[0], by = cmd.args[1];
-            const { dist, closestX: cx, closestY: cy } = pointToSegmentDist(
-              localPt.x, localPt.y, ax, ay, bx, by,
-            );
+            const bx = cmd.args[0],
+              by = cmd.args[1];
+            const {
+              dist,
+              closestX: cx,
+              closestY: cy,
+            } = pointToSegmentDist(localPt.x, localPt.y, ax, ay, bx, by);
             if (dist < closestDist) {
               closestDist = dist;
               closestCmdIdx = i - 1;
               closestPrevEndX = ax;
               closestPrevEndY = ay;
-              const dx = bx - ax, dy = by - ay;
+              const dx = bx - ax,
+                dy = by - ay;
               const lenSq = dx * dx + dy * dy;
-              closestT = lenSq > 0 ? ((cx - ax) * dx + (cy - ay) * dy) / lenSq : 0;
+              closestT =
+                lenSq > 0 ? ((cx - ax) * dx + (cy - ay) * dy) / lenSq : 0;
             }
           } else if (cc === 'C' && cmd.args.length >= 6) {
             const [c1x, c1y, c2x, c2y, ex, ey] = cmd.args;
@@ -494,10 +517,21 @@ export class SelectionHandler {
             for (let s = 0; s <= 20; s++) {
               const t = s / 20;
               const mt = 1 - t;
-              const px = mt * mt * mt * ax + 3 * mt * mt * t * c1x + 3 * mt * t * t * c2x + t * t * t * ex;
-              const py = mt * mt * mt * ay + 3 * mt * mt * t * c1y + 3 * mt * t * t * c2y + t * t * t * ey;
+              const px =
+                mt * mt * mt * ax +
+                3 * mt * mt * t * c1x +
+                3 * mt * t * t * c2x +
+                t * t * t * ex;
+              const py =
+                mt * mt * mt * ay +
+                3 * mt * mt * t * c1y +
+                3 * mt * t * t * c2y +
+                t * t * t * ey;
               const d = Math.hypot(localPt.x - px, localPt.y - py);
-              if (d < bestDistC) { bestDistC = d; bestT = t; }
+              if (d < bestDistC) {
+                bestDistC = d;
+                bestT = t;
+              }
             }
             if (bestDistC < closestDist) {
               closestDist = bestDistC;
@@ -516,7 +550,10 @@ export class SelectionHandler {
               const px = mt * mt * ax + 2 * mt * t * c1x + t * t * ex;
               const py = mt * mt * ay + 2 * mt * t * c1y + t * t * ey;
               const d = Math.hypot(localPt.x - px, localPt.y - py);
-              if (d < bestDistQ) { bestDistQ = d; bestT = t; }
+              if (d < bestDistQ) {
+                bestDistQ = d;
+                bestT = t;
+              }
             }
             if (bestDistQ < closestDist) {
               closestDist = bestDistQ;
@@ -528,7 +565,8 @@ export class SelectionHandler {
           } else if (cc === 'S' && cmd.args.length >= 4) {
             const prevCmd = cmds[i - 1];
             const pc = prevCmd?.command.toUpperCase();
-            let reflectX = ax, reflectY = ay;
+            let reflectX = ax,
+              reflectY = ay;
             if (pc === 'C' && prevCmd.args.length >= 6) {
               reflectX = 2 * ax - prevCmd.args[2];
               reflectY = 2 * ay - prevCmd.args[3];
@@ -539,10 +577,21 @@ export class SelectionHandler {
             for (let s = 0; s <= 20; s++) {
               const t = s / 20;
               const mt = 1 - t;
-              const px = mt * mt * mt * ax + 3 * mt * mt * t * reflectX + 3 * mt * t * t * c2x + t * t * t * ex;
-              const py = mt * mt * mt * ay + 3 * mt * mt * t * reflectY + 3 * mt * t * t * c2y + t * t * t * ey;
+              const px =
+                mt * mt * mt * ax +
+                3 * mt * mt * t * reflectX +
+                3 * mt * t * t * c2x +
+                t * t * t * ex;
+              const py =
+                mt * mt * mt * ay +
+                3 * mt * mt * t * reflectY +
+                3 * mt * t * t * c2y +
+                t * t * t * ey;
               const d = Math.hypot(localPt.x - px, localPt.y - py);
-              if (d < bestDistS) { bestDistS = d; bestT = t; }
+              if (d < bestDistS) {
+                bestDistS = d;
+                bestT = t;
+              }
             }
             if (bestDistS < closestDist) {
               closestDist = bestDistS;
@@ -558,25 +607,58 @@ export class SelectionHandler {
           // Вычисляем точку на кривой в локальных координатах
           const nextCmd = cmds[closestCmdIdx + 1];
           const ncc = nextCmd.command.toUpperCase();
-          let localX = localPt.x, localY = localPt.y;
+          let localX = localPt.x,
+            localY = localPt.y;
 
-          if ((ncc === 'C' || ncc === 'S' || ncc === 'Q') && closestT >= 0 && closestT <= 1) {
-            const Ax = closestPrevEndX, Ay = closestPrevEndY;
+          if (
+            (ncc === 'C' || ncc === 'S' || ncc === 'Q') &&
+            closestT >= 0 &&
+            closestT <= 1
+          ) {
+            const Ax = closestPrevEndX,
+              Ay = closestPrevEndY;
             if (ncc === 'C' && nextCmd.args.length >= 6) {
               const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
-              const t = closestT, mt = 1 - t;
-              localX = mt * mt * mt * Ax + 3 * mt * mt * t * c1x + 3 * mt * t * t * c2x + t * t * t * ex;
-              localY = mt * mt * mt * Ay + 3 * mt * mt * t * c1y + 3 * mt * t * t * c2y + t * t * t * ey;
+              const t = closestT,
+                mt = 1 - t;
+              localX =
+                mt * mt * mt * Ax +
+                3 * mt * mt * t * c1x +
+                3 * mt * t * t * c2x +
+                t * t * t * ex;
+              localY =
+                mt * mt * mt * Ay +
+                3 * mt * mt * t * c1y +
+                3 * mt * t * t * c2y +
+                t * t * t * ey;
             } else if (ncc === 'Q' && nextCmd.args.length >= 4) {
               const [c1x, c1y, ex, ey] = nextCmd.args;
-              const t = closestT, mt = 1 - t;
+              const t = closestT,
+                mt = 1 - t;
               localX = mt * mt * Ax + 2 * mt * t * c1x + t * t * ex;
               localY = mt * mt * Ay + 2 * mt * t * c1y + t * t * ey;
             } else if (ncc === 'S' && nextCmd.args.length >= 4) {
               const [c2x, c2y, ex, ey] = nextCmd.args;
-              const t = closestT, mt = 1 - t;
-              localX = mt * mt * mt * Ax + 3 * mt * mt * t * (2 * Ax - (cmds[closestCmdIdx]?.args?.[2] ?? Ax)) + 3 * mt * t * t * c2x + t * t * t * ex;
-              localY = mt * mt * mt * Ay + 3 * mt * mt * t * (2 * Ay - (cmds[closestCmdIdx]?.args?.[3] ?? Ay)) + 3 * mt * t * t * c2y + t * t * t * ey;
+              const t = closestT,
+                mt = 1 - t;
+              localX =
+                mt * mt * mt * Ax +
+                3 *
+                  mt *
+                  mt *
+                  t *
+                  (2 * Ax - (cmds[closestCmdIdx]?.args?.[2] ?? Ax)) +
+                3 * mt * t * t * c2x +
+                t * t * t * ex;
+              localY =
+                mt * mt * mt * Ay +
+                3 *
+                  mt *
+                  mt *
+                  t *
+                  (2 * Ay - (cmds[closestCmdIdx]?.args?.[3] ?? Ay)) +
+                3 * mt * t * t * c2y +
+                t * t * t * ey;
             }
           }
 
@@ -601,7 +683,11 @@ export class SelectionHandler {
       const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
       if (hits.length > 0) {
         const picked = hits[hits.length - 1];
-        if (picked.type === 'path' || picked.type === 'polyline' || picked.type === 'polygon') {
+        if (
+          picked.type === 'path' ||
+          picked.type === 'polyline' ||
+          picked.type === 'polygon'
+        ) {
           this.opts.onSetEditingPath?.(picked);
         }
       }
@@ -624,7 +710,10 @@ export class SelectionHandler {
           this.opts.onSetEditingPath?.(selected[0]);
           e.preventDefault();
         }
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && this.pathNodeHandler.isActive) {
+      } else if (
+        (e.key === 'Delete' || e.key === 'Backspace') &&
+        this.pathNodeHandler.isActive
+      ) {
         const editingPath = this.opts.getEditingPath?.();
         if (editingPath) {
           const act = this.pathNodeHandler.activation;
@@ -637,7 +726,7 @@ export class SelectionHandler {
             e.preventDefault();
           }
         }
-      } else if (this.pathNodeHandler.isActive && (key === 'c')) {
+      } else if (this.pathNodeHandler.isActive && key === 'c') {
         const editingPath = this.opts.getEditingPath?.();
         const act = this.pathNodeHandler.activation;
         if (editingPath && act) {
@@ -647,7 +736,7 @@ export class SelectionHandler {
           });
           e.preventDefault();
         }
-      } else if (this.pathNodeHandler.isActive && (key === 'l')) {
+      } else if (this.pathNodeHandler.isActive && key === 'l') {
         const editingPath = this.opts.getEditingPath?.();
         const act = this.pathNodeHandler.activation;
         if (editingPath && act) {

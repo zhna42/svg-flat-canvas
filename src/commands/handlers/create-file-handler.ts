@@ -19,7 +19,7 @@ export const createCreateFileHandler = (
       el.isPreview = false;
       shapeManager.add(el);
       indexShape(el);
-      el.setDirty();
+      el.setDirtyAll();
       el.groupId = groupId;
     }
 

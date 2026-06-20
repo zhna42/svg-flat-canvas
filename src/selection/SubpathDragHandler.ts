@@ -45,7 +45,7 @@ export class SubpathDragHandler {
     const frameDy = worldPoint.y - this._lastWorld.y;
     this._lastWorld = { x: worldPoint.x, y: worldPoint.y };
     this._element.translateSubpath(this._subpathIdx, frameDx, frameDy);
-    this._element.setDirty();
+    this._element.setDirtyGeometry();
   }
 
   public end(): void {
@@ -62,7 +62,7 @@ export class SubpathDragHandler {
     pathCommands.length = 0;
     pathCommands.push(...savedCommands);
     this._element.buildHitArea();
-    this._element.setDirty();
+    this._element.setDirtyGeometry();
     this.bus.execute({
       type: 'GEOMETRY_MUTATE',
       options: { id: this._element.id, newCommands },

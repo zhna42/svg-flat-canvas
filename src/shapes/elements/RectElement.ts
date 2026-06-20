@@ -63,12 +63,12 @@ export class RectElement extends AbstractGraphicElement {
   public setX(x: number): void {
     this.geometry.x = x;
     this.buildHitArea();
-    this.setDirty();
+    this.setDirtyGeometry();
   }
   public setY(y: number): void {
     this.geometry.y = y;
     this.buildHitArea();
-    this.setDirty();
+    this.setDirtyGeometry();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {

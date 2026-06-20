@@ -33,7 +33,7 @@ export const createDragEndHandler = (
       const el = all.find((e) => e.id === id);
       if (!el) continue;
       el.buildHitArea();
-      el.setDirty();
+      el.setDirtyAll();
     }
     ctx.onDragEnd?.(elementIds);
   };

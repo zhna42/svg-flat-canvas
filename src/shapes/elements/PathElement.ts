@@ -157,10 +157,14 @@ export class PathElement extends AbstractGraphicElement {
   }
 
   private static splitCubic(
-    P0x: number, P0y: number,
-    P1x: number, P1y: number,
-    P2x: number, P2y: number,
-    P3x: number, P3y: number,
+    P0x: number,
+    P0y: number,
+    P1x: number,
+    P1y: number,
+    P2x: number,
+    P2y: number,
+    P3x: number,
+    P3y: number,
     t: number,
   ): {
     left: [number, number, number, number, number, number, number, number];
@@ -200,13 +204,22 @@ export class PathElement extends AbstractGraphicElement {
       const sx = prevEndX;
       const sy = prevEndY;
       const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
-      const { left, right } = PathElement.splitCubic(sx, sy, c1x, c1y, c2x, c2y, ex, ey, t);
+      const { left, right } = PathElement.splitCubic(
+        sx,
+        sy,
+        c1x,
+        c1y,
+        c2x,
+        c2y,
+        ex,
+        ey,
+        t,
+      );
       nextCmd.args = [left[2], left[3], left[4], left[5], left[6], left[7]];
       cmds.splice(cmdIdx + 1, 0, {
         command: 'C',
         args: [right[2], right[3], right[4], right[5], right[6], right[7]],
       });
-
     } else if (nc === 'S' && nextCmd.args.length >= 4) {
       const sx = prevEndX;
       const sy = prevEndY;
@@ -220,7 +233,15 @@ export class PathElement extends AbstractGraphicElement {
       }
       const [c2x, c2y, ex, ey] = nextCmd.args;
       const { left, right } = PathElement.splitCubic(
-        sx, sy, reflectX, reflectY, c2x, c2y, ex, ey, t,
+        sx,
+        sy,
+        reflectX,
+        reflectY,
+        c2x,
+        c2y,
+        ex,
+        ey,
+        t,
       );
       nextCmd.args = [left[4], left[5], left[6], left[7]];
       nextCmd.command = 'S';
@@ -228,10 +249,12 @@ export class PathElement extends AbstractGraphicElement {
         command: 'S',
         args: [right[4], right[5], right[6], right[7]],
       });
-
     } else if (nc === 'Q' && nextCmd.args.length >= 4) {
       const [c1x, c1y, ex, ey] = nextCmd.args;
-      const A = { x: prevEndX + (c1x - prevEndX) * t, y: prevEndY + (c1y - prevEndY) * t };
+      const A = {
+        x: prevEndX + (c1x - prevEndX) * t,
+        y: prevEndY + (c1y - prevEndY) * t,
+      };
       const B = { x: c1x + (ex - c1x) * t, y: c1y + (ey - c1y) * t };
       const F = { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t };
       nextCmd.args = [A.x, A.y, F.x, F.y];
@@ -239,7 +262,6 @@ export class PathElement extends AbstractGraphicElement {
         command: 'Q',
         args: [B.x, B.y, ex, ey],
       });
-
     } else {
       cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
     }

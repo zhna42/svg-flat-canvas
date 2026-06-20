@@ -18,9 +18,7 @@ export class PathNodeHandler {
 
   public onNodeDragStart: ((el: AbstractGraphicElement) => void) | null = null;
   public onNodeDragEnd: (() => void) | null = null;
-  public onNodeActivate:
-    | ((cmdIdx: number) => void)
-    | null = null;
+  public onNodeActivate: ((cmdIdx: number) => void) | null = null;
 
   public constructor(bus: CommandBus) {
     this.bus = bus;
@@ -83,7 +81,7 @@ export class PathNodeHandler {
     }
 
     path.buildHitArea();
-    path.setDirty();
+    path.setDirtyGeometry();
   }
 
   public end(): void {
@@ -97,7 +95,7 @@ export class PathNodeHandler {
 
     path.geometry.commands = this.active.startCommands;
     path.buildHitArea();
-    path.setDirty();
+    path.setDirtyGeometry();
 
     this.bus.execute({
       type: 'GEOMETRY_MUTATE',
@@ -115,7 +113,7 @@ export class PathNodeHandler {
     const path = this.active.element;
     path.geometry.commands = this.active.startCommands;
     path.buildHitArea();
-    path.setDirty();
+    path.setDirtyGeometry();
 
     this.active = null;
     this.onNodeActivate?.(-1);

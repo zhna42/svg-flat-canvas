@@ -58,7 +58,7 @@ export class ImageElement extends AbstractGraphicElement {
 
   public setHref(href: string): void {
     this.href = href;
-    this.setDirty();
+    this.setDirtyGeometry();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {

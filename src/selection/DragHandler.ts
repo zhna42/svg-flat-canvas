@@ -239,7 +239,7 @@ export class DragHandler {
   } | null;
 
   public onDragStart: (() => void) | null = null;
-  public onDragMove: (() => void) | null = null;
+  public onDragMove: ((dx: number, dy: number) => void) | null = null;
   public onDragEnd: (() => void) | null = null;
 
   public constructor(
@@ -447,10 +447,10 @@ export class DragHandler {
       m.e += this.currentDx;
       m.f += this.currentDy;
       el.transform.matrix = m;
-      el.invalidateHitArea();
+      el.setDirtyTransform();
     }
 
-    this.onDragMove?.();
+    this.onDragMove?.(this.currentDx, this.currentDy);
   }
 
   private pointToSegmentDist(
@@ -608,6 +608,11 @@ export class DragHandler {
   public end(): void {
     if (!this._active) return;
     this._active = false;
+
+    for (const el of this.targets) {
+      el.buildHitArea();
+      el.setDirtyAll();
+    }
 
     const ids = this.targets.map((e) => e.id);
     const cmd = createDragEndCommand(ids);

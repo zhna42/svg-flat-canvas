@@ -2,6 +2,7 @@ import type { Point, BoundingBox, ElementType } from '@/types';
 import { Transform } from '../modules/Transform';
 import { Style } from '../modules/Style';
 import { getRenderQueue } from '@/utils/render-queue-utils';
+import { DirtyFlag } from '@/renderer/RenderQueue';
 
 export interface RenderSnapshot {
   id: string;
@@ -51,13 +52,37 @@ export abstract class AbstractGraphicElement {
     this.onDirty?.();
   }
 
+  public setDirtyTransform(): void {
+    this._dirty = true;
+    getRenderQueue()?.add(this, DirtyFlag.Transform);
+    this.onDirty?.();
+  }
+
+  public setDirtyStyle(): void {
+    this._dirty = true;
+    getRenderQueue()?.add(this, DirtyFlag.Style);
+    this.onDirty?.();
+  }
+
+  public setDirtyGeometry(): void {
+    this._dirty = true;
+    getRenderQueue()?.add(this, DirtyFlag.Geometry);
+    this.onDirty?.();
+  }
+
+  public setDirtyAll(): void {
+    this._dirty = true;
+    getRenderQueue()?.add(this);
+    this.onDirty?.();
+  }
+
   public abstract get hitArea(): Point[];
 
   public abstract buildHitArea(): void;
 
   public invalidateHitArea(): void {
     this.buildHitArea();
-    this.setDirty();
+    this.setDirtyAll();
   }
 
   public abstract getBBox(): BoundingBox;
@@ -142,7 +167,8 @@ export abstract class AbstractGraphicElement {
         return;
     }
 
-    this.invalidateHitArea();
+    this.buildHitArea();
+    this.setDirtyTransform();
   }
 
   public transformPoint(p: Point): Point {
@@ -190,28 +216,31 @@ export abstract class AbstractGraphicElement {
 
   public setFill(color: string): void {
     this.style.fill = color;
-    this.invalidateHitArea();
+    this.buildHitArea();
+    this.setDirtyStyle();
   }
 
   public setStroke(color: string): void {
     this.style.stroke = color;
-    this.invalidateHitArea();
+    this.buildHitArea();
+    this.setDirtyStyle();
   }
 
   public setStrokeWidth(w: number): void {
     this.style.strokeWidth = w;
-    this.invalidateHitArea();
+    this.buildHitArea();
+    this.setDirtyStyle();
   }
 
   public setOpacity(v: number): void {
     this.style.opacity = v;
-    this.setDirty();
+    this.setDirtyStyle();
   }
 
   public setVisible(v: boolean): void {
     this.visible = v;
     this.style.visible = v;
-    this.setDirty();
+    this.setDirtyStyle();
   }
 
   public setLock(v: boolean): void {

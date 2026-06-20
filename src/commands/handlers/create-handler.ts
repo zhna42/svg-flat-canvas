@@ -11,6 +11,6 @@ export const createCreateHandler = (
     const el = command.options.element;
     el.isPreview = false;
     shapeManager.add(el);
-    el.setDirty();
+    el.setDirtyAll();
   };
 };

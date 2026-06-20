@@ -119,7 +119,7 @@ export class TransformHandler {
     this._active = false;
     for (const el of this.targets) {
       el.buildHitArea();
-      el.setDirty();
+      el.setDirtyAll();
     }
     this.startMatrices.clear();
     this.anchorWorldPoints.clear();
@@ -183,7 +183,7 @@ export class TransformHandler {
         .translateSelf(-localAnchor.x, -localAnchor.y);
 
       el.transform.matrix = m;
-      el.invalidateHitArea();
+      el.setDirtyTransform();
     }
   }
 

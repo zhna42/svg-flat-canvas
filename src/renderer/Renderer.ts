@@ -144,11 +144,20 @@ export class Renderer {
       }
 
       const pending = this.queue.drain();
-      for (const el of pending) {
-        const node = this.nodeMap.get(el.id);
+      for (const entry of pending) {
+        const node = this.nodeMap.get(entry.element.id);
         if (!node) continue;
-        applyRenderSnapshot(el.getRenderSnapshot(), node);
-        el.markClean();
+        applyRenderSnapshot(
+          entry.element.getRenderSnapshot(),
+          node,
+          entry.flags,
+        );
+        entry.element.markClean();
+      }
+
+      const overlayPending = this.queue.drainOverlays();
+      for (const overlay of overlayPending) {
+        overlay.flushToDOM();
       }
 
       this.rafId = requestAnimationFrame(tick);
