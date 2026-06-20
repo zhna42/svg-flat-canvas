@@ -3,12 +3,15 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import { createFromJSON } from '@/shapes/elements/factory';
 import {
   createCreateCommand,
+  createCreateFileCommand,
   createDragMoveCommand,
   createResizeCommand,
   createRotateCommand,
   createTransformCommand,
 } from '@/commands';
 import type { ElementType } from '@/types';
+import { Events, type FileCreatedEvent } from '@/core/EventBus';
+import { MM_TO_PX } from '@/constants';
 import type {
   CreateShapeDTO,
   UpdateShapesDTO,
@@ -41,6 +44,7 @@ const generateId = (): string => `shape_${Date.now()}_${++_idCounter}`;
 
 export class ExternalApi {
   private readonly canvas: SvgCanvas;
+  private fileCounter = 0;
 
   public constructor(canvas: SvgCanvas) {
     this.canvas = canvas;
@@ -58,11 +62,45 @@ export class ExternalApi {
     if (dto.data !== undefined) el.data = { ...dto.data };
 
     this.canvas.getCommandBus().execute(createCreateCommand(el));
+    this.canvas.events.emit(Events.ElementCreated, el);
     return el;
+  }
+
+  public createFile(dtos: CreateShapeDTO[], name?: string): FileCreatedEvent {
+    const elements: AbstractGraphicElement[] = [];
+    const groupId = `file_${Date.now()}_${++this.fileCounter}`;
+    const groupName = name ?? `file_${this.fileCounter}`;
+
+    for (const dto of dtos) {
+      const id = dto.id ?? generateId();
+      const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
+
+      if (dto.transform) this.applyTransformDto(el, dto.transform);
+      if (dto.name !== undefined) el.name = dto.name;
+      if (dto.visible !== undefined) el.setVisible(dto.visible);
+      if (dto.lock !== undefined) el.setLock(dto.lock);
+      if (dto.data !== undefined) el.data = { ...dto.data };
+
+      elements.push(el);
+    }
+
+    this.canvas
+      .getCommandBus()
+      .execute(createCreateFileCommand(elements, groupId, groupName));
+
+    const eventData: FileCreatedEvent = { groupId, elements };
+
+    for (const el of elements) {
+      this.canvas.events.emit(Events.ElementCreated, el);
+    }
+    this.canvas.events.emit(Events.FileCreated, eventData);
+
+    return eventData;
   }
 
   public deleteShapes(dto: DeleteShapesDTO): void {
     this.canvas.deleteElements(dto.elementIds);
+    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
   }
 
   public updateShapes(dto: UpdateShapesDTO): void {
@@ -77,12 +115,16 @@ export class ExternalApi {
       if (dto.groupId !== undefined) el.groupId = dto.groupId;
       if (dto.data !== undefined) el.data = { ...el.data, ...dto.data };
     }
+    if (elements.length > 0) {
+      this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
+    }
   }
 
   public moveShapes(dto: MoveShapesDTO): void {
     this.canvas
       .getCommandBus()
       .execute(createDragMoveCommand('element', dto.delta, dto.elementIds));
+    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
   }
 
   public rotateShapes(dto: RotateShapesDTO): void {
@@ -92,12 +134,14 @@ export class ExternalApi {
     this.canvas
       .getCommandBus()
       .execute(createRotateCommand(dto.elementIds, dto.angle));
+    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
   }
 
   public resizeShapes(dto: ResizeShapesDTO): void {
     this.canvas
       .getCommandBus()
       .execute(createResizeCommand(dto.elementIds, dto.bbox));
+    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
   }
 
   public setTransformShapes(dto: SetTransformShapesDTO): void {
@@ -107,6 +151,7 @@ export class ExternalApi {
     this.canvas
       .getCommandBus()
       .execute(createTransformCommand(dto.elementIds, dto.matrix));
+    this.canvas.events.emit(Events.ElementChanged, { elementIds: dto.elementIds });
   }
 
   public groupCreate(dto: GroupCreateDTO): string {
@@ -339,6 +384,19 @@ export class ExternalApi {
     }
   }
 
+  public getCanvasSize(): { widthMM: number; heightMM: number; widthPx: number; heightPx: number; pxPerMM: number } {
+    const artboard = this.canvas.getArtboard();
+    const wMM = artboard.widthMM;
+    const hMM = artboard.heightMM;
+    return {
+      widthMM: wMM,
+      heightMM: hMM,
+      widthPx: wMM * MM_TO_PX,
+      heightPx: hMM * MM_TO_PX,
+      pxPerMM: MM_TO_PX,
+    };
+  }
+
   public setActiveCreationTool(type: ElementType | null): void {
     const allowed: ElementType[] = [
       'rect',
@@ -347,6 +405,7 @@ export class ExternalApi {
       'line',
       'polyline',
       'polygon',
+      'path',
     ];
     if (type === null || (allowed as string[]).includes(type)) {
       this.canvas.setActiveCreationTool(type as any);

@@ -43,6 +43,7 @@ import {
 import { createGroupHandler } from '@/commands/handlers/group-handler';
 import { createDeleteHandler } from '@/commands/handlers/delete-handler';
 import { createCreateHandler } from '@/commands/handlers/create-handler';
+import { createCreateFileHandler } from '@/commands/handlers/create-file-handler';
 import { createDeleteCommand } from '@/commands/factories/delete-command-factory';
 import { ExternalApi } from '@/api/external-api';
 import { PathElement } from '@/shapes/elements/PathElement';
@@ -77,6 +78,7 @@ export class SvgCanvas {
     this.element.style.userSelect = 'none';
     this.element.style.webkitUserSelect = 'none';
     this.svg = this.createAbstractGraphicElement(options);
+    this.svg.setAttribute('tabindex', '0');
     this.camera = new Camera();
     this.renderer = new Renderer(this.svg, this.camera);
     this.shapeManager = new ShapeManager(this.renderer);
@@ -237,6 +239,14 @@ export class SvgCanvas {
     );
     this.commandBus.register('DELETE', createDeleteHandler(this.shapeManager));
     this.commandBus.register('CREATE', createCreateHandler(this.shapeManager));
+    this.commandBus.register(
+      'CREATE_FILE',
+      createCreateFileHandler(
+        this.shapeManager,
+        this.groupManager,
+        (el) => this.indexShape(el),
+      ),
+    );
     this.commandBus.register('GEOMETRY_MUTATE', (command) => {
       if (command.type !== 'GEOMETRY_MUTATE') return;
       const el = this.shapeManager
@@ -358,6 +368,26 @@ export class SvgCanvas {
       true,
     );
 
+    rootSvg.addEventListener(
+      'keydown',
+      (e: KeyboardEvent) => {
+        if (e.code === 'Space' && e.target === rootSvg) {
+          console.log('Space pressed — pan mode (123)');
+          e.preventDefault();
+        }
+      },
+      true,
+    );
+    rootSvg.addEventListener(
+      'keyup',
+      (e: KeyboardEvent) => {
+        if (e.code === 'Space' && e.target === rootSvg) {
+          console.log('Space released — pan mode off (123)');
+        }
+      },
+      true,
+    );
+
     window.addEventListener(
       'keydown',
       (e: KeyboardEvent) => {
@@ -470,6 +500,10 @@ export class SvgCanvas {
   }
   public getCreationHandler(): CreationHandler {
     return this.creationHandler;
+  }
+
+  public getArtboard(): import('@/renderer/Artboard').Artboard {
+    return this.renderer.getArtboard();
   }
 
   public get editingPath(): PathElement | null {

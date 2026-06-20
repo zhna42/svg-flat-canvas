@@ -8,6 +8,14 @@ export enum Events {
   TransformStart = 'transformStart',
   TransformMove = 'transformMove',
   TransformEnd = 'transformEnd',
+  ElementCreated = 'elementCreated',
+  ElementChanged = 'elementChanged',
+  FileCreated = 'fileCreated',
+}
+
+export interface FileCreatedEvent {
+  groupId: string;
+  elements: import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[];
 }
 
 export interface EventMap {
@@ -20,6 +28,9 @@ export interface EventMap {
   [Events.TransformStart]: import('@/selection/TransformHandler').TransformMode;
   [Events.TransformMove]: void;
   [Events.TransformEnd]: import('@/selection/TransformHandler').TransformMode;
+  [Events.ElementCreated]: import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement;
+  [Events.ElementChanged]: { elementIds: string[] };
+  [Events.FileCreated]: FileCreatedEvent;
 }
 
 type Listener<T> = (data: T) => void;

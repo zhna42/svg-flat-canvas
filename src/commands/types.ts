@@ -12,6 +12,7 @@ export type CommandType =
   | 'GROUP_REMOVE'
   | 'GROUP_CLEAR'
   | 'CREATE'
+  | 'CREATE_FILE'
   | 'DELETE'
   | 'RESIZE'
   | 'ROTATE'
@@ -38,6 +39,15 @@ export interface CreateCommand {
   type: 'CREATE';
   options: {
     element: AbstractGraphicElement;
+  };
+}
+
+export interface CreateFileCommand {
+  type: 'CREATE_FILE';
+  options: {
+    elements: AbstractGraphicElement[];
+    groupId: string;
+    groupName: string;
   };
 }
 
@@ -168,6 +178,7 @@ export interface PathMoveSubpathCommand {
 
 export type Command =
   | CreateCommand
+  | CreateFileCommand
   | SelectCommand
   | DragMoveCommand
   | DragEndCommand

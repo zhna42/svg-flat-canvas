@@ -2,6 +2,7 @@ export type {
   Command,
   CommandType,
   CreateCommand,
+  CreateFileCommand,
   CreationElementType,
   SelectCommand,
   DragMoveCommand,
@@ -45,7 +46,7 @@ export {
   createGroupClearCommand,
 } from './factories/group-command-factory';
 export { createDeleteCommand } from './factories/delete-command-factory';
-export { createCreateCommand } from './factories/create-command-factory';
+export { createCreateCommand, createCreateFileCommand } from './factories/create-command-factory';
 export {
   createResizeCommand,
   createRotateCommand,

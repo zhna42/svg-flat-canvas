@@ -1,7 +1,5 @@
-import { SvgCanvas } from '../src/index';
-import { Events } from '../src/core/EventBus';
-import { svgNodesToElements } from '../src/dto/svg-node-factory';
-import type { SvgNodeDto } from '../src/dto/svg-node-dto';
+import { SvgCanvas, Events, svgNodesToElements } from '../src/index';
+import type { SvgNodeDto } from '../src/index';
 import nodesData from './svg-nodes.json';
 import groupsData from './groups.json';
 
@@ -156,16 +154,18 @@ let panStartX = 0;
 let panStartY = 0;
 let spaceHeld = false;
 
-window.addEventListener('keydown', (e: KeyboardEvent) => {
+svgEl.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.code === 'Space') {
     spaceHeld = true;
     e.preventDefault();
+    console.log('Space pressed — pan mode');
   }
 });
-window.addEventListener('keyup', (e: KeyboardEvent) => {
+svgEl.addEventListener('keyup', (e: KeyboardEvent) => {
   if (e.code === 'Space') {
     spaceHeld = false;
     svgEl.style.cursor = '';
+    console.log('Space released — pan mode off');
   }
 });
 

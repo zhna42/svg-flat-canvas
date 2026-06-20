@@ -72,6 +72,11 @@ export class GroupManager {
     return id;
   }
 
+  public addGroup(group: Group): void {
+    this.groups.set(group.id, group);
+    this.notify();
+  }
+
   public deleteGroup(id: string): void {
     const g = this.groups.get(id);
     if (!g) return;
@@ -139,12 +144,23 @@ export class GroupManager {
   }
 
   public setGroups(data: GroupData[]): void {
+    for (const g of this.groups.values()) {
+      for (const elId of g.elementIds) {
+        const el = this.findElement(elId);
+        if (el) el.groupId = '';
+      }
+    }
     this.groups.clear();
     for (const d of data) {
       const validIds = d.elementIds.filter(
         (eid) => this.findElement(eid) !== undefined,
       );
-      this.groups.set(d.id, new Group({ ...d, elementIds: validIds }));
+      const group = new Group({ ...d, elementIds: validIds });
+      this.groups.set(d.id, group);
+      for (const elId of validIds) {
+        const el = this.findElement(elId);
+        if (el) el.groupId = d.id;
+      }
     }
     this.notify();
   }
