@@ -395,6 +395,10 @@ export class ExternalApi {
     };
   }
 
+  public setPanMode(enabled: boolean): void {
+    this.canvas.panActive.value = enabled;
+  }
+
   public setActiveCreationTool(type: ElementType | null): void {
     const allowed: ElementType[] = [
       'rect',

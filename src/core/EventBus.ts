@@ -5,9 +5,9 @@ export interface BusEvent {
 
 export class EventBus {
   private listeners = new Map<string, Set<(event: BusEvent) => void>>();
-  private allListeners = new Set<(data: any) => void>();
+  private allListeners = new Set<(event: BusEvent) => void>();
 
-  public on(type: string, fn: (event: any) => void): () => void {
+  public on(type: string, fn: (event: BusEvent) => void): () => void {
     if (type === '*') {
       this.allListeners.add(fn);
       return () => this.allListeners.delete(fn);
@@ -21,7 +21,7 @@ export class EventBus {
     return () => this.off(type, fn);
   }
 
-  public off(type: string, fn: (event: any) => void): void {
+  public off(type: string, fn: (event: BusEvent) => void): void {
     if (type === '*') {
       this.allListeners.delete(fn);
       return;
@@ -31,12 +31,13 @@ export class EventBus {
   }
 
   public emit(type: string, data: unknown): void {
+    const busEvent: BusEvent = { type, data };
     const set = this.listeners.get(type);
     if (set) {
-      for (const fn of set) fn({ type, data });
+      for (const fn of set) fn(busEvent);
     }
     for (const fn of this.allListeners) {
-      fn(data);
+      fn(busEvent);
     }
   }
 

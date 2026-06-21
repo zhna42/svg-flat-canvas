@@ -44,6 +44,7 @@
 |---|---|
 | `getCanvasSize()` | Размер холста: `{ widthMM, heightMM, widthPx, heightPx, pxPerMM }` |
 | `setActiveCreationTool(type: ElementType \| null)` | Включить инструмент рисования (rect, circle, ellipse, line, polyline, polygon, path, null) |
+| `setPanMode(enabled: boolean)` | Включить/выключить режим панорамирования |
 
 ### Подписка на события
 
