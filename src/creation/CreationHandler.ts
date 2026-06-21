@@ -296,7 +296,6 @@ export class CreationHandler {
     this.finalizeCreation(el);
 
     this.currentPreview = null;
-    this._activeType = null;
   }
 
   public addPointToMulti(worldPoint: Point): void {
@@ -407,7 +406,6 @@ export class CreationHandler {
       });
       this.currentPreview = null;
       this.multiPointPoints = [];
-      this._activeType = null;
       return;
     }
 
@@ -415,7 +413,6 @@ export class CreationHandler {
 
     this.currentPreview = null;
     this.multiPointPoints = [];
-    this._activeType = null;
   }
 
   public abort(): void {
