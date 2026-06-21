@@ -216,7 +216,8 @@ export class SelectionHandler {
 
       if (this.opts.isPanning?.()) {
         panning = true;
-        panStart = { x: e.clientX, y: e.clientY };
+        const svgPt = this.clientToSvg(e);
+        panStart = { x: svgPt.x, y: svgPt.y };
         rootSvg.style.cursor = 'grabbing';
         e.preventDefault();
         return;
@@ -332,10 +333,11 @@ export class SelectionHandler {
       if (e.buttons === 0) return;
 
       if (panning) {
-        const dx = (e.clientX - panStart.x) / this.opts.camera.zoom;
-        const dy = (e.clientY - panStart.y) / this.opts.camera.zoom;
+        const svgPt = this.clientToSvg(e);
+        const dx = svgPt.x - panStart.x;
+        const dy = svgPt.y - panStart.y;
         this.opts.camera.pan(dx, dy);
-        panStart = { x: e.clientX, y: e.clientY };
+        panStart = { x: svgPt.x, y: svgPt.y };
         return;
       }
 
