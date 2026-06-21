@@ -136,8 +136,11 @@ document.getElementById('btn-toggle-pan')!.onclick = () => {
   info(enabled ? 'Pan mode: ON' : 'Pan mode: OFF');
 };
 
-// ----- mouse wheel zoom -----
+// ----- mouse wheel zoom (smooth) -----
 const svgEl = canvas.getSVG();
+let zoomTarget: { x: number; y: number; zoom: number } | null = null;
+let zoomRaf: number | null = null;
+
 svgEl.addEventListener('wheel', (e: WheelEvent) => {
   e.preventDefault();
   const point = svgEl.createSVGPoint();
@@ -146,8 +149,30 @@ svgEl.addEventListener('wheel', (e: WheelEvent) => {
   const ctm = svgEl.getScreenCTM();
   if (!ctm) return;
   const svgPt = point.matrixTransform(ctm.inverse());
-  const factor = e.deltaY < 0 ? 1.1 : 0.9;
-  canvas.getCamera().setZoom({ x: svgPt.x, y: svgPt.y }, factor);
+  const cam = canvas.getCamera();
+  const factor = e.deltaY < 0 ? 1.12 : 0.89;
+  const targetZoom = Math.max(0.05, Math.min(cam.zoom * factor, 50));
+  zoomTarget = { x: svgPt.x, y: svgPt.y, zoom: targetZoom };
+
+  if (zoomRaf) return;
+
+  const easeOut = (t: number): number => 1 - Math.pow(1 - t, 3);
+
+  const animate = (): void => {
+    if (!zoomTarget) { zoomRaf = null; return; }
+    const cam2 = canvas.getCamera();
+    const dz = zoomTarget.zoom - cam2.zoom;
+    if (Math.abs(dz) < 0.001) {
+      cam2.setZoom({ x: zoomTarget.x, y: zoomTarget.y }, 1);
+      zoomTarget = null;
+      zoomRaf = null;
+      return;
+    }
+    const step = dz * 0.35;
+    cam2.setZoom({ x: zoomTarget.x, y: zoomTarget.y }, (cam2.zoom + step) / cam2.zoom);
+    zoomRaf = requestAnimationFrame(animate);
+  };
+  zoomRaf = requestAnimationFrame(animate);
 });
 
 // ----- set A4 / A3 buttons -----
