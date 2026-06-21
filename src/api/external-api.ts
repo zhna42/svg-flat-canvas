@@ -397,10 +397,16 @@ export class ExternalApi {
 
   public setPanMode(enabled: boolean): void {
     this.canvas.panActive.value = enabled;
+    if (enabled) {
+      this.canvas.setActiveCreationTool(null);
+    }
     this.canvas.events.emit('SVG_CAD_PAN_MODE_CHANGED', { enabled });
   }
 
   public setActiveCreationTool(type: ElementType | null): void {
+    if (type !== null) {
+      this.canvas.panActive.value = false;
+    }
     const allowed: ElementType[] = [
       'rect',
       'circle',

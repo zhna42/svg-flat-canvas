@@ -551,6 +551,9 @@ export class SvgCanvas {
 
   public setActiveCreationTool(type: CreationElementType | null): void {
     this.creationHandler.setActiveType(type);
+    if (type !== null) {
+      this.panActive.value = false;
+    }
   }
 
   public undo(): void {
