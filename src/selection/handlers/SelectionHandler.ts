@@ -208,9 +208,19 @@ export class SelectionHandler {
     const overlayRoot = this.opts.overlayRoot;
     const camera = this.opts.camera;
 
+    let panning = false;
+    let panStart = { x: 0, y: 0 };
+
     rootSvg.addEventListener('mousedown', (e: MouseEvent) => {
       if (e.button !== 0) return;
-      if (this.opts.isPanning?.()) return;
+
+      if (this.opts.isPanning?.()) {
+        panning = true;
+        panStart = { x: e.clientX, y: e.clientY };
+        rootSvg.style.cursor = 'grabbing';
+        e.preventDefault();
+        return;
+      }
 
       const svgPt = this.clientToSvg(e);
       const worldPt = this.screenToWorld(e);
@@ -320,6 +330,15 @@ export class SelectionHandler {
 
     window.addEventListener('mousemove', (e: MouseEvent) => {
       if (e.buttons === 0) return;
+
+      if (panning) {
+        const dx = e.clientX - panStart.x;
+        const dy = e.clientY - panStart.y;
+        this.opts.camera.pan(dx, dy);
+        panStart = { x: e.clientX, y: e.clientY };
+        return;
+      }
+
       const svgPt = this.clientToSvg(e);
       const worldPt = this.screenToWorld(e);
 
@@ -358,6 +377,13 @@ export class SelectionHandler {
 
     window.addEventListener('mouseup', (e: MouseEvent) => {
       if (e.button !== 0) return;
+
+      if (panning) {
+        panning = false;
+        rootSvg.style.cursor = '';
+        return;
+      }
+
       const worldPt = this.screenToWorld(e);
 
       if (this.pathNodeHandler.isActive) {

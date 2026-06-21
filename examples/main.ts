@@ -10,6 +10,8 @@ const canvas = new SvgCanvas(document.getElementById('canvas-container')!, {
 
 canvas.setArtboardSize(210, 297);
 
+const api = canvas.getExternalApi();
+
 const log = document.getElementById('info')!;
 function info(msg: string) {
   log.textContent += '\n' + msg;
@@ -125,14 +127,13 @@ document.getElementById('btn-avoid-collisions')!.onclick = () => {
   info(avoidCollisions ? 'Avoid collisions: ON' : 'Avoid collisions: OFF');
 };
 
-// ----- toggle pan button -----
-let panLocked = false;
+// ----- pan mode button -----
 document.getElementById('btn-toggle-pan')!.onclick = () => {
-  panLocked = !panLocked;
-  const btn = document.getElementById('btn-toggle-pan')!;
-  btn.textContent = panLocked ? 'Pan: on' : 'Pan: off';
-  btn.classList.toggle('active', panLocked);
-  info(panLocked ? 'Pan mode: ON (LMB always pans)' : 'Pan mode: OFF');
+  const enabled = !api.panMode;
+  api.panMode = enabled;
+  api.setPanMode(enabled);
+  document.getElementById('btn-toggle-pan')!.textContent = enabled ? 'Pan: on' : 'Pan: off';
+  info(enabled ? 'Pan mode: ON' : 'Pan mode: OFF');
 };
 
 // ----- mouse wheel zoom -----
@@ -147,59 +148,6 @@ svgEl.addEventListener('wheel', (e: WheelEvent) => {
   const svgPt = point.matrixTransform(ctm.inverse());
   const factor = e.deltaY < 0 ? 1.1 : 0.9;
   canvas.getCamera().setZoom({ x: svgPt.x, y: svgPt.y }, factor);
-});
-
-// ----- mouse drag pan (space + LMB, or middle button) -----
-let isPanning = false;
-let panStartX = 0;
-let panStartY = 0;
-let spaceHeld = false;
-
-svgEl.addEventListener('keydown', (e: KeyboardEvent) => {
-  if (e.code === 'Space') {
-    spaceHeld = true;
-    e.preventDefault();
-    console.log('Space pressed — pan mode');
-  }
-});
-svgEl.addEventListener('keyup', (e: KeyboardEvent) => {
-  if (e.code === 'Space') {
-    spaceHeld = false;
-    svgEl.style.cursor = '';
-    console.log('Space released — pan mode off');
-  }
-});
-
-svgEl.addEventListener('mousedown', (e: MouseEvent) => {
-  if (
-    e.button === 1 ||
-    (e.button === 0 && spaceHeld) ||
-    (e.button === 0 && panLocked)
-  ) {
-    canvas.panActive.value = true;
-    isPanning = true;
-    panStartX = e.clientX;
-    panStartY = e.clientY;
-    svgEl.style.cursor = 'grabbing';
-    e.preventDefault();
-  }
-});
-
-window.addEventListener('mousemove', (e: MouseEvent) => {
-  if (!isPanning) return;
-  const dx = e.clientX - panStartX;
-  const dy = e.clientY - panStartY;
-  canvas.getCamera().pan(dx, dy);
-  panStartX = e.clientX;
-  panStartY = e.clientY;
-});
-
-window.addEventListener('mouseup', () => {
-  if (isPanning) {
-    isPanning = false;
-    canvas.panActive.value = false;
-    svgEl.style.cursor = spaceHeld ? 'grab' : '';
-  }
 });
 
 // ----- set A4 / A3 buttons -----
