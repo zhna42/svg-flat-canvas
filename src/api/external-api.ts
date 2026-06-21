@@ -397,6 +397,7 @@ export class ExternalApi {
 
   public setPanMode(enabled: boolean): void {
     this.canvas.panActive.value = enabled;
+    this.canvas.events.emit('SVG_CAD_PAN_MODE_CHANGED', { enabled });
   }
 
   public setActiveCreationTool(type: ElementType | null): void {

@@ -81,6 +81,7 @@
 | `GROUP_ADD` | `SVG_CAD_GROUP_ADD` | — |
 | `GROUP_REMOVE` | `SVG_CAD_GROUP_REMOVE` | — |
 | `GROUP_CLEAR` | `SVG_CAD_GROUP_CLEAR` | — |
+| — | `SVG_CAD_PAN_MODE_CHANGED` | `{ enabled: boolean }` |
 
 ---
 
