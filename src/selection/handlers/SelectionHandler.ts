@@ -332,8 +332,8 @@ export class SelectionHandler {
       if (e.buttons === 0) return;
 
       if (panning) {
-        const dx = e.clientX - panStart.x;
-        const dy = e.clientY - panStart.y;
+        const dx = (e.clientX - panStart.x) / this.opts.camera.zoom;
+        const dy = (e.clientY - panStart.y) / this.opts.camera.zoom;
         this.opts.camera.pan(dx, dy);
         panStart = { x: e.clientX, y: e.clientY };
         return;

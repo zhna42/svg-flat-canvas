@@ -131,6 +131,7 @@ document.getElementById('btn-avoid-collisions')!.onclick = () => {
 document.getElementById('btn-toggle-pan')!.onclick = () => {
   const enabled = !api.panMode;
   api.panMode = enabled;
+  if (zoomRaf) { cancelAnimationFrame(zoomRaf); zoomRaf = null; zoomTarget = null; }
   api.setPanMode(enabled);
   document.getElementById('btn-toggle-pan')!.textContent = enabled ? 'Pan: on' : 'Pan: off';
   info(enabled ? 'Pan mode: ON' : 'Pan mode: OFF');
