@@ -75,7 +75,6 @@ export type {
 export { TimeMachine } from '@/time-machine';
 export type { TimeMachineRecord } from '@/time-machine';
 export type { EntityKind } from '@/time-machine/types';
-export { Events } from '@/core/EventBus';
-export type { EventBus } from '@/core/EventBus';
+export type { EventBus, BusEvent } from '@/core/EventBus';
 export { svgNodesToElements } from '@/dto';
 export type { SvgNodeDto } from '@/dto';

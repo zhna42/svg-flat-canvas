@@ -226,6 +226,7 @@ export class DragHandler {
   private currentDy = 0;
   private targets: AbstractGraphicElement[] = [];
   private startMatrices = new Map<string, DOMMatrix>();
+  private _mode = 'element';
   private bus: CommandBus;
   private snap = new SvgSnap();
   private camera: Camera;
@@ -261,6 +262,10 @@ export class DragHandler {
     this.getArtboardRect = getArtboardRect;
   }
 
+  public setMode(mode: string): void {
+    this._mode = mode;
+  }
+
   public setAvoidCollisions(enabled: boolean): void {
     this.avoidCollisions = enabled;
   }
@@ -292,6 +297,7 @@ export class DragHandler {
     this.currentDx = 0;
     this.currentDy = 0;
     this.targets = Array.from(currentSelected);
+    this._mode = 'element';
     this.startMatrices.clear();
     for (const el of currentSelected) {
       this.startMatrices.set(
@@ -609,6 +615,14 @@ export class DragHandler {
     if (!this._active) return;
     this._active = false;
 
+    if (this.currentDx === 0 && this.currentDy === 0) {
+      this.targets = [];
+      this.startMatrices.clear();
+      this.snap.reset();
+      this.onDragEnd?.();
+      return;
+    }
+
     for (const el of this.targets) {
       el.buildHitArea();
       el.setDirtyAll();
@@ -616,6 +630,7 @@ export class DragHandler {
 
     const ids = this.targets.map((e) => e.id);
     const cmd = createDragEndCommand(ids);
+    (cmd as any).options.mode = this._mode;
     this.bus.execute(cmd);
 
     this.targets = [];

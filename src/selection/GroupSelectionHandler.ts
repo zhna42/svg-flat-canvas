@@ -68,6 +68,7 @@ export class GroupSelectionHandler {
 
       const ids = this.collectGroupElementIds(targetGroupIds, all);
       if (ids.length > 0) {
+        this.dragHandler.setMode('group');
         this.dragHandler.startWithoutCheck(wp, ids);
         return true;
       }

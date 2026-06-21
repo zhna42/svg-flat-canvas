@@ -71,7 +71,7 @@ export interface DragMoveCommand {
 
 export interface DragEndCommand {
   type: 'DRAG_END';
-  options: { elementIds: string[] };
+  options: { elementIds: string[]; mode?: string };
 }
 
 export interface GroupCreateCommand {

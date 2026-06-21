@@ -25,8 +25,8 @@ import {
   type GroupConflictAction,
 } from '@/group';
 import type { Group } from '@/group';
-import { EventBus, Events } from './EventBus';
-import { CommandBus } from '@/commands';
+import { EventBus } from './EventBus';
+import { CommandBus, CommandTracker } from '@/commands';
 import { TimeMachine, type TimeMachineRecord } from '@/time-machine';
 import {
   createGroupCreateCommand,
@@ -95,24 +95,19 @@ export class SvgCanvas {
       (groups) => this.restoreGroups(groups),
       100,
     );
-    this.commandBus = new CommandBus(this.timeMachine);
+    const commandTracker = new CommandTracker(this.events);
+    this.commandBus = new CommandBus(this.timeMachine, commandTracker, this.events);
+    this.commandBus.setGetElement((id) => this.shapeManager.getAll().find((e) => e.id === id));
+    this.commandBus.setGetSelected(() => Array.from(this.selectionState.selected).map((e) => e.id));
 
-    // SelectionOverlay — вне cameraGroup (screen coords)
     this.selectionOverlay = new SelectionOverlay(this.camera);
     this.selectionState.setOnChange((selected) => {
       this.selectionOverlay.setElements(selected);
-      this.events.emit(Events.SelectionChange, selected);
     });
 
-    // TransformHandler
     this.transformHandler = new TransformHandler(this.camera, this.commandBus);
-    this.transformHandler.onTransformStart = (mode) =>
-      this.events.emit(Events.TransformStart, mode);
-    this.transformHandler.onTransformMove = () =>
-      this.events.emit(Events.TransformMove, undefined);
-    this.transformHandler.onTransformEnd = (mode) => {
+    this.transformHandler.onTransformEnd = () => {
       updateOverlay();
-      this.events.emit(Events.TransformEnd, mode);
     };
 
     // Camera onChange — перерисовка оверлеев при pan/zoom
@@ -172,7 +167,6 @@ export class SvgCanvas {
       onDragEnd: (_ids: string[]) => {
         this.reindexSpatialGrid();
         updateOverlay();
-        this.events.emit(Events.DragEnd, undefined);
       },
     };
     this.commandBus.register('DRAG_MOVE', createDragMoveHandler(dragCtx));
@@ -183,7 +177,6 @@ export class SvgCanvas {
       this.selectionState.clear();
       this.groupManager.setSelectedGroupIds(ids);
       this.syncGroupSelectionOverlay();
-      this.events.emit(Events.GroupSelect, ids);
     };
 
     this.selectionHandler = new SelectionHandler({
@@ -204,7 +197,12 @@ export class SvgCanvas {
       onDragStart: () => {
         this._dragOverlayDx = 0;
         this._dragOverlayDy = 0;
-        this.events.emit(Events.DragStart, undefined);
+        const ids = this.selectionState.selected.map((e) => e.id);
+        if (ids.length > 0) {
+          this.commandBus.getTracker().captureBefore(ids, (id) =>
+            this.shapeManager.getAll().find((e) => e.id === id),
+          );
+        }
       },
       onDragMove: (dx: number, dy: number) => {
         const frameDx = dx - this._dragOverlayDx;
@@ -214,12 +212,10 @@ export class SvgCanvas {
         for (const overlayEl of this.selectionOverlay.getOverlayElements()) {
           overlayEl.translateBy(frameDx, frameDy);
         }
-        this.events.emit(Events.DragMove, undefined);
       },
       onDragEnd: () => {
         this._dragOverlayDx = 0;
         this._dragOverlayDy = 0;
-        this.events.emit(Events.DragEnd, undefined);
       },
       onSetEditingPath: (el) => {
         if (el) {
@@ -238,7 +234,6 @@ export class SvgCanvas {
     );
     this.groupManager.setOnChange(() => {
       this.syncGroupSelectionOverlay();
-      this.events.emit(Events.GroupsChange, undefined);
     });
 
     this.commandBus.register(
@@ -492,17 +487,17 @@ export class SvgCanvas {
     }
   }
 
-  public on<E extends Events>(
-    event: E,
-    fn: (data: import('./EventBus').EventMap[E]) => void,
+  public on(
+    event: string,
+    fn: (event: import('./EventBus').BusEvent) => void,
   ): () => void {
-    return this.events.on(event, fn as any);
+    return this.events.on(event, fn);
   }
-  public off<E extends Events>(
-    event: E,
-    fn: (data: import('./EventBus').EventMap[E]) => void,
+  public off(
+    event: string,
+    fn: (event: import('./EventBus').BusEvent) => void,
   ): void {
-    this.events.off(event, fn as any);
+    this.events.off(event, fn);
   }
 
   public setSelectionShortcuts(s: Partial<SelectionShortcuts>): void {
@@ -878,6 +873,6 @@ export class SvgCanvas {
     this.groupManager.setGroups(data);
     this.groupManager.refreshOverlay();
     this.syncGroupSelectionOverlay();
-    this.events.emit(Events.GroupsChange, undefined);
+    this.events.emit('SVG_CAD_GROUPS_UPDATED', { groupCount: this.groupManager.getGroups().length });
   }
 }
