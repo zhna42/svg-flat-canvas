@@ -150,7 +150,7 @@ svgEl.addEventListener('wheel', (e: WheelEvent) => {
   if (!ctm) return;
   const svgPt = point.matrixTransform(ctm.inverse());
   const cam = canvas.getCamera();
-  const factor = e.deltaY < 0 ? 1.12 : 0.89;
+  const factor = e.deltaY < 0 ? 1.08 : 0.925;
   const targetZoom = Math.max(0.05, Math.min(cam.zoom * factor, 50));
   zoomTarget = { x: svgPt.x, y: svgPt.y, zoom: targetZoom };
 
@@ -168,7 +168,7 @@ svgEl.addEventListener('wheel', (e: WheelEvent) => {
       zoomRaf = null;
       return;
     }
-    const step = dz * 0.35;
+    const step = dz * 0.25;
     cam2.setZoom({ x: zoomTarget.x, y: zoomTarget.y }, (cam2.zoom + step) / cam2.zoom);
     zoomRaf = requestAnimationFrame(animate);
   };
