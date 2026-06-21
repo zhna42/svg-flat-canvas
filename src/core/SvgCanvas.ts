@@ -83,6 +83,7 @@ export class SvgCanvas {
     this.svg.setAttribute('tabindex', '0');
     this.camera = new Camera();
     this.renderer = new Renderer(this.svg, this.camera);
+    this.camera.cameraGroup = this.renderer.getCameraGroup();
     this.shapeManager = new ShapeManager(this.renderer);
     this.eventManager = new EventManager(this.svg);
     this.selectionState = new SelectionState();

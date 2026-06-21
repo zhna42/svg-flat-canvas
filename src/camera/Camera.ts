@@ -4,6 +4,7 @@ export class Camera {
   public x = 0;
   public y = 0;
   public zoom = 1;
+  public cameraGroup: SVGGElement | null = null;
 
   private _dirty = false;
   public onChange: (() => void) | null = null;
@@ -24,6 +25,7 @@ export class Camera {
     this.x += dx;
     this.y += dy;
     this._dirty = true;
+    this.cameraGroup?.setAttribute('transform', this.getTransform());
     this.onChange?.();
   }
 
@@ -37,6 +39,7 @@ export class Camera {
     this.y = svgPoint.y - worldY * newZoom;
     this.zoom = newZoom;
     this._dirty = true;
+    this.cameraGroup?.setAttribute('transform', this.getTransform());
     this.onChange?.();
   }
 
@@ -44,12 +47,14 @@ export class Camera {
     this.x = x;
     this.y = y;
     this._dirty = true;
+    this.cameraGroup?.setAttribute('transform', this.getTransform());
     this.onChange?.();
   }
 
   public setZoomLevel(zoom: number): void {
     this.zoom = Math.max(0.05, Math.min(zoom, 50));
     this._dirty = true;
+    this.cameraGroup?.setAttribute('transform', this.getTransform());
     this.onChange?.();
   }
 
