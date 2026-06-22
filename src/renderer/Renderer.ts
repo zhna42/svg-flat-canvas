@@ -155,12 +155,15 @@ export class Renderer {
             (entry.flags & 4 ? 'G' : '') +
             (entry.flags & 8 ? 'V' : '');
           const changedKeys = Array.from(entry.element.getDiffKeysForRedering());
-          const keysStr = changedKeys.length > 0 ? ` keys:[${changedKeys.join(',')}]` : '';
+          const snapshot = entry.element.getRenderSnapshot();
+          const vals = changedKeys.length > 0
+            ? ` ${JSON.stringify(snapshot.style)} ${JSON.stringify(snapshot.geometry)} v:${snapshot.visible} m:${JSON.stringify(snapshot.matrix)}`
+            : '';
           if (!node) {
-            lines.push(`  ✗ ${entry.element.id} (${entry.element.type}) flags:${flags}${keysStr} — NO NODE`);
+            lines.push(`  ✗ ${entry.element.id} (${entry.element.type}) flags:${flags}${vals} — NO NODE`);
             continue;
           }
-          lines.push(`  ✓ ${entry.element.id} (${entry.element.type}) flags:${flags}${keysStr}`);
+          lines.push(`  ✓ ${entry.element.id} (${entry.element.type}) flags:${flags}${vals}`);
         }
         console.log(lines.join('\n'));
       }
