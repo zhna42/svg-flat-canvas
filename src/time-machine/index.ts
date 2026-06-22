@@ -1,2 +1,2 @@
 export { TimeMachine } from './TimeMachine';
-export type { TimeMachineRecord } from './TimeMachine';
+export type { TimeSnapshot } from './types';

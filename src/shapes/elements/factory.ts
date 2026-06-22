@@ -22,6 +22,36 @@ export interface ElementJSON {
   textContent?: string;
 }
 
+export const createElementByType = (
+  type: string,
+  id: string,
+): AbstractGraphicElement | null => {
+  switch (type) {
+    case 'rect':
+      return new RectElement(id);
+    case 'circle':
+      return new CircleElement(id);
+    case 'ellipse':
+      return new EllipseElement(id);
+    case 'line':
+      return new LineElement(id);
+    case 'path':
+      return new PathElement(id);
+    case 'polygon':
+      return new PolygonElement(id);
+    case 'polyline':
+      return new PolylineElement(id);
+    case 'text':
+      return new TextElement(id);
+    case 'image':
+      return new ImageElement(id);
+    case 'pattern':
+      return null;
+    default:
+      return null;
+  }
+};
+
 const createElement = (
   type: ElementType,
   id: string,

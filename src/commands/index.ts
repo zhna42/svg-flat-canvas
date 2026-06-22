@@ -28,8 +28,6 @@ export type {
 
 export type { CommandHandler, CommandRegistry } from './registry';
 export { CommandBus } from './CommandBus';
-export { CommandTracker } from './CommandTracker';
-export type { CommandEvent } from './CommandTracker';
 
 export {
   createSelectPickCommand,

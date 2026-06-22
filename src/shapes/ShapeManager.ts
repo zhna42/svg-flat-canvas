@@ -14,7 +14,28 @@ export class ShapeManager {
     this.renderer.addElement(shape.id, shape.type);
   }
 
+  public addElement(el: AbstractGraphicElement): void {
+    this.shapes.push(el);
+    this.renderer.addElement(el.id, el.type);
+    el.requestRender();
+  }
+
   public remove(id: string): void {
+    const index = this.shapes.findIndex((s) => s.id === id);
+    if (index !== -1) {
+      this.shapes.splice(index, 1);
+      this.renderer.removeElement(id);
+    }
+  }
+
+  public removeElement(id: string): void {
+    const index = this.shapes.findIndex((s) => s.id === id);
+    if (index !== -1) {
+      this.shapes.splice(index, 1);
+    }
+  }
+
+  public removeElementAndNode(id: string): void {
     const index = this.shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
       this.shapes.splice(index, 1);
@@ -29,5 +50,9 @@ export class ShapeManager {
 
   public getAll(): AbstractGraphicElement[] {
     return [...this.shapes];
+  }
+
+  public getById(id: string): AbstractGraphicElement | undefined {
+    return this.shapes.find((s) => s.id === id);
   }
 }

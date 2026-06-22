@@ -1,7 +1,15 @@
-export type EntityKind = 'element' | 'group' | 'camera' | 'selection';
+import type { CommandType } from '@/commands/types';
 
-export interface EntitySnapshot {
+export type SnapshotCommand = CommandType | 'ROOT';
+
+export interface EntityDiff {
   id: string;
-  kind: EntityKind;
-  dto: Record<string, unknown>;
+  diff: Record<string, unknown>;
+}
+
+export interface TimeSnapshot {
+  command: SnapshotCommand;
+  selectIds: string[];
+  selectType: 'element' | 'group';
+  data: EntityDiff[];
 }

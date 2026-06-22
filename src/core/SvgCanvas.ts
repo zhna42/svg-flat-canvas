@@ -26,8 +26,9 @@ import {
 } from '@/group';
 import type { Group } from '@/group';
 import { EventBus } from './EventBus';
-import { CommandBus, CommandTracker } from '@/commands';
-import { TimeMachine, type TimeMachineRecord } from '@/time-machine';
+import { CommandBus } from '@/commands';
+import { TimeMachine } from '@/time-machine';
+import type { TimeSnapshot } from '@/time-machine';
 import {
   createGroupCreateCommand,
   createGroupDeleteCommand,
@@ -89,16 +90,9 @@ export class SvgCanvas {
     this.selectionState = new SelectionState();
     this.spatialGrid = new SpatialGrid(800, 600, 100);
 
-    this.timeMachine = new TimeMachine(
-      () => this.shapeManager.getAll(),
-      () => this.groupManager.getGroups(),
-      (dto) => this.applyEntityDTO(dto),
-      (groups) => this.restoreGroups(groups),
-      100,
-    );
-    const commandTracker = new CommandTracker(this.events);
-    this.commandBus = new CommandBus(this.timeMachine, commandTracker, this.events);
-    this.commandBus.setGetElement((id) => this.shapeManager.getAll().find((e) => e.id === id));
+    this.timeMachine = new TimeMachine(this.shapeManager, 100);
+    this.commandBus = new CommandBus(this.timeMachine, this.events);
+    this.commandBus.setGetElement((id) => this.shapeManager.getById(id));
     this.commandBus.setGetSelected(() => Array.from(this.selectionState.selected).map((e) => e.id));
 
     this.selectionOverlay = new SelectionOverlay(this.camera);
@@ -198,12 +192,6 @@ export class SvgCanvas {
       onDragStart: () => {
         this._dragOverlayDx = 0;
         this._dragOverlayDy = 0;
-        const ids = this.selectionState.selected.map((e) => e.id);
-        if (ids.length > 0) {
-          this.commandBus.getTracker().captureBefore(ids, (id) =>
-            this.shapeManager.getAll().find((e) => e.id === id),
-          );
-        }
       },
       onDragMove: (dx: number, dy: number) => {
         const frameDx = dx - this._dragOverlayDx;
@@ -436,7 +424,7 @@ export class SvgCanvas {
       this.indexShape(el);
       el.setDirtyAll();
     }
-    this.timeMachine.captureRoot();
+    this.timeMachine.clear();
   }
 
   public setArtboardSize(widthMM: number, heightMM: number): void {
@@ -564,10 +552,6 @@ export class SvgCanvas {
     this.groupSelectionOverlay.clear();
     this.timeMachine.undo();
     this.reindexSpatialGrid();
-    for (const el of this.shapeManager.getAll()) {
-      el.setDirtyAll();
-      el.markClean();
-    }
   }
 
   public redo(): void {
@@ -576,10 +560,6 @@ export class SvgCanvas {
     this.groupSelectionOverlay.clear();
     this.timeMachine.redo();
     this.reindexSpatialGrid();
-    for (const el of this.shapeManager.getAll()) {
-      el.setDirtyAll();
-      el.markClean();
-    }
   }
 
   public get canUndo(): boolean {
@@ -696,7 +676,7 @@ export class SvgCanvas {
 
   public setGroups(data: GroupData[]): void {
     this.groupManager.setGroups(data);
-    this.timeMachine.captureRoot();
+    this.timeMachine.clear();
   }
 
   public createGroup(name?: string): string {
@@ -790,11 +770,11 @@ export class SvgCanvas {
     this.groupManager.conflictSuppressed = v;
   }
 
-  public saveTimeMachine(): TimeMachineRecord[] {
+  public saveTimeMachine(): TimeSnapshot[] {
     return this.timeMachine.toJSON();
   }
 
-  public loadTimeMachine(records: TimeMachineRecord[]): void {
+  public loadTimeMachine(records: TimeSnapshot[]): void {
     this.shapeManager.clear();
     this.groupManager.setGroups([]);
     this.spatialGrid.clear();
@@ -836,31 +816,6 @@ export class SvgCanvas {
     }
   }
 
-  private applyEntityDTO(dto: Record<string, unknown>): void {
-    const id = dto.id as string;
-    let el = this.shapeManager.getAll().find((e) => e.id === id);
-    if (!el) {
-      const type = dto.type as string;
-      const attrs = (dto.attributes ?? {}) as Record<string, string>;
-      const elementJSON: ElementJSON = {
-        id,
-        type: type as any,
-        attributes: attrs,
-        groupId: dto.groupId as string | undefined,
-        name: dto.name as string | undefined,
-        visible: dto.visible as boolean | undefined,
-        lock: dto.lock as boolean | undefined,
-        data: dto.data as Record<string, unknown> | undefined,
-        textContent: dto.textContent as string | undefined,
-      };
-      el = createFromJSONArray([elementJSON])[0];
-      this.shapeManager.add(el);
-      this.indexShape(el);
-    } else {
-      el.applyDTO(dto);
-    }
-  }
-
   private syncGroupSelectionOverlay(): void {
     const selectedGroups = Array.from(this.groupManager.selectedGroupIds)
       .map((id) => this.groupManager.getGroup(id))
@@ -868,17 +823,5 @@ export class SvgCanvas {
     this.groupSelectionOverlay.sync(selectedGroups, (id) =>
       this.shapeManager.getAll().find((e) => e.id === id),
     );
-  }
-
-  private restoreGroups(groups: Record<string, Record<string, unknown>>): void {
-    const data: GroupData[] = Object.values(groups).map((g) => ({
-      id: g.id as string,
-      name: g.name as string,
-      elementIds: (g.elementIds as string[]) ?? [],
-    }));
-    this.groupManager.setGroups(data);
-    this.groupManager.refreshOverlay();
-    this.syncGroupSelectionOverlay();
-    this.events.emit('SVG_CAD_GROUPS_UPDATED', { groupCount: this.groupManager.getGroups().length });
   }
 }

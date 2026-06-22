@@ -73,8 +73,7 @@ export type {
   SelectionGesture,
 } from '@/commands';
 export { TimeMachine } from '@/time-machine';
-export type { TimeMachineRecord } from '@/time-machine';
-export type { EntityKind } from '@/time-machine/types';
+export type { TimeSnapshot } from '@/time-machine';
 export type { EventBus, BusEvent } from '@/core/EventBus';
 export { svgNodesToElements } from '@/dto';
 export type { SvgNodeDto } from '@/dto';
