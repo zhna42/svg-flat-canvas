@@ -102,7 +102,11 @@ export class TimeMachine {
     for (let i = 0; i < this.records.length; i++) {
       const r = this.records[i];
       const prefix = i === this.index ? ' →' : '  ';
-      lines.push(`  ${prefix} [${i}] ${r.command} data:[${r.data.map(d => `${d.id}`).join(', ')}]`);
+      lines.push(`  ${prefix} [${i}] ${r.command} select:[${r.selectIds.join(',')}] data:[`);
+      for (const d of r.data) {
+        lines.push(`       ${d.id}: ${JSON.stringify(d.diff)}`);
+      }
+      lines.push(`    ]`);
     }
     console.log(lines.join('\n'));
   }
