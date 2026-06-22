@@ -604,6 +604,7 @@ export class SvgCanvas {
         width: bbox.width,
         height: bbox.height,
       });
+      el.buildHitArea();
     }
   }
 
@@ -611,6 +612,7 @@ export class SvgCanvas {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
     el.rotate(angle);
+    el.buildHitArea();
   }
 
   public transformElement(

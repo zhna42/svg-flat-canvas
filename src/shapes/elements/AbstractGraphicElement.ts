@@ -322,7 +322,6 @@ export abstract class AbstractGraphicElement {
     }
 
     this.markRenderKey('matrix');
-    this.buildHitArea();
     this.requestRender();
   }
 

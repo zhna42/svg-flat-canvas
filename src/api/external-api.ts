@@ -358,6 +358,7 @@ export class ExternalApi {
     if (angle !== undefined) {
       el.rotate(angle - el.transform.angle);
     }
+    el.buildHitArea();
   }
 
   private applyGeometryDelta(

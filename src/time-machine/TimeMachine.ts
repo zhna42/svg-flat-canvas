@@ -23,8 +23,9 @@ export class TimeMachine {
   }
 
   public get canUndo(): boolean {
-    if (this.root && this.records.length === 0) return false;
-    return this.index >= 0;
+    if (this.records.length === 0) return false;
+    if (this.root) return this.index >= 0;
+    return this.index > 0;
   }
 
   public get canRedo(): boolean {
@@ -114,6 +115,12 @@ export class TimeMachine {
   public undo(): void {
     if (!this.canUndo) return;
     this.index--;
+    if (this.index === -1) {
+      if (this.root) this.applySnapshot(this.root, true);
+      this.onUpdate?.();
+      this.log('undo');
+      return;
+    }
     const snapshot = this.records[this.index];
     this.applySnapshot(snapshot, true);
     this.onUpdate?.();
@@ -172,6 +179,7 @@ export class TimeMachine {
         const el = createElementByType(entry.diff.type as string, entry.id);
         if (el) {
           el.applyCнимок(entry.diff);
+          el.buildHitArea();
           this.shapeManager.addElement(el);
         }
       } else if (remove) {
