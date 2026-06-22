@@ -24,8 +24,8 @@ export class TimeMachine {
   public get canUndo(): boolean {
     if (this.records.length === 0) return false;
     const firstIsRoot = this.records[0].command === 'ROOT';
-    if (firstIsRoot) return this.index > 0;
-    return this.index >= 0;
+    if (firstIsRoot) return this.index >= 0;
+    return this.index > 0;
   }
 
   public get canRedo(): boolean {
