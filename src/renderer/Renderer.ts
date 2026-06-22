@@ -154,11 +154,13 @@ export class Renderer {
             (entry.flags & 2 ? 'S' : '') +
             (entry.flags & 4 ? 'G' : '') +
             (entry.flags & 8 ? 'V' : '');
+          const changedKeys = Array.from(entry.element.getDiffKeysForRedering());
+          const keysStr = changedKeys.length > 0 ? ` keys:[${changedKeys.join(',')}]` : '';
           if (!node) {
-            lines.push(`  ✗ ${entry.element.id} (${entry.element.type}) flags:${flags} — NO NODE`);
+            lines.push(`  ✗ ${entry.element.id} (${entry.element.type}) flags:${flags}${keysStr} — NO NODE`);
             continue;
           }
-          lines.push(`  ✓ ${entry.element.id} (${entry.element.type}) flags:${flags}`);
+          lines.push(`  ✓ ${entry.element.id} (${entry.element.type}) flags:${flags}${keysStr}`);
         }
         console.log(lines.join('\n'));
       }
