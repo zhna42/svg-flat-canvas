@@ -14,8 +14,8 @@ export interface SnapLine {
 }
 
 const SNAP_DISTANCE_PX = 16;
-const SNAP_RELEASE_DISTANCE_PX = 24;
-const SNAP_PULL_BREAK_DISTANCE_PX = 400;
+const SNAP_RELEASE_DISTANCE_PX = 10;
+const SNAP_PULL_BREAK_DISTANCE_PX = 80;
 
 export class SvgSnap {
   private active: Partial<Record<SnapAxis, boolean>> = {};
