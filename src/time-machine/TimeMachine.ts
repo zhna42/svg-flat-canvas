@@ -90,6 +90,21 @@ export class TimeMachine {
       this.index--;
     }
     this.onUpdate?.();
+    this.log('push');
+  }
+
+  private log(action: string): void {
+    const lines: string[] = [];
+    lines.push(`── TimeMachine ${action} ──`);
+    lines.push(`  root: ${this.root ? `ROOT (${this.root.data.length} elements)` : 'null'}`);
+    lines.push(`  index: ${this.index}`);
+    lines.push(`  records[${this.records.length}]:`);
+    for (let i = 0; i < this.records.length; i++) {
+      const r = this.records[i];
+      const prefix = i === this.index ? ' →' : '  ';
+      lines.push(`  ${prefix} [${i}] ${r.command} data:[${r.data.map(d => `${d.id}`).join(', ')}]`);
+    }
+    console.log(lines.join('\n'));
   }
 
   public undo(): void {
@@ -98,6 +113,7 @@ export class TimeMachine {
     this.index--;
     this.applySnapshot(snapshot, true);
     this.onUpdate?.();
+    this.log('undo');
   }
 
   public redo(): void {
@@ -106,6 +122,7 @@ export class TimeMachine {
     const snapshot = this.records[this.index];
     this.applySnapshot(snapshot, false);
     this.onUpdate?.();
+    this.log('redo');
   }
 
   public clear(): void {
@@ -139,6 +156,7 @@ export class TimeMachine {
       this.records = records;
     }
     this.index = this.records.length - 1;
+    this.log('fromJSON');
   }
 
   private applySnapshot(snapshot: TimeSnapshot, isUndo: boolean): void {
