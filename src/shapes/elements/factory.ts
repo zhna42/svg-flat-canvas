@@ -174,6 +174,7 @@ export const createFromJSON = (json: ElementJSON): AbstractGraphicElement => {
     el.setTextContent(json.textContent);
 
   el.buildHitArea();
+  el.getDiffKeysForTimeMashin().clear();
   return el;
 };
 

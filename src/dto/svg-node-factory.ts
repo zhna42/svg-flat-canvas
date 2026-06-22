@@ -137,6 +137,7 @@ export const svgNodesToElements = (
     el.setName(dto.tag);
 
     el.buildHitArea();
+    el.getDiffKeysForTimeMashin().clear();
 
     return el;
   });

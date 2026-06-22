@@ -66,6 +66,10 @@ export abstract class AbstractGraphicElement {
     return this.diffKeysForRedering;
   }
 
+  public getDiffKeysForTimeMashin(): Set<string> {
+    return this.diffKeysForTimeMashin;
+  }
+
   public flushRenderDiff(): ElementSnapshot {
     const keys = Array.from(this.diffKeysForRedering);
     this.diffKeysForRedering.clear();

@@ -418,6 +418,7 @@ export class SvgCanvas {
   public addShape(shape: AbstractGraphicElement): void {
     this.shapeManager.add(shape);
     this.indexShape(shape);
+    shape.getDiffKeysForTimeMashin().clear();
     shape.setDirtyAll();
   }
 

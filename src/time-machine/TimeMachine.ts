@@ -113,8 +113,8 @@ export class TimeMachine {
 
   public undo(): void {
     if (!this.canUndo) return;
-    const snapshot = this.records[this.index];
     this.index--;
+    const snapshot = this.records[this.index];
     this.applySnapshot(snapshot, true);
     this.onUpdate?.();
     this.log('undo');
