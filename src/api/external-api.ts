@@ -414,6 +414,18 @@ export class ExternalApi {
     this.canvas.events.emit('SVG_CAD_PAN_MODE_CHANGED', { enabled });
   }
 
+  public setSnapToElements(enabled: boolean): void {
+    this.canvas.setSnapToElements(enabled);
+  }
+
+  public setSnapToArtboard(enabled: boolean): void {
+    this.canvas.setSnapToArtboard(enabled);
+  }
+
+  public setAvoidCollisions(enabled: boolean): void {
+    this.canvas.setAvoidCollisions(enabled);
+  }
+
   public setActiveCreationTool(type: ElementType | null): void {
     if (type !== null) {
       this.canvas.panActive.value = false;

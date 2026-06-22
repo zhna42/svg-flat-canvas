@@ -313,7 +313,7 @@ document.getElementById('btn-transform-rotate')!.onclick = () => {
   }
   const el = sel[0];
   canvas.rotateElement(el.id, 15);
-  canvas.getTimeMachine().push('ROTATE');
+  canvas.getTimeMachine().push('ROTATE', [el.id], 'element', [el.id], []);
   info(`Rotated ${el.id} 15deg`);
 };
 document.getElementById('btn-transform-matrix')!.onclick = () => {
