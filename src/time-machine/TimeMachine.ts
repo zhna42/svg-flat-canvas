@@ -22,6 +22,9 @@ export class TimeMachine {
   }
 
   public get canUndo(): boolean {
+    if (this.records.length === 0) return false;
+    const firstIsRoot = this.records[0].command === 'ROOT';
+    if (firstIsRoot) return this.index > 0;
     return this.index >= 0;
   }
 
@@ -41,6 +44,15 @@ export class TimeMachine {
     return [...this.records];
   }
 
+  public captureRoot(): void {
+    const data: EntityDiff[] = [];
+    for (const el of this.shapeManager.getAll()) {
+      data.push({ id: el.id, diff: el.получитьCнимокFull() });
+    }
+    this.records = [{ command: 'ROOT', selectIds: [], selectType: 'element', data }];
+    this.index = -1;
+  }
+
   public push(
     command: SnapshotCommand,
     selectIds: string[],
@@ -48,6 +60,10 @@ export class TimeMachine {
     getFullSnapshotIds: string[],
     getDiffElements: AbstractGraphicElement[],
   ): void {
+    if (this.records.length === 0) {
+      this.captureRoot();
+    }
+
     const data: EntityDiff[] = [];
 
     for (const id of getFullSnapshotIds) {
@@ -92,8 +108,13 @@ export class TimeMachine {
   }
 
   public clear(): void {
-    this.records = [];
-    this.index = -1;
+    if (this.records.length > 0 && this.records[0].command === 'ROOT') {
+      this.records = [this.records[0]];
+      this.index = -1;
+    } else {
+      this.records = [];
+      this.index = -1;
+    }
     this.onUpdate?.();
   }
 

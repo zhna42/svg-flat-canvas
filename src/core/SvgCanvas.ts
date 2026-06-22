@@ -402,6 +402,10 @@ export class SvgCanvas {
       },
       true,
     );
+
+    requestAnimationFrame(() => {
+      this.timeMachine.captureRoot();
+    });
   }
 
   public getSVG(): SVGSVGElement {
