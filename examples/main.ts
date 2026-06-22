@@ -10,8 +10,6 @@ const canvas = new SvgCanvas(document.getElementById('canvas-container')!, {
 
 canvas.setArtboardSize(210, 297);
 
-const api = canvas.getExternalApi();
-
 const log = document.getElementById('info')!;
 function info(msg: string) {
   log.textContent += '\n' + msg;
@@ -128,13 +126,13 @@ document.getElementById('btn-avoid-collisions')!.onclick = () => {
 };
 
 // ----- pan mode button -----
+let panActive = false;
 document.getElementById('btn-toggle-pan')!.onclick = () => {
-  const enabled = !api.panMode;
-  api.panMode = enabled;
+  panActive = !panActive;
+  api.setPanMode(panActive);
   if (zoomRaf) { cancelAnimationFrame(zoomRaf); zoomRaf = null; zoomTarget = null; }
-  api.setPanMode(enabled);
-  document.getElementById('btn-toggle-pan')!.textContent = enabled ? 'Pan: on' : 'Pan: off';
-  info(enabled ? 'Pan mode: ON' : 'Pan mode: OFF');
+  document.getElementById('btn-toggle-pan')!.textContent = panActive ? 'Pan: on' : 'Pan: off';
+  info(panActive ? 'Pan mode: ON' : 'Pan mode: OFF');
 };
 
 // ----- mouse wheel zoom (smooth) -----
@@ -314,7 +312,6 @@ document.getElementById('btn-transform-rotate')!.onclick = () => {
     return;
   }
   const el = sel[0];
-  const bbox = el.getBBox();
   canvas.rotateElement(el.id, 15);
   canvas.getTimeMachine().push('ROTATE');
   info(`Rotated ${el.id} 15deg`);

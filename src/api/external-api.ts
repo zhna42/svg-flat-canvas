@@ -63,11 +63,14 @@ export class ExternalApi {
     const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
 
     if (dto.transform) this.applyTransformDto(el, dto.transform);
-    if (dto.name !== undefined) el.name = dto.name;
+    if (dto.name !== undefined) el.setName(dto.name);
     if (dto.visible !== undefined) el.setVisible(dto.visible);
     if (dto.lock !== undefined) el.setLock(dto.lock);
-    if (dto.groupId !== undefined) el.groupId = dto.groupId;
-    if (dto.data !== undefined) el.data = { ...dto.data };
+    if (dto.groupId !== undefined) el.setGroupId(dto.groupId);
+    if (dto.data !== undefined) {
+      el.data = { ...dto.data };
+      el.markRenderKey('data');
+    }
 
     this.canvas.getCommandBus().execute(createCreateCommand(el));
     return el;
@@ -83,10 +86,13 @@ export class ExternalApi {
       const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
 
       if (dto.transform) this.applyTransformDto(el, dto.transform);
-      if (dto.name !== undefined) el.name = dto.name;
+      if (dto.name !== undefined) el.setName(dto.name);
       if (dto.visible !== undefined) el.setVisible(dto.visible);
       if (dto.lock !== undefined) el.setLock(dto.lock);
-      if (dto.data !== undefined) el.data = { ...dto.data };
+      if (dto.data !== undefined) {
+        el.data = { ...dto.data };
+        el.markRenderKey('data');
+      }
 
       elements.push(el);
     }
@@ -111,8 +117,11 @@ export class ExternalApi {
       if (dto.name !== undefined) el.setName(dto.name);
       if (dto.visible !== undefined) el.setVisible(dto.visible);
       if (dto.lock !== undefined) el.setLock(dto.lock);
-      if (dto.groupId !== undefined) el.groupId = dto.groupId;
-      if (dto.data !== undefined) el.data = { ...el.data, ...dto.data };
+      if (dto.groupId !== undefined) el.setGroupId(dto.groupId);
+      if (dto.data !== undefined) {
+        el.data = { ...el.data, ...dto.data };
+        el.markRenderKey('data');
+      }
     }
   }
 
@@ -325,6 +334,7 @@ export class ExternalApi {
   ): void {
     if (t.matrix) {
       el.transform.matrix = new DOMMatrix(t.matrix);
+      el.markRenderKey('matrix');
       el.invalidateHitArea();
       return;
     }

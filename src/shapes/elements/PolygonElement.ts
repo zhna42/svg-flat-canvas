@@ -45,7 +45,7 @@ export class PolygonElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.points !== undefined) this.points = data.points as string;
+    if (data.points !== undefined) { this.points = data.points as string; this.markRenderKey('points'); }
     this.buildHitArea();
   }
 
@@ -65,6 +65,7 @@ export class PolygonElement extends AbstractGraphicElement {
       if (i + 1 < nums.length) nums[i + 1] += dy;
     }
     this.points = nums.join(' ');
+    this.markRenderKey('points');
     this.buildHitArea();
   }
 
@@ -76,7 +77,10 @@ export class PolygonElement extends AbstractGraphicElement {
       this.getTransformedBBox(),
     );
     this.points = scaled.map((p) => `${p.x},${p.y}`).join(' ');
+    this.markRenderKey('points');
     this.transform.reset();
-    this.invalidateHitArea();
+    this.markRenderKey('matrix');
+    this.buildHitArea();
+    this.requestRender();
   }
 }

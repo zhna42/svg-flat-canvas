@@ -13,6 +13,8 @@ export interface RenderSnapshot {
   geometry: Record<string, unknown>;
 }
 
+export type ElementSnapshot = Record<string, unknown>;
+
 export abstract class AbstractGraphicElement {
   public readonly id: string;
   public readonly type: ElementType;
@@ -31,6 +33,8 @@ export abstract class AbstractGraphicElement {
   public onDirty: (() => void) | null = null;
 
   protected _dirty = false;
+  protected diffKeysForRedering = new Set<string>();
+  protected diffKeysForTimeMashin = new Set<string>();
 
   public constructor(id: string, type: ElementType) {
     this.id = id;
@@ -44,6 +48,151 @@ export abstract class AbstractGraphicElement {
 
   public markClean(): void {
     this._dirty = false;
+  }
+
+  public markRenderKey(key: string): void {
+    this.diffKeysForRedering.add(key);
+    this.diffKeysForTimeMashin.add(key);
+  }
+
+  public markRenderKeys(...keys: string[]): void {
+    for (const key of keys) {
+      this.diffKeysForRedering.add(key);
+      this.diffKeysForTimeMashin.add(key);
+    }
+  }
+
+  public getDiffKeysForRedering(): Set<string> {
+    return this.diffKeysForRedering;
+  }
+
+  public flushRenderDiff(): ElementSnapshot {
+    const keys = Array.from(this.diffKeysForRedering);
+    this.diffKeysForRedering.clear();
+    if (keys.length === 0) return {};
+    return this.buildSnapshotFromKeys(keys);
+  }
+
+  public получитьCнимокDiff(): ElementSnapshot {
+    const keys = Array.from(this.diffKeysForTimeMashin);
+    this.diffKeysForTimeMashin.clear();
+    if (keys.length === 0) return {};
+    return this.buildSnapshotFromKeys(keys);
+  }
+
+  public получитьCнимокFull(): ElementSnapshot {
+    return this.toSnapshot();
+  }
+
+  public applyCнимок(snapshot: ElementSnapshot): void {
+    this.applyCommonSnapshot(snapshot);
+    this.applyGeometrySnapshot(snapshot);
+    if (this.diffKeysForRedering.size > 0) {
+      this.requestRender();
+    }
+  }
+
+  private buildSnapshotFromKeys(keys: string[]): ElementSnapshot {
+    const snapshot: ElementSnapshot = {};
+    for (const key of keys) {
+      switch (key) {
+        case 'id':
+          snapshot.id = this.id;
+          break;
+        case 'type':
+          snapshot.type = this.type;
+          break;
+        case 'groupId':
+          snapshot.groupId = this.groupId;
+          break;
+        case 'laserGroupId':
+          snapshot.laserGroupId = this.laserGroupId;
+          break;
+        case 'laserType':
+          snapshot.laserType = this.laserType;
+          break;
+        case 'name':
+          snapshot.name = this.name;
+          break;
+        case 'visible':
+          snapshot.visible = this.visible;
+          break;
+        case 'lock':
+          snapshot.lock = this.lock;
+          break;
+        case 'isPreview':
+          snapshot.isPreview = this.isPreview;
+          break;
+        case 'isNodeEditing':
+          snapshot.isNodeEditing = this.isNodeEditing;
+          break;
+        case 'data':
+          snapshot.data = { ...this.data };
+          break;
+        case 'fill':
+          snapshot.fill = this.style.fill;
+          break;
+        case 'stroke':
+          snapshot.stroke = this.style.stroke;
+          break;
+        case 'strokeWidth':
+          snapshot.strokeWidth = this.style.strokeWidth;
+          break;
+        case 'opacity':
+          snapshot.opacity = this.style.opacity;
+          break;
+        case 'matrix':
+          snapshot.matrix = this.transform.matrix.toString();
+          break;
+        default:
+          this.buildAdditionalSnapshotKey(key, snapshot);
+      }
+    }
+    return snapshot;
+  }
+
+  protected buildAdditionalSnapshotKey(
+    _key: string,
+    _snapshot: ElementSnapshot,
+  ): void {}
+
+  public requestRender(): void {
+    this._dirty = true;
+    const flags = this.computeDirtyFlags();
+    getRenderQueue()?.add(this, flags);
+    this.onDirty?.();
+  }
+
+  private computeDirtyFlags(): number {
+    let flags = 0;
+    for (const key of this.diffKeysForRedering) {
+      switch (key) {
+        case 'matrix':
+          flags |= DirtyFlag.Transform;
+          break;
+        case 'fill':
+        case 'stroke':
+        case 'strokeWidth':
+        case 'opacity':
+        case 'style.visible':
+          flags |= DirtyFlag.Style;
+          break;
+        case 'visible':
+          flags |= DirtyFlag.Visibility;
+          break;
+        default:
+          flags |= DirtyFlag.Geometry;
+          break;
+      }
+    }
+    if (flags === 0) {
+      flags =
+        DirtyFlag.Transform |
+        DirtyFlag.Style |
+        DirtyFlag.Geometry |
+        DirtyFlag.Visibility;
+    }
+    return flags;
   }
 
   public setDirty(): void {
@@ -82,7 +231,8 @@ export abstract class AbstractGraphicElement {
 
   public invalidateHitArea(): void {
     this.buildHitArea();
-    this.setDirtyAll();
+    this.markRenderKey('matrix');
+    this.requestRender();
   }
 
   public abstract getBBox(): BoundingBox;
@@ -167,8 +317,9 @@ export abstract class AbstractGraphicElement {
         return;
     }
 
+    this.markRenderKey('matrix');
     this.buildHitArea();
-    this.setDirtyTransform();
+    this.requestRender();
   }
 
   public transformPoint(p: Point): Point {
@@ -216,39 +367,71 @@ export abstract class AbstractGraphicElement {
 
   public setFill(color: string): void {
     this.style.fill = color;
+    this.markRenderKey('fill');
     this.buildHitArea();
-    this.setDirtyStyle();
+    this.requestRender();
   }
 
   public setStroke(color: string): void {
     this.style.stroke = color;
+    this.markRenderKey('stroke');
     this.buildHitArea();
-    this.setDirtyStyle();
+    this.requestRender();
   }
 
   public setStrokeWidth(w: number): void {
     this.style.strokeWidth = w;
+    this.markRenderKey('strokeWidth');
     this.buildHitArea();
-    this.setDirtyStyle();
+    this.requestRender();
   }
 
   public setOpacity(v: number): void {
     this.style.opacity = v;
-    this.setDirtyStyle();
+    this.markRenderKey('opacity');
+    this.requestRender();
   }
 
   public setVisible(v: boolean): void {
     this.visible = v;
     this.style.visible = v;
-    this.setDirtyStyle();
+    this.markRenderKeys('visible', 'style.visible');
+    this.requestRender();
   }
 
   public setLock(v: boolean): void {
     this.lock = v;
+    this.markRenderKey('lock');
   }
 
   public setName(v: string): void {
     this.name = v;
+    this.markRenderKey('name');
+  }
+
+  public setGroupId(v: string): void {
+    this.groupId = v;
+    this.markRenderKey('groupId');
+  }
+
+  public setLaserGroupId(v: string): void {
+    this.laserGroupId = v;
+    this.markRenderKey('laserGroupId');
+  }
+
+  public setLaserType(v: string): void {
+    this.laserType = v;
+    this.markRenderKey('laserType');
+  }
+
+  public setIsPreview(v: boolean): void {
+    this.isPreview = v;
+    this.markRenderKey('isPreview');
+  }
+
+  public setIsNodeEditing(v: boolean): void {
+    this.isNodeEditing = v;
+    this.markRenderKey('isNodeEditing');
   }
 
   public toJSON(): Record<string, unknown> {
@@ -284,40 +467,46 @@ export abstract class AbstractGraphicElement {
   public fromSnapshot(data: Record<string, unknown>): void {
     this.applyCommonSnapshot(data);
     this.applyGeometrySnapshot(data);
-    this.invalidateHitArea();
+    this.buildHitArea();
+    if (this.diffKeysForRedering.size > 0) {
+      this.requestRender();
+    }
   }
 
   protected applyCommonSnapshot(data: Record<string, unknown>): void {
-    if (typeof data.groupId === 'string') this.groupId = data.groupId;
-    if (typeof data.name === 'string') this.name = data.name;
+    if (typeof data.groupId === 'string') this.setGroupId(data.groupId);
+    if (typeof data.name === 'string') this.setName(data.name);
     if (typeof data.visible === 'boolean') {
-      this.visible = data.visible;
-      this.style.visible = data.visible;
+      this.setVisible(data.visible);
     }
-    if (typeof data.lock === 'boolean') this.lock = data.lock;
-    if (data.data && typeof data.data === 'object')
+    if (typeof data.lock === 'boolean') this.setLock(data.lock);
+    if (data.data && typeof data.data === 'object') {
       this.data = { ...(data.data as Record<string, unknown>) };
-    if (typeof data.fill === 'string') this.style.fill = data.fill;
-    if (typeof data.stroke === 'string') this.style.stroke = data.stroke;
+      this.markRenderKey('data');
+    }
+    if (typeof data.fill === 'string') this.setFill(data.fill);
+    if (typeof data.stroke === 'string') this.setStroke(data.stroke);
     if (typeof data.strokeWidth === 'number')
-      this.style.strokeWidth = data.strokeWidth;
-    if (typeof data.opacity === 'number') this.style.opacity = data.opacity;
+      this.setStrokeWidth(data.strokeWidth);
+    if (typeof data.opacity === 'number') this.setOpacity(data.opacity);
     if (typeof data.matrix === 'string') {
       this.transform.matrix = new DOMMatrix(data.matrix);
+      this.markRenderKey('matrix');
     } else {
       this.transform.reset();
+      this.markRenderKey('matrix');
     }
   }
 
   public clone(): AbstractGraphicElement {
     const Cls = this.constructor as new (id: string) => AbstractGraphicElement;
     const cloned = new Cls(this.id);
-    cloned.groupId = this.groupId;
-    cloned.laserGroupId = this.laserGroupId;
-    cloned.laserType = this.laserType;
-    cloned.name = this.name;
-    cloned.visible = this.visible;
-    cloned.lock = this.lock;
+    cloned.setGroupId(this.groupId);
+    cloned.setLaserGroupId(this.laserGroupId);
+    cloned.setLaserType(this.laserType);
+    cloned.setName(this.name);
+    cloned.setVisible(this.visible);
+    cloned.setLock(this.lock);
     cloned.data = { ...this.data };
     cloned.style.fill = this.style.fill;
     cloned.style.stroke = this.style.stroke;
@@ -333,6 +522,9 @@ export abstract class AbstractGraphicElement {
     const geometry = dto as Record<string, unknown>;
     this.applyCommonSnapshot(geometry);
     this.applyGeometrySnapshot(geometry);
+    if (this.diffKeysForRedering.size > 0) {
+      this.requestRender();
+    }
   }
 
   public toDTO(): Record<string, unknown> {
@@ -384,6 +576,40 @@ export abstract class AbstractGraphicElement {
   }
 
   public getRenderSnapshot(): RenderSnapshot {
+    const diff = this.flushRenderDiff();
+    if (Object.keys(diff).length > 0) {
+      return {
+        id: this.id,
+        type: this.type,
+        visible:
+          diff.visible !== undefined ? (diff.visible as boolean) : this.visible,
+        matrix:
+          diff.matrix !== undefined
+            ? this.transform.toArray()
+            : this.transform.toArray(),
+        style: {
+          fill:
+            diff.fill !== undefined ? (diff.fill as string) : this.style.fill,
+          stroke:
+            diff.stroke !== undefined
+              ? (diff.stroke as string)
+              : this.style.stroke,
+          strokeWidth:
+            diff.strokeWidth !== undefined
+              ? (diff.strokeWidth as number)
+              : this.style.strokeWidth,
+          opacity:
+            diff.opacity !== undefined
+              ? (diff.opacity as number)
+              : this.style.opacity,
+          visible:
+            diff['style.visible'] !== undefined
+              ? (diff['style.visible'] as boolean)
+              : this.style.visible,
+        },
+        geometry: this.getGeometryProps(),
+      };
+    }
     return {
       id: this.id,
       type: this.type,

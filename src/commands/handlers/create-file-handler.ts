@@ -16,11 +16,11 @@ export const createCreateFileHandler = (
     const { elements, groupId, groupName } = command.options;
 
     for (const el of elements) {
-      el.isPreview = false;
+      el.setIsPreview(false);
       shapeManager.add(el);
       indexShape(el);
       el.setDirtyAll();
-      el.groupId = groupId;
+      el.setGroupId(groupId);
     }
 
     groupManager.addGroup(

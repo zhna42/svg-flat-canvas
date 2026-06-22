@@ -94,6 +94,7 @@ export class PathNodeHandler {
     }));
 
     path.geometry.commands = this.active.startCommands;
+    path.markRenderKey('d');
     path.buildHitArea();
     path.setDirtyGeometry();
 
@@ -112,6 +113,7 @@ export class PathNodeHandler {
 
     const path = this.active.element;
     path.geometry.commands = this.active.startCommands;
+    path.markRenderKey('d');
     path.buildHitArea();
     path.setDirtyGeometry();
 

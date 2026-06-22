@@ -36,9 +36,9 @@ export class CircleElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.cx !== undefined) this.geometry.cx = data.cx as number;
-    if (data.cy !== undefined) this.geometry.cy = data.cy as number;
-    if (data.r !== undefined) this.geometry.r = data.r as number;
+    if (data.cx !== undefined) { this.geometry.cx = data.cx as number; this.markRenderKey('cx'); }
+    if (data.cy !== undefined) { this.geometry.cy = data.cy as number; this.markRenderKey('cy'); }
+    if (data.r !== undefined) { this.geometry.r = data.r as number; this.markRenderKey('r'); }
     this.buildHitArea();
   }
 
@@ -50,6 +50,7 @@ export class CircleElement extends AbstractGraphicElement {
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.geometry.cx += dx;
     this.geometry.cy += dy;
+    this.markRenderKeys('cx', 'cy');
     this.buildHitArea();
   }
 
@@ -58,7 +59,10 @@ export class CircleElement extends AbstractGraphicElement {
     this.geometry.cx = bbox.x + bbox.width / 2;
     this.geometry.cy = bbox.y + bbox.height / 2;
     this.geometry.r = Math.max(bbox.width, bbox.height) / 2;
+    this.markRenderKeys('cx', 'cy', 'r');
     this.transform.reset();
-    this.invalidateHitArea();
+    this.markRenderKey('matrix');
+    this.buildHitArea();
+    this.requestRender();
   }
 }

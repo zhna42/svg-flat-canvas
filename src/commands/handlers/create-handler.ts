@@ -9,7 +9,7 @@ export const createCreateHandler = (
     if (command.type !== 'CREATE') return;
 
     const el = command.options.element;
-    el.isPreview = false;
+    el.setIsPreview(false);
     shapeManager.add(el);
     el.setDirtyAll();
   };

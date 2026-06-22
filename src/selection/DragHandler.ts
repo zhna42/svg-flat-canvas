@@ -453,6 +453,7 @@ export class DragHandler {
       m.e += this.currentDx;
       m.f += this.currentDy;
       el.transform.matrix = m;
+      el.markRenderKey('matrix');
       el.setDirtyTransform();
     }
 

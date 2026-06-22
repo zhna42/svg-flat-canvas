@@ -44,6 +44,7 @@ export const svgNodesToElements = (
     for (const [key, value] of Object.entries(dto.properties)) {
       if (el instanceof RectElement && key in el.geometry) {
         (el.geometry as any)[key] = parseFloat(value);
+        el.markRenderKey(key);
         continue;
       }
       if (
@@ -51,10 +52,12 @@ export const svgNodesToElements = (
         key in el.geometry
       ) {
         (el.geometry as any)[key] = parseFloat(value);
+        el.markRenderKey(key);
         continue;
       }
       if (el instanceof LineElement && key in el.geometry) {
         (el.geometry as any)[key] = parseFloat(value);
+        el.markRenderKey(key);
         continue;
       }
       if (el instanceof PathElement && key === 'd') {
@@ -71,10 +74,12 @@ export const svgNodesToElements = (
       }
       if (el instanceof PolygonElement && key === 'points') {
         el.points = value;
+        el.markRenderKey('points');
         continue;
       }
       if (el instanceof PolylineElement && key === 'points') {
         el.points = value;
+        el.markRenderKey('points');
         continue;
       }
       if (el instanceof TextElement) {
@@ -84,45 +89,52 @@ export const svgNodesToElements = (
         }
         if (key === 'x') {
           el.posX = value;
+          el.markRenderKey('x');
           continue;
         }
         if (key === 'y') {
           el.posY = value;
+          el.markRenderKey('y');
           continue;
         }
         if (key === 'font-size') {
           el.fontSize = value;
+          el.markRenderKey('font-size');
           continue;
         }
         if (key === 'font-family') {
           el.fontFamily = value;
+          el.markRenderKey('font-family');
           continue;
         }
         if (key === 'text-anchor') {
           el.textAnchor = value;
+          el.markRenderKey('text-anchor');
           continue;
         }
       }
       if (el instanceof ImageElement) {
         if (key === 'href') {
           el.href = value;
+          el.markRenderKey('href');
           continue;
         }
         if (key in el.geometry) {
           (el.geometry as any)[key] = parseFloat(value);
+          el.markRenderKey(key);
           continue;
         }
       }
-      if (key === 'fill') el.style.fill = value;
-      else if (key === 'stroke') el.style.stroke = value;
-      else if (key === 'stroke-width') el.style.strokeWidth = parseFloat(value);
-      else if (key === 'opacity') el.style.opacity = parseFloat(value);
+      if (key === 'fill') { el.style.fill = value; el.markRenderKey('fill'); }
+      else if (key === 'stroke') { el.style.stroke = value; el.markRenderKey('stroke'); }
+      else if (key === 'stroke-width') { el.style.strokeWidth = parseFloat(value); el.markRenderKey('strokeWidth'); }
+      else if (key === 'opacity') { el.style.opacity = parseFloat(value); el.markRenderKey('opacity'); }
     }
 
-    el.groupId = dto.svgGroupId ?? '';
-    el.laserGroupId = dto.laserGroupId ?? '';
-    el.laserType = dto.laserActionType;
-    el.name = dto.tag;
+    el.setGroupId(dto.svgGroupId ?? '');
+    el.setLaserGroupId(dto.laserGroupId ?? '');
+    el.setLaserType(dto.laserActionType);
+    el.setName(dto.tag);
 
     el.buildHitArea();
 

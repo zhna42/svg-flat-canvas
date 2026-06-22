@@ -38,6 +38,7 @@ export class PathElement extends AbstractGraphicElement {
 
   public set commands(cmds: PathCommand[]) {
     this.geometry.commands = cmds;
+    this.markRenderKey('d');
   }
 
   public buildHitArea(): void {
@@ -71,6 +72,10 @@ export class PathElement extends AbstractGraphicElement {
     return { d: this.toDString() };
   }
 
+  protected buildAdditionalSnapshotKey(key: string, snapshot: Record<string, unknown>): void {
+    if (key === 'd') snapshot.d = this.toDString();
+  }
+
   protected getGeometrySnapshot(): Record<string, unknown> {
     return {
       commands: this.geometry.commands.map((c) => ({
@@ -86,6 +91,7 @@ export class PathElement extends AbstractGraphicElement {
         ...c,
         args: [...c.args],
       }));
+      this.markRenderKey('d');
     }
     this.buildHitArea();
   }
@@ -105,6 +111,7 @@ export class PathElement extends AbstractGraphicElement {
 
   public set d(val: string) {
     this.geometry.commands = parseD(val);
+    this.markRenderKey('d');
     this.buildHitArea();
   }
 
@@ -122,15 +129,20 @@ export class PathElement extends AbstractGraphicElement {
   ): void {
     const m = new DOMMatrix([a, b, c, d, e, f]);
     this.geometry.commands = transformCommands(this.geometry.commands, m);
-    this.invalidateHitArea();
+    this.markRenderKey('d');
+    this.buildHitArea();
+    this.requestRender();
   }
 
   public flattenTransform(): void {
     const m = this.transform.matrix;
     if (m.isIdentity) return;
     this.geometry.commands = transformCommands(this.geometry.commands, m);
+    this.markRenderKey('d');
     this.transform.reset();
-    this.invalidateHitArea();
+    this.markRenderKey('matrix');
+    this.buildHitArea();
+    this.requestRender();
   }
 
   public flattenTransformToAttrs(): void {
@@ -195,6 +207,7 @@ export class PathElement extends AbstractGraphicElement {
     const nextCmd = cmds[cmdIdx + 1];
     if (!nextCmd) {
       cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
+      this.markRenderKey('d');
       return;
     }
 
@@ -205,15 +218,7 @@ export class PathElement extends AbstractGraphicElement {
       const sy = prevEndY;
       const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
       const { left, right } = PathElement.splitCubic(
-        sx,
-        sy,
-        c1x,
-        c1y,
-        c2x,
-        c2y,
-        ex,
-        ey,
-        t,
+        sx, sy, c1x, c1y, c2x, c2y, ex, ey, t,
       );
       nextCmd.args = [left[2], left[3], left[4], left[5], left[6], left[7]];
       cmds.splice(cmdIdx + 1, 0, {
@@ -233,15 +238,7 @@ export class PathElement extends AbstractGraphicElement {
       }
       const [c2x, c2y, ex, ey] = nextCmd.args;
       const { left, right } = PathElement.splitCubic(
-        sx,
-        sy,
-        reflectX,
-        reflectY,
-        c2x,
-        c2y,
-        ex,
-        ey,
-        t,
+        sx, sy, reflectX, reflectY, c2x, c2y, ex, ey, t,
       );
       nextCmd.args = [left[4], left[5], left[6], left[7]];
       nextCmd.command = 'S';
@@ -251,10 +248,7 @@ export class PathElement extends AbstractGraphicElement {
       });
     } else if (nc === 'Q' && nextCmd.args.length >= 4) {
       const [c1x, c1y, ex, ey] = nextCmd.args;
-      const A = {
-        x: prevEndX + (c1x - prevEndX) * t,
-        y: prevEndY + (c1y - prevEndY) * t,
-      };
+      const A = { x: prevEndX + (c1x - prevEndX) * t, y: prevEndY + (c1y - prevEndY) * t };
       const B = { x: c1x + (ex - c1x) * t, y: c1y + (ey - c1y) * t };
       const F = { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t };
       nextCmd.args = [A.x, A.y, F.x, F.y];
@@ -265,6 +259,7 @@ export class PathElement extends AbstractGraphicElement {
     } else {
       cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
     }
+    this.markRenderKey('d');
   }
 
   public changeNodeType(cmdIdx: number, newType: 'L' | 'C'): void {
@@ -288,6 +283,7 @@ export class PathElement extends AbstractGraphicElement {
         cmd.command = 'C';
       }
     }
+    this.markRenderKey('d');
   }
 
   public removeNodeAt(cmdIdx: number): void {
@@ -301,6 +297,7 @@ export class PathElement extends AbstractGraphicElement {
         next.command = 'M';
       }
     }
+    this.markRenderKey('d');
   }
 
   public translateSubpath(subpathIdx: number, dx: number, dy: number): void {
@@ -314,6 +311,7 @@ export class PathElement extends AbstractGraphicElement {
         else cmd.args[j] += dy;
       }
     }
+    this.markRenderKey('d');
   }
 
   // ---- Node editing ----

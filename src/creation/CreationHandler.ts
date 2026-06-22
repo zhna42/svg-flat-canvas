@@ -220,6 +220,7 @@ export class CreationHandler {
       (preview as PolylineElement | PolygonElement).points = pointsToString(
         this.multiPointPoints,
       );
+      preview.markRenderKey('points');
       preview.buildHitArea();
     }
 
@@ -230,6 +231,7 @@ export class CreationHandler {
         { command: 'M', args: [p.x, p.y] },
         { command: 'L', args: [p.x, p.y] },
       ];
+      path.markRenderKey('d');
       path.buildHitArea();
     }
 
@@ -250,6 +252,7 @@ export class CreationHandler {
         { x: worldPoint.x, y: worldPoint.y },
       ];
       poly.points = pointsToString(pts);
+      poly.markRenderKey('points');
       poly.buildHitArea();
       poly.setDirtyGeometry();
       return;
@@ -261,6 +264,7 @@ export class CreationHandler {
       if (cmds.length < 2) return;
       const last = cmds[cmds.length - 1];
       last.args = [worldPoint.x, worldPoint.y];
+      path.markRenderKey('d');
       path.buildHitArea();
       path.setDirtyGeometry();
       return;
@@ -288,6 +292,7 @@ export class CreationHandler {
         const snapped = snapAngleOrthogonal(dx, dy);
         line.geometry.x2 = this.startWorld.x + snapped.x;
         line.geometry.y2 = this.startWorld.y + snapped.y;
+        line.markRenderKeys('x2', 'y2');
         line.buildHitArea();
         line.setDirty();
       }
@@ -306,6 +311,7 @@ export class CreationHandler {
       const poly = this.currentPreview as PolylineElement | PolygonElement;
       const pts = [...this.multiPointPoints];
       poly.points = pointsToString(pts);
+      poly.markRenderKey('points');
       poly.buildHitArea();
       poly.setDirtyGeometry();
       return;
@@ -320,6 +326,7 @@ export class CreationHandler {
         last.args = [worldPoint.x, worldPoint.y];
       }
       cmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
+      path.markRenderKey('d');
       path.buildHitArea();
       path.setDirtyGeometry();
       return;
@@ -355,17 +362,16 @@ export class CreationHandler {
           if (Math.hypot(dx, dy) < 10) {
             cmds.pop();
             cmds.push({ command: 'Z', args: [] });
+            path.markRenderKey('d');
             path.buildHitArea();
             path.setDirtyGeometry();
           }
         }
       } else {
         const poly = el as PolylineElement | PolygonElement;
-        const pts = [
-          ...this.multiPointPoints,
-          { x: worldPoint.x, y: worldPoint.y },
-        ];
+        const pts = [...this.multiPointPoints, { x: worldPoint.x, y: worldPoint.y }];
         poly.points = pointsToString(pts);
+        poly.markRenderKey('points');
         poly.buildHitArea();
         poly.setDirtyGeometry();
       }
@@ -388,6 +394,7 @@ export class CreationHandler {
             cmds.pop();
           }
         }
+        path.markRenderKey('d');
         path.buildHitArea();
         path.setDirtyGeometry();
       }
@@ -484,6 +491,7 @@ export class CreationHandler {
           rect.geometry.width = Math.abs(current.x - start.x);
           rect.geometry.height = Math.abs(current.y - start.y);
         }
+        rect.markRenderKeys('x', 'y', 'width', 'height');
         rect.buildHitArea();
         rect.setDirtyGeometry();
         break;
@@ -497,6 +505,7 @@ export class CreationHandler {
           current.x - start.x,
           current.y - start.y,
         );
+        circle.markRenderKeys('cx', 'cy', 'r');
         circle.buildHitArea();
         circle.setDirtyGeometry();
         break;
@@ -510,6 +519,7 @@ export class CreationHandler {
         const ry = shiftHeld ? rx : Math.abs(current.y - start.y);
         ellipse.geometry.rx = rx;
         ellipse.geometry.ry = ry;
+        ellipse.markRenderKeys('cx', 'cy', 'rx', 'ry');
         ellipse.buildHitArea();
         ellipse.setDirtyGeometry();
         break;
@@ -529,6 +539,7 @@ export class CreationHandler {
           line.geometry.x2 = current.x;
           line.geometry.y2 = current.y;
         }
+        line.markRenderKeys('x1', 'y1', 'x2', 'y2');
         line.buildHitArea();
         line.setDirtyGeometry();
         break;
@@ -538,7 +549,7 @@ export class CreationHandler {
 
   private finalizeCreation(el: AbstractGraphicElement): void {
     this.removeFromScene(el);
-    el.isPreview = false;
+    el.setIsPreview(false);
 
     this.bus.execute({
       type: 'CREATE',

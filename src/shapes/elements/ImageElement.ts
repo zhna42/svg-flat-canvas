@@ -41,11 +41,11 @@ export class ImageElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) this.geometry.x = data.x as number;
-    if (data.y !== undefined) this.geometry.y = data.y as number;
-    if (data.width !== undefined) this.geometry.width = data.width as number;
-    if (data.height !== undefined) this.geometry.height = data.height as number;
-    if (data.href !== undefined) this.href = data.href as string;
+    if (data.x !== undefined) { this.geometry.x = data.x as number; this.markRenderKey('x'); }
+    if (data.y !== undefined) { this.geometry.y = data.y as number; this.markRenderKey('y'); }
+    if (data.width !== undefined) { this.geometry.width = data.width as number; this.markRenderKey('width'); }
+    if (data.height !== undefined) { this.geometry.height = data.height as number; this.markRenderKey('height'); }
+    if (data.href !== undefined) { this.href = data.href as string; this.markRenderKey('href'); }
     this.buildHitArea();
   }
 
@@ -58,12 +58,14 @@ export class ImageElement extends AbstractGraphicElement {
 
   public setHref(href: string): void {
     this.href = href;
-    this.setDirtyGeometry();
+    this.markRenderKey('href');
+    this.requestRender();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.geometry.x += dx;
     this.geometry.y += dy;
+    this.markRenderKeys('x', 'y');
     this.buildHitArea();
   }
 
@@ -73,7 +75,10 @@ export class ImageElement extends AbstractGraphicElement {
     this.geometry.y = bbox.y;
     this.geometry.width = bbox.width;
     this.geometry.height = bbox.height;
+    this.markRenderKeys('x', 'y', 'width', 'height');
     this.transform.reset();
-    this.invalidateHitArea();
+    this.markRenderKey('matrix');
+    this.buildHitArea();
+    this.requestRender();
   }
 }

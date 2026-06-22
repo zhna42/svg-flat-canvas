@@ -42,10 +42,10 @@ export class LineElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x1 !== undefined) this.geometry.x1 = data.x1 as number;
-    if (data.y1 !== undefined) this.geometry.y1 = data.y1 as number;
-    if (data.x2 !== undefined) this.geometry.x2 = data.x2 as number;
-    if (data.y2 !== undefined) this.geometry.y2 = data.y2 as number;
+    if (data.x1 !== undefined) { this.geometry.x1 = data.x1 as number; this.markRenderKey('x1'); }
+    if (data.y1 !== undefined) { this.geometry.y1 = data.y1 as number; this.markRenderKey('y1'); }
+    if (data.x2 !== undefined) { this.geometry.x2 = data.x2 as number; this.markRenderKey('x2'); }
+    if (data.y2 !== undefined) { this.geometry.y2 = data.y2 as number; this.markRenderKey('y2'); }
     this.buildHitArea();
   }
 
@@ -59,6 +59,7 @@ export class LineElement extends AbstractGraphicElement {
     this.geometry.y1 += dy;
     this.geometry.x2 += dx;
     this.geometry.y2 += dy;
+    this.markRenderKeys('x1', 'y1', 'x2', 'y2');
     this.buildHitArea();
   }
 
@@ -76,7 +77,10 @@ export class LineElement extends AbstractGraphicElement {
     this.geometry.y1 = cy - halfDy * s;
     this.geometry.x2 = cx + halfDx * s;
     this.geometry.y2 = cy + halfDy * s;
+    this.markRenderKeys('x1', 'y1', 'x2', 'y2');
     this.transform.reset();
-    this.invalidateHitArea();
+    this.markRenderKey('matrix');
+    this.buildHitArea();
+    this.requestRender();
   }
 }

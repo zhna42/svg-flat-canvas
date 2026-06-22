@@ -45,12 +45,12 @@ export class RectElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) this.geometry.x = data.x as number;
-    if (data.y !== undefined) this.geometry.y = data.y as number;
-    if (data.width !== undefined) this.geometry.width = data.width as number;
-    if (data.height !== undefined) this.geometry.height = data.height as number;
-    if (data.rx !== undefined) this.geometry.rx = data.rx as number;
-    if (data.ry !== undefined) this.geometry.ry = data.ry as number;
+    if (data.x !== undefined) { this.geometry.x = data.x as number; this.markRenderKey('x'); }
+    if (data.y !== undefined) { this.geometry.y = data.y as number; this.markRenderKey('y'); }
+    if (data.width !== undefined) { this.geometry.width = data.width as number; this.markRenderKey('width'); }
+    if (data.height !== undefined) { this.geometry.height = data.height as number; this.markRenderKey('height'); }
+    if (data.rx !== undefined) { this.geometry.rx = data.rx as number; this.markRenderKey('rx'); }
+    if (data.ry !== undefined) { this.geometry.ry = data.ry as number; this.markRenderKey('ry'); }
     this.buildHitArea();
   }
 
@@ -62,18 +62,21 @@ export class RectElement extends AbstractGraphicElement {
 
   public setX(x: number): void {
     this.geometry.x = x;
+    this.markRenderKey('x');
     this.buildHitArea();
-    this.setDirtyGeometry();
+    this.requestRender();
   }
   public setY(y: number): void {
     this.geometry.y = y;
+    this.markRenderKey('y');
     this.buildHitArea();
-    this.setDirtyGeometry();
+    this.requestRender();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.geometry.x += dx;
     this.geometry.y += dy;
+    this.markRenderKeys('x', 'y');
     this.buildHitArea();
   }
 
@@ -83,7 +86,10 @@ export class RectElement extends AbstractGraphicElement {
     this.geometry.y = bbox.y;
     this.geometry.width = bbox.width;
     this.geometry.height = bbox.height;
+    this.markRenderKeys('x', 'y', 'width', 'height');
     this.transform.reset();
-    this.invalidateHitArea();
+    this.markRenderKey('matrix');
+    this.buildHitArea();
+    this.requestRender();
   }
 }

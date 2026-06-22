@@ -272,6 +272,7 @@ export class SvgCanvas {
         .find((e) => e.id === command.options.id);
       if (el instanceof PathElement) {
         el.geometry.commands = command.options.newCommands;
+        el.markRenderKey('d');
         el.buildHitArea();
         el.setDirtyAll();
       }
@@ -530,13 +531,13 @@ export class SvgCanvas {
 
   public set editingPath(path: PathElement | null) {
     if (this._editingPath && this._editingPath !== path) {
-      this._editingPath.isNodeEditing = false;
+      this._editingPath.setIsNodeEditing(false);
       this._editingPath.onDirty = null;
     }
     this._editingPath = path;
     this.creationHandler.editingPathElement = path;
     if (path) {
-      path.isNodeEditing = true;
+      path.setIsNodeEditing(true);
       path.onDirty = () => {
         this.selectionOverlay.updatePathNodes(path);
       };
@@ -634,6 +635,7 @@ export class SvgCanvas {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
     el.transform.matrix = new DOMMatrix(matrix);
+    el.markRenderKey('matrix');
     el.buildHitArea();
     el.setDirtyTransform();
   }

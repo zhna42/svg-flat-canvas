@@ -41,10 +41,10 @@ export class EllipseElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.cx !== undefined) this.geometry.cx = data.cx as number;
-    if (data.cy !== undefined) this.geometry.cy = data.cy as number;
-    if (data.rx !== undefined) this.geometry.rx = data.rx as number;
-    if (data.ry !== undefined) this.geometry.ry = data.ry as number;
+    if (data.cx !== undefined) { this.geometry.cx = data.cx as number; this.markRenderKey('cx'); }
+    if (data.cy !== undefined) { this.geometry.cy = data.cy as number; this.markRenderKey('cy'); }
+    if (data.rx !== undefined) { this.geometry.rx = data.rx as number; this.markRenderKey('rx'); }
+    if (data.ry !== undefined) { this.geometry.ry = data.ry as number; this.markRenderKey('ry'); }
     this.buildHitArea();
   }
 
@@ -56,6 +56,7 @@ export class EllipseElement extends AbstractGraphicElement {
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.geometry.cx += dx;
     this.geometry.cy += dy;
+    this.markRenderKeys('cx', 'cy');
     this.buildHitArea();
   }
 
@@ -65,7 +66,10 @@ export class EllipseElement extends AbstractGraphicElement {
     this.geometry.cy = bbox.y + bbox.height / 2;
     this.geometry.rx = bbox.width / 2;
     this.geometry.ry = bbox.height / 2;
+    this.markRenderKeys('cx', 'cy', 'rx', 'ry');
     this.transform.reset();
-    this.invalidateHitArea();
+    this.markRenderKey('matrix');
+    this.buildHitArea();
+    this.requestRender();
   }
 }

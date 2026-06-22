@@ -183,6 +183,7 @@ export class TransformHandler {
         .translateSelf(-localAnchor.x, -localAnchor.y);
 
       el.transform.matrix = m;
+      el.markRenderKey('matrix');
       el.setDirtyTransform();
     }
   }
