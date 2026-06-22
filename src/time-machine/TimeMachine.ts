@@ -6,6 +6,7 @@ import { createElementByType } from '@/shapes/elements/factory';
 export type { TimeSnapshot } from './types';
 
 export class TimeMachine {
+  private root: TimeSnapshot | null = null;
   private records: TimeSnapshot[] = [];
   private index = -1;
   private readonly maxRecords: number;
@@ -22,10 +23,8 @@ export class TimeMachine {
   }
 
   public get canUndo(): boolean {
-    if (this.records.length === 0) return false;
-    const firstIsRoot = this.records[0].command === 'ROOT';
-    if (firstIsRoot) return this.index >= 0;
-    return this.index > 0;
+    if (this.root && this.records.length === 0) return false;
+    return this.index >= 0;
   }
 
   public get canRedo(): boolean {
@@ -49,7 +48,8 @@ export class TimeMachine {
     for (const el of this.shapeManager.getAll()) {
       data.push({ id: el.id, diff: el.получитьCнимокFull() });
     }
-    this.records = [{ command: 'ROOT', selectIds: [], selectType: 'element', data }];
+    this.root = { command: 'ROOT', selectIds: [], selectType: 'element', data };
+    this.records = [];
     this.index = -1;
   }
 
@@ -60,7 +60,7 @@ export class TimeMachine {
     getFullSnapshotIds: string[],
     getDiffElements: AbstractGraphicElement[],
   ): void {
-    if (this.records.length === 0) {
+    if (!this.root && this.records.length === 0) {
       this.captureRoot();
     }
 
@@ -81,9 +81,10 @@ export class TimeMachine {
       }
     }
 
+    const entry: TimeSnapshot = { command, selectIds, selectType, data };
+    this.records.splice(this.index + 1, this.records.length - this.index - 1, entry);
     this.index++;
-    this.records.length = this.index;
-    this.records.push({ command, selectIds, selectType, data });
+
     if (this.records.length > this.maxRecords) {
       this.records.shift();
       this.index--;
@@ -108,23 +109,36 @@ export class TimeMachine {
   }
 
   public clear(): void {
-    if (this.records.length > 0 && this.records[0].command === 'ROOT') {
-      this.records = [this.records[0]];
-      this.index = -1;
-    } else {
+    this.root = null;
+    this.records = [];
+    this.index = -1;
+    this.onUpdate?.();
+  }
+
+  public resetToRoot(): void {
+    if (this.root) {
+      const restore = this.root;
       this.records = [];
       this.index = -1;
+      this.applySnapshot(restore, false);
     }
     this.onUpdate?.();
   }
 
   public toJSON(): TimeSnapshot[] {
+    if (this.root) return [this.root, ...this.records];
     return this.records;
   }
 
   public fromJSON(records: TimeSnapshot[]): void {
-    this.records = records;
-    this.index = records.length - 1;
+    if (records.length > 0 && records[0].command === 'ROOT') {
+      this.root = records[0];
+      this.records = records.slice(1);
+    } else {
+      this.root = null;
+      this.records = records;
+    }
+    this.index = this.records.length - 1;
   }
 
   private applySnapshot(snapshot: TimeSnapshot, isUndo: boolean): void {
@@ -141,9 +155,9 @@ export class TimeMachine {
       } else if (remove) {
         this.shapeManager.removeElementAndNode(entry.id);
       } else {
-        const el = this.shapeManager.getById(entry.id);
-        if (el) {
-          el.applyCнимок(entry.diff);
+        const existing = this.shapeManager.getById(entry.id);
+        if (existing) {
+          existing.applyCнимок(entry.diff);
         }
       }
     }
