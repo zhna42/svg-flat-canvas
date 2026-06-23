@@ -1,6 +1,7 @@
 import type { SvgCanvas } from '@/core/SvgCanvas';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { BusEvent } from '@/core/EventBus';
+import type { GuidelineData } from '@/ruler';
 import { createFromJSON } from '@/shapes/elements/factory';
 import {
   createCreateCommand,
@@ -450,5 +451,33 @@ export class ExternalApi {
 
   public setTransformMode(mode: 'resize' | 'rotate'): void {
     this.canvas.setTransformMode(mode);
+  }
+
+  public setRulersVisible(v: boolean): void {
+    this.canvas.setRulersVisible(v);
+  }
+
+  public getRulersVisible(): boolean {
+    return this.canvas.getRulersVisible();
+  }
+
+  public addGuideline(orientation: 'v' | 'h', position: number): string {
+    return this.canvas.addGuideline(orientation, position);
+  }
+
+  public removeGuideline(id: string): void {
+    this.canvas.removeGuideline(id);
+  }
+
+  public getGuidelines(): GuidelineData[] {
+    return this.canvas.getGuidelines();
+  }
+
+  public setGuidelinesVisible(orientation: 'v' | 'h', v: boolean): void {
+    this.canvas.setGuidelinesVisible(orientation, v);
+  }
+
+  public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
+    return this.canvas.getGuidelinesVisible(orientation);
   }
 }

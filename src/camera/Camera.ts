@@ -111,8 +111,8 @@ export class Camera {
     const scaleY = padY / contentHeight;
     this.zoom = Math.min(scaleX, scaleY);
 
-    this.x = (viewWidth - viewWidth * this.zoom) / 2;
-    this.y = (viewHeight - viewHeight * this.zoom) / 2;
+    this.x = (viewWidth - contentWidth * this.zoom) / 2;
+    this.y = (viewHeight - contentHeight * this.zoom) / 2;
     this._dirty = true;
     this.onChange?.();
   }

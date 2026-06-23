@@ -77,3 +77,5 @@ export type { TimeSnapshot } from '@/time-machine';
 export type { EventBus, BusEvent } from '@/core/EventBus';
 export { svgNodesToElements } from '@/dto';
 export type { SvgNodeDto } from '@/dto';
+export { RulerManager } from '@/ruler';
+export type { GuidelineData, GuidelineEvents } from '@/ruler';

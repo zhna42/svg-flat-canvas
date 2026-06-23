@@ -10,6 +10,7 @@ import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
 import { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay';
 import { TransformHandler } from '@/selection/transform/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
+import { RulerManager } from '@/ruler';
 import { CreationHandler } from '@/creation/CreationHandler';
 import { GroupManager } from '@/group';
 import { EventBus } from './EventBus';
@@ -36,6 +37,7 @@ function createSvgElement(options?: SvgCanvasOptions): SVGSVGElement {
     'viewBox',
     `0 0 ${options?.width ?? 800} ${options?.height ?? 600}`,
   );
+    svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
   svg.style.display = 'block';
   return svg;
 }
@@ -89,6 +91,15 @@ export class CanvasFactory {
     overlayRoot.appendChild(debugOverlay.getElement());
     const debugShowHitArea = options?.debugShowHitArea ?? false;
 
+    const rulerManager = new RulerManager(
+      camera,
+      events,
+      svg,
+      options?.width ?? 800,
+      options?.height ?? 600,
+    );
+    overlayRoot.appendChild(rulerManager.root);
+
     const canvas = Object.create(SvgCanvas.prototype) as SvgCanvas;
     const c = canvas as unknown as Record<string, unknown>;
 
@@ -106,6 +117,7 @@ export class CanvasFactory {
     c.groupSelectionOverlay = groupSelectionOverlay;
     c.transformHandler = transformHandler;
     c.debugOverlay = debugOverlay;
+    c.rulerManager = rulerManager;
     c._debugShowHitArea = debugShowHitArea;
     c._editingPath = null;
     c.panActive = panActive;
@@ -155,6 +167,7 @@ export class CanvasFactory {
       if (groupManager.selectedGroupIds.size > 0) {
         canvas.syncGroupSelectionOverlay();
       }
+      rulerManager.onCameraChange();
     };
 
     commandBus.register(

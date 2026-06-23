@@ -13,9 +13,16 @@ export interface DirtyEntry {
   flags: number;
 }
 
+export interface Renderable {
+  get dirty(): boolean;
+  markClean(): void;
+  flushToDOM(): void;
+}
+
 export class RenderQueue {
   private entries = new Map<string, DirtyEntry>();
   private overlays = new Map<string, SelectionOverlayElement>();
+  private drainables = new Map<string, Renderable>();
 
   public add(
     el: AbstractGraphicElement,
@@ -36,6 +43,10 @@ export class RenderQueue {
     this.overlays.set(overlay.id, overlay);
   }
 
+  public addDrainable(id: string, obj: Renderable): void {
+    this.drainables.set(id, obj);
+  }
+
   public drain(): DirtyEntry[] {
     const items = Array.from(this.entries.values());
     this.entries.clear();
@@ -48,6 +59,16 @@ export class RenderQueue {
     return items;
   }
 
+  public drainDrainables(): Renderable[] {
+    const items: Renderable[] = [];
+    for (const obj of this.drainables.values()) {
+      if (obj.dirty) {
+        items.push(obj);
+      }
+    }
+    return items;
+  }
+
   public get size(): number {
     return this.entries.size;
   }
@@ -55,5 +76,6 @@ export class RenderQueue {
   public clear(): void {
     this.entries.clear();
     this.overlays.clear();
+    this.drainables.clear();
   }
 }

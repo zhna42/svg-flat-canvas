@@ -10,8 +10,8 @@ export class Artboard {
   public constructor() {
     this.rect = new RectElement('artboard');
     this.rect.setFill('#ffffff');
-    this.rect.setStroke('#cccccc');
-    this.rect.setStrokeWidth(1);
+    //this.rect.setStroke('#cccccc');
+    //this.rect.setStrokeWidth(1);
     this.rect.setVisible(true);
     this.rect.data = { pointerEvents: 'none' };
     this.rect.markRenderKey('data');
@@ -44,13 +44,11 @@ export class Artboard {
     this.updateRect(vw, vh);
   }
 
-  private updateRect(vw?: number, vh?: number): void {
+  private updateRect(_vw?: number, _vh?: number): void {
     const w = this._widthMM * MM_TO_PX;
     const h = this._heightMM * MM_TO_PX;
-    const viewW = vw ?? 800;
-    const viewH = vh ?? 600;
-    this.rect.geometry.x = (viewW - w) / 2;
-    this.rect.geometry.y = (viewH - h) / 2;
+    this.rect.geometry.x = 0;
+    this.rect.geometry.y = 0;
     this.rect.geometry.width = w;
     this.rect.geometry.height = h;
     this.rect.markRenderKeys('x', 'y', 'width', 'height');

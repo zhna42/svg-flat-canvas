@@ -12,6 +12,8 @@ import { DebugOverlay } from '@/debug/DebugOverlay';
 import { GroupManager } from '@/group';
 import { CommandBus } from '@/commands';
 import { TimeMachine } from '@/time-machine';
+import { RulerManager } from '@/ruler';
+import type { GuidelineData } from '@/ruler';
 import { CreationHandler } from '@/creation/CreationHandler';
 import { ExternalApi } from '@/api/external-api';
 import { PathElement } from '@/shapes/elements/PathElement';
@@ -56,6 +58,7 @@ export class SvgCanvas {
   commandBus!: CommandBus;
   timeMachine!: TimeMachine;
   creationHandler!: CreationHandler;
+  rulerManager!: RulerManager;
   _debugShowHitArea!: boolean;
   _externalApi!: ExternalApi;
   _editingPath: PathElement | null = null;
@@ -95,11 +98,28 @@ export class SvgCanvas {
     artboard.setSize(widthMM, heightMM);
     const vb = this.svg.getAttribute('viewBox') || '0 0 800 600';
     const parts = vb.split(/\s+/).map(Number);
+    const viewW = parts[2] || 800;
+    const viewH = parts[3] || 600;
+
+    const ctm = this.svg.getScreenCTM();
+    let realW = viewW;
+    let realH = viewH;
+    if (ctm) {
+      const rect = this.svg.getBoundingClientRect();
+      const inv = ctm.inverse();
+      const p = this.svg.createSVGPoint();
+      p.x = rect.width;
+      p.y = rect.height;
+      const vp = p.matrixTransform(inv);
+      realW = vp.x;
+      realH = vp.y;
+    }
+
     this.camera.fitToViewport(
       widthMM * 3.7795,
       heightMM * 3.7795,
-      parts[2] || 800,
-      parts[3] || 600,
+      realW,
+      realH,
       40,
     );
   }
@@ -248,6 +268,37 @@ export class SvgCanvas {
 
   public endTransform(): void {
     if (this.transformHandler.isActive) this.transformHandler.end();
+  }
+
+  public setRulersVisible(v: boolean): void {
+    this.rulerManager.setRulersVisible(v);
+  }
+
+  public getRulersVisible(): boolean {
+    return this.rulerManager.getRulersVisible();
+  }
+
+  public addGuideline(orientation: 'v' | 'h', position: number): string {
+    return this.rulerManager.addGuideline(orientation, position);
+  }
+
+  public removeGuideline(id: string): void {
+    this.rulerManager.removeGuideline(id);
+  }
+
+  public getGuidelines(): GuidelineData[] {
+    return this.rulerManager.getGuidelines();
+  }
+
+  public setGuidelinesVisible(
+    orientation: 'v' | 'h',
+    visible: boolean,
+  ): void {
+    this.rulerManager.setGuidelinesVisible(orientation, visible);
+  }
+
+  public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
+    return this.rulerManager.getGuidelinesVisible(orientation);
   }
 
   public resizeElement(id: string, _width: number, _height: number): void {

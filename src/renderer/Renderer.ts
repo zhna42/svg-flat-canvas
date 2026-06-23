@@ -184,6 +184,11 @@ export class Renderer {
         overlay.flushToDOM();
       }
 
+      const drainables = this.queue.drainDrainables();
+      for (const d of drainables) {
+        d.flushToDOM();
+      }
+
       this.rafId = requestAnimationFrame(tick);
     };
     this.rafId = requestAnimationFrame(tick);
