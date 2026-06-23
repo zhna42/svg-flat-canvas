@@ -91,6 +91,7 @@ export abstract class AbstractGraphicElement {
   public applyCнимок(snapshot: ElementSnapshot): void {
     this.applyCommonSnapshot(snapshot);
     this.applyGeometrySnapshot(snapshot);
+    this.diffKeysForTimeMashin.clear();
     if (this.diffKeysForRedering.size > 0) {
       this.requestRender();
     }
@@ -471,6 +472,7 @@ export abstract class AbstractGraphicElement {
     this.applyCommonSnapshot(data);
     this.applyGeometrySnapshot(data);
     this.buildHitArea();
+    this.diffKeysForTimeMashin.clear();
     if (this.diffKeysForRedering.size > 0) {
       this.requestRender();
     }
@@ -494,9 +496,6 @@ export abstract class AbstractGraphicElement {
     if (typeof data.opacity === 'number') this.setOpacity(data.opacity);
     if (typeof data.matrix === 'string') {
       this.transform.matrix = new DOMMatrix(data.matrix);
-      this.markRenderKey('matrix');
-    } else {
-      this.transform.reset();
       this.markRenderKey('matrix');
     }
   }
