@@ -41,6 +41,7 @@ export interface SelectionHandlerOptions {
   bus: CommandBus;
   isPanning?: () => boolean;
   isCreating?: () => boolean;
+  isGuidelineDragging?: () => boolean;
   shortcuts?: Partial<SelectionShortcuts>;
   getGroupIdForElement?: (elementId: string) => string | undefined;
   getArtboardRect?: () => {
@@ -267,10 +268,15 @@ export class SelectionHandler {
     let panning = false;
     let panStart = { x: 0, y: 0 };
 
+    let panAuto = false;
+    let panStartWorld: { x: number; y: number } | null = null;
+
     rootSvg.addEventListener('mousedown', (e: MouseEvent) => {
       if (e.button !== 0) return;
 
       if (this.opts.isCreating?.()) return;
+
+      if (this.opts.isGuidelineDragging?.()) return;
 
       if (this.opts.isPanning?.()) {
         panning = true;
@@ -366,6 +372,17 @@ export class SelectionHandler {
         }
       }
 
+      // Auto-pan on empty canvas in single-select mode
+      if (!useRect && this.gesture !== 'lasso' && !this.ctrlHeld) {
+        panAuto = true;
+        panning = true;
+        panStart = { x: svgPt.x, y: svgPt.y };
+        panStartWorld = { x: worldPt.x, y: worldPt.y };
+        rootSvg.style.cursor = 'grabbing';
+        e.preventDefault();
+        return;
+      }
+
       if (useRect) {
         this.rectActive = true;
         this.rectStartSvg = { x: svgPt.x, y: svgPt.y };
@@ -445,6 +462,21 @@ export class SelectionHandler {
       if (panning) {
         panning = false;
         rootSvg.style.cursor = '';
+        if (panAuto) {
+          panAuto = false;
+          const worldPt = this.screenToWorld(e);
+          const dx = worldPt.x - (panStartWorld?.x ?? 0);
+          const dy = worldPt.y - (panStartWorld?.y ?? 0);
+          if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+            const cmd = createSelectPickCommand(
+              'element',
+              worldPt,
+              this.ctrlHeld,
+            );
+            this.opts.bus.execute(cmd);
+          }
+          panStartWorld = null;
+        }
         return;
       }
 

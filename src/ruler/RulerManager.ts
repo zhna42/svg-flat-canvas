@@ -61,6 +61,12 @@ export class RulerManager implements Renderable {
     previewLine?: SVGLineElement;
   } | null = null;
 
+  private activeGuideline: string | null = null;
+
+  public get isDragging(): boolean {
+    return this.dragging !== null;
+  }
+
   constructor(
     camera: Camera,
     events: EventBus,
@@ -368,6 +374,7 @@ export class RulerManager implements Renderable {
         // Check guideline hit
         const hit = this.hitTestGuideline(svgPt.x, svgPt.y);
         if (hit) {
+          this.activeGuideline = hit;
           const g = this.guidelines.get(hit);
           if (g) {
             this.dragging = {
@@ -381,6 +388,8 @@ export class RulerManager implements Renderable {
             e.preventDefault();
             return;
           }
+        } else {
+          this.activeGuideline = null;
         }
 
         // Check ruler drag start
@@ -500,6 +509,35 @@ export class RulerManager implements Renderable {
 
       this.dragging = null;
     });
+
+    this.svg.addEventListener(
+      'dblclick',
+      (e: MouseEvent) => {
+        const svgPt = this.clientToSvg(e);
+        if (!svgPt) return;
+        const hit = this.hitTestGuideline(svgPt.x, svgPt.y);
+        if (hit) {
+          this.removeGuideline(hit);
+          this.activeGuideline = null;
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      },
+      true,
+    );
+
+    window.addEventListener(
+      'keydown',
+      (e: KeyboardEvent) => {
+        if (e.code === 'Delete' || e.code === 'Backspace') {
+          if (this.activeGuideline && !this.dragging) {
+            this.removeGuideline(this.activeGuideline);
+            this.activeGuideline = null;
+          }
+        }
+      },
+      true,
+    );
   }
 
   private hitTestGuideline(sx: number, sy: number): string | null {

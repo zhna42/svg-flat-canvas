@@ -212,6 +212,7 @@ export class CanvasFactory {
       bus: commandBus,
       isPanning: () => panActive.value,
       isCreating: () => creationHandler.isActive,
+      isGuidelineDragging: () => rulerManager.isDragging,
       getGroupIdForElement: (elementId) =>
         groupManager.getGroupByElement(elementId)?.id,
       onGroupSelect,
