@@ -72,6 +72,7 @@ export class SelectionHandler {
 
   private lassoActive = false;
   private lassoWorldPoints: { x: number; y: number }[] = [];
+  private lassoScreenPoints: { x: number; y: number }[] = [];
   private lassoOverlay: LassoOverlay = { element: null };
 
   public constructor(opts: SelectionHandlerOptions) {
@@ -297,6 +298,7 @@ export class SelectionHandler {
         } else if (this.gesture === 'lasso') {
           this.lassoActive = true;
           this.lassoWorldPoints = [{ x: worldPt.x, y: worldPt.y }];
+          this.lassoScreenPoints = [{ x: svgPt.x, y: svgPt.y }];
           this.lassoOverlay = createLassoOverlay(overlayRoot, camera);
           if (!this.ctrlHeld) this.opts.state.clear();
         }
@@ -325,6 +327,7 @@ export class SelectionHandler {
       } else if (this.gesture === 'lasso') {
         this.lassoActive = true;
         this.lassoWorldPoints = [{ x: worldPt.x, y: worldPt.y }];
+        this.lassoScreenPoints = [{ x: svgPt.x, y: svgPt.y }];
         this.lassoOverlay = createLassoOverlay(overlayRoot, camera);
         if (!this.ctrlHeld) this.dispatchSelectClear();
       } else {
@@ -363,7 +366,8 @@ export class SelectionHandler {
         if (this.rectActive) this.updateRect(svgPt);
         if (this.lassoActive) {
           this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
-          updateLassoOverlay(this.lassoOverlay, this.lassoWorldPoints);
+          this.lassoScreenPoints.push({ x: svgPt.x, y: svgPt.y });
+          updateLassoOverlay(this.lassoOverlay, this.lassoScreenPoints);
         }
         return;
       }
@@ -377,7 +381,8 @@ export class SelectionHandler {
 
       if (this.lassoActive) {
         this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
-        updateLassoOverlay(this.lassoOverlay, this.lassoWorldPoints);
+        this.lassoScreenPoints.push({ x: svgPt.x, y: svgPt.y });
+        updateLassoOverlay(this.lassoOverlay, this.lassoScreenPoints);
       }
     });
 
@@ -417,6 +422,7 @@ export class SelectionHandler {
           hideLassoOverlay(this.lassoOverlay);
           this.groupHandler.onLassoEnd(this.lassoWorldPoints, this.ctrlHeld);
           this.lassoWorldPoints = [];
+          this.lassoScreenPoints = [];
         }
         return;
       }
@@ -456,6 +462,7 @@ export class SelectionHandler {
           this.opts.bus.execute(cmd);
         }
         this.lassoWorldPoints = [];
+        this.lassoScreenPoints = [];
       }
     });
 
