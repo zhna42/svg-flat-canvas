@@ -361,7 +361,11 @@ export class CreationHandler {
           const dx = worldPoint.x - first.args[0];
           const dy = worldPoint.y - first.args[1];
           if (Math.hypot(dx, dy) < 20) {
-            cmds.pop();
+            if (cmds.length >= 4) {
+              cmds.splice(-2, 2);
+            } else {
+              cmds.pop();
+            }
             cmds.push({ command: 'Z', args: [] });
             path.markRenderKey('d');
             path.buildHitArea();
