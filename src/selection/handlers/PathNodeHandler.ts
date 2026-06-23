@@ -1,6 +1,6 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import { PathElement } from '@/shapes/elements/PathElement';
-import type { CommandBus } from '@/commands/CommandBus';
+import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import type { Point, PathCommand } from '@/types';
 
 export interface PathNodeActivation {
@@ -13,16 +13,14 @@ export interface PathNodeActivation {
 }
 
 export class PathNodeHandler {
-  private bus: CommandBus;
   private active: PathNodeActivation | null = null;
+  public pathTimeMachine: PathTimeMachine | null = null;
 
   public onNodeDragStart: ((el: AbstractGraphicElement) => void) | null = null;
   public onNodeDragEnd: (() => void) | null = null;
   public onNodeActivate: ((cmdIdx: number) => void) | null = null;
 
-  public constructor(bus: CommandBus) {
-    this.bus = bus;
-  }
+  public constructor() {}
 
   public get isActive(): boolean {
     return this.active !== null;
@@ -93,17 +91,15 @@ export class PathNodeHandler {
       args: [...c.args],
     }));
 
-    path.geometry.commands = this.active.startCommands;
+    this.active = null;
+
+    path.geometry.commands = newCommands;
     path.markRenderKey('d');
     path.buildHitArea();
     path.setDirtyGeometry();
 
-    this.bus.execute({
-      type: 'GEOMETRY_MUTATE',
-      options: { id: path.id, newCommands },
-    });
+    this.pathTimeMachine?.capture();
 
-    this.active = null;
     this.onNodeDragEnd?.();
     this.onNodeActivate?.(-1);
   }
@@ -111,13 +107,9 @@ export class PathNodeHandler {
   public abort(): void {
     if (!this.active) return;
 
-    const path = this.active.element;
-    path.geometry.commands = this.active.startCommands;
-    path.markRenderKey('d');
-    path.buildHitArea();
-    path.setDirtyGeometry();
-
     this.active = null;
+    this.pathTimeMachine?.undo();
+
     this.onNodeActivate?.(-1);
   }
 }

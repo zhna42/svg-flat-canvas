@@ -1,18 +1,14 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import { PathElement } from '@/shapes/elements/PathElement';
-import type { CommandBus } from '@/commands/CommandBus';
+import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import type { Point } from '@/types';
 
 export class SubpathDragHandler {
-  private bus: CommandBus;
   private _active = false;
   private _element: PathElement | null = null;
   private _subpathIdx = -1;
   private _lastWorld: Point = { x: 0, y: 0 };
-
-  public constructor(bus: CommandBus) {
-    this.bus = bus;
-  }
+  public pathTimeMachine: PathTimeMachine | null = null;
 
   public get isActive(): boolean {
     return this._active;
@@ -50,29 +46,19 @@ export class SubpathDragHandler {
 
   public end(): void {
     if (!this._active || !this._element) return;
-    const newCommands = this._element.geometry.commands.map((c) => ({
-      ...c,
-      args: [...c.args],
-    }));
-    const pathCommands = this._element.geometry.commands;
-    const savedCommands = pathCommands.map((c) => ({
-      ...c,
-      args: [...c.args],
-    }));
-    pathCommands.length = 0;
-    pathCommands.push(...savedCommands);
     this._element.buildHitArea();
     this._element.setDirtyGeometry();
-    this.bus.execute({
-      type: 'GEOMETRY_MUTATE',
-      options: { id: this._element.id, newCommands },
-    });
+
+    this.pathTimeMachine?.capture();
+
     this._active = false;
     this._element = null;
     this._subpathIdx = -1;
   }
 
   public abort(): void {
+    if (!this._active) return;
+    this.pathTimeMachine?.undo();
     this._active = false;
     this._element = null;
     this._subpathIdx = -1;

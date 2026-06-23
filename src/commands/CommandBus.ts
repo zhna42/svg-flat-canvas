@@ -16,6 +16,7 @@ export class CommandBus {
   private readonly events: EventBus;
   private getSelected: (() => string[]) | undefined;
   private getElement: ((id: string) => AbstractGraphicElement | undefined) | undefined;
+  public suppressTimeMachine = false;
 
   public constructor(timeMachine: TimeMachine, events: EventBus) {
     this.timeMachine = timeMachine;
@@ -65,7 +66,7 @@ export class CommandBus {
 
     handler(command);
 
-    if (EDIT_COMMANDS.has(command.type)) {
+    if (!this.suppressTimeMachine && EDIT_COMMANDS.has(command.type)) {
       const fullSnapshotIds: string[] = [];
       const diffElements: AbstractGraphicElement[] = [];
 
@@ -88,7 +89,7 @@ export class CommandBus {
       );
     }
 
-    if (command.type === 'DELETE') {
+    if (!this.suppressTimeMachine && command.type === 'DELETE') {
       this.timeMachine.push(
         'DELETE',
         ids,
@@ -98,7 +99,7 @@ export class CommandBus {
       );
     }
 
-    if (command.type === 'CREATE' || command.type === 'CREATE_FILE') {
+    if (!this.suppressTimeMachine && (command.type === 'CREATE' || command.type === 'CREATE_FILE')) {
       const newIds = this.extractIds(command);
       const newElements: AbstractGraphicElement[] = [];
       for (const id of newIds) {
@@ -114,9 +115,9 @@ export class CommandBus {
       );
     }
 
-    if (command.type === 'GROUP_CREATE' || command.type === 'GROUP_DELETE' ||
+    if (!this.suppressTimeMachine && (command.type === 'GROUP_CREATE' || command.type === 'GROUP_DELETE' ||
         command.type === 'GROUP_ADD' || command.type === 'GROUP_REMOVE' ||
-        command.type === 'GROUP_CLEAR') {
+        command.type === 'GROUP_CLEAR')) {
       this.timeMachine.push(
         command.type as any,
         [],

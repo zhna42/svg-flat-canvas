@@ -8,6 +8,7 @@ import { PolylineElement } from '@/shapes/elements/PolylineElement';
 import { PolygonElement } from '@/shapes/elements/PolygonElement';
 import { PathElement } from '@/shapes/elements/PathElement';
 import type { CommandBus } from '@/commands/CommandBus';
+import { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import type { CreationElementType } from '@/commands/types';
 import { Camera } from '@/camera/Camera';
 
@@ -42,6 +43,7 @@ export class CreationHandler {
   private _editingPath: AbstractGraphicElement | null = null;
 
   private multiPointPoints: Point[] = [];
+  private pathTimeMachine: PathTimeMachine | null = null;
 
   public get editingPathElement(): AbstractGraphicElement | null {
     return this._editingPath;
@@ -161,13 +163,34 @@ export class CreationHandler {
       return true;
     }
 
-    if (
-      e.key === 'Enter' &&
+    if (e.key === 'Enter' &&
       (this.currentPreview.type === 'polyline' ||
         this.currentPreview.type === 'polygon' ||
         this.currentPreview.type === 'path')
     ) {
       this.finishMulti();
+      e.preventDefault();
+      return true;
+    }
+
+    if (
+      this.pathTimeMachine &&
+      (e.metaKey || e.ctrlKey) &&
+      e.key === 'z' &&
+      !e.shiftKey
+    ) {
+      this.pathTimeMachine.undo();
+      e.preventDefault();
+      return true;
+    }
+
+    if (
+      this.pathTimeMachine &&
+      (e.metaKey || e.ctrlKey) &&
+      e.key === 'z' &&
+      e.shiftKey
+    ) {
+      this.pathTimeMachine.redo();
       e.preventDefault();
       return true;
     }
@@ -233,6 +256,7 @@ export class CreationHandler {
       ];
       path.markRenderKey('d');
       path.buildHitArea();
+      this.pathTimeMachine = new PathTimeMachine(path);
     }
 
     this.currentPreview = preview;
@@ -338,6 +362,7 @@ export class CreationHandler {
       path.markRenderKey('d');
       path.buildHitArea();
       path.setDirtyGeometry();
+      this.pathTimeMachine?.capture();
       return;
     }
   }
@@ -477,6 +502,7 @@ export class CreationHandler {
     }
     this.currentPreview = null;
     this.multiPointPoints = [];
+    this.pathTimeMachine = null;
     this._activeType = null;
   }
 

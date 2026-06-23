@@ -10,6 +10,8 @@ import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
 import type { TransformHandler } from '@/selection/transform/TransformHandler';
 import { PathNodeHandler } from '@/selection/handlers/PathNodeHandler';
 import type { CommandBus } from '@/commands/CommandBus';
+import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
+import { PathTimeMachine as PathTimeMachineClass } from '@/shapes/path/PathTimeMachine';
 import type { SelectionGesture } from '@/commands/types';
 import { hitTestByPoint as hitTestPoint } from '@/spatial/hit-test';
 import { pointToSegmentDist } from '@/spatial/geometry-utils';
@@ -60,6 +62,7 @@ export class SelectionHandler {
   private readonly dragHandler: DragHandler;
   private readonly groupHandler: GroupSelectionHandler;
   private readonly pathNodeHandler: PathNodeHandler;
+  private pathTimeMachine: PathTimeMachine | null = null;
 
   private shortcuts: SelectionShortcuts;
   private gesture: SelectionGesture = 'click';
@@ -88,7 +91,7 @@ export class SelectionHandler {
     );
 
     const groupLookup = opts.getGroupIdForElement ?? (() => undefined);
-    this.pathNodeHandler = new PathNodeHandler(opts.bus);
+    this.pathNodeHandler = new PathNodeHandler();
     this.pathNodeHandler.onNodeActivate = (cmdIdx) => {
       opts.selectionOverlay.activeCmdIdx = cmdIdx;
       const editingPath = opts.getEditingPath?.();
@@ -122,7 +125,38 @@ export class SelectionHandler {
       origOnGroupSelect?.(ids);
     };
 
+    const origOnSetEditingPath = opts.onSetEditingPath;
+    opts.onSetEditingPath = (path) => {
+      if (path) {
+        if (path.type === 'path') {
+          this.pathTimeMachine = new PathTimeMachineClass(path as any);
+          this.pathNodeHandler.pathTimeMachine = this.pathTimeMachine;
+          this.opts.bus.suppressTimeMachine = true;
+        }
+      } else {
+        this.flushPathTimeMachine();
+      }
+      origOnSetEditingPath?.(path);
+    };
+
     this.bindEvents();
+  }
+
+  private flushPathTimeMachine(): void {
+    if (!this.pathTimeMachine) return;
+    const commands = this.pathTimeMachine.getFinalCommands();
+    const editingPath = this.opts.getEditingPath?.();
+    if (editingPath) {
+      this.opts.bus.suppressTimeMachine = false;
+      this.opts.bus.execute({
+        type: 'GEOMETRY_MUTATE',
+        options: { id: editingPath.id, newCommands: commands },
+      });
+    }
+    this.pathTimeMachine.clear();
+    this.pathTimeMachine = null;
+    this.pathNodeHandler.pathTimeMachine = null;
+    this.opts.bus.suppressTimeMachine = false;
   }
 
   public setShortcuts(s: Partial<SelectionShortcuts>): void {
@@ -716,6 +750,7 @@ export class SelectionHandler {
               prevEndY: closestPrevEndY,
             },
           });
+          this.pathTimeMachine?.capture();
           e.preventDefault();
           return;
         }
@@ -765,6 +800,7 @@ export class SelectionHandler {
               options: { id: editingPath.id, cmdIdx: act.cmdIdx },
             });
             this.pathNodeHandler.abort();
+            this.pathTimeMachine?.capture();
             e.preventDefault();
           }
         }
@@ -774,8 +810,9 @@ export class SelectionHandler {
         if (editingPath && act) {
           this.opts.bus.execute({
             type: 'PATH_CHANGE_NODE_TYPE',
-            options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'C' },
+            options: { id: editingPath.id, cmdIdx: act.cmdIdx,             newType: 'C' },
           });
+          this.pathTimeMachine?.capture();
           e.preventDefault();
         }
       } else if (this.pathNodeHandler.isActive && key === 'l') {
@@ -784,13 +821,29 @@ export class SelectionHandler {
         if (editingPath && act) {
           this.opts.bus.execute({
             type: 'PATH_CHANGE_NODE_TYPE',
-            options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'L' },
+            options: { id: editingPath.id, cmdIdx: act.cmdIdx,             newType: 'L' },
           });
+          this.pathTimeMachine?.capture();
           e.preventDefault();
         }
       } else if (key === 'escape') {
-        this.dispatchSelectClear();
-        this.opts.onGroupSelect?.([]);
+        if (this.pathTimeMachine) {
+          const editingPath = this.opts.getEditingPath?.();
+          if (editingPath) this.opts.onSetEditingPath?.(null);
+        } else {
+          this.dispatchSelectClear();
+          this.opts.onGroupSelect?.([]);
+        }
+      } else if (this.pathTimeMachine && (e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        this.pathTimeMachine.undo();
+        const editingPath = this.opts.getEditingPath?.();
+        if (editingPath) this.opts.selectionOverlay.updatePathNodes(editingPath);
+      } else if (this.pathTimeMachine && (e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        this.pathTimeMachine.redo();
+        const editingPath = this.opts.getEditingPath?.();
+        if (editingPath) this.opts.selectionOverlay.updatePathNodes(editingPath);
       }
     });
   }
