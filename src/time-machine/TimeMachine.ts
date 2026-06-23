@@ -47,7 +47,7 @@ export class TimeMachine {
   public captureRoot(): void {
     const data: EntityDiff[] = [];
     for (const el of this.shapeManager.getAll()) {
-      data.push({ id: el.id, diff: el.получитьCнимокFull() });
+      data.push({ id: el.id, diff: el.getFullSnapshot() });
     }
     this.root = { command: 'ROOT', selectIds: [], selectType: 'element', data };
     this.records = [];
@@ -70,13 +70,13 @@ export class TimeMachine {
     for (const id of getFullSnapshotIds) {
       const el = this.shapeManager.getById(id);
       if (el) {
-        data.push({ id, diff: el.получитьCнимокFull() });
+        data.push({ id, diff: el.getFullSnapshot() });
       }
     }
 
     for (const el of getDiffElements) {
       if (getFullSnapshotIds.includes(el.id)) continue;
-      const diff = el.получитьCнимокDiff();
+      const diff = el.getDiffSnapshot();
       if (Object.keys(diff).length > 0) {
         data.push({ id: el.id, diff });
       }
@@ -178,7 +178,7 @@ export class TimeMachine {
       if (create) {
         const el = createElementByType(entry.diff.type as string, entry.id);
         if (el) {
-          el.applyCнимок(entry.diff);
+          el.applySnapshot(entry.diff);
           el.buildHitArea();
           this.shapeManager.addElement(el);
         }
@@ -187,7 +187,7 @@ export class TimeMachine {
       } else {
         const existing = this.shapeManager.getById(entry.id);
         if (existing) {
-          existing.applyCнимок(entry.diff);
+          existing.applySnapshot(entry.diff);
         }
       }
     }

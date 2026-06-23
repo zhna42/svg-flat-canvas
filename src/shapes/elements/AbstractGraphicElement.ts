@@ -77,18 +77,18 @@ export abstract class AbstractGraphicElement {
     return this.buildSnapshotFromKeys(keys);
   }
 
-  public получитьCнимокDiff(): ElementSnapshot {
+  public getDiffSnapshot(): ElementSnapshot {
     const keys = Array.from(this.diffKeysForTimeMashin);
     this.diffKeysForTimeMashin.clear();
     if (keys.length === 0) return {};
     return this.buildSnapshotFromKeys(keys);
   }
 
-  public получитьCнимокFull(): ElementSnapshot {
+  public getFullSnapshot(): ElementSnapshot {
     return this.toSnapshot();
   }
 
-  public applyCнимок(snapshot: ElementSnapshot): void {
+  public applySnapshot(snapshot: ElementSnapshot): void {
     this.applyCommonSnapshot(snapshot);
     this.applyGeometrySnapshot(snapshot);
     this.diffKeysForTimeMashin.clear();
