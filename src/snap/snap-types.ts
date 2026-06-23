@@ -1,7 +1,6 @@
-export interface Point {
-  x: number;
-  y: number;
-}
+import type { Point } from '@/types';
+
+export type { Point };
 
 export interface BoundingBox {
   minX: number;
@@ -84,7 +83,7 @@ export interface SnapConfig {
   mode: 'element' | 'group';
   movingElements: CADElement[];
   groupBounds?: BoundingBox;
-  grid: import('./SpatialGrid').SpatialGrid;
+  grid: import('@/spatial/SpatialGrid').SpatialGrid;
   getElementById: (id: string) => CADElement | undefined;
   camera: Camera;
   currentMouseWorld: Point;

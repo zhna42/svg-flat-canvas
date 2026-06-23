@@ -1,12 +1,12 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { SpatialGrid } from '@/selection/SpatialGrid';
+import type { SpatialGrid } from '@/spatial/SpatialGrid';
 import type { Camera } from '@/camera/Camera';
-import type { DragHandler } from '@/selection/DragHandler';
+import type { DragHandler } from '@/selection/drag';
 import {
-  hitTestGroupsPoint,
-  hitTestGroupsRect,
-  hitTestGroupsLasso,
-} from '@/utils/group-hit-test';
+  hitTestGroupsByPoint as hitTestGroupsPoint,
+  hitTestGroupsByRect as hitTestGroupsRect,
+  hitTestGroupsByLasso as hitTestGroupsLasso,
+} from '@/spatial/group-hit-test';
 import type { CommandBus } from '@/commands/CommandBus';
 import {
   createSelectPickCommand,

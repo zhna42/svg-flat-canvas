@@ -15,7 +15,7 @@ export interface PointToEdgeSnapResult {
   snapY: number;
 }
 
-export class AdvancedGeometry {
+export class SnapGeometry {
   public static pointToSegment(
     px: number, py: number,
     ax: number, ay: number,

@@ -39,7 +39,7 @@ const lassoHitElementAsFilled = (
   return ha.length >= 3 && polyInPoly(polygon, ha);
 };
 
-export const hitTestGroupsPoint = (
+export const hitTestGroupsByPoint = (
   px: number,
   py: number,
   elements: AbstractGraphicElement[],
@@ -60,7 +60,7 @@ export const hitTestGroupsPoint = (
   return Array.from(seen);
 };
 
-export const hitTestGroupsRect = (
+export const hitTestGroupsByRect = (
   rx: number,
   ry: number,
   rw: number,
@@ -83,7 +83,7 @@ export const hitTestGroupsRect = (
   return Array.from(seen);
 };
 
-export const hitTestGroupsLasso = (
+export const hitTestGroupsByLasso = (
   polygon: Point[],
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,

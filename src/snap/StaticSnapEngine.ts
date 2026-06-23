@@ -10,7 +10,7 @@ import type {
   BezierSegment,
   EdgeInfo,
 } from './snap-types';
-import { AdvancedGeometry } from './AdvancedGeometry';
+import { SnapGeometry } from './SnapGeometry';
 
 function expandBBox(bbox: BoundingBox, r: number): BoundingBox {
   return {
@@ -93,7 +93,7 @@ function collectStaticAreas(
   return areas;
 }
 
-export class UltimateSnapEngine {
+export class StaticSnapEngine {
   public static calculate(config: SnapConfig): SnapResult {
     const {
       mode, movingElements, groupBounds, grid, camera,
@@ -169,7 +169,12 @@ export class UltimateSnapEngine {
       ? groupBounds
       : computeBounds(activePoints);
     const searchBounds = expandBBox(movingBounds, rWorld);
-    const candidateIds = grid.retrieve(searchBounds);
+    const candidateIds = grid.query(
+      searchBounds.minX,
+      searchBounds.minY,
+      searchBounds.maxX - searchBounds.minX,
+      searchBounds.maxY - searchBounds.minY,
+    );
     const staticAreas = collectStaticAreas(movingElements, candidateIds, config.getElementById);
 
     let bestCorner: SnapCandidate | null = null;
@@ -204,7 +209,7 @@ export class UltimateSnapEngine {
               const r = sd.r ?? sd.rx ?? 0;
               if (r > 0) {
                 const strokeOff = getStrokeOffset(sha.strokeWidth, sha.strokeAlignment);
-                const quadSnap = AdvancedGeometry.snapToCircleQuadrants(pt.x, pt.y, cx, cy, r, strokeOff, rWorldSq);
+                const quadSnap = SnapGeometry.snapToCircleQuadrants(pt.x, pt.y, cx, cy, r, strokeOff, rWorldSq);
                 if (quadSnap && (!bestCorner || quadSnap.distSq < bestCorner.distSq)) {
                   bestCorner = { distSq: quadSnap.distSq, snapX: quadSnap.snapX, snapY: quadSnap.snapY, kind: 'corner' };
                 }
@@ -239,7 +244,7 @@ export class UltimateSnapEngine {
 
           for (let ei = 0; ei < edges.length; ei++) {
             const edge = edges[ei];
-            const proj = AdvancedGeometry.pointToSegment(pt.x, pt.y, edge.ax, edge.ay, edge.bx, edge.by);
+            const proj = SnapGeometry.pointToSegment(pt.x, pt.y, edge.ax, edge.ay, edge.bx, edge.by);
             if (proj.distSq < rWorldSq && (!bestPlane || proj.distSq < bestPlane.distSq)) {
               bestPlane = {
                 distSq: proj.distSq,
@@ -260,7 +265,7 @@ export class UltimateSnapEngine {
               const ry = sha.shapeType === 'circle' ? (sd.r ?? sd.ry ?? 0) : sd.ry;
               if (rx > 0 && ry > 0) {
                 const strokeOff = getStrokeOffset(sha.strokeWidth, sha.strokeAlignment);
-                const edge = AdvancedGeometry.snapToEllipseTangential(pt.x, pt.y, cx, cy, rx, ry, strokeOff);
+                const edge = SnapGeometry.snapToEllipseTangential(pt.x, pt.y, cx, cy, rx, ry, strokeOff);
                 if (edge && edge.distSq < rWorldSq && (!bestPlane || edge.distSq < bestPlane.distSq)) {
                   const ex = edge.snapX - cx;
                   const ey = edge.snapY - cy;
@@ -286,7 +291,7 @@ export class UltimateSnapEngine {
             const segments = sha.shapeData as BezierSegment[] | undefined;
             if (segments) {
               for (let bi = 0; bi < segments.length; bi++) {
-                const proj = AdvancedGeometry.projectToBezier(pt.x, pt.y, segments[bi]);
+                const proj = SnapGeometry.projectToBezier(pt.x, pt.y, segments[bi]);
                 if (proj.distSq < rWorldSq && (!bestPlane || proj.distSq < bestPlane.distSq)) {
                   bestPlane = {
                     distSq: proj.distSq,
@@ -308,7 +313,7 @@ export class UltimateSnapEngine {
             { ax: canvasBounds.minX, ay: canvasBounds.maxY, bx: canvasBounds.minX, by: canvasBounds.minY },
           ];
           for (let ei = 0; ei < 4; ei++) {
-            const proj = AdvancedGeometry.pointToSegment(pt.x, pt.y, canvasEdges[ei].ax, canvasEdges[ei].ay, canvasEdges[ei].bx, canvasEdges[ei].by);
+            const proj = SnapGeometry.pointToSegment(pt.x, pt.y, canvasEdges[ei].ax, canvasEdges[ei].ay, canvasEdges[ei].bx, canvasEdges[ei].by);
             if (proj.distSq < rWorldSq && (!bestPlane || proj.distSq < bestPlane.distSq)) {
               bestPlane = {
                 distSq: proj.distSq,

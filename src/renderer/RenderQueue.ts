@@ -1,5 +1,5 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { SelectionOverlayElement } from '@/selection/SelectionOverlayElement';
+import type { SelectionOverlayElement } from '@/selection/overlay/SelectionOverlayElement';
 
 export enum DirtyFlag {
   Transform = 1 << 0,

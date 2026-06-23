@@ -1,34 +1,26 @@
-import { EventManager } from '@/events/EventManager';
+import { Camera } from '@/camera/Camera';
 import { Renderer } from '@/renderer/Renderer';
 import { ShapeManager } from '@/shapes/ShapeManager';
-import { Camera } from '@/camera/Camera';
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import { createFromJSONArray } from '@/shapes/elements/factory';
-import type { ElementJSON } from '@/shapes/elements/factory';
-import type { SvgCanvasOptions } from '@/types';
+import { EventManager } from '@/events/EventManager';
 import { SelectionState } from '@/selection/SelectionState';
-import { SpatialGrid } from '@/selection/SpatialGrid';
+import { SpatialGrid } from '@/spatial/SpatialGrid';
 import { SelectionHandler } from '@/selection/handlers/SelectionHandler';
-import type { SelectionMode, CreationElementType } from '@/commands/types';
-import type { SelectionFilter } from '@/selection/selection-filter';
-import type { SelectionShortcuts } from '@/selection/selection-defaults';
-import type { SelectionGesture } from '@/commands';
-import { SelectionOverlay } from '@/selection/SelectionOverlay';
-import { GroupSelectionOverlay } from '@/selection/GroupSelectionOverlay';
-import { TransformHandler } from '@/selection/TransformHandler';
-import type { TransformMode } from '@/selection/TransformHandler';
+import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
+import { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay';
+import { TransformHandler } from '@/selection/transform/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
-import { CreationHandler } from '@/creation/CreationHandler';
-import {
-  GroupManager,
-  type GroupData,
-  type GroupConflictAction,
-} from '@/group';
-import type { Group } from '@/group';
-import { EventBus } from './EventBus';
+import { GroupManager } from '@/group';
 import { CommandBus } from '@/commands';
 import { TimeMachine } from '@/time-machine';
-import type { TimeSnapshot } from '@/time-machine';
+import { CreationHandler } from '@/creation/CreationHandler';
+import { ExternalApi } from '@/api/external-api';
+import { PathElement } from '@/shapes/elements/PathElement';
+import { EventBus } from './EventBus';
+import { CanvasFactory } from './CanvasFactory';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { ElementJSON } from '@/shapes/elements/factory';
+import { createFromJSONArray } from '@/shapes/elements/factory';
+import { createDeleteCommand } from '@/commands/factories/delete-command-factory';
 import {
   createGroupCreateCommand,
   createGroupDeleteCommand,
@@ -36,376 +28,42 @@ import {
   createGroupRemoveCommand,
   createGroupClearCommand,
 } from '@/commands/factories/group-command-factory';
-import { createSelectHandler } from '@/commands/handlers/select-handler';
-import {
-  createDragMoveHandler,
-  createDragEndHandler,
-} from '@/commands/handlers/drag-handler';
-import { createGroupHandler } from '@/commands/handlers/group-handler';
-import { createDeleteHandler } from '@/commands/handlers/delete-handler';
-import { createCreateHandler } from '@/commands/handlers/create-handler';
-import { createCreateFileHandler } from '@/commands/handlers/create-file-handler';
-import { createDeleteCommand } from '@/commands/factories/delete-command-factory';
-import { ExternalApi } from '@/api/external-api';
-import { PathElement } from '@/shapes/elements/PathElement';
+import type { Group, GroupData, GroupConflictAction } from '@/group';
+import type { TimeSnapshot } from '@/time-machine';
+import type { SelectionMode, CreationElementType } from '@/commands/types';
+import type { SelectionFilter } from '@/selection/selection-filter';
+import type { SelectionShortcuts } from '@/selection/selection-defaults';
+import type { SelectionGesture } from '@/commands';
+import type { TransformMode } from '@/selection/transform/TransformHandler';
+import type { SvgCanvasOptions } from '@/types';
+import type { BusEvent } from './EventBus';
 
 export class SvgCanvas {
-  private readonly element: HTMLElement;
-  private readonly svg: SVGSVGElement;
-  private readonly camera: Camera;
-  private readonly renderer: Renderer;
-  private readonly shapeManager: ShapeManager;
-  private readonly eventManager: EventManager;
-  private readonly selectionState: SelectionState;
-  private readonly spatialGrid: SpatialGrid;
-  private readonly selectionHandler: SelectionHandler;
-  private readonly selectionOverlay: SelectionOverlay;
-  private readonly groupSelectionOverlay: GroupSelectionOverlay;
-  private readonly transformHandler: TransformHandler;
-  private readonly debugOverlay: DebugOverlay;
-  private readonly groupManager: GroupManager;
-  private readonly commandBus: CommandBus;
-  private readonly timeMachine: TimeMachine;
-  private readonly creationHandler: CreationHandler;
-  private _debugShowHitArea: boolean;
-  private readonly _externalApi: ExternalApi;
-  private _editingPath: PathElement | null = null;
-  private _dragOverlayDx = 0;
-  private _dragOverlayDy = 0;
-
-  public readonly panActive = { value: false };
-  public readonly events = new EventBus();
+  element!: HTMLElement;
+  svg!: SVGSVGElement;
+  camera!: Camera;
+  renderer!: Renderer;
+  shapeManager!: ShapeManager;
+  eventManager!: EventManager;
+  selectionState!: SelectionState;
+  spatialGrid!: SpatialGrid;
+  selectionHandler!: SelectionHandler;
+  selectionOverlay!: SelectionOverlay;
+  groupSelectionOverlay!: GroupSelectionOverlay;
+  transformHandler!: TransformHandler;
+  debugOverlay!: DebugOverlay;
+  groupManager!: GroupManager;
+  commandBus!: CommandBus;
+  timeMachine!: TimeMachine;
+  creationHandler!: CreationHandler;
+  _debugShowHitArea!: boolean;
+  _externalApi!: ExternalApi;
+  _editingPath: PathElement | null = null;
+  panActive!: { value: boolean };
+  events!: EventBus;
 
   public constructor(container: HTMLElement, options?: SvgCanvasOptions) {
-    this.element = container;
-    this.element.style.userSelect = 'none';
-    this.element.style.webkitUserSelect = 'none';
-    this.svg = this.createAbstractGraphicElement(options);
-    this.svg.setAttribute('tabindex', '0');
-    this.camera = new Camera();
-    this.renderer = new Renderer(this.svg, this.camera);
-    this.camera.cameraGroup = this.renderer.getCameraGroup();
-    this.shapeManager = new ShapeManager(this.renderer);
-    this.eventManager = new EventManager(this.svg);
-    this.selectionState = new SelectionState();
-    this.spatialGrid = new SpatialGrid(800, 600, 100);
-
-    this.timeMachine = new TimeMachine(this.shapeManager, 100);
-    this.commandBus = new CommandBus(this.timeMachine, this.events);
-    this.commandBus.setGetElement((id) => this.shapeManager.getById(id));
-    this.commandBus.setGetSelected(() => Array.from(this.selectionState.selected).map((e) => e.id));
-
-    this.selectionOverlay = new SelectionOverlay(this.camera);
-    this.selectionState.setOnChange((selected) => {
-      this.selectionOverlay.setElements(selected);
-    });
-
-    this.transformHandler = new TransformHandler(this.camera, this.commandBus);
-    this.transformHandler.onTransformEnd = () => {
-      updateOverlay();
-    };
-
-    // Camera onChange — перерисовка оверлеев при pan/zoom
-    this.camera.onChange = () => {
-      const selected = this.selectionState.selected;
-      if (selected.length > 0) {
-        this.selectionOverlay.setPositions(selected);
-      }
-      if (this._editingPath) {
-        this.selectionOverlay.updatePathNodes(this._editingPath);
-      }
-      if (this.groupManager.selectedGroupIds.size > 0) {
-        this.syncGroupSelectionOverlay();
-      }
-    };
-
-    // Overlay root — вне cameraGroup (в корне SVG, поверх камеры)
-    const overlayRoot = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'g',
-    );
-    this.svg.appendChild(overlayRoot);
-
-    overlayRoot.appendChild(this.selectionOverlay.getElement());
-
-    this.groupSelectionOverlay = new GroupSelectionOverlay(this.camera);
-    overlayRoot.appendChild(this.groupSelectionOverlay.getElement());
-
-    this.debugOverlay = new DebugOverlay(this.camera);
-    overlayRoot.appendChild(this.debugOverlay.getElement());
-    this._debugShowHitArea = options?.debugShowHitArea ?? false;
-
-    // Command registrations
-    this.commandBus.register(
-      'SELECT',
-      createSelectHandler({
-        state: this.selectionState,
-        getElements: () => this.shapeManager.getAll(),
-        grid: this.spatialGrid,
-        lookupGroup: (elementId) =>
-          this.groupManager.getGroupByElement(elementId)?.id,
-      }),
-    );
-
-    const updateOverlay = (): void => {
-      const selected = this.selectionState.selected;
-      if (selected.length > 0) {
-        this.selectionOverlay.setPositions(selected);
-      }
-      if (this.groupManager.selectedGroupIds.size > 0) {
-        this.syncGroupSelectionOverlay();
-      }
-    };
-
-    const dragCtx = {
-      getElements: () => this.shapeManager.getAll(),
-      onDragEnd: (_ids: string[]) => {
-        this.reindexSpatialGrid();
-        updateOverlay();
-      },
-    };
-    this.commandBus.register('DRAG_MOVE', createDragMoveHandler(dragCtx));
-    this.commandBus.register('DRAG_END', createDragEndHandler(dragCtx));
-
-    const panActive = this.panActive;
-    const onGroupSelect = (ids: string[]): void => {
-      this.selectionState.clear();
-      this.groupManager.setSelectedGroupIds(ids);
-      this.syncGroupSelectionOverlay();
-    };
-
-    this.selectionHandler = new SelectionHandler({
-      svg: this.svg,
-      camera: this.camera,
-      overlayRoot,
-      selectionOverlay: this.selectionOverlay,
-      transformHandler: this.transformHandler,
-      state: this.selectionState,
-      getElements: () => this.shapeManager.getAll(),
-      grid: this.spatialGrid,
-      bus: this.commandBus,
-      isPanning: () => panActive.value,
-      getGroupIdForElement: (elementId) =>
-        this.groupManager.getGroupByElement(elementId)?.id,
-      onGroupSelect,
-      getArtboardRect: () => this.getArtboardRect(),
-      onDragStart: () => {
-        this._dragOverlayDx = 0;
-        this._dragOverlayDy = 0;
-      },
-      onDragMove: (dx: number, dy: number) => {
-        const frameDx = dx - this._dragOverlayDx;
-        const frameDy = dy - this._dragOverlayDy;
-        this._dragOverlayDx = dx;
-        this._dragOverlayDy = dy;
-        for (const overlayEl of this.selectionOverlay.getOverlayElements()) {
-          overlayEl.translateBy(frameDx, frameDy);
-        }
-      },
-      onDragEnd: () => {
-        this._dragOverlayDx = 0;
-        this._dragOverlayDy = 0;
-      },
-      onSetEditingPath: (el) => {
-        if (el) {
-          this.editingPath = el as PathElement;
-        } else {
-          this.editingPath = null;
-        }
-      },
-      getEditingPath: () => this._editingPath,
-    });
-
-    this.element.appendChild(this.svg);
-
-    this.groupManager = new GroupManager(null as any, () =>
-      this.shapeManager.getAll(),
-    );
-    this.groupManager.setOnChange(() => {
-      this.syncGroupSelectionOverlay();
-    });
-
-    this.commandBus.register(
-      'GROUP_CREATE',
-      createGroupHandler(this.groupManager),
-    );
-    this.commandBus.register(
-      'GROUP_DELETE',
-      createGroupHandler(this.groupManager),
-    );
-    this.commandBus.register(
-      'GROUP_ADD',
-      createGroupHandler(this.groupManager),
-    );
-    this.commandBus.register(
-      'GROUP_REMOVE',
-      createGroupHandler(this.groupManager),
-    );
-    this.commandBus.register(
-      'GROUP_CLEAR',
-      createGroupHandler(this.groupManager),
-    );
-    this.commandBus.register('DELETE', createDeleteHandler(this.shapeManager));
-    this.commandBus.register('CREATE', createCreateHandler(this.shapeManager));
-    this.commandBus.register(
-      'CREATE_FILE',
-      createCreateFileHandler(this.shapeManager, this.groupManager, (el) =>
-        this.indexShape(el),
-      ),
-    );
-    this.commandBus.register('GEOMETRY_MUTATE', (command) => {
-      if (command.type !== 'GEOMETRY_MUTATE') return;
-      const el = this.shapeManager
-        .getAll()
-        .find((e) => e.id === command.options.id);
-      if (el instanceof PathElement) {
-        el.geometry.commands = command.options.newCommands;
-        el.markRenderKey('d');
-        el.buildHitArea();
-        el.setDirtyAll();
-      }
-    });
-
-    this.commandBus.register('PATH_ADD_NODE', (command) => {
-      if (command.type !== 'PATH_ADD_NODE') return;
-      const el = this.shapeManager
-        .getAll()
-        .find((e) => e.id === command.options.id);
-      if (el instanceof PathElement) {
-        el.addNodeAt(
-          command.options.cmdIdx,
-          command.options.x,
-          command.options.y,
-          command.options.t,
-          command.options.prevEndX,
-          command.options.prevEndY,
-        );
-        el.buildHitArea();
-        el.setDirtyAll();
-      }
-    });
-
-    this.commandBus.register('PATH_CHANGE_NODE_TYPE', (command) => {
-      if (command.type !== 'PATH_CHANGE_NODE_TYPE') return;
-      const el = this.shapeManager
-        .getAll()
-        .find((e) => e.id === command.options.id);
-      if (el instanceof PathElement) {
-        el.changeNodeType(command.options.cmdIdx, command.options.newType);
-        el.buildHitArea();
-        el.setDirtyAll();
-      }
-    });
-
-    this.commandBus.register('PATH_REMOVE_NODE', (command) => {
-      if (command.type !== 'PATH_REMOVE_NODE') return;
-      const el = this.shapeManager
-        .getAll()
-        .find((e) => e.id === command.options.id);
-      if (el instanceof PathElement) {
-        el.removeNodeAt(command.options.cmdIdx);
-        el.buildHitArea();
-        el.setDirtyAll();
-      }
-    });
-
-    this.commandBus.register('PATH_MOVE_SUBPATH', (command) => {
-      if (command.type !== 'PATH_MOVE_SUBPATH') return;
-      const el = this.shapeManager
-        .getAll()
-        .find((e) => e.id === command.options.id);
-      if (el instanceof PathElement) {
-        el.translateSubpath(
-          command.options.subpathIdx,
-          command.options.delta.x,
-          command.options.delta.y,
-        );
-        el.buildHitArea();
-        el.setDirtyAll();
-      }
-    });
-
-    this.creationHandler = new CreationHandler(
-      this.svg,
-      this.camera,
-      this.commandBus,
-      (el) => this.addShape(el),
-      (el) => this.shapeManager.remove(el.id),
-    );
-    this.creationHandler.onElementFinalize = (el) => {
-      this.indexShape(el);
-    };
-
-    this._externalApi = new ExternalApi(this);
-
-    const rootSvg = this.svg;
-
-    rootSvg.addEventListener(
-      'mousedown',
-      (e: MouseEvent) => {
-        if (e.button !== 0) return;
-        this.creationHandler.handleMouseDown(e);
-      },
-      true,
-    );
-
-    window.addEventListener(
-      'mousemove',
-      (e: MouseEvent) => {
-        this.creationHandler.handleMouseMove(e);
-      },
-      true,
-    );
-
-    window.addEventListener(
-      'mouseup',
-      (e: MouseEvent) => {
-        if (e.button !== 0) return;
-        this.creationHandler.handleMouseUp(e);
-      },
-      true,
-    );
-
-    rootSvg.addEventListener(
-      'dblclick',
-      (e: MouseEvent) => {
-        if (e.button !== 0) return;
-        this.creationHandler.handleDblClick(e);
-      },
-      true,
-    );
-
-    rootSvg.addEventListener(
-      'keydown',
-      (e: KeyboardEvent) => {
-        if (e.code === 'Space' && e.target === rootSvg) {
-          console.log('Space pressed — pan mode (123)');
-          e.preventDefault();
-        }
-      },
-      true,
-    );
-    rootSvg.addEventListener(
-      'keyup',
-      (e: KeyboardEvent) => {
-        if (e.code === 'Space' && e.target === rootSvg) {
-          console.log('Space released — pan mode off (123)');
-        }
-      },
-      true,
-    );
-
-    window.addEventListener(
-      'keydown',
-      (e: KeyboardEvent) => {
-        this.creationHandler.handleKeyDown(e);
-      },
-      true,
-    );
-
-    requestAnimationFrame(() => {
-      this.timeMachine.captureRoot();
-    });
+    return CanvasFactory.create(container, options) as unknown as this;
   }
 
   public getSVG(): SVGSVGElement {
@@ -482,16 +140,10 @@ export class SvgCanvas {
     }
   }
 
-  public on(
-    event: string,
-    fn: (event: import('./EventBus').BusEvent) => void,
-  ): () => void {
+  public on(event: string, fn: (event: BusEvent) => void): () => void {
     return this.events.on(event, fn);
   }
-  public off(
-    event: string,
-    fn: (event: import('./EventBus').BusEvent) => void,
-  ): void {
+  public off(event: string, fn: (event: BusEvent) => void): void {
     this.events.off(event, fn);
   }
 
@@ -643,7 +295,7 @@ export class SvgCanvas {
     this.selectionHandler.setAvoidCollisions(enabled);
   }
 
-  private getArtboardRect(): {
+  getArtboardRect(): {
     x: number;
     y: number;
     width: number;
@@ -680,7 +332,6 @@ export class SvgCanvas {
     this.debugOverlay.update(v ? this.shapeManager.getAll() : []);
   }
 
-  // ---- Group API ----
   public get groups(): Group[] {
     return this.groupManager.getGroups();
   }
@@ -800,26 +451,12 @@ export class SvgCanvas {
     this.svg.remove();
   }
 
-  private createAbstractGraphicElement(
-    options?: SvgCanvasOptions,
-  ): SVGSVGElement {
-    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    svg.setAttribute('width', '100%');
-    svg.setAttribute('height', '100%');
-    svg.setAttribute(
-      'viewBox',
-      `0 0 ${options?.width ?? 800} ${options?.height ?? 600}`,
-    );
-    svg.style.display = 'block';
-    return svg;
-  }
-
-  private indexShape(shape: AbstractGraphicElement): void {
+  indexShape(shape: AbstractGraphicElement): void {
     const bbox = shape.getTransformedBBox();
     this.spatialGrid.insert(shape.id, bbox.x, bbox.y, bbox.width, bbox.height);
   }
 
-  private reindexSpatialGrid(): void {
+  reindexSpatialGrid(): void {
     this.spatialGrid.clear();
     for (const el of this.shapeManager.getAll()) {
       const bbox = el.getTransformedBBox();
@@ -827,11 +464,11 @@ export class SvgCanvas {
     }
   }
 
-  private syncGroupSelectionOverlay(): void {
+  syncGroupSelectionOverlay(): void {
     const selectedGroups = Array.from(this.groupManager.selectedGroupIds)
       .map((id) => this.groupManager.getGroup(id))
       .filter((g): g is Group => g !== undefined);
-    this.groupSelectionOverlay.sync(selectedGroups, (id) =>
+    this.groupSelectionOverlay.sync(selectedGroups, (id: string) =>
       this.shapeManager.getAll().find((e) => e.id === id),
     );
   }

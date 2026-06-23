@@ -1,18 +1,18 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SelectionState } from '@/selection/SelectionState';
-import type { SpatialGrid } from '@/selection/SpatialGrid';
+import type { SpatialGrid } from '@/spatial/SpatialGrid';
 import type { Camera } from '@/camera/Camera';
 import { DEFAULT_SELECTION_SHORTCUTS } from '@/selection/selection-defaults';
 import type { SelectionShortcuts } from '@/selection/selection-defaults';
-import { DragHandler } from '@/selection/DragHandler';
-import { GroupSelectionHandler } from '@/selection/GroupSelectionHandler';
-import { SelectionOverlay } from '@/selection/SelectionOverlay';
-import type { TransformHandler } from '@/selection/TransformHandler';
-import { PathNodeHandler } from '@/selection/PathNodeHandler';
+import { DragHandler } from '@/selection/drag';
+import { GroupSelectionHandler } from '@/selection/handlers/GroupSelectionHandler';
+import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
+import type { TransformHandler } from '@/selection/transform/TransformHandler';
+import { PathNodeHandler } from '@/selection/handlers/PathNodeHandler';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { SelectionGesture } from '@/commands/types';
-import { hitTestPoint } from '@/utils/hit-test';
-import { pointToSegmentDist } from '@/utils/geometry-utils';
+import { hitTestByPoint as hitTestPoint } from '@/spatial/hit-test';
+import { pointToSegmentDist } from '@/spatial/geometry-utils';
 import {
   createSelectPickCommand,
   createSelectRectCommand,

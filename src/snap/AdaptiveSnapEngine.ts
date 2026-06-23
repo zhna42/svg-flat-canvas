@@ -45,7 +45,7 @@ const FAST_SPEED = 14;
 
 const VELOCITY_SMOOTH = 0.35;
 
-export class SvgSnap {
+export class AdaptiveSnapEngine {
   private active: Partial<Record<SnapAxis, boolean>> = {};
 
   private snapLines: SnapLine[] = [];

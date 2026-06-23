@@ -1,6 +1,7 @@
 import type { Point, BoundingBox } from '@/types';
+import type { HandlePosition } from '@/selection/overlay/SelectionOverlay';
 
-export type HandlePosition = 'e' | 'ne' | 'n' | 'nw' | 'w' | 'sw' | 's' | 'se';
+export type { HandlePosition };
 
 export class InteractionPoints {
   public getHandles(bbox: BoundingBox): Map<HandlePosition, Point> {

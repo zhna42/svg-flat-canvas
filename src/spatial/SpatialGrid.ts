@@ -2,7 +2,7 @@ export class SpatialGrid {
   private cellSize: number;
   private cells: Map<number, Map<string, Set<string>>> = new Map();
 
-  public constructor(_width?: number, _height?: number, cellSize = 100) {
+  public constructor(cellSize = 100) {
     this.cellSize = cellSize;
   }
 

@@ -2,7 +2,7 @@ import type { Point } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/spatial/SpatialGrid';
 
-const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
+export const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
   let inside = false;
   const n = poly.length;
   for (let i = 0, j = n - 1; i < n; j = i++) {
@@ -17,7 +17,7 @@ const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
   return inside;
 };
 
-const rectContainsPoly = (
+export const rectContainsPoly = (
   rx: number,
   ry: number,
   rw: number,
@@ -77,7 +77,7 @@ const segmentIntersectsRect = (
   }
 };
 
-const rectIntersectsPoly = (
+export const rectIntersectsPoly = (
   rx: number,
   ry: number,
   rw: number,
@@ -112,14 +112,14 @@ const rectIntersectsPoly = (
   return false;
 };
 
-const polyInPoly = (outer: Point[], inner: Point[]): boolean => {
+export const polyInPoly = (outer: Point[], inner: Point[]): boolean => {
   for (const p of inner) {
     if (!pointInPolygon(p.x, p.y, outer)) return false;
   }
   return true;
 };
 
-export const hitTestPoint = (
+export const hitTestByPoint = (
   px: number,
   py: number,
   elements: AbstractGraphicElement[],
@@ -140,7 +140,7 @@ export const hitTestPoint = (
   return hits;
 };
 
-export const hitTestRect = (
+export const hitTestByRect = (
   rx: number,
   ry: number,
   rw: number,
@@ -162,7 +162,7 @@ export const hitTestRect = (
   });
 };
 
-export const hitTestLasso = (
+export const hitTestByLasso = (
   lassoPoints: Point[],
   elements: AbstractGraphicElement[],
   grid: SpatialGrid,
@@ -190,7 +190,7 @@ export const hitTestLasso = (
   });
 };
 
-const segmentIntersectsSegment = (
+export const segmentIntersectsSegment = (
   a: Point,
   b: Point,
   c: Point,
@@ -207,7 +207,7 @@ const segmentIntersectsSegment = (
   return t >= 0 && t <= 1 && u >= 0 && u <= 1;
 };
 
-const polyIntersectsPoly = (polyA: Point[], polyB: Point[]): boolean => {
+export const polyIntersectsPoly = (polyA: Point[], polyB: Point[]): boolean => {
   for (const p of polyA) {
     if (pointInPolygon(p.x, p.y, polyB)) return true;
   }
@@ -223,13 +223,4 @@ const polyIntersectsPoly = (polyA: Point[], polyB: Point[]): boolean => {
     }
   }
   return false;
-};
-
-export {
-  pointInPolygon,
-  rectContainsPoly,
-  rectIntersectsPoly,
-  polyInPoly,
-  polyIntersectsPoly,
-  segmentIntersectsSegment,
 };

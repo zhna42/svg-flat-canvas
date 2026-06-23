@@ -6,7 +6,7 @@ import {
   flattenCommands,
   parseD,
   transformCommands,
-} from '@/utils/path-utils';
+} from '@/spatial/path-utils';
 
 export interface NodeEditPoint {
   x: number;

@@ -1,5 +1,5 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { HandlePosition } from './SelectionOverlay';
+import type { HandlePosition } from '../overlay/SelectionOverlay';
 import type { Camera } from '@/camera/Camera';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { Point } from '@/types';

@@ -2,7 +2,7 @@ import { SVG_NS } from '@/constants';
 import type { Camera } from '@/camera/Camera';
 import type { Group } from '@/group/Group';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import { computeGroupWorldBBox } from '@/utils/group-bbox-utils';
+import { computeGroupWorldBBox } from '@/spatial/group-bbox-utils';
 
 export class GroupSelectionOverlay {
   private readonly group: SVGGElement;
