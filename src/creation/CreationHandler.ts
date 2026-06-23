@@ -305,6 +305,15 @@ export class CreationHandler {
 
   public addPointToMulti(worldPoint: Point): void {
     if (!this.currentPreview) return;
+
+    const lastPt = this.multiPointPoints[this.multiPointPoints.length - 1];
+    if (
+      this.multiPointPoints.length > 1 &&
+      lastPt &&
+      Math.hypot(worldPoint.x - lastPt.x, worldPoint.y - lastPt.y) < 3
+    )
+      return;
+
     const type = this.currentPreview.type;
     if (type === 'polyline' || type === 'polygon') {
       this.multiPointPoints.push({ x: worldPoint.x, y: worldPoint.y });
