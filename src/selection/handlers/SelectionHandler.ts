@@ -410,7 +410,7 @@ export class SelectionHandler {
       }
 
       if (this.opts.transformHandler.isActive) {
-        this.opts.transformHandler.move(worldPt);
+        this.opts.transformHandler.move(worldPt, e.shiftKey);
         return;
       }
 

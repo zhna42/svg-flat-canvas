@@ -137,6 +137,13 @@ export class CanvasFactory {
       updateOverlay();
     };
 
+    transformHandler.onTransformMove = () => {
+      const selected = selectionState.selected;
+      if (selected.length > 0) {
+        selectionOverlay.setPositions(selected);
+      }
+    };
+
     camera.onChange = () => {
       const selected = selectionState.selected;
       if (selected.length > 0) {

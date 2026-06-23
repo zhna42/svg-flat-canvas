@@ -228,9 +228,14 @@ export class SvgCanvas {
     return this.timeMachine.canRedo;
   }
 
-  public startTransform(_mode: TransformMode): void {
+  public setTransformMode(mode: TransformMode): void {
+    this.transformHandler.setMode(mode);
+  }
+
+  public startTransform(mode: TransformMode): void {
     const selected = this.selectionState.selected;
     if (selected.length === 0) return;
+    this.transformHandler.setMode(mode);
     const bbox = selected[0].getTransformedBBox();
     this.transformHandler.tryStart(
       'se',

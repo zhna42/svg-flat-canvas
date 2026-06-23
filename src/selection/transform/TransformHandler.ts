@@ -30,11 +30,14 @@ const HANDLE_FLIP: Record<string, { x: number; y: number }> = {
 
 export class TransformHandler {
   private _active = false;
+  private mode: TransformMode = 'resize';
   private handle: HandlePosition = 'se';
   private targets: AbstractGraphicElement[] = [];
   private startWorldPoint: Point = { x: 0, y: 0 };
   private startMatrices = new Map<string, DOMMatrix>();
   private anchorWorldPoints = new Map<string, Point>();
+  private rotationCenter: Point = { x: 0, y: 0 };
+  private startAngle = 0;
   private bus: CommandBus;
 
   public onTransformStart: ((mode: TransformMode) => void) | null = null;
@@ -47,6 +50,10 @@ export class TransformHandler {
 
   public get isActive(): boolean {
     return this._active;
+  }
+
+  public setMode(mode: TransformMode): void {
+    this.mode = mode;
   }
 
   public tryStart(
@@ -62,63 +69,89 @@ export class TransformHandler {
     this.startMatrices.clear();
     this.anchorWorldPoints.clear();
 
-    const anchorCorner = HANDLE_TO_ANCHOR[handle];
-
-    console.log(
-      '[TransformHandler] tryStart handle:',
-      handle,
-      'anchor:',
-      anchorCorner,
-    );
-
     for (const el of currentSelected) {
       const startMatrix = new DOMMatrix(el.transform.matrix.toString());
       this.startMatrices.set(el.id, startMatrix);
+    }
 
-      const localBBox = this.getLocalBBox(el);
-      const anchorGlobal = this.getCornerGlobal(
-        localBBox,
-        startMatrix,
-        anchorCorner,
-      );
-      this.anchorWorldPoints.set(el.id, anchorGlobal);
-
-      console.log(
-        '[TransformHandler] element:',
-        el.id,
-        'localBBox:',
-        localBBox,
-        'matrix:',
-        startMatrix.toString(),
-      );
+    if (this.mode === 'rotate') {
+      let cx = 0;
+      let cy = 0;
+      let count = 0;
+      for (const el of this.targets) {
+        const sm = this.startMatrices.get(el.id);
+        if (!sm) continue;
+        const center = el.getCenter();
+        cx += center.x;
+        cy += center.y;
+        count++;
+      }
+      if (count > 0) {
+        this.rotationCenter = { x: cx / count, y: cy / count };
+      }
+      this.startAngle =
+        Math.atan2(
+          worldPoint.y - this.rotationCenter.y,
+          worldPoint.x - this.rotationCenter.x,
+        ) *
+        (180 / Math.PI);
+    } else {
+      const anchorCorner = HANDLE_TO_ANCHOR[handle];
+      for (const el of currentSelected) {
+        const startMatrix = this.startMatrices.get(el.id)!;
+        const localBBox = this.getLocalBBox(el);
+        const anchorGlobal = this.getCornerGlobal(
+          localBBox,
+          startMatrix,
+          anchorCorner,
+        );
+        this.anchorWorldPoints.set(el.id, anchorGlobal);
+      }
     }
 
     this._active = true;
-    this.onTransformStart?.('resize');
+    this.onTransformStart?.(this.mode);
     return true;
   }
 
-  public move(worldPoint: { x: number; y: number }): void {
+  public move(worldPoint: { x: number; y: number }, shiftHeld = false): void {
     if (!this._active) return;
-    const totalDx = worldPoint.x - this.startWorldPoint.x;
-    const totalDy = worldPoint.y - this.startWorldPoint.y;
-    console.log(
-      '[TransformHandler] move handle:',
-      this.handle,
-      'worldPt:',
-      worldPoint,
-      'totalDx:',
-      totalDx.toFixed(2),
-      'totalDy:',
-      totalDy.toFixed(2),
-    );
-    this.applyResize(totalDx, totalDy);
+
+    if (this.mode === 'rotate') {
+      const currentAngle =
+        Math.atan2(
+          worldPoint.y - this.rotationCenter.y,
+          worldPoint.x - this.rotationCenter.x,
+        ) *
+        (180 / Math.PI);
+      let delta = currentAngle - this.startAngle;
+      if (shiftHeld) {
+        const step = 15;
+        delta = Math.round(delta / step) * step;
+      }
+      this.applyRotate(delta);
+    } else {
+      const totalDx = worldPoint.x - this.startWorldPoint.x;
+      const totalDy = worldPoint.y - this.startWorldPoint.y;
+      this.applyResize(totalDx, totalDy);
+    }
+
     this.onTransformMove?.();
+  }
+
+  private applyRotate(deltaAngle: number): void {
+    for (const el of this.targets) {
+      const startMatrix = this.startMatrices.get(el.id);
+      if (!startMatrix) continue;
+      const localCenter = el.getLocalCenter();
+      el.transform.applyRotate(deltaAngle, localCenter, startMatrix);
+      el.markRenderKey('matrix');
+      el.setDirtyTransform();
+    }
   }
 
   public end(): void {
     if (!this._active) return;
-    console.log('[TransformHandler] end handle:', this.handle);
     this._active = false;
     for (const el of this.targets) {
       el.buildHitArea();
@@ -127,7 +160,7 @@ export class TransformHandler {
 
     const ids = this.targets.map((e) => e.id);
     this.bus.getTimeMachine().push(
-      'RESIZE',
+      this.mode === 'rotate' ? 'ROTATE' : 'RESIZE',
       ids,
       'element',
       [],
@@ -136,7 +169,7 @@ export class TransformHandler {
 
     this.startMatrices.clear();
     this.anchorWorldPoints.clear();
-    this.onTransformEnd?.('resize');
+    this.onTransformEnd?.(this.mode);
   }
 
   public abort(): void {

@@ -447,4 +447,8 @@ export class ExternalApi {
       this.canvas.setActiveCreationTool(type as any);
     }
   }
+
+  public setTransformMode(mode: 'resize' | 'rotate'): void {
+    this.canvas.setTransformMode(mode);
+  }
 }
