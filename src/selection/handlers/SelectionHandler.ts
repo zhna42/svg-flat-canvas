@@ -144,9 +144,13 @@ export class SelectionHandler {
 
   private flushPathTimeMachine(): void {
     if (!this.pathTimeMachine) return;
-    const commands = this.pathTimeMachine.getFinalCommands();
     const editingPath = this.opts.getEditingPath?.();
-    if (editingPath) {
+    if (editingPath && editingPath.type === 'path') {
+      const pathEl = editingPath as any as import('@/shapes/elements/PathElement').PathElement;
+      const commands = pathEl.geometry.commands.map((c: any) => ({
+        ...c,
+        args: [...c.args],
+      }));
       this.opts.bus.suppressTimeMachine = false;
       this.opts.bus.execute({
         type: 'GEOMETRY_MUTATE',
