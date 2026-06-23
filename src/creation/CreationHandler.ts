@@ -354,7 +354,6 @@ export class CreationHandler {
           last.args = [worldPoint.x, worldPoint.y];
         }
 
-        // Замыкание контура, если точка финиша рядом со стартовой M
         const first = cmds[0];
         if (first.command === 'M' && first.args.length >= 2) {
           const dx = worldPoint.x - first.args[0];
@@ -367,13 +366,46 @@ export class CreationHandler {
             path.setDirtyGeometry();
           }
         }
-      } else {
-        const poly = el as PolylineElement | PolygonElement;
-        const pts = [...this.multiPointPoints, { x: worldPoint.x, y: worldPoint.y }];
-        poly.points = pointsToString(pts);
-        poly.markRenderKey('points');
-        poly.buildHitArea();
-        poly.setDirtyGeometry();
+      } else if (el.type === 'polyline' || el.type === 'polygon') {
+        const firstPt = this.multiPointPoints[0];
+        const dx = worldPoint.x - firstPt.x;
+        const dy = worldPoint.y - firstPt.y;
+        if (Math.hypot(dx, dy) < 10) {
+          const closePoints = this.multiPointPoints.slice(0, -1);
+          const poly = el as PolylineElement | PolygonElement;
+          poly.points = pointsToString(closePoints);
+          poly.markRenderKey('points');
+          poly.buildHitArea();
+          poly.setDirtyGeometry();
+
+          if (el.type === 'polyline') {
+            this.removeFromScene(el);
+            const polygon = new PolygonElement(el.id);
+            polygon.points = poly.points;
+            polygon.transform.matrix = new DOMMatrix(el.transform.matrix.toString());
+            polygon.setFill(el.style.fill);
+            polygon.setStroke(el.style.stroke);
+            polygon.setStrokeWidth(el.style.strokeWidth);
+            polygon.setOpacity(el.style.opacity);
+            polygon.setIsPreview(false);
+            this.bus.execute({
+              type: 'CREATE',
+              options: { element: polygon },
+            });
+            this.onElementFinalize?.(polygon);
+            this.onCreationEnd?.(polygon);
+            this.currentPreview = null;
+            this.multiPointPoints = [];
+            return;
+          }
+        } else {
+          const poly = el as PolylineElement | PolygonElement;
+          const pts = [...this.multiPointPoints, { x: worldPoint.x, y: worldPoint.y }];
+          poly.points = pointsToString(pts);
+          poly.markRenderKey('points');
+          poly.buildHitArea();
+          poly.setDirtyGeometry();
+        }
       }
     }
 
