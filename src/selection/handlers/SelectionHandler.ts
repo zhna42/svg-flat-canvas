@@ -38,6 +38,7 @@ export interface SelectionHandlerOptions {
   grid: SpatialGrid;
   bus: CommandBus;
   isPanning?: () => boolean;
+  isCreating?: () => boolean;
   shortcuts?: Partial<SelectionShortcuts>;
   getGroupIdForElement?: (elementId: string) => string | undefined;
   getArtboardRect?: () => {
@@ -218,6 +219,8 @@ export class SelectionHandler {
 
     rootSvg.addEventListener('mousedown', (e: MouseEvent) => {
       if (e.button !== 0) return;
+
+      if (this.opts.isCreating?.()) return;
 
       if (this.opts.isPanning?.()) {
         panning = true;

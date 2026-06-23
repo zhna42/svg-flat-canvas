@@ -111,6 +111,18 @@ export class CanvasFactory {
     c.panActive = panActive;
     c.events = events;
 
+    const creationHandler = new CreationHandler(
+      svg,
+      camera,
+      commandBus,
+      (el) => canvas.addShape(el),
+      (el) => shapeManager.remove(el.id),
+    );
+    creationHandler.onElementFinalize = (el) => {
+      canvas.indexShape(el);
+    };
+    c.creationHandler = creationHandler;
+
     function updateOverlay(): void {
       const selected = selectionState.selected;
       if (selected.length > 0) {
@@ -179,6 +191,7 @@ export class CanvasFactory {
       grid: spatialGrid,
       bus: commandBus,
       isPanning: () => panActive.value,
+      isCreating: () => creationHandler.isActive,
       getGroupIdForElement: (elementId) =>
         groupManager.getGroupByElement(elementId)?.id,
       onGroupSelect,
@@ -300,18 +313,6 @@ export class CanvasFactory {
 
     c.selectionHandler = selectionHandler;
     c.groupManager = groupManager;
-
-    const creationHandler = new CreationHandler(
-      svg,
-      camera,
-      commandBus,
-      (el) => canvas.addShape(el),
-      (el) => shapeManager.remove(el.id),
-    );
-    creationHandler.onElementFinalize = (el) => {
-      canvas.indexShape(el);
-    };
-    c.creationHandler = creationHandler;
 
     const externalApi = new ExternalApi(canvas);
     c._externalApi = externalApi;
