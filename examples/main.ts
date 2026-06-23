@@ -161,7 +161,8 @@ svgEl.addEventListener('wheel', (e: WheelEvent) => {
   if (!ctm) return;
   const svgPt = point.matrixTransform(ctm.inverse());
   const cam = canvas.getCamera();
-  const factor = e.deltaY < 0 ? 1.06 : 0.943;
+  const speed = 0.12 * (1 + 5 / (cam.zoom + 0.8));
+  const factor = e.deltaY < 0 ? 1 + speed : 1 / (1 + speed);
   const targetZoom = Math.max(0.05, Math.min(cam.zoom * factor, 50));
   zoomTarget = { x: svgPt.x, y: svgPt.y, zoom: targetZoom };
 

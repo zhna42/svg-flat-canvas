@@ -67,9 +67,6 @@ export class SelectionOverlayElement {
     this._x = x - padding;
     this._y = y - padding;
     this._angle = angle;
-    const cx = this._x + this._width / 2;
-    const cy = this._y + this._height / 2;
-    this._transformStr = `translate(${cx}, ${cy}) rotate(${angle}) translate(${-cx}, ${-cy})`;
     this._dirtyTransform = true;
     getRenderQueue()?.addOverlay(this);
   }
@@ -84,9 +81,6 @@ export class SelectionOverlayElement {
   public translateBy(dx: number, dy: number): void {
     this._x += dx;
     this._y += dy;
-    const cx = this._x + this._width / 2;
-    const cy = this._y + this._height / 2;
-    this._transformStr = `translate(${cx}, ${cy}) rotate(${this._angle}) translate(${-cx}, ${-cy})`;
     this._dirtyTransform = true;
     getRenderQueue()?.addOverlay(this);
   }
@@ -108,11 +102,8 @@ export class SelectionOverlayElement {
 
   public flushToDOM(): void {
     if (this._dirtyTransform) {
-      if (this._transformStr) {
-        this.group.setAttribute('transform', this._transformStr);
-      } else {
-        this.group.removeAttribute('transform');
-      }
+      this._transformStr = `translate(${this._x}, ${this._y}) rotate(${this._angle}, ${2}, ${2})`;
+      this.group.setAttribute('transform', this._transformStr);
       this.group.setAttribute(
         'visibility',
         this._visible ? 'visible' : 'hidden',
