@@ -204,6 +204,7 @@ export class SvgCanvas {
   }
 
   public undo(): void {
+    if (this._editingPath) return;
     this.selectionState.clear();
     this.groupManager.clearSelectedGroups();
     this.groupSelectionOverlay.clear();
@@ -212,6 +213,7 @@ export class SvgCanvas {
   }
 
   public redo(): void {
+    if (this._editingPath) return;
     this.selectionState.clear();
     this.groupManager.clearSelectedGroups();
     this.groupSelectionOverlay.clear();

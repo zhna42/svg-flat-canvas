@@ -147,14 +147,26 @@ export class SelectionHandler {
     const editingPath = this.opts.getEditingPath?.();
     if (editingPath && editingPath.type === 'path') {
       const pathEl = editingPath as any as import('@/shapes/elements/PathElement').PathElement;
-      const commands = pathEl.geometry.commands.map((c: any) => ({
+      const postCommands = pathEl.geometry.commands.map((c: any) => ({
         ...c,
         args: [...c.args],
       }));
+
+      const initialSnapshot = this.pathTimeMachine.getRootCommands();
+      if (initialSnapshot) {
+        pathEl.geometry.commands = initialSnapshot.map((c: any) => ({
+          ...c,
+          args: [...c.args],
+        }));
+        pathEl.markRenderKey('d');
+        pathEl.buildHitArea();
+        pathEl.setDirtyGeometry();
+      }
+
       this.opts.bus.suppressTimeMachine = false;
       this.opts.bus.execute({
         type: 'GEOMETRY_MUTATE',
-        options: { id: editingPath.id, newCommands: commands },
+        options: { id: editingPath.id, newCommands: postCommands },
       });
     }
     this.pathTimeMachine.clear();
@@ -838,16 +850,24 @@ export class SelectionHandler {
           this.dispatchSelectClear();
           this.opts.onGroupSelect?.([]);
         }
-      } else if (this.pathTimeMachine && (e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        this.pathTimeMachine.undo();
-        const editingPath = this.opts.getEditingPath?.();
-        if (editingPath) this.opts.selectionOverlay.updatePathNodes(editingPath);
-      } else if (this.pathTimeMachine && (e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
-        e.preventDefault();
-        this.pathTimeMachine.redo();
-        const editingPath = this.opts.getEditingPath?.();
-        if (editingPath) this.opts.selectionOverlay.updatePathNodes(editingPath);
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        if (this.pathTimeMachine) {
+          e.preventDefault();
+          this.pathTimeMachine.undo();
+          const editingPath = this.opts.getEditingPath?.();
+          if (editingPath) this.opts.selectionOverlay.updatePathNodes(editingPath);
+        } else if (this.opts.getEditingPath?.()) {
+          e.preventDefault();
+        }
+      } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+        if (this.pathTimeMachine) {
+          e.preventDefault();
+          this.pathTimeMachine.redo();
+          const editingPath = this.opts.getEditingPath?.();
+          if (editingPath) this.opts.selectionOverlay.updatePathNodes(editingPath);
+        } else if (this.opts.getEditingPath?.()) {
+          e.preventDefault();
+        }
       }
     });
   }

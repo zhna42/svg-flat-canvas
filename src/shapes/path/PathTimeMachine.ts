@@ -62,6 +62,13 @@ export class PathTimeMachine {
     }));
   }
 
+  public getRootCommands(): PathCommand[] {
+    return this.records[0].map((c) => ({
+      ...c,
+      args: [...c.args],
+    }));
+  }
+
   public clear(): void {
     this.records = [];
     this.index = -1;
