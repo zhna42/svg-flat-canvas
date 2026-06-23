@@ -114,15 +114,17 @@ export class TimeMachine {
 
   public undo(): void {
     if (!this.canUndo) return;
+
+    const current = this.records[this.index];
     this.index--;
+
     if (this.index === -1) {
-      if (this.root) this.applySnapshot(this.root, true);
-      this.onUpdate?.();
-      this.log('undo');
-      return;
+      if (this.root) this.applyState(this.root);
+    } else {
+      this.applyState(this.records[this.index]);
     }
-    const snapshot = this.records[this.index];
-    this.applySnapshot(snapshot, true);
+
+    this.reverseCommand(current);
     this.onUpdate?.();
     this.log('undo');
   }
@@ -131,7 +133,8 @@ export class TimeMachine {
     if (!this.canRedo) return;
     this.index++;
     const snapshot = this.records[this.index];
-    this.applySnapshot(snapshot, false);
+    this.applyState(snapshot);
+    this.forwardCommand(snapshot);
     this.onUpdate?.();
     this.log('redo');
   }
@@ -148,7 +151,7 @@ export class TimeMachine {
       const restore = this.root;
       this.records = [];
       this.index = -1;
-      this.applySnapshot(restore, false);
+      this.applyState(restore);
     }
     this.onUpdate?.();
   }
@@ -170,25 +173,45 @@ export class TimeMachine {
     this.log('fromJSON');
   }
 
-  private applySnapshot(snapshot: TimeSnapshot, isUndo: boolean): void {
-    const create = isUndo ? (snapshot.command === 'DELETE') : (snapshot.command === 'CREATE' || snapshot.command === 'CREATE_FILE');
-    const remove = isUndo ? (snapshot.command === 'CREATE' || snapshot.command === 'CREATE_FILE') : (snapshot.command === 'DELETE');
-
+  private applyState(snapshot: TimeSnapshot): void {
     for (const entry of snapshot.data) {
-      if (create) {
+      const existing = this.shapeManager.getById(entry.id);
+      if (existing) {
+        existing.applySnapshot(entry.diff);
+      }
+    }
+  }
+
+  private reverseCommand(snapshot: TimeSnapshot): void {
+    if (snapshot.command === 'CREATE' || snapshot.command === 'CREATE_FILE') {
+      for (const entry of snapshot.data) {
+        this.shapeManager.removeElementAndNode(entry.id);
+      }
+    } else if (snapshot.command === 'DELETE') {
+      for (const entry of snapshot.data) {
         const el = createElementByType(entry.diff.type as string, entry.id);
         if (el) {
           el.applySnapshot(entry.diff);
           el.buildHitArea();
           this.shapeManager.addElement(el);
         }
-      } else if (remove) {
-        this.shapeManager.removeElementAndNode(entry.id);
-      } else {
-        const existing = this.shapeManager.getById(entry.id);
-        if (existing) {
-          existing.applySnapshot(entry.diff);
+      }
+    }
+  }
+
+  private forwardCommand(snapshot: TimeSnapshot): void {
+    if (snapshot.command === 'CREATE' || snapshot.command === 'CREATE_FILE') {
+      for (const entry of snapshot.data) {
+        const el = createElementByType(entry.diff.type as string, entry.id);
+        if (el) {
+          el.applySnapshot(entry.diff);
+          el.buildHitArea();
+          this.shapeManager.addElement(el);
         }
+      }
+    } else if (snapshot.command === 'DELETE') {
+      for (const entry of snapshot.data) {
+        this.shapeManager.removeElementAndNode(entry.id);
       }
     }
   }

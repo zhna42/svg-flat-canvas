@@ -145,20 +145,7 @@ export class CreationHandler {
     if (!this.currentPreview) return false;
 
     if (e.key === 'Escape') {
-      const el = this.currentPreview;
-      if (
-        el.type === 'polyline' ||
-        el.type === 'polygon' ||
-        el.type === 'path'
-      ) {
-        if (this.multiPointPoints.length <= 1) {
-          this.abort();
-        } else {
-          this.finishMulti();
-        }
-      } else {
-        this.abort();
-      }
+      this.abort();
       e.preventDefault();
       return true;
     }
