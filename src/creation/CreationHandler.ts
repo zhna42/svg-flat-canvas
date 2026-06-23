@@ -345,6 +345,8 @@ export class CreationHandler {
       return;
     }
 
+    let closed = false;
+
     if (worldPoint) {
       if (el.type === 'path') {
         const path = el as PathElement;
@@ -358,19 +360,20 @@ export class CreationHandler {
         if (first.command === 'M' && first.args.length >= 2) {
           const dx = worldPoint.x - first.args[0];
           const dy = worldPoint.y - first.args[1];
-          if (Math.hypot(dx, dy) < 10) {
+          if (Math.hypot(dx, dy) < 20) {
             cmds.pop();
             cmds.push({ command: 'Z', args: [] });
             path.markRenderKey('d');
             path.buildHitArea();
             path.setDirtyGeometry();
+            closed = true;
           }
         }
       } else if (el.type === 'polyline' || el.type === 'polygon') {
         const firstPt = this.multiPointPoints[0];
         const dx = worldPoint.x - firstPt.x;
         const dy = worldPoint.y - firstPt.y;
-        if (Math.hypot(dx, dy) < 10) {
+        if (Math.hypot(dx, dy) < 20) {
           const closePoints = this.multiPointPoints.slice(0, -1);
           const poly = el as PolylineElement | PolygonElement;
           poly.points = pointsToString(closePoints);
@@ -412,7 +415,8 @@ export class CreationHandler {
     // Убираем последнюю временную команду L (резиновую нить) у path
     // Если передан worldPoint (dblclick), последняя L уже зафиксирована — удаляем предыдущую L
     // Если worldPoint нет (Enter), удаляем последнюю L (она всё ещё резиновая)
-    if (el.type === 'path') {
+    // Если контур уже замкнут (closed), пропускаем очистку
+    if (!closed && el.type === 'path') {
       const path = el as PathElement;
       const cmds = path.geometry.commands;
       if (cmds.length > 1) {
