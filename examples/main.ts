@@ -8,6 +8,8 @@ const canvas = new SvgCanvas(document.getElementById('canvas-container')!, {
   height: 600,
 });
 
+const api = canvas.getExternalApi();
+
 canvas.setArtboardSize(210, 297);
 
 const log = document.getElementById('info')!;
@@ -338,6 +340,25 @@ document.getElementById('btn-transform-matrix')!.onclick = () => {
   info(`Applied matrix skew to ${el.id}`);
 };
 
+// ----- handle mode toggle -----
+let handleMode: 'resize' | 'rotate' = 'resize';
+document.getElementById('btn-handle-resize')!.onclick = () => {
+  handleMode = 'resize';
+  canvas.setTransformMode('resize');
+  api.setTransformMode('resize');
+  document.getElementById('btn-handle-resize')!.classList.add('active');
+  document.getElementById('btn-handle-rotate')!.classList.remove('active');
+  info('Handle mode: resize');
+};
+document.getElementById('btn-handle-rotate')!.onclick = () => {
+  handleMode = 'rotate';
+  canvas.setTransformMode('rotate');
+  api.setTransformMode('rotate');
+  document.getElementById('btn-handle-rotate')!.classList.add('active');
+  document.getElementById('btn-handle-resize')!.classList.remove('active');
+  info('Handle mode: rotate');
+};
+
 // ----- delete keyboard -----
 window.addEventListener('keydown', (e: KeyboardEvent) => {
   if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -423,5 +444,4 @@ document.querySelectorAll('.tool-btn').forEach((btn) => {
 setActiveTool('select');
 
 // External API — доступна из консоли
-const api = canvas.getExternalApi();
 (window as any).api = api;
