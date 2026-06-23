@@ -35,12 +35,15 @@ export class TransformHandler {
   private startWorldPoint: Point = { x: 0, y: 0 };
   private startMatrices = new Map<string, DOMMatrix>();
   private anchorWorldPoints = new Map<string, Point>();
+  private bus: CommandBus;
 
   public onTransformStart: ((mode: TransformMode) => void) | null = null;
   public onTransformMove: (() => void) | null = null;
   public onTransformEnd: ((mode: TransformMode) => void) | null = null;
 
-  public constructor(_camera: Camera, _bus: CommandBus) {}
+  public constructor(_camera: Camera, bus: CommandBus) {
+    this.bus = bus;
+  }
 
   public get isActive(): boolean {
     return this._active;
@@ -121,6 +124,16 @@ export class TransformHandler {
       el.buildHitArea();
       el.setDirtyAll();
     }
+
+    const ids = this.targets.map((e) => e.id);
+    this.bus.getTimeMachine().push(
+      'RESIZE',
+      ids,
+      'element',
+      [],
+      this.targets,
+    );
+
     this.startMatrices.clear();
     this.anchorWorldPoints.clear();
     this.onTransformEnd?.('resize');
