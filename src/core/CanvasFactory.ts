@@ -193,9 +193,12 @@ export class CanvasFactory {
         dragOverlayDx = dx;
         dragOverlayDy = dy;
         const zoom = camera.zoom;
+        const screenDx = frameDx * zoom;
+        const screenDy = frameDy * zoom;
         for (const overlayEl of selectionOverlay.getOverlayElements()) {
-          overlayEl.translateBy(frameDx * zoom, frameDy * zoom);
+          overlayEl.translateBy(screenDx, screenDy);
         }
+        groupSelectionOverlay.translateBy(screenDx, screenDy);
       },
       onDragEnd: () => {
         dragOverlayDx = 0;

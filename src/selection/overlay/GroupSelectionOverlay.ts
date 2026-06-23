@@ -53,6 +53,15 @@ export class GroupSelectionOverlay {
     }
   }
 
+  public translateBy(dx: number, dy: number): void {
+    for (const [, rect] of this.rects) {
+      const x = parseFloat(rect.getAttribute('x') || '0') + dx;
+      const y = parseFloat(rect.getAttribute('y') || '0') + dy;
+      rect.setAttribute('x', String(x));
+      rect.setAttribute('y', String(y));
+    }
+  }
+
   public clear(): void {
     for (const rect of this.rects.values()) {
       rect.remove();
