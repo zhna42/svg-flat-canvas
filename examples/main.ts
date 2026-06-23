@@ -94,14 +94,24 @@ document.getElementById('btn-debug-hitarea')!.onclick = () => {
 };
 
 // ----- snap toggles -----
-let snapElements = false;
-document.getElementById('btn-snap-elements')!.onclick = () => {
-  snapElements = !snapElements;
-  canvas.setSnapToElements(snapElements);
-  const btn = document.getElementById('btn-snap-elements')!;
-  btn.textContent = snapElements ? 'Snap elements: on' : 'Snap elements: off';
-  btn.classList.toggle('active', snapElements);
-  info(snapElements ? 'Snap to elements: ON' : 'Snap to elements: OFF');
+let snapCorners = false;
+document.getElementById('btn-snap-corners')!.onclick = () => {
+  snapCorners = !snapCorners;
+  canvas.setSnapToCorners(snapCorners);
+  const btn = document.getElementById('btn-snap-corners')!;
+  btn.textContent = snapCorners ? 'Snap corners: on' : 'Snap corners: off';
+  btn.classList.toggle('active', snapCorners);
+  info(snapCorners ? 'Snap to corners: ON' : 'Snap to corners: OFF');
+};
+
+let snapPlanes = false;
+document.getElementById('btn-snap-planes')!.onclick = () => {
+  snapPlanes = !snapPlanes;
+  canvas.setSnapToPlanes(snapPlanes);
+  const btn = document.getElementById('btn-snap-planes')!;
+  btn.textContent = snapPlanes ? 'Snap planes: on' : 'Snap planes: off';
+  btn.classList.toggle('active', snapPlanes);
+  info(snapPlanes ? 'Snap to planes: ON' : 'Snap to planes: OFF');
 };
 
 let snapArtboard = false;

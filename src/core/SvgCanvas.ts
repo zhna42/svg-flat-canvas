@@ -627,8 +627,12 @@ export class SvgCanvas {
     el.setDirtyTransform();
   }
 
-  public setSnapToElements(enabled: boolean): void {
-    this.selectionHandler.setSnapEnabled(enabled);
+  public setSnapToCorners(enabled: boolean): void {
+    this.selectionHandler.setSnapToCorners(enabled);
+  }
+
+  public setSnapToPlanes(enabled: boolean): void {
+    this.selectionHandler.setSnapToPlanes(enabled);
   }
 
   public setSnapToArtboard(enabled: boolean): void {

@@ -414,8 +414,12 @@ export class ExternalApi {
     this.canvas.events.emit('SVG_CAD_PAN_MODE_CHANGED', { enabled });
   }
 
-  public setSnapToElements(enabled: boolean): void {
-    this.canvas.setSnapToElements(enabled);
+  public setSnapToCorners(enabled: boolean): void {
+    this.canvas.setSnapToCorners(enabled);
+  }
+
+  public setSnapToPlanes(enabled: boolean): void {
+    this.canvas.setSnapToPlanes(enabled);
   }
 
   public setSnapToArtboard(enabled: boolean): void {

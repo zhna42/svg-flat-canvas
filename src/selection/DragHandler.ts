@@ -3,9 +3,14 @@ import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/camera/Camera';
 import type { Point } from '@/types';
 import type { SpatialGrid } from '@/selection/SpatialGrid';
-import { SvgSnap } from '@/snap/SvgSnap';
+import {
+  SvgSnap,
+  type CurveTarget,
+  type ScreenBezierSeg,
+} from '@/snap/SvgSnap';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
 import { CircleElement } from '@/shapes/elements/CircleElement';
+import { EllipseElement } from '@/shapes/elements/EllipseElement';
 import { PathElement } from '@/shapes/elements/PathElement';
 import { flattenCommands } from '@/utils/path-utils';
 import {
@@ -197,6 +202,206 @@ function getVisualWorldPoints(
   return result;
 }
 
+function getScreenCurveTargets(
+  elements: AbstractGraphicElement[],
+  camera: Camera,
+): CurveTarget[] {
+  const targets: CurveTarget[] = [];
+  for (const el of elements) {
+    const halfSw = el.style.strokeWidth / 2;
+    if (el instanceof CircleElement) {
+      const geo = el.geometry;
+      const visualR = geo.r + halfSw;
+      const worldCenter = el.transformPoint({ x: geo.cx, y: geo.cy });
+      const worldEdge = el.transformPoint({ x: geo.cx + visualR, y: geo.cy });
+      const sc = camera.worldToScreen(worldCenter);
+      const se = camera.worldToScreen(worldEdge);
+      const screenR = Math.hypot(se.x - sc.x, se.y - sc.y);
+      if (screenR > 0) {
+        targets.push({
+          type: 'circle',
+          cx: sc.x,
+          cy: sc.y,
+          rx: screenR,
+          ry: screenR,
+        });
+      }
+    } else if (el instanceof EllipseElement) {
+      const geo = el.geometry;
+      const visualRx = geo.rx + halfSw;
+      const visualRy = geo.ry + halfSw;
+      const worldCenter = el.transformPoint({ x: geo.cx, y: geo.cy });
+      const worldRX = el.transformPoint({ x: geo.cx + visualRx, y: geo.cy });
+      const worldRY = el.transformPoint({ x: geo.cx, y: geo.cy + visualRy });
+      const sc = camera.worldToScreen(worldCenter);
+      const sx = camera.worldToScreen(worldRX);
+      const sy = camera.worldToScreen(worldRY);
+      const screenRx = Math.hypot(sx.x - sc.x, sx.y - sc.y);
+      const screenRy = Math.hypot(sy.x - sc.x, sy.y - sc.y);
+      if (screenRx > 0 && screenRy > 0) {
+        targets.push({
+          type: 'ellipse',
+          cx: sc.x,
+          cy: sc.y,
+          rx: screenRx,
+          ry: screenRy,
+        });
+      }
+    }
+  }
+  return targets;
+}
+
+function extractBezierTargets(
+  elements: AbstractGraphicElement[],
+  camera: Camera,
+): CurveTarget[] {
+  const targets: CurveTarget[] = [];
+  for (const el of elements) {
+    if (!(el instanceof PathElement)) continue;
+    const cmds = el.geometry.commands;
+    if (cmds.length === 0) continue;
+    const segs: ScreenBezierSeg[] = [];
+    let curX = 0;
+    let curY = 0;
+    let subStartX = 0;
+    let subStartY = 0;
+    let prevCmd = '';
+    for (const cmd of cmds) {
+      const c = cmd.command;
+      const a = cmd.args;
+      const isRel = c === c.toLowerCase();
+      if (c === 'M' || c === 'm') {
+        curX = isRel ? curX + a[0] : a[0];
+        curY = isRel ? curY + a[1] : a[1];
+        subStartX = curX;
+        subStartY = curY;
+      } else if (c === 'L' || c === 'l' || c === 'T' || c === 't') {
+        curX = isRel ? curX + (a[a.length - 2] ?? 0) : a[a.length - 2];
+        curY = isRel ? curY + (a[a.length - 1] ?? 0) : a[a.length - 1];
+      } else if (c === 'C' || c === 'c') {
+        const p0x = curX;
+        const p0y = curY;
+        const p1x = isRel ? curX + a[0] : a[0];
+        const p1y = isRel ? curY + a[1] : a[1];
+        const p2x = isRel ? curX + a[2] : a[2];
+        const p2y = isRel ? curY + a[3] : a[3];
+        const p3x = isRel ? curX + a[4] : a[4];
+        const p3y = isRel ? curY + a[5] : a[5];
+        const wp0 = el.transformPoint({ x: p0x, y: p0y });
+        const wp1 = el.transformPoint({ x: p1x, y: p1y });
+        const wp2 = el.transformPoint({ x: p2x, y: p2y });
+        const wp3 = el.transformPoint({ x: p3x, y: p3y });
+        const sp0 = camera.worldToScreen(wp0);
+        const sp1 = camera.worldToScreen(wp1);
+        const sp2 = camera.worldToScreen(wp2);
+        const sp3 = camera.worldToScreen(wp3);
+        segs.push({
+          p0x: sp0.x,
+          p0y: sp0.y,
+          p1x: sp1.x,
+          p1y: sp1.y,
+          p2x: sp2.x,
+          p2y: sp2.y,
+          p3x: sp3.x,
+          p3y: sp3.y,
+          type: 'cubic',
+        });
+        curX = p3x;
+        curY = p3y;
+      } else if (c === 'Q' || c === 'q') {
+        const p0x = curX;
+        const p0y = curY;
+        const p1x = isRel ? curX + a[0] : a[0];
+        const p1y = isRel ? curY + a[1] : a[1];
+        const p2x = isRel ? curX + a[2] : a[2];
+        const p2y = isRel ? curY + a[3] : a[3];
+        const wp0 = el.transformPoint({ x: p0x, y: p0y });
+        const wp1 = el.transformPoint({ x: p1x, y: p1y });
+        const wp2 = el.transformPoint({ x: p2x, y: p2y });
+        const sp0 = camera.worldToScreen(wp0);
+        const sp1 = camera.worldToScreen(wp1);
+        const sp2 = camera.worldToScreen(wp2);
+        segs.push({
+          p0x: sp0.x,
+          p0y: sp0.y,
+          p1x: sp1.x,
+          p1y: sp1.y,
+          p2x: sp2.x,
+          p2y: sp2.y,
+          type: 'quadratic',
+        });
+        curX = p2x;
+        curY = p2y;
+      } else if (c === 'Z' || c === 'z') {
+        curX = subStartX;
+        curY = subStartY;
+      } else if (c === 'H' || c === 'h') {
+        curX = isRel ? curX + a[0] : a[0];
+      } else if (c === 'V' || c === 'v') {
+        curY = isRel ? curY + a[0] : a[0];
+      } else if (c === 'S' || c === 's') {
+        const p0x = curX;
+        const p0y = curY;
+        let p1x: number;
+        let p1y: number;
+        if (
+          prevCmd === 'C' ||
+          prevCmd === 'c' ||
+          prevCmd === 'S' ||
+          prevCmd === 's'
+        ) {
+          const lastCmd = cmds[cmds.indexOf(cmd) - 1];
+          const la = lastCmd.args;
+          const lastRel = lastCmd.command === lastCmd.command.toLowerCase();
+          p1x = lastRel ? curX + la[la.length - 4] : la[la.length - 4];
+          p1y = lastRel ? curY + la[la.length - 3] : la[la.length - 3];
+        } else {
+          p1x = p0x;
+          p1y = p0y;
+        }
+        const p2x = isRel ? curX + a[0] : a[0];
+        const p2y = isRel ? curY + a[1] : a[1];
+        const p3x = isRel ? curX + a[2] : a[2];
+        const p3y = isRel ? curY + a[3] : a[3];
+        const wp0 = el.transformPoint({ x: p0x, y: p0y });
+        const wp1 = el.transformPoint({ x: p1x, y: p1y });
+        const wp2 = el.transformPoint({ x: p2x, y: p2y });
+        const wp3 = el.transformPoint({ x: p3x, y: p3y });
+        const sp0 = camera.worldToScreen(wp0);
+        const sp1 = camera.worldToScreen(wp1);
+        const sp2 = camera.worldToScreen(wp2);
+        const sp3 = camera.worldToScreen(wp3);
+        segs.push({
+          p0x: sp0.x,
+          p0y: sp0.y,
+          p1x: sp1.x,
+          p1y: sp1.y,
+          p2x: sp2.x,
+          p2y: sp2.y,
+          p3x: sp3.x,
+          p3y: sp3.y,
+          type: 'cubic',
+        });
+        curX = p3x;
+        curY = p3y;
+      }
+      prevCmd = c;
+    }
+    if (segs.length > 0) {
+      targets.push({
+        type: 'bezier',
+        cx: 0,
+        cy: 0,
+        rx: 0,
+        ry: 0,
+        bezierSegs: segs,
+      });
+    }
+  }
+  return targets;
+}
+
 function getMovingBBox(worldPts: Point[]): {
   x: number;
   y: number;
@@ -218,7 +423,8 @@ function getMovingBBox(worldPts: Point[]): {
 
 export class DragHandler {
   private _active = false;
-  private snapEnabled = false;
+  private snapToCorners = false;
+  private snapToPlanes = false;
   private snapToArtboard = false;
   private avoidCollisions = false;
   private lastMouseWorld = { x: 0, y: 0 };
@@ -270,8 +476,12 @@ export class DragHandler {
     this.avoidCollisions = enabled;
   }
 
-  public setSnapEnabled(enabled: boolean): void {
-    this.snapEnabled = enabled;
+  public setSnapToCorners(enabled: boolean): void {
+    this.snapToCorners = enabled;
+  }
+
+  public setSnapToPlanes(enabled: boolean): void {
+    this.snapToPlanes = enabled;
   }
 
   public setSnapToArtboard(enabled: boolean): void {
@@ -306,7 +516,7 @@ export class DragHandler {
       );
     }
 
-    if (this.snapEnabled) {
+    if (this.snapToCorners || this.snapToPlanes) {
       this.snap.reset();
       const selectedIds = new Set(this.targets.map((t) => t.id));
       const allElementsScreenPoints: { x: number; y: number }[][] = [];
@@ -329,6 +539,22 @@ export class DragHandler {
         allElementsScreenPoints.push(screenPts);
       }
       this.snap.buildTargetLinesAndNodes(allElementsScreenPoints);
+
+      const curveElements = this.getElements().filter(
+        (e) =>
+          !selectedIds.has(e.id) &&
+          (e instanceof CircleElement || e instanceof EllipseElement),
+      );
+      const bezierElements = this.getElements().filter(
+        (e) => !selectedIds.has(e.id) && e instanceof PathElement,
+      );
+      const allCurveTargets = [
+        ...getScreenCurveTargets(curveElements, this.camera),
+        ...extractBezierTargets(bezierElements, this.camera),
+      ];
+      if (allCurveTargets.length > 0) {
+        this.snap.buildCurveTargets(allCurveTargets);
+      }
 
       if (this.snapToArtboard) {
         const artboard = this.getArtboardRect();
@@ -361,7 +587,7 @@ export class DragHandler {
       );
     }
 
-    if (this.snapEnabled) {
+    if (this.snapToCorners || this.snapToPlanes) {
       this.snap.reset();
       const selectedIds = new Set(this.targets.map((t) => t.id));
       const allElementsScreenPoints: { x: number; y: number }[][] = [];
@@ -384,6 +610,22 @@ export class DragHandler {
         allElementsScreenPoints.push(screenPts);
       }
       this.snap.buildTargetLinesAndNodes(allElementsScreenPoints);
+
+      const curveElements = this.getElements().filter(
+        (e) =>
+          !selectedIds.has(e.id) &&
+          (e instanceof CircleElement || e instanceof EllipseElement),
+      );
+      const bezierElements = this.getElements().filter(
+        (e) => !selectedIds.has(e.id) && e instanceof PathElement,
+      );
+      const allCurveTargets = [
+        ...getScreenCurveTargets(curveElements, this.camera),
+        ...extractBezierTargets(bezierElements, this.camera),
+      ];
+      if (allCurveTargets.length > 0) {
+        this.snap.buildCurveTargets(allCurveTargets);
+      }
 
       if (this.snapToArtboard) {
         const artboard = this.getArtboardRect();
@@ -411,7 +653,7 @@ export class DragHandler {
     let currentFrameDx = frameDx;
     let currentFrameDy = frameDy;
 
-    if (this.snapEnabled) {
+    if (this.snapToCorners || this.snapToPlanes) {
       const movingScreenPoints: Point[] = [];
       const testTargetDx = this.currentDx + currentFrameDx;
       const testTargetDy = this.currentDy + currentFrameDy;
@@ -430,11 +672,11 @@ export class DragHandler {
         }
       }
 
-      const snapResult = this.snap.computeCorrection(movingScreenPoints);
-      this.snap.updatePull(
+      this.snap.setMotionContext(
         frameDx * this.camera.zoom,
         frameDy * this.camera.zoom,
       );
+      const snapResult = this.snap.computeCorrection(movingScreenPoints);
 
       currentFrameDx += snapResult.correctionX / this.camera.zoom;
       currentFrameDy += snapResult.correctionY / this.camera.zoom;

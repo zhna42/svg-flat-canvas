@@ -135,8 +135,12 @@ export class SelectionHandler {
     return this.gesture;
   }
 
-  public setSnapEnabled(enabled: boolean): void {
-    this.dragHandler.setSnapEnabled(enabled);
+  public setSnapToCorners(enabled: boolean): void {
+    this.dragHandler.setSnapToCorners(enabled);
+  }
+
+  public setSnapToPlanes(enabled: boolean): void {
+    this.dragHandler.setSnapToPlanes(enabled);
   }
 
   public setSnapToArtboard(enabled: boolean): void {
