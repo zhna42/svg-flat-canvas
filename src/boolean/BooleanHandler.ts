@@ -1,59 +1,84 @@
 import type { SelectionState } from '@/selection/SelectionState';
 import type { ShapeManager } from '@/shapes/ShapeManager';
+import type { SpatialGrid } from '@/spatial/SpatialGrid';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { BooleanOp, Pt } from './BooleanKernel';
 import { booleanOperation } from './BooleanKernel';
 import { dString } from './BooleanEngine';
 import { PathElement } from '@/shapes/elements/PathElement';
 import type { EventBus } from '@/core/EventBus';
+import { hitTestByPoint } from '@/spatial/hit-test';
+import { polyIntersectsPoly } from '@/spatial/hit-test';
 
 const PREVIEW_FILL_COLOR = 'rgba(255, 68, 68, 0.2)';
 const PREVIEW_STROKE_COLOR = '#ff4444';
 const PREVIEW_ID = 'boolean-preview';
 
-interface VirtualElement {
-  id: string;
-  localPolygons: Pt[][];
-  matrix: DOMMatrix;
-}
-
 export class BooleanHandler {
   private selectionState: SelectionState;
   private shapeManager: ShapeManager;
+  private grid: SpatialGrid;
   private svg: SVGSVGElement;
   private events: EventBus;
 
   private op: BooleanOp = 'UNION';
   private active = false;
   private dragging = false;
-  private dragLastSvg = { x: 0, y: 0 };
 
-  private subject: VirtualElement | null = null;
-  private subjectEl: AbstractGraphicElement | null = null;
-  private clipCache = new Map<string, VirtualElement>();
+  private subjectIds: string[] = [];
+  private clipIds: string[] = [];
 
   private previewEl: PathElement | null = null;
-  private previewGroup: SVGGElement | null = null;
+  private cameraGroup: SVGGElement;
+  private lastKnownBBoxes = new Map<string, { x: number; y: number; w: number; h: number }>();
 
   constructor(
     svg: SVGSVGElement,
     selectionState: SelectionState,
     shapeManager: ShapeManager,
+    grid: SpatialGrid,
     events: EventBus,
+    cameraGroup: SVGGElement,
   ) {
     this.svg = svg;
     this.selectionState = selectionState;
     this.shapeManager = shapeManager;
+    this.grid = grid;
     this.events = events;
+    this.cameraGroup = cameraGroup;
 
-    this.previewGroup = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'g',
-    );
-    this.previewGroup.setAttribute('pointer-events', 'none');
-    this.svg.appendChild(this.previewGroup);
+    this.svg.addEventListener('mousedown', (e: MouseEvent) => {
+      if (!this.active || e.button !== 0) return;
+      const selected = Array.from(this.selectionState.selected);
+      if (selected.length === 0) return;
+      const svgPt = this.clientToSvg(e);
+      if (!svgPt) return;
+      const hits = hitTestByPoint(svgPt.x, svgPt.y, this.shapeManager.getAll(), this.grid);
+      const hitOnSelected = hits.find((h) => selected.some((s) => s.id === h.id));
+      if (!hitOnSelected) return;
+      this.subjectIds = selected.map((s) => s.id);
+      for (const s of selected) {
+        const b = s.getWorldBBox();
+        this.lastKnownBBoxes.set(s.id, { x: b.x, y: b.y, w: b.width, h: b.height });
+      }
+      this.clipIds = [];
+    });
 
-    this.bindEvents();
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+      if (!this.active) return;
+      if (e.key === 'Enter') {
+        if (this.subjectIds.length > 0 && this.clipIds.length > 0) {
+          this.commit();
+          e.preventDefault();
+        }
+      }
+      if (e.key === 'Escape') {
+        this.cancel();
+        e.preventDefault();
+      }
+    });
+
+    this.createPreviewElement();
     this.engineLoop();
   }
 
@@ -74,293 +99,232 @@ export class BooleanHandler {
   public exitMode(): void {
     this.cancel();
     this.active = false;
+    this.removePreviewElement();
     this.events.emit('BOOLEAN_MODE_EXIT', {});
   }
 
-  private bindEvents(): void {
-    this.svg.addEventListener(
-      'mousedown',
-      (e: MouseEvent) => {
-        if (!this.active || e.button !== 0) return;
-        const selected = Array.from(this.selectionState.selected);
-        if (selected.length === 0) return;
+  private createPreviewElement(): void {
+    this.previewEl = new PathElement(PREVIEW_ID);
+    this.previewEl.setFill(PREVIEW_FILL_COLOR);
+    this.previewEl.setStroke(PREVIEW_STROKE_COLOR);
+    this.previewEl.setStrokeWidth(1);
+    this.previewEl.setVisible(false);
+    this.shapeManager.addElement(this.previewEl);
+  }
 
-        const svgPt = this.clientToSvg(e);
-        if (!svgPt) return;
-        const worldPt = this.cameraToWorld(svgPt);
+  private removePreviewElement(): void {
+    if (this.previewEl) {
+      this.shapeManager.removeElementAndNode(PREVIEW_ID);
+      this.previewEl = null;
+    }
+  }
 
-        const hit = this.hitTestSelected(worldPt, selected);
-        if (!hit) return;
-
-        this.startDrag(hit, svgPt);
-        e.preventDefault();
-        e.stopPropagation();
-      },
-      true,
-    );
-
-    window.addEventListener(
-      'mousemove',
-      (e: MouseEvent) => {
-        if (!this.dragging || !this.subject) return;
-        const svgPt = this.clientToSvg(e);
-        if (!svgPt) return;
-
-        const dx = svgPt.x - this.dragLastSvg.x;
-        const dy = svgPt.y - this.dragLastSvg.y;
-        this.dragLastSvg = { x: svgPt.x, y: svgPt.y };
-
-        const m = this.subject.matrix;
-        const newM = new DOMMatrix([m.a, m.b, m.c, m.d, m.e + dx, m.f + dy]);
-        this.subject.matrix = newM;
-
-        this.subjectEl!.transform.matrix = newM;
-        this.subjectEl!.markRenderKey('matrix');
-        this.subjectEl!.setDirtyTransform();
-
-        this.checkCollisions();
-      },
-      true,
-    );
-
-    window.addEventListener(
-      'mouseup',
-      (e: MouseEvent) => {
-        if (!this.dragging) return;
-        if (e.button !== 0) return;
-        this.dragging = false;
-      },
-      true,
-    );
-
-    window.addEventListener(
-      'keydown',
-      (e: KeyboardEvent) => {
-        if (!this.active) return;
-        if (e.key === 'Enter') {
-          if (this.tryCommit()) e.preventDefault();
+  private showPreview(): void {
+    if (this.previewEl) {
+      this.previewEl.setVisible(true);
+      this.previewEl.requestRender();
+      for (let i = this.cameraGroup.children.length - 1; i >= 0; i--) {
+        const child = this.cameraGroup.children[i];
+        if (child.getAttribute('fill') === PREVIEW_FILL_COLOR) {
+          this.cameraGroup.appendChild(child);
+          break;
         }
-        if (e.key === 'Escape') {
-          if (this.dragging || this.previewEl) {
-            this.cancel();
-            e.preventDefault();
-          }
-        }
-      },
-      true,
-    );
+      }
+    }
+  }
 
-    this.svg.addEventListener(
-      'dblclick',
-      (e: MouseEvent) => {
-        if (!this.active || !this.dragging || this.clipCache.size === 0) return;
-        this.commit();
-        e.preventDefault();
-      },
-      true,
-    );
+  private hidePreview(): void {
+    if (this.previewEl) {
+      this.previewEl.setVisible(false);
+      this.previewEl.requestRender();
+    }
   }
 
   private engineLoop(): void {
     const tick = (): void => {
-      if (this.dragging && this.subject && this.clipCache.size > 0) {
-        this.updateResultPreview();
+      if (!this.active) { requestAnimationFrame(tick); return; }
+
+      const selected = Array.from(this.selectionState.selected);
+      if (selected.length > 0) {
+        const selectedIds = new Set(selected.map((s) => s.id));
+        if (this.subjectIds.length === 0 || !this.subjectIds.some((id) => selectedIds.has(id))) {
+          this.subjectIds = [...selectedIds];
+          for (const s of selected) {
+            const b = s.getWorldBBox();
+            this.lastKnownBBoxes.set(s.id, { x: b.x, y: b.y, w: b.width, h: b.height });
+          }
+        }
+        this.dragging = this.detectMovement(selected);
+        this.clipIds = this.findCollidingIds();
+        if (this.clipIds.length > 0) {
+          this.updateResultPreview();
+        } else {
+          this.hidePreview();
+        }
+      } else {
+        if (this.subjectIds.length > 0) {
+          this.hidePreview();
+          this.subjectIds = [];
+          this.clipIds = [];
+          this.dragging = false;
+        }
       }
+
       requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   }
 
-  private startDrag(el: AbstractGraphicElement, svgPt: { x: number; y: number }): void {
-    this.dragging = true;
-    this.dragLastSvg = { x: svgPt.x, y: svgPt.y };
-
-    const localPolygons = el.toSegmentPolygons();
-    this.subject = {
-      id: el.id,
-      localPolygons,
-      matrix: DOMMatrix.fromMatrix(el.transform.matrix),
-    };
-    this.subjectEl = el;
-    this.clipCache.clear();
-
-    this.events.emit('BOOLEAN_DRAG_START', { id: el.id, op: this.op });
-
-    this.checkCollisions();
+  private detectMovement(selected: AbstractGraphicElement[]): boolean {
+    let moved = false;
+    const seen = new Set<string>();
+    for (const el of selected) {
+      seen.add(el.id);
+      const b = el.getWorldBBox();
+      const prev = this.lastKnownBBoxes.get(el.id);
+      if (!prev || Math.abs(b.x - prev.x) > 0.5 || Math.abs(b.y - prev.y) > 0.5) {
+        moved = true;
+      }
+      this.lastKnownBBoxes.set(el.id, { x: b.x, y: b.y, w: b.width, h: b.height });
+    }
+    for (const key of this.lastKnownBBoxes.keys()) {
+      if (!seen.has(key)) this.lastKnownBBoxes.delete(key);
+    }
+    return moved;
   }
 
-  private checkCollisions(): void {
-    if (!this.subject || !this.subjectEl) return;
-
+  private findCollidingIds(): string[] {
     const all = this.shapeManager.getAll();
-    const subjectWorldPoly = this.applyMatrix(
-      this.subject.localPolygons,
-      this.subject.matrix,
-    );
-    const subjectBBox = this.polygonsBBox(subjectWorldPoly);
+    const selectedSet = new Set(this.subjectIds);
+    const result: string[] = [];
 
-    const newClipIds = new Set<string>();
-
-    for (const el of all) {
-      if (el.id === this.subject.id) continue;
-      if (el.id === PREVIEW_ID) continue;
-      const poly = el.toSegmentPolygons();
-      if (poly.length === 0) continue;
-      const mat = el.getTransformMatrix();
-      const worldPoly = this.applyMatrix(poly, mat);
-      const bbox = this.polygonsBBox(worldPoly);
-
-      if (this.bboxOverlap(subjectBBox, bbox)) {
-        newClipIds.add(el.id);
-        this.clipCache.set(el.id, {
-          id: el.id,
-          localPolygons: poly,
-          matrix: DOMMatrix.fromMatrix(mat),
-        });
+    for (const sId of this.subjectIds) {
+      const sEl = this.shapeManager.getById(sId);
+      if (!sEl) continue;
+      const sBBox = sEl.getWorldBBox();
+      const sHit = sEl.getWorldHitPoints();
+      const candidates = all.filter((c) => {
+        if (selectedSet.has(c.id)) return false;
+        if (c.id === PREVIEW_ID) return false;
+        const cBBox = c.getWorldBBox();
+        return (
+          sBBox.x < cBBox.x + cBBox.width &&
+          sBBox.x + sBBox.width > cBBox.x &&
+          sBBox.y < cBBox.y + cBBox.height &&
+          sBBox.y + sBBox.height > cBBox.y
+        );
+      });
+      for (const c of candidates) {
+        const cHit = c.getWorldHitPoints();
+        if (polyIntersectsPoly(sHit, cHit)) {
+          if (c.toSegmentPolygons().length > 0) {
+            result.push(c.id);
+          }
+        }
       }
     }
-
-    const oldIds = new Set(this.clipCache.keys());
-    for (const id of oldIds) {
-      if (!newClipIds.has(id)) {
-        this.clipCache.delete(id);
-      }
-    }
-
-    if (newClipIds.size === 0) {
-      this.hidePreview();
-    }
+    return [...new Set(result)];
   }
 
   private updateResultPreview(): void {
-    if (!this.subject || this.clipCache.size === 0) return;
-
-    const subjectWorld = this.applyMatrix(
-      this.subject.localPolygons,
-      this.subject.matrix,
-    );
-
-    const allClipWorld: Pt[][] = [];
-    for (const clip of this.clipCache.values()) {
-      allClipWorld.push(...this.applyMatrix(clip.localPolygons, clip.matrix));
+    if (this.subjectIds.length === 0 || this.clipIds.length === 0) {
+      this.hidePreview();
+      return;
     }
 
-    const result = booleanOperation(subjectWorld, allClipWorld, this.op);
+    const subjectPolygons: Pt[][] = [];
+    for (const id of this.subjectIds) {
+      const el = this.shapeManager.getById(id);
+      if (!el) continue;
+      const local = el.toSegmentPolygons();
+      const mat = el.getTransformMatrix();
+      subjectPolygons.push(...local.map((ring) =>
+        ring.map((p) => { const tp = mat.transformPoint({ x: p.x, y: p.y }); return { x: tp.x, y: tp.y }; }),
+      ));
+    }
+
+    const clipPolygons: Pt[][] = [];
+    for (const id of this.clipIds) {
+      const el = this.shapeManager.getById(id);
+      if (!el) continue;
+      const local = el.toSegmentPolygons();
+      const mat = el.getTransformMatrix();
+      clipPolygons.push(...local.map((ring) =>
+        ring.map((p) => { const tp = mat.transformPoint({ x: p.x, y: p.y }); return { x: tp.x, y: tp.y }; }),
+      ));
+    }
+
+    const result = booleanOperation(subjectPolygons, clipPolygons, this.op);
     if (result.length === 0) {
       this.hidePreview();
       return;
     }
 
-    const commands = this.polygonsToCommands(result);
-
-    if (!this.previewEl) {
-      this.previewEl = new PathElement(PREVIEW_ID);
-      this.previewEl.setFill(PREVIEW_FILL_COLOR);
-      this.previewEl.setStroke(PREVIEW_STROKE_COLOR);
-      this.previewEl.setStrokeWidth(1);
-      this.previewEl.transform.reset();
+    const commands: import('@/types').PathCommand[] = [];
+    for (const ring of result) {
+      if (ring.length < 2) continue;
+      commands.push({ command: 'M', args: [ring[0].x, ring[0].y] });
+      for (let i = 1; i < ring.length; i++) {
+        commands.push({ command: 'L', args: [ring[i].x, ring[i].y] });
+      }
+      commands.push({ command: 'Z', args: [] });
     }
 
-    this.previewEl.commands = commands;
-    this.previewEl.buildHitArea();
-    this.previewEl.setDirtyAll();
-  }
-
-  private hidePreview(): void {
     if (this.previewEl) {
-      this.previewEl = null;
+      this.previewEl.d = dString(commands);
+      this.previewEl.requestRender();
+      this.showPreview();
     }
-  }
-
-  private tryCommit(): boolean {
-    if (!this.active) return false;
-    const selected = Array.from(this.selectionState.selected);
-    if (selected.length === 0) return false;
-
-    if (!this.subject) {
-      const el = selected[0];
-      this.startDrag(el, this.dragLastSvg);
-      this.checkCollisions();
-    }
-
-    if (this.clipCache.size === 0) {
-      console.log('[Boolean] commit skipped — no clips');
-      return false;
-    }
-
-    this.commit();
-    return true;
   }
 
   public commit(): void {
-    if (!this.subject) return;
+    if (this.subjectIds.length === 0) return;
 
-    const subjectWorld = this.applyMatrix(
-      this.subject.localPolygons,
-      this.subject.matrix,
-    );
-    const subjectBBox = this.polygonsBBox(subjectWorld);
-
-    const allClipWorld: Pt[][] = [];
-    for (const clip of this.clipCache.values()) {
-      const clipWorld = this.applyMatrix(clip.localPolygons, clip.matrix);
-      allClipWorld.push(...clipWorld);
+    const subjectPolygons: Pt[][] = [];
+    for (const id of this.subjectIds) {
+      const el = this.shapeManager.getById(id);
+      if (!el) continue;
+      const local = el.toSegmentPolygons();
+      const mat = el.getTransformMatrix();
+      subjectPolygons.push(...local.map((ring) => ring.map((p) => { const tp = mat.transformPoint({ x: p.x, y: p.y }); return { x: tp.x, y: tp.y }; })));
     }
 
-    console.log('[Boolean] === COMMIT ===');
-    console.log('[Boolean] subject:', this.subject.id);
-    console.log('[Boolean] subject localPolygons:', JSON.stringify(this.subject.localPolygons));
-    console.log('[Boolean] subject matrix:', [...this.subject.matrix.toFloat32Array()]);
-    console.log('[Boolean] subject worldBBox:', subjectBBox);
-    console.log('[Boolean] subject worldPoly:', JSON.stringify(subjectWorld));
-    for (const clip of this.clipCache.values()) {
-      const cw = this.applyMatrix(clip.localPolygons, clip.matrix);
-      const cb = this.polygonsBBox(cw);
-      console.log('[Boolean] clip:', clip.id);
-      console.log('[Boolean] clip localPolygons:', JSON.stringify(clip.localPolygons));
-      console.log('[Boolean] clip matrix:', [...clip.matrix.toFloat32Array()]);
-      console.log('[Boolean] clip worldBBox:', cb);
-      console.log('[Boolean] clip worldPoly:', JSON.stringify(cw));
+    const clipPolygons: Pt[][] = [];
+    for (const id of this.clipIds) {
+      const el = this.shapeManager.getById(id);
+      if (!el) continue;
+      const local = el.toSegmentPolygons();
+      const mat = el.getTransformMatrix();
+      clipPolygons.push(...local.map((ring) => ring.map((p) => { const tp = mat.transformPoint({ x: p.x, y: p.y }); return { x: tp.x, y: tp.y }; })));
     }
 
-    const result = booleanOperation(subjectWorld, allClipWorld, this.op);
-    console.log('[Boolean] op:', this.op);
-    console.log('[Boolean] result polygons:', JSON.stringify(result));
-    if (result.length === 0) {
-      this.cancel();
-      return;
-    }
+    const result = booleanOperation(subjectPolygons, clipPolygons, this.op);
+    if (result.length === 0) { this.cancel(); return; }
 
-    const commands = this.polygonsToCommands(result);
+    const commands: import('@/types').PathCommand[] = [];
+    for (const ring of result) {
+      commands.push({ command: 'M', args: [ring[0].x, ring[0].y] });
+      for (let i = 1; i < ring.length; i++) commands.push({ command: 'L', args: [ring[i].x, ring[i].y] });
+      commands.push({ command: 'Z', args: [] });
+    }
     const d = dString(commands);
 
     this.hidePreview();
 
-    for (const id of this.clipCache.keys()) {
-      this.shapeManager.removeElementAndNode(id);
-    }
-    this.shapeManager.removeElementAndNode(this.subject.id);
+    for (const id of this.clipIds) this.shapeManager.removeElementAndNode(id);
+    for (const id of this.subjectIds) this.shapeManager.removeElementAndNode(id);
 
     const newEl = new PathElement(crypto.randomUUID());
-    newEl.commands = commands;
+    newEl.d = d;
     newEl.setFill('#cccccc');
     newEl.setStroke('#000000');
     newEl.setStrokeWidth(2);
     newEl.buildHitArea();
     newEl.setDirtyAll();
     this.shapeManager.addElement(newEl);
-
     this.selectionState.clear();
     this.selectionState.add([newEl]);
-
-    this.events.emit('BOOLEAN_COMMIT', {
-      op: this.op,
-      subjectId: this.subject.id,
-      clipIds: Array.from(this.clipCache.keys()),
-      newId: newEl.id,
-      d,
-    });
-
+    this.events.emit('BOOLEAN_COMMIT', { op: this.op, newId: newEl.id, d });
     this.cleanup();
   }
 
@@ -371,98 +335,10 @@ export class BooleanHandler {
   }
 
   private cleanup(): void {
-    this.subject = null;
-    this.subjectEl = null;
-    this.clipCache.clear();
+    this.subjectIds = [];
+    this.clipIds = [];
     this.dragging = false;
-  }
-
-  private hitTestSelected(
-    worldPt: { x: number; y: number },
-    selected: AbstractGraphicElement[],
-  ): AbstractGraphicElement | null {
-    for (const s of selected) {
-      const poly = s.toSegmentPolygons();
-      if (poly.length === 0) continue;
-      const worldPoly = this.applyMatrix(poly, s.getTransformMatrix());
-      if (this.pointInPolygons(worldPt, worldPoly)) return s;
-    }
-    return null;
-  }
-
-  private applyMatrix(polygons: Pt[][], m: DOMMatrix): Pt[][] {
-    return polygons.map((ring) =>
-      ring.map((p) => {
-        const tp = m.transformPoint({ x: p.x, y: p.y });
-        return { x: tp.x, y: tp.y };
-      }),
-    );
-  }
-
-  private polygonsBBox(polygons: Pt[][]): {
-    x: number;
-    y: number;
-    w: number;
-    h: number;
-  } {
-    let minX = Infinity,
-      minY = Infinity,
-      maxX = -Infinity,
-      maxY = -Infinity;
-    for (const ring of polygons) {
-      for (const p of ring) {
-        if (p.x < minX) minX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y > maxY) maxY = p.y;
-      }
-    }
-    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-  }
-
-  private bboxOverlap(
-    a: { x: number; y: number; w: number; h: number },
-    b: { x: number; y: number; w: number; h: number },
-  ): boolean {
-    return (
-      a.x < b.x + b.w &&
-      a.x + a.w > b.x &&
-      a.y < b.y + b.h &&
-      a.y + a.h > b.y
-    );
-  }
-
-  private pointInPolygons(pt: { x: number; y: number }, polygons: Pt[][]): boolean {
-    for (const ring of polygons) {
-      if (ring.length < 3) continue;
-      let inside = false;
-      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-        if (
-          ring[i].y > pt.y !== ring[j].y > pt.y &&
-          pt.x <
-            ((ring[j].x - ring[i].x) * (pt.y - ring[i].y)) /
-              (ring[j].y - ring[i].y) +
-              ring[i].x
-        ) {
-          inside = !inside;
-        }
-      }
-      if (inside) return true;
-    }
-    return false;
-  }
-
-  private polygonsToCommands(polygons: Pt[][]): import('@/types').PathCommand[] {
-    const cmds: import('@/types').PathCommand[] = [];
-    for (const ring of polygons) {
-      if (ring.length < 2) continue;
-      cmds.push({ command: 'M', args: [ring[0].x, ring[0].y] });
-      for (let i = 1; i < ring.length; i++) {
-        cmds.push({ command: 'L', args: [ring[i].x, ring[i].y] });
-      }
-      cmds.push({ command: 'Z', args: [] });
-    }
-    return cmds;
+    this.lastKnownBBoxes.clear();
   }
 
   private clientToSvg(e: MouseEvent): { x: number; y: number } | null {
@@ -472,11 +348,5 @@ export class BooleanHandler {
     const ctm = this.svg.getScreenCTM();
     if (!ctm) return null;
     return point.matrixTransform(ctm.inverse());
-  }
-
-  private cameraToWorld(
-    svgPt: { x: number; y: number },
-  ): { x: number; y: number } {
-    return { x: svgPt.x, y: svgPt.y };
   }
 }
