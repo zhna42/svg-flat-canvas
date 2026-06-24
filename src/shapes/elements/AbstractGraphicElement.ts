@@ -402,6 +402,18 @@ export abstract class AbstractGraphicElement {
     this.requestRender();
   }
 
+  private _fadedOriginalOpacity: number | null = null;
+
+  public setFaded(faded: boolean): void {
+    if (faded && this._fadedOriginalOpacity === null) {
+      this._fadedOriginalOpacity = this.style.opacity;
+      this.setOpacity(0.2);
+    } else if (!faded && this._fadedOriginalOpacity !== null) {
+      this.setOpacity(this._fadedOriginalOpacity);
+      this._fadedOriginalOpacity = null;
+    }
+  }
+
   public setVisible(v: boolean): void {
     this.visible = v;
     this.style.visible = v;

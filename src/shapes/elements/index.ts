@@ -4,6 +4,7 @@ export { CircleElement } from './CircleElement';
 export { EllipseElement } from './EllipseElement';
 export { LineElement } from './LineElement';
 export { PathElement } from './PathElement';
+export { PreviewElement } from './PreviewElement';
 export { PolygonElement } from './PolygonElement';
 export { PolylineElement } from './PolylineElement';
 export { TextElement } from './TextElement';

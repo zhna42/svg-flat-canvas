@@ -5,13 +5,14 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import type { BooleanOp, Pt } from './BooleanKernel';
 import { booleanOperation } from './BooleanKernel';
 import { dString } from './BooleanEngine';
+import { PreviewElement } from '@/shapes/elements/PreviewElement';
 import { PathElement } from '@/shapes/elements/PathElement';
 import type { EventBus } from '@/core/EventBus';
 import { hitTestByPoint } from '@/spatial/hit-test';
 import { polyIntersectsPoly } from '@/spatial/hit-test';
 
-const PREVIEW_FILL_COLOR = 'rgba(255, 68, 68, 0.2)';
-const PREVIEW_STROKE_COLOR = '#ff4444';
+const PREVIEW_FILL_COLOR = '#ff0000';
+const PREVIEW_STROKE_COLOR = '#cc0000';
 const PREVIEW_ID = 'boolean-preview';
 
 export class BooleanHandler {
@@ -28,8 +29,7 @@ export class BooleanHandler {
   private subjectIds: string[] = [];
   private clipIds: string[] = [];
 
-  private previewEl: PathElement | null = null;
-  private cameraGroup: SVGGElement;
+  private previewEl: PreviewElement | null = null;
   private lastKnownBBoxes = new Map<string, { x: number; y: number; w: number; h: number }>();
 
   constructor(
@@ -38,14 +38,12 @@ export class BooleanHandler {
     shapeManager: ShapeManager,
     grid: SpatialGrid,
     events: EventBus,
-    cameraGroup: SVGGElement,
   ) {
     this.svg = svg;
     this.selectionState = selectionState;
     this.shapeManager = shapeManager;
     this.grid = grid;
     this.events = events;
-    this.cameraGroup = cameraGroup;
 
     this.svg.addEventListener('mousedown', (e: MouseEvent) => {
       if (!this.active || e.button !== 0) return;
@@ -104,17 +102,17 @@ export class BooleanHandler {
   }
 
   private createPreviewElement(): void {
-    this.previewEl = new PathElement(PREVIEW_ID);
+    this.previewEl = new PreviewElement(PREVIEW_ID);
     this.previewEl.setFill(PREVIEW_FILL_COLOR);
     this.previewEl.setStroke(PREVIEW_STROKE_COLOR);
     this.previewEl.setStrokeWidth(1);
     this.previewEl.setVisible(false);
-    this.shapeManager.addElement(this.previewEl);
+    this.shapeManager.addPreviewElement(this.previewEl);
   }
 
   private removePreviewElement(): void {
     if (this.previewEl) {
-      this.shapeManager.removeElementAndNode(PREVIEW_ID);
+      this.shapeManager.removePreviewElement(PREVIEW_ID);
       this.previewEl = null;
     }
   }
@@ -123,13 +121,6 @@ export class BooleanHandler {
     if (this.previewEl) {
       this.previewEl.setVisible(true);
       this.previewEl.requestRender();
-      for (let i = this.cameraGroup.children.length - 1; i >= 0; i--) {
-        const child = this.cameraGroup.children[i];
-        if (child.getAttribute('fill') === PREVIEW_FILL_COLOR) {
-          this.cameraGroup.appendChild(child);
-          break;
-        }
-      }
     }
   }
 
@@ -155,7 +146,9 @@ export class BooleanHandler {
           }
         }
         this.dragging = this.detectMovement(selected);
-        this.clipIds = this.findCollidingIds();
+        const newClipIds = this.findCollidingIds();
+        this.updateClipFade(newClipIds);
+        this.clipIds = newClipIds;
         if (this.clipIds.length > 0) {
           this.updateResultPreview();
         } else {
@@ -164,6 +157,7 @@ export class BooleanHandler {
       } else {
         if (this.subjectIds.length > 0) {
           this.hidePreview();
+          this.unfadeAllClips();
           this.subjectIds = [];
           this.clipIds = [];
           this.dragging = false;
@@ -191,6 +185,30 @@ export class BooleanHandler {
       if (!seen.has(key)) this.lastKnownBBoxes.delete(key);
     }
     return moved;
+  }
+
+  private updateClipFade(newIds: string[]): void {
+    const oldSet = new Set(this.clipIds);
+    const newSet = new Set(newIds);
+    for (const id of oldSet) {
+      if (!newSet.has(id)) {
+        const el = this.shapeManager.getById(id);
+        if (el) el.setFaded(false);
+      }
+    }
+    for (const id of newSet) {
+      if (!oldSet.has(id)) {
+        const el = this.shapeManager.getById(id);
+        if (el) el.setFaded(true);
+      }
+    }
+  }
+
+  private unfadeAllClips(): void {
+    for (const id of this.clipIds) {
+      const el = this.shapeManager.getById(id);
+      if (el) el.setFaded(false);
+    }
   }
 
   private findCollidingIds(): string[] {
@@ -335,6 +353,7 @@ export class BooleanHandler {
   }
 
   private cleanup(): void {
+    this.unfadeAllClips();
     this.subjectIds = [];
     this.clipIds = [];
     this.dragging = false;

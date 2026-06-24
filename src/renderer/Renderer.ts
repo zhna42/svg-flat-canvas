@@ -10,11 +10,14 @@ export class Renderer {
   private readonly svg: SVGSVGElement;
   private readonly defs: SVGDefsElement;
   private readonly cameraGroup: SVGGElement;
+  private readonly shapesGroup: SVGGElement;
+  private readonly previewGroup: SVGGElement;
   private readonly camera: Camera;
   private readonly artboard: Artboard;
   private readonly background: Background;
   private readonly queue: RenderQueue;
   private readonly nodeMap = new Map<string, SVGElement>();
+  private readonly previewNodeMap = new Map<string, SVGElement>();
 
   private rafId: number | null = null;
 
@@ -33,6 +36,13 @@ export class Renderer {
 
     this.cameraGroup = document.createElementNS(ns, 'g');
     this.svg.appendChild(this.cameraGroup);
+
+    this.shapesGroup = document.createElementNS(ns, 'g');
+    this.cameraGroup.appendChild(this.shapesGroup);
+
+    this.previewGroup = document.createElementNS(ns, 'g');
+    this.cameraGroup.appendChild(this.previewGroup);
+
     this.artboard = new Artboard();
     this.bootstrapArtboardDom();
     this.startLoop();
@@ -52,15 +62,32 @@ export class Renderer {
     const tag = TAG_BY_TYPE[type] || 'rect';
     const el = document.createElementNS(SVG_NS, tag);
     this.nodeMap.set(id, el);
-    this.cameraGroup.appendChild(el);
+    this.shapesGroup.appendChild(el);
+    return el;
+  }
+
+  public addPreviewElement(id: string, type: string): SVGElement {
+    const tag = TAG_BY_TYPE[type] || 'rect';
+    const el = document.createElementNS(SVG_NS, tag);
+    this.previewNodeMap.set(id, el);
+    el.setAttribute('pointer-events', 'none');
+    this.previewGroup.appendChild(el);
     return el;
   }
 
   public removeElement(id: string): void {
     const el = this.nodeMap.get(id);
     if (el) {
-      this.cameraGroup.removeChild(el);
+      this.shapesGroup.removeChild(el);
       this.nodeMap.delete(id);
+    }
+  }
+
+  public removePreviewElement(id: string): void {
+    const el = this.previewNodeMap.get(id);
+    if (el) {
+      this.previewGroup.removeChild(el);
+      this.previewNodeMap.delete(id);
     }
   }
 
@@ -122,7 +149,7 @@ export class Renderer {
   private bootstrapArtboardDom(): void {
     const artboardNode = document.createElementNS(SVG_NS, 'rect');
     artboardNode.setAttribute('pointer-events', 'none');
-    this.cameraGroup.appendChild(artboardNode);
+    this.cameraGroup.insertBefore(artboardNode, this.shapesGroup);
     this.nodeMap.set('artboard', artboardNode);
 
     applyRenderSnapshot(this.artboard.rect.getRenderSnapshot(), artboardNode);
@@ -145,7 +172,8 @@ export class Renderer {
 
       const pending = this.queue.drain();
       for (const entry of pending) {
-        const node = this.nodeMap.get(entry.element.id);
+        let node = this.nodeMap.get(entry.element.id);
+        if (!node) node = this.previewNodeMap.get(entry.element.id);
         if (!node) continue;
         applyRenderSnapshot(
           entry.element.getRenderSnapshot(),

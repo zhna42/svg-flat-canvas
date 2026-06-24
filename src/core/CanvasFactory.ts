@@ -107,7 +107,6 @@ export class CanvasFactory {
       shapeManager,
       spatialGrid,
       events,
-      renderer.getCameraGroup(),
     );
 
     const canvas = Object.create(SvgCanvas.prototype) as SvgCanvas;
