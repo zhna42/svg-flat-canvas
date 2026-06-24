@@ -17,9 +17,12 @@ export interface PointToEdgeSnapResult {
 
 export class SnapGeometry {
   public static pointToSegment(
-    px: number, py: number,
-    ax: number, ay: number,
-    bx: number, by: number,
+    px: number,
+    py: number,
+    ax: number,
+    ay: number,
+    bx: number,
+    by: number,
   ): PointToSegmentResult {
     const abX = bx - ax;
     const abY = by - ay;
@@ -29,7 +32,14 @@ export class SnapGeometry {
       const dy = py - ay;
       const distSq = dx * dx + dy * dy;
       const len = Math.sqrt(distSq) || 1;
-      return { distSq, closestX: ax, closestY: ay, normalX: dx / len, normalY: dy / len, t: 0 };
+      return {
+        distSq,
+        closestX: ax,
+        closestY: ay,
+        normalX: dx / len,
+        normalY: dy / len,
+        t: 0,
+      };
     }
     let t = ((px - ax) * abX + (py - ay) * abY) / abLenSq;
     t = t < 0 ? 0 : t > 1 ? 1 : t;
@@ -38,11 +48,19 @@ export class SnapGeometry {
     const dx = px - cx;
     const dy = py - cy;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    return { distSq: dx * dx + dy * dy, closestX: cx, closestY: cy, normalX: dx / len, normalY: dy / len, t };
+    return {
+      distSq: dx * dx + dy * dy,
+      closestX: cx,
+      closestY: cy,
+      normalX: dx / len,
+      normalY: dy / len,
+      t,
+    };
   }
 
   public static snapMovingPointToStaticEdge(
-    mx: number, my: number,
+    mx: number,
+    my: number,
     edge: EdgeInfo,
   ): PointToEdgeSnapResult | null {
     const seg = this.pointToSegment(mx, my, edge.ax, edge.ay, edge.bx, edge.by);
@@ -50,18 +68,24 @@ export class SnapGeometry {
   }
 
   public static snapMovingEdgeToStaticVertex(
-    mx1: number, my1: number,
-    mx2: number, my2: number,
-    svx: number, svy: number,
+    mx1: number,
+    my1: number,
+    mx2: number,
+    my2: number,
+    svx: number,
+    svy: number,
   ): PointToEdgeSnapResult | null {
     const seg = this.pointToSegment(svx, svy, mx1, my1, mx2, my2);
     return { distSq: seg.distSq, snapX: svx, snapY: svy };
   }
 
   public static projectToEllipse(
-    px: number, py: number,
-    cx: number, cy: number,
-    rx: number, ry: number,
+    px: number,
+    py: number,
+    cx: number,
+    cy: number,
+    rx: number,
+    ry: number,
     strokeOffset: number,
   ): Point {
     const dx = px - cx;
@@ -79,9 +103,12 @@ export class SnapGeometry {
   }
 
   public static snapToEllipseTangential(
-    mx: number, my: number,
-    cx: number, cy: number,
-    rx: number, ry: number,
+    mx: number,
+    my: number,
+    cx: number,
+    cy: number,
+    rx: number,
+    ry: number,
     strokeOffset: number,
   ): { distSq: number; snapX: number; snapY: number } | null {
     const dx = mx - cx;
@@ -100,8 +127,10 @@ export class SnapGeometry {
   }
 
   public static snapToCircleQuadrants(
-    mx: number, my: number,
-    cx: number, cy: number,
+    mx: number,
+    my: number,
+    cx: number,
+    cy: number,
     r: number,
     strokeOffset: number,
     rWorldSq: number,
@@ -131,42 +160,85 @@ export class SnapGeometry {
     return { distSq: bestDistSq, snapX: bestX, snapY: bestY };
   }
 
-  private static quadraticBezier(t: number, p0: number, p1: number, p2: number): number {
+  private static quadraticBezier(
+    t: number,
+    p0: number,
+    p1: number,
+    p2: number,
+  ): number {
     const mt = 1 - t;
     return mt * mt * p0 + 2 * mt * t * p1 + t * t * p2;
   }
 
-  private static quadraticDerivative(t: number, p0: number, p1: number, p2: number): number {
+  private static quadraticDerivative(
+    t: number,
+    p0: number,
+    p1: number,
+    p2: number,
+  ): number {
     const mt = 1 - t;
     return 2 * mt * (p1 - p0) + 2 * t * (p2 - p1);
   }
 
-  private static quadraticSecondDerivative(p0: number, p1: number, p2: number): number {
+  private static quadraticSecondDerivative(
+    p0: number,
+    p1: number,
+    p2: number,
+  ): number {
     return 2 * (p2 - 2 * p1 + p0);
   }
 
-  private static cubicBezier(t: number, p0: number, p1: number, p2: number, p3: number): number {
+  private static cubicBezier(
+    t: number,
+    p0: number,
+    p1: number,
+    p2: number,
+    p3: number,
+  ): number {
     const mt = 1 - t;
-    return mt * mt * mt * p0 + 3 * mt * mt * t * p1 + 3 * mt * t * t * p2 + t * t * t * p3;
+    return (
+      mt * mt * mt * p0 +
+      3 * mt * mt * t * p1 +
+      3 * mt * t * t * p2 +
+      t * t * t * p3
+    );
   }
 
-  private static cubicDerivative(t: number, p0: number, p1: number, p2: number, p3: number): number {
+  private static cubicDerivative(
+    t: number,
+    p0: number,
+    p1: number,
+    p2: number,
+    p3: number,
+  ): number {
     const mt = 1 - t;
-    return 3 * mt * mt * (p1 - p0) + 6 * mt * t * (p2 - p1) + 3 * t * t * (p3 - p2);
+    return (
+      3 * mt * mt * (p1 - p0) + 6 * mt * t * (p2 - p1) + 3 * t * t * (p3 - p2)
+    );
   }
 
-  private static cubicSecondDerivative(t: number, p0: number, p1: number, p2: number, p3: number): number {
+  private static cubicSecondDerivative(
+    t: number,
+    p0: number,
+    p1: number,
+    p2: number,
+    p3: number,
+  ): number {
     const mt = 1 - t;
     return 6 * mt * (p2 - 2 * p1 + p0) + 6 * t * (p3 - 2 * p2 + p1);
   }
 
   public static projectToQuadraticBezier(
-    px: number, py: number,
+    px: number,
+    py: number,
     seg: BezierSegment,
   ): { distSq: number; point: Point } {
-    const p0x = seg.p0.x; const p0y = seg.p0.y;
-    const p1x = seg.p1.x; const p1y = seg.p1.y;
-    const p2x = seg.p2!.x; const p2y = seg.p2!.y;
+    const p0x = seg.p0.x;
+    const p0y = seg.p0.y;
+    const p1x = seg.p1.x;
+    const p1y = seg.p1.y;
+    const p2x = seg.p2!.x;
+    const p2y = seg.p2!.y;
 
     let bestT = 0;
     let bestDistSq = Infinity;
@@ -178,7 +250,10 @@ export class SnapGeometry {
       const dx = bx - px;
       const dy = by - py;
       const dsq = dx * dx + dy * dy;
-      if (dsq < bestDistSq) { bestDistSq = dsq; bestT = t; }
+      if (dsq < bestDistSq) {
+        bestDistSq = dsq;
+        bestT = t;
+      }
     }
 
     let t = bestT;
@@ -208,13 +283,18 @@ export class SnapGeometry {
   }
 
   public static projectToCubicBezier(
-    px: number, py: number,
+    px: number,
+    py: number,
     seg: BezierSegment,
   ): { distSq: number; point: Point } {
-    const p0x = seg.p0.x; const p0y = seg.p0.y;
-    const p1x = seg.p1.x; const p1y = seg.p1.y;
-    const p2x = seg.p2!.x; const p2y = seg.p2!.y;
-    const p3x = seg.p3!.x; const p3y = seg.p3!.y;
+    const p0x = seg.p0.x;
+    const p0y = seg.p0.y;
+    const p1x = seg.p1.x;
+    const p1y = seg.p1.y;
+    const p2x = seg.p2!.x;
+    const p2y = seg.p2!.y;
+    const p3x = seg.p3!.x;
+    const p3y = seg.p3!.y;
 
     let bestT = 0;
     let bestDistSq = Infinity;
@@ -226,7 +306,10 @@ export class SnapGeometry {
       const dx = bx - px;
       const dy = by - py;
       const dsq = dx * dx + dy * dy;
-      if (dsq < bestDistSq) { bestDistSq = dsq; bestT = t; }
+      if (dsq < bestDistSq) {
+        bestDistSq = dsq;
+        bestT = t;
+      }
     }
 
     let t = bestT;
@@ -256,14 +339,23 @@ export class SnapGeometry {
   }
 
   public static projectToBezier(
-    px: number, py: number,
+    px: number,
+    py: number,
     seg: BezierSegment,
   ): { distSq: number; point: Point } {
     if (seg.type === 'line') {
-      const r = this.pointToSegment(px, py, seg.p0.x, seg.p0.y, seg.p1.x, seg.p1.y);
+      const r = this.pointToSegment(
+        px,
+        py,
+        seg.p0.x,
+        seg.p0.y,
+        seg.p1.x,
+        seg.p1.y,
+      );
       return { distSq: r.distSq, point: { x: r.closestX, y: r.closestY } };
     }
-    if (seg.type === 'quadratic') return this.projectToQuadraticBezier(px, py, seg);
+    if (seg.type === 'quadratic')
+      return this.projectToQuadraticBezier(px, py, seg);
     return this.projectToCubicBezier(px, py, seg);
   }
 }

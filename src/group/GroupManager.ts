@@ -66,7 +66,8 @@ export class GroupManager {
   }
 
   public createGroup(name?: string): string {
-    const id = 'grp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const id =
+      'grp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
     const groupName = name || `Group-${this.groups.size + 1}`;
     this.groups.set(id, new Group({ id, name: groupName, elementIds: [] }));
     this.events?.emit('GROUP_CREATED', { id, name: groupName });

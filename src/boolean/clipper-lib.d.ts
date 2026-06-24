@@ -43,4 +43,3 @@ declare module 'clipper-lib' {
     Y: number;
   }
 }
-

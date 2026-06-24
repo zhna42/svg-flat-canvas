@@ -8,7 +8,11 @@ export { SelectionOverlay } from './overlay/SelectionOverlay';
 export type { HandlePosition } from './overlay/SelectionOverlay';
 export { TransformHandler } from './transform/TransformHandler';
 export type { TransformMode } from './transform/TransformHandler';
-export { hitTestByPoint as hitTestPoint, hitTestByRect as hitTestRect, hitTestByLasso as hitTestLasso } from '@/spatial/hit-test';
+export {
+  hitTestByPoint as hitTestPoint,
+  hitTestByRect as hitTestRect,
+  hitTestByLasso as hitTestLasso,
+} from '@/spatial/hit-test';
 export { SelectionHandler } from './handlers/SelectionHandler';
 export { GroupSelectionHandler } from './handlers/GroupSelectionHandler';
 export { DragHandler } from './drag';

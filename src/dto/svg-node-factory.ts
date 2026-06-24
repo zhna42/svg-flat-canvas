@@ -125,10 +125,19 @@ export const svgNodesToElements = (
           continue;
         }
       }
-      if (key === 'fill') { el.style.fill = value; el.markRenderKey('fill'); }
-      else if (key === 'stroke') { el.style.stroke = value; el.markRenderKey('stroke'); }
-      else if (key === 'stroke-width') { el.style.strokeWidth = parseFloat(value); el.markRenderKey('strokeWidth'); }
-      else if (key === 'opacity') { el.style.opacity = parseFloat(value); el.markRenderKey('opacity'); }
+      if (key === 'fill') {
+        el.style.fill = value;
+        el.markRenderKey('fill');
+      } else if (key === 'stroke') {
+        el.style.stroke = value;
+        el.markRenderKey('stroke');
+      } else if (key === 'stroke-width') {
+        el.style.strokeWidth = parseFloat(value);
+        el.markRenderKey('strokeWidth');
+      } else if (key === 'opacity') {
+        el.style.opacity = parseFloat(value);
+        el.markRenderKey('opacity');
+      }
     }
 
     el.setGroupId(dto.svgGroupId ?? '');
@@ -136,7 +145,7 @@ export const svgNodesToElements = (
     el.setLaserType(dto.laserActionType);
     el.setName(dto.tag);
 
-    el.buildHitArea();
+    el.rebuildHitArea();
     el.getDiffKeysForTimeMashin().clear();
 
     return el;

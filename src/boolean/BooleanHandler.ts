@@ -31,7 +31,10 @@ export class BooleanHandler {
   private clipIds: string[] = [];
 
   private previewEl: PreviewElement | null = null;
-  private lastKnownBBoxes = new Map<string, { x: number; y: number; w: number; h: number }>();
+  private lastKnownBBoxes = new Map<
+    string,
+    { x: number; y: number; w: number; h: number }
+  >();
 
   constructor(
     svg: SVGSVGElement,
@@ -54,13 +57,25 @@ export class BooleanHandler {
       if (selected.length === 0) return;
       const svgPt = this.clientToSvg(e);
       if (!svgPt) return;
-      const hits = hitTestByPoint(svgPt.x, svgPt.y, this.shapeManager.getAll(), this.grid);
-      const hitOnSelected = hits.find((h) => selected.some((s) => s.id === h.id));
+      const hits = hitTestByPoint(
+        svgPt.x,
+        svgPt.y,
+        this.shapeManager.getAll(),
+        this.grid,
+      );
+      const hitOnSelected = hits.find((h) =>
+        selected.some((s) => s.id === h.id),
+      );
       if (!hitOnSelected) return;
       this.subjectIds = selected.map((s) => s.id);
       for (const s of selected) {
         const b = s.getWorldBBox();
-        this.lastKnownBBoxes.set(s.id, { x: b.x, y: b.y, w: b.width, h: b.height });
+        this.lastKnownBBoxes.set(s.id, {
+          x: b.x,
+          y: b.y,
+          w: b.width,
+          h: b.height,
+        });
       }
       this.clipIds = [];
     });
@@ -136,16 +151,27 @@ export class BooleanHandler {
 
   private engineLoop(): void {
     const tick = (): void => {
-      if (!this.active) { requestAnimationFrame(tick); return; }
+      if (!this.active) {
+        requestAnimationFrame(tick);
+        return;
+      }
 
       const selected = Array.from(this.selectionState.selected);
       if (selected.length > 0) {
         const selectedIds = new Set(selected.map((s) => s.id));
-        if (this.subjectIds.length === 0 || !this.subjectIds.some((id) => selectedIds.has(id))) {
+        if (
+          this.subjectIds.length === 0 ||
+          !this.subjectIds.some((id) => selectedIds.has(id))
+        ) {
           this.subjectIds = [...selectedIds];
           for (const s of selected) {
             const b = s.getWorldBBox();
-            this.lastKnownBBoxes.set(s.id, { x: b.x, y: b.y, w: b.width, h: b.height });
+            this.lastKnownBBoxes.set(s.id, {
+              x: b.x,
+              y: b.y,
+              w: b.width,
+              h: b.height,
+            });
           }
         }
         this.dragging = this.detectMovement(selected);
@@ -179,10 +205,19 @@ export class BooleanHandler {
       seen.add(el.id);
       const b = el.getWorldBBox();
       const prev = this.lastKnownBBoxes.get(el.id);
-      if (!prev || Math.abs(b.x - prev.x) > 0.5 || Math.abs(b.y - prev.y) > 0.5) {
+      if (
+        !prev ||
+        Math.abs(b.x - prev.x) > 0.5 ||
+        Math.abs(b.y - prev.y) > 0.5
+      ) {
         moved = true;
       }
-      this.lastKnownBBoxes.set(el.id, { x: b.x, y: b.y, w: b.width, h: b.height });
+      this.lastKnownBBoxes.set(el.id, {
+        x: b.x,
+        y: b.y,
+        w: b.width,
+        h: b.height,
+      });
     }
     for (const key of this.lastKnownBBoxes.keys()) {
       if (!seen.has(key)) this.lastKnownBBoxes.delete(key);
@@ -259,9 +294,14 @@ export class BooleanHandler {
       if (!el) continue;
       const local = el.toSegmentPolygons();
       const mat = el.getTransformMatrix();
-      subjectPolygons.push(...local.map((ring) =>
-        ring.map((p) => { const tp = mat.transformPoint({ x: p.x, y: p.y }); return { x: tp.x, y: tp.y }; }),
-      ));
+      subjectPolygons.push(
+        ...local.map((ring) =>
+          ring.map((p) => {
+            const tp = mat.transformPoint({ x: p.x, y: p.y });
+            return { x: tp.x, y: tp.y };
+          }),
+        ),
+      );
     }
 
     const clipPolygons: Pt[][] = [];
@@ -270,9 +310,14 @@ export class BooleanHandler {
       if (!el) continue;
       const local = el.toSegmentPolygons();
       const mat = el.getTransformMatrix();
-      clipPolygons.push(...local.map((ring) =>
-        ring.map((p) => { const tp = mat.transformPoint({ x: p.x, y: p.y }); return { x: tp.x, y: tp.y }; }),
-      ));
+      clipPolygons.push(
+        ...local.map((ring) =>
+          ring.map((p) => {
+            const tp = mat.transformPoint({ x: p.x, y: p.y });
+            return { x: tp.x, y: tp.y };
+          }),
+        ),
+      );
     }
 
     const result = booleanOperation(subjectPolygons, clipPolygons, this.op);
@@ -307,7 +352,14 @@ export class BooleanHandler {
       if (!el) continue;
       const local = el.toSegmentPolygons();
       const mat = el.getTransformMatrix();
-      subjectPolygons.push(...local.map((ring) => ring.map((p) => { const tp = mat.transformPoint({ x: p.x, y: p.y }); return { x: tp.x, y: tp.y }; })));
+      subjectPolygons.push(
+        ...local.map((ring) =>
+          ring.map((p) => {
+            const tp = mat.transformPoint({ x: p.x, y: p.y });
+            return { x: tp.x, y: tp.y };
+          }),
+        ),
+      );
     }
 
     const clipPolygons: Pt[][] = [];
@@ -316,16 +368,27 @@ export class BooleanHandler {
       if (!el) continue;
       const local = el.toSegmentPolygons();
       const mat = el.getTransformMatrix();
-      clipPolygons.push(...local.map((ring) => ring.map((p) => { const tp = mat.transformPoint({ x: p.x, y: p.y }); return { x: tp.x, y: tp.y }; })));
+      clipPolygons.push(
+        ...local.map((ring) =>
+          ring.map((p) => {
+            const tp = mat.transformPoint({ x: p.x, y: p.y });
+            return { x: tp.x, y: tp.y };
+          }),
+        ),
+      );
     }
 
     const result = booleanOperation(subjectPolygons, clipPolygons, this.op);
-    if (result.length === 0) { this.cancel(); return; }
+    if (result.length === 0) {
+      this.cancel();
+      return;
+    }
 
     const commands: import('@/types').PathCommand[] = [];
     for (const ring of result) {
       commands.push({ command: 'M', args: [ring[0].x, ring[0].y] });
-      for (let i = 1; i < ring.length; i++) commands.push({ command: 'L', args: [ring[i].x, ring[i].y] });
+      for (let i = 1; i < ring.length; i++)
+        commands.push({ command: 'L', args: [ring[i].x, ring[i].y] });
       commands.push({ command: 'Z', args: [] });
     }
 

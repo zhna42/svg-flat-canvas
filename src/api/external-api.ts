@@ -88,7 +88,10 @@ export class ExternalApi {
     return el;
   }
 
-  public createFile(dtos: CreateShapeDTO[], name?: string): { groupId: string; elements: AbstractGraphicElement[] } {
+  public createFile(
+    dtos: CreateShapeDTO[],
+    name?: string,
+  ): { groupId: string; elements: AbstractGraphicElement[] } {
     this.dbg.log('API', 'createFile', { count: dtos.length, name });
     const elements: AbstractGraphicElement[] = [];
     const groupId = `file_${Date.now()}_${++this.fileCounter}`;
@@ -141,14 +144,20 @@ export class ExternalApi {
   }
 
   public moveShapes(dto: MoveShapesDTO): void {
-    this.dbg.log('API', 'moveShapes', { count: dto.elementIds.length, delta: dto.delta });
+    this.dbg.log('API', 'moveShapes', {
+      count: dto.elementIds.length,
+      delta: dto.delta,
+    });
     this.canvas
       .getCommandBus()
       .execute(createDragMoveCommand('element', dto.delta, dto.elementIds));
   }
 
   public rotateShapes(dto: RotateShapesDTO): void {
-    this.dbg.log('API', 'rotateShapes', { count: dto.elementIds.length, angle: dto.angle });
+    this.dbg.log('API', 'rotateShapes', {
+      count: dto.elementIds.length,
+      angle: dto.angle,
+    });
     if (!dto.elementIds?.length) return;
     this.canvas
       .getCommandBus()
@@ -182,12 +191,18 @@ export class ExternalApi {
   }
 
   public groupAddElements(dto: GroupAddElementsDTO): void {
-    this.dbg.log('API', 'groupAddElements', { groupId: dto.groupId, count: dto.elementIds.length });
+    this.dbg.log('API', 'groupAddElements', {
+      groupId: dto.groupId,
+      count: dto.elementIds.length,
+    });
     this.canvas.addToGroup(dto.groupId, dto.elementIds as unknown as string);
   }
 
   public groupRemoveElements(dto: GroupRemoveElementsDTO): void {
-    this.dbg.log('API', 'groupRemoveElements', { groupId: dto.groupId, count: dto.elementIds.length });
+    this.dbg.log('API', 'groupRemoveElements', {
+      groupId: dto.groupId,
+      count: dto.elementIds.length,
+    });
     this.canvas.removeFromGroup(
       dto.groupId,
       dto.elementIds as unknown as string,
@@ -215,7 +230,10 @@ export class ExternalApi {
   }
 
   public selectShapes(dto: SelectShapesDTO): void {
-    this.dbg.log('API', 'selectShapes', { count: dto.elementIds.length, toggle: dto.toggle });
+    this.dbg.log('API', 'selectShapes', {
+      count: dto.elementIds.length,
+      toggle: dto.toggle,
+    });
     const elements = this.findElements(dto.elementIds);
     if (dto.toggle) {
       const current = [...this.canvas.getSelected()];
@@ -244,7 +262,10 @@ export class ExternalApi {
   }
 
   public sortShapes(dto: SortShapesDTO): void {
-    this.dbg.log('API', 'sortShapes', { count: dto.elementIds.length, position: dto.position });
+    this.dbg.log('API', 'sortShapes', {
+      count: dto.elementIds.length,
+      position: dto.position,
+    });
     if (!dto.elementIds?.length) return;
     for (const id of dto.elementIds) {
       this.canvas.reorderElement(id, dto.position, dto.targetId);
@@ -403,35 +424,53 @@ export class ExternalApi {
     switch (type) {
       case 'rect': {
         const r = geo as RectGeometryDTO;
-        attrs.x = String(r.x); attrs.y = String(r.y);
-        attrs.width = String(r.width); attrs.height = String(r.height);
+        attrs.x = String(r.x);
+        attrs.y = String(r.y);
+        attrs.width = String(r.width);
+        attrs.height = String(r.height);
         if (r.rx !== undefined) attrs.rx = String(r.rx);
         if (r.ry !== undefined) attrs.ry = String(r.ry);
         break;
       }
       case 'circle': {
         const c = geo as CircleGeometryDTO;
-        attrs.cx = String(c.cx); attrs.cy = String(c.cy); attrs.r = String(c.r);
+        attrs.cx = String(c.cx);
+        attrs.cy = String(c.cy);
+        attrs.r = String(c.r);
         break;
       }
       case 'ellipse': {
         const e = geo as EllipseGeometryDTO;
-        attrs.cx = String(e.cx); attrs.cy = String(e.cy);
-        attrs.rx = String(e.rx); attrs.ry = String(e.ry);
+        attrs.cx = String(e.cx);
+        attrs.cy = String(e.cy);
+        attrs.rx = String(e.rx);
+        attrs.ry = String(e.ry);
         break;
       }
       case 'line': {
         const l = geo as LineGeometryDTO;
-        attrs.x1 = String(l.x1); attrs.y1 = String(l.y1);
-        attrs.x2 = String(l.x2); attrs.y2 = String(l.y2);
+        attrs.x1 = String(l.x1);
+        attrs.y1 = String(l.y1);
+        attrs.x2 = String(l.x2);
+        attrs.y2 = String(l.y2);
         break;
       }
-      case 'path': { attrs.d = (geo as PathGeometryDTO).d; break; }
-      case 'polygon': { attrs.points = (geo as PolygonGeometryDTO).points; break; }
-      case 'polyline': { attrs.points = (geo as PolylineGeometryDTO).points; break; }
+      case 'path': {
+        attrs.d = (geo as PathGeometryDTO).d;
+        break;
+      }
+      case 'polygon': {
+        attrs.points = (geo as PolygonGeometryDTO).points;
+        break;
+      }
+      case 'polyline': {
+        attrs.points = (geo as PolylineGeometryDTO).points;
+        break;
+      }
       case 'text': {
         const t = geo as TextGeometryDTO;
-        attrs.x = t.x; attrs.y = t.y;
+        attrs.x = t.x;
+        attrs.y = t.y;
         if (t.fontSize !== undefined) attrs['font-size'] = t.fontSize;
         if (t.fontFamily !== undefined) attrs['font-family'] = t.fontFamily;
         if (t.textAnchor !== undefined) attrs['text-anchor'] = t.textAnchor;
@@ -440,8 +479,10 @@ export class ExternalApi {
       }
       case 'image': {
         const img = geo as ImageGeometryDTO;
-        attrs.x = String(img.x); attrs.y = String(img.y);
-        attrs.width = String(img.width); attrs.height = String(img.height);
+        attrs.x = String(img.x);
+        attrs.y = String(img.y);
+        attrs.width = String(img.width);
+        attrs.height = String(img.height);
         attrs.href = img.href;
         break;
       }
@@ -449,7 +490,10 @@ export class ExternalApi {
     return attrs;
   }
 
-  private applyStyleDto(el: AbstractGraphicElement, style: Partial<StyleDTO>): void {
+  private applyStyleDto(
+    el: AbstractGraphicElement,
+    style: Partial<StyleDTO>,
+  ): void {
     if (style.fill !== undefined) el.setFill(style.fill);
     if (style.stroke !== undefined) el.setStroke(style.stroke);
     if (style.strokeWidth !== undefined) el.setStrokeWidth(style.strokeWidth);
@@ -459,7 +503,14 @@ export class ExternalApi {
 
   private applyTransformDto(
     el: AbstractGraphicElement,
-    t: Partial<{ x: number; y: number; scaleX: number; scaleY: number; angle: number; matrix: [number, number, number, number, number, number] }>,
+    t: Partial<{
+      x: number;
+      y: number;
+      scaleX: number;
+      scaleY: number;
+      angle: number;
+      matrix: [number, number, number, number, number, number];
+    }>,
   ): void {
     if (t.matrix) {
       el.transform.matrix = new DOMMatrix(t.matrix);
@@ -475,13 +526,23 @@ export class ExternalApi {
     }
     if (scaleX !== undefined || scaleY !== undefined) {
       const center = el.getCenter();
-      el.applyTransformation('scale', { x: 0, y: 0, originX: center.x, originY: center.y, width: el.getTransformedBBox().width, height: el.getTransformedBBox().height });
+      el.applyTransformation('scale', {
+        x: 0,
+        y: 0,
+        originX: center.x,
+        originY: center.y,
+        width: el.getTransformedBBox().width,
+        height: el.getTransformedBBox().height,
+      });
     }
     if (angle !== undefined) el.rotate(angle - el.transform.angle);
-    el.buildHitArea();
+    el.rebuildHitArea();
   }
 
-  private applyGeometryDelta(el: AbstractGraphicElement, geo: Partial<ElementGeometryDTO>): void {
+  private applyGeometryDelta(
+    el: AbstractGraphicElement,
+    geo: Partial<ElementGeometryDTO>,
+  ): void {
     const snapshot = el.toDTO().attributes as Record<string, unknown>;
     const merged = { ...snapshot, ...geo };
     el.applyDTO(merged);

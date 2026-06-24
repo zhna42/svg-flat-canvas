@@ -41,19 +41,34 @@ export class ImageElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) { this.geometry.x = data.x as number; this.markRenderKey('x'); }
-    if (data.y !== undefined) { this.geometry.y = data.y as number; this.markRenderKey('y'); }
-    if (data.width !== undefined) { this.geometry.width = data.width as number; this.markRenderKey('width'); }
-    if (data.height !== undefined) { this.geometry.height = data.height as number; this.markRenderKey('height'); }
-    if (data.href !== undefined) { this.href = data.href as string; this.markRenderKey('href'); }
-    this.buildHitArea();
+    if (data.x !== undefined) {
+      this.geometry.x = data.x as number;
+      this.markRenderKey('x');
+    }
+    if (data.y !== undefined) {
+      this.geometry.y = data.y as number;
+      this.markRenderKey('y');
+    }
+    if (data.width !== undefined) {
+      this.geometry.width = data.width as number;
+      this.markRenderKey('width');
+    }
+    if (data.height !== undefined) {
+      this.geometry.height = data.height as number;
+      this.markRenderKey('height');
+    }
+    if (data.href !== undefined) {
+      this.href = data.href as string;
+      this.markRenderKey('href');
+    }
+    this.rebuildHitArea();
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {
     const el = clone as ImageElement;
     el.geometry = { ...this.geometry };
     el.href = this.href;
-    el.buildHitArea();
+    el.rebuildHitArea();
   }
 
   public setHref(href: string): void {
@@ -66,7 +81,7 @@ export class ImageElement extends AbstractGraphicElement {
     this.geometry.x += dx;
     this.geometry.y += dy;
     this.markRenderKeys('x', 'y');
-    this.buildHitArea();
+    this.rebuildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
@@ -78,17 +93,19 @@ export class ImageElement extends AbstractGraphicElement {
     this.markRenderKeys('x', 'y', 'width', 'height');
     this.transform.reset();
     this.markRenderKey('matrix');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 
   public toSegmentPolygons(): Point[][] {
     const { x, y, width, height } = this.geometry;
-    return [[
-      { x, y },
-      { x: x + width, y },
-      { x: x + width, y: y + height },
-      { x, y: y + height },
-    ]];
+    return [
+      [
+        { x, y },
+        { x: x + width, y },
+        { x: x + width, y: y + height },
+        { x, y: y + height },
+      ],
+    ];
   }
 }

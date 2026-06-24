@@ -48,12 +48,30 @@ export class PatternElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) { this.geometry.x = data.x as number; this.markRenderKey('x'); }
-    if (data.y !== undefined) { this.geometry.y = data.y as number; this.markRenderKey('y'); }
-    if (data.width !== undefined) { this.geometry.width = data.width as number; this.markRenderKey('width'); }
-    if (data.height !== undefined) { this.geometry.height = data.height as number; this.markRenderKey('height'); }
-    if (data.patternUnits !== undefined) { this.geometry.patternUnits = data.patternUnits as string; this.markRenderKey('patternUnits'); }
-    if (data.cells !== undefined) { this.cells = data.cells as typeof this.cells; this.markRenderKey('cells'); }
+    if (data.x !== undefined) {
+      this.geometry.x = data.x as number;
+      this.markRenderKey('x');
+    }
+    if (data.y !== undefined) {
+      this.geometry.y = data.y as number;
+      this.markRenderKey('y');
+    }
+    if (data.width !== undefined) {
+      this.geometry.width = data.width as number;
+      this.markRenderKey('width');
+    }
+    if (data.height !== undefined) {
+      this.geometry.height = data.height as number;
+      this.markRenderKey('height');
+    }
+    if (data.patternUnits !== undefined) {
+      this.geometry.patternUnits = data.patternUnits as string;
+      this.markRenderKey('patternUnits');
+    }
+    if (data.cells !== undefined) {
+      this.cells = data.cells as typeof this.cells;
+      this.markRenderKey('cells');
+    }
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {

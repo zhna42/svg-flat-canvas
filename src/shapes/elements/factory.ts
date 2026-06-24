@@ -153,11 +153,22 @@ export const createFromJSON = (json: ElementJSON): AbstractGraphicElement => {
         continue;
       }
     }
-    if (key === 'fill') { el.style.fill = value; el.markRenderKey('fill'); }
-    else if (key === 'stroke') { el.style.stroke = value; el.markRenderKey('stroke'); }
-    else if (key === 'stroke-width') { el.style.strokeWidth = parseFloat(value); el.markRenderKey('strokeWidth'); }
-    else if (key === 'opacity') { el.style.opacity = parseFloat(value); el.markRenderKey('opacity'); }
-    else if (key === 'visibility') { el.style.visible = value !== 'hidden'; el.markRenderKey('style.visible'); }
+    if (key === 'fill') {
+      el.style.fill = value;
+      el.markRenderKey('fill');
+    } else if (key === 'stroke') {
+      el.style.stroke = value;
+      el.markRenderKey('stroke');
+    } else if (key === 'stroke-width') {
+      el.style.strokeWidth = parseFloat(value);
+      el.markRenderKey('strokeWidth');
+    } else if (key === 'opacity') {
+      el.style.opacity = parseFloat(value);
+      el.markRenderKey('opacity');
+    } else if (key === 'visibility') {
+      el.style.visible = value !== 'hidden';
+      el.markRenderKey('style.visible');
+    }
   }
 
   if (json.groupId) el.setGroupId(json.groupId);
@@ -173,7 +184,7 @@ export const createFromJSON = (json: ElementJSON): AbstractGraphicElement => {
   if (json.textContent && el instanceof TextElement)
     el.setTextContent(json.textContent);
 
-  el.buildHitArea();
+  el.rebuildHitArea();
   el.getDiffKeysForTimeMashin().clear();
   return el;
 };

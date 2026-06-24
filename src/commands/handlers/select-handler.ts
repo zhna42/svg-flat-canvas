@@ -3,7 +3,11 @@ import type { CommandHandler } from '../registry';
 import type { SelectionState } from '@/selection/SelectionState';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/spatial/SpatialGrid';
-import { hitTestByPoint as hitTestPoint, hitTestByRect as hitTestRect, hitTestByLasso as hitTestLasso } from '@/spatial/hit-test';
+import {
+  hitTestByPoint as hitTestPoint,
+  hitTestByRect as hitTestRect,
+  hitTestByLasso as hitTestLasso,
+} from '@/spatial/hit-test';
 import {
   hitTestGroupsByPoint as hitTestGroupsPoint,
   hitTestGroupsByRect as hitTestGroupsRect,

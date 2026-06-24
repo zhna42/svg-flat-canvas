@@ -150,7 +150,8 @@ export class CreationHandler {
       return true;
     }
 
-    if (e.key === 'Enter' &&
+    if (
+      e.key === 'Enter' &&
       (this.currentPreview.type === 'polyline' ||
         this.currentPreview.type === 'polygon' ||
         this.currentPreview.type === 'path')
@@ -206,7 +207,7 @@ export class CreationHandler {
       const existingCmds = existingPath.geometry.commands;
       existingCmds.push({ command: 'M', args: [worldPoint.x, worldPoint.y] });
       existingCmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
-      existingPath.buildHitArea();
+      existingPath.rebuildHitArea();
       existingPath.setDirtyGeometry();
       this.currentPreview = existingPath as any;
       this.onCreationStart?.(type);
@@ -231,7 +232,7 @@ export class CreationHandler {
         this.multiPointPoints,
       );
       preview.markRenderKey('points');
-      preview.buildHitArea();
+      preview.rebuildHitArea();
     }
 
     if (type === 'path') {
@@ -242,7 +243,7 @@ export class CreationHandler {
         { command: 'L', args: [p.x, p.y] },
       ];
       path.markRenderKey('d');
-      path.buildHitArea();
+      path.rebuildHitArea();
       this.pathTimeMachine = new PathTimeMachine(path);
     }
 
@@ -264,7 +265,7 @@ export class CreationHandler {
       ];
       poly.points = pointsToString(pts);
       poly.markRenderKey('points');
-      poly.buildHitArea();
+      poly.rebuildHitArea();
       poly.setDirtyGeometry();
       return;
     }
@@ -276,7 +277,7 @@ export class CreationHandler {
       const last = cmds[cmds.length - 1];
       last.args = [worldPoint.x, worldPoint.y];
       path.markRenderKey('d');
-      path.buildHitArea();
+      path.rebuildHitArea();
       path.setDirtyGeometry();
       return;
     }
@@ -304,7 +305,7 @@ export class CreationHandler {
         line.geometry.x2 = this.startWorld.x + snapped.x;
         line.geometry.y2 = this.startWorld.y + snapped.y;
         line.markRenderKeys('x2', 'y2');
-        line.buildHitArea();
+        line.rebuildHitArea();
         line.setDirty();
       }
     }
@@ -332,7 +333,7 @@ export class CreationHandler {
       const pts = [...this.multiPointPoints];
       poly.points = pointsToString(pts);
       poly.markRenderKey('points');
-      poly.buildHitArea();
+      poly.rebuildHitArea();
       poly.setDirtyGeometry();
       return;
     }
@@ -347,7 +348,7 @@ export class CreationHandler {
       }
       cmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
       path.markRenderKey('d');
-      path.buildHitArea();
+      path.rebuildHitArea();
       path.setDirtyGeometry();
       this.pathTimeMachine?.capture();
       return;
@@ -389,7 +390,7 @@ export class CreationHandler {
             }
             cmds.push({ command: 'Z', args: [] });
             path.markRenderKey('d');
-            path.buildHitArea();
+            path.rebuildHitArea();
             path.setDirtyGeometry();
             closed = true;
           }
@@ -403,14 +404,16 @@ export class CreationHandler {
           const poly = el as PolylineElement | PolygonElement;
           poly.points = pointsToString(closePoints);
           poly.markRenderKey('points');
-          poly.buildHitArea();
+          poly.rebuildHitArea();
           poly.setDirtyGeometry();
 
           if (el.type === 'polyline') {
             this.removeFromScene(el);
             const polygon = new PolygonElement(el.id);
             polygon.points = poly.points;
-            polygon.transform.matrix = new DOMMatrix(el.transform.matrix.toString());
+            polygon.transform.matrix = new DOMMatrix(
+              el.transform.matrix.toString(),
+            );
             polygon.setFill(el.style.fill);
             polygon.setStroke(el.style.stroke);
             polygon.setStrokeWidth(el.style.strokeWidth);
@@ -428,10 +431,13 @@ export class CreationHandler {
           }
         } else {
           const poly = el as PolylineElement | PolygonElement;
-          const pts = [...this.multiPointPoints, { x: worldPoint.x, y: worldPoint.y }];
+          const pts = [
+            ...this.multiPointPoints,
+            { x: worldPoint.x, y: worldPoint.y },
+          ];
           poly.points = pointsToString(pts);
           poly.markRenderKey('points');
-          poly.buildHitArea();
+          poly.rebuildHitArea();
           poly.setDirtyGeometry();
         }
       }
@@ -456,7 +462,7 @@ export class CreationHandler {
           }
         }
         path.markRenderKey('d');
-        path.buildHitArea();
+        path.rebuildHitArea();
         path.setDirtyGeometry();
       }
     }
@@ -554,7 +560,7 @@ export class CreationHandler {
           rect.geometry.height = Math.abs(current.y - start.y);
         }
         rect.markRenderKeys('x', 'y', 'width', 'height');
-        rect.buildHitArea();
+        rect.rebuildHitArea();
         rect.setDirtyGeometry();
         break;
       }
@@ -568,7 +574,7 @@ export class CreationHandler {
           current.y - start.y,
         );
         circle.markRenderKeys('cx', 'cy', 'r');
-        circle.buildHitArea();
+        circle.rebuildHitArea();
         circle.setDirtyGeometry();
         break;
       }
@@ -582,7 +588,7 @@ export class CreationHandler {
         ellipse.geometry.rx = rx;
         ellipse.geometry.ry = ry;
         ellipse.markRenderKeys('cx', 'cy', 'rx', 'ry');
-        ellipse.buildHitArea();
+        ellipse.rebuildHitArea();
         ellipse.setDirtyGeometry();
         break;
       }
@@ -602,7 +608,7 @@ export class CreationHandler {
           line.geometry.y2 = current.y;
         }
         line.markRenderKeys('x1', 'y1', 'x2', 'y2');
-        line.buildHitArea();
+        line.rebuildHitArea();
         line.setDirtyGeometry();
         break;
       }

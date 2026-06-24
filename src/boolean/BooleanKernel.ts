@@ -9,7 +9,10 @@ const SCALE = 1e6;
 
 function toClipper(polygons: Pt[][]): ClipperLib.Path[] {
   return polygons.map((ring) =>
-    ring.map((p) => ({ X: Math.round(p.x * SCALE), Y: Math.round(p.y * SCALE) })),
+    ring.map((p) => ({
+      X: Math.round(p.x * SCALE),
+      Y: Math.round(p.y * SCALE),
+    })),
   );
 }
 
@@ -44,7 +47,12 @@ export function booleanOperation(
   cpr.AddPaths(clip, ClipperLib.PolyType.ptClip, true);
 
   const solution = new ClipperLib.Paths();
-  const ok = cpr.Execute(CLIP_TYPE[op], solution, ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+  const ok = cpr.Execute(
+    CLIP_TYPE[op],
+    solution,
+    ClipperLib.PolyFillType.pftNonZero,
+    ClipperLib.PolyFillType.pftNonZero,
+  );
 
   if (!ok || solution.length === 0) {
     if (op === 'UNION') return [...subjectRings, ...clipRings];

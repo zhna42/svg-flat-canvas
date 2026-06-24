@@ -42,16 +42,28 @@ export class LineElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x1 !== undefined) { this.geometry.x1 = data.x1 as number; this.markRenderKey('x1'); }
-    if (data.y1 !== undefined) { this.geometry.y1 = data.y1 as number; this.markRenderKey('y1'); }
-    if (data.x2 !== undefined) { this.geometry.x2 = data.x2 as number; this.markRenderKey('x2'); }
-    if (data.y2 !== undefined) { this.geometry.y2 = data.y2 as number; this.markRenderKey('y2'); }
-    this.buildHitArea();
+    if (data.x1 !== undefined) {
+      this.geometry.x1 = data.x1 as number;
+      this.markRenderKey('x1');
+    }
+    if (data.y1 !== undefined) {
+      this.geometry.y1 = data.y1 as number;
+      this.markRenderKey('y1');
+    }
+    if (data.x2 !== undefined) {
+      this.geometry.x2 = data.x2 as number;
+      this.markRenderKey('x2');
+    }
+    if (data.y2 !== undefined) {
+      this.geometry.y2 = data.y2 as number;
+      this.markRenderKey('y2');
+    }
+    this.rebuildHitArea();
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {
     (clone as LineElement).geometry = { ...this.geometry };
-    clone.buildHitArea();
+    clone.rebuildHitArea();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
@@ -60,7 +72,7 @@ export class LineElement extends AbstractGraphicElement {
     this.geometry.x2 += dx;
     this.geometry.y2 += dy;
     this.markRenderKeys('x1', 'y1', 'x2', 'y2');
-    this.buildHitArea();
+    this.rebuildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
@@ -80,14 +92,16 @@ export class LineElement extends AbstractGraphicElement {
     this.markRenderKeys('x1', 'y1', 'x2', 'y2');
     this.transform.reset();
     this.markRenderKey('matrix');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 
   public toSegmentPolygons(): Point[][] {
-    return [[
-      { x: this.geometry.x1, y: this.geometry.y1 },
-      { x: this.geometry.x2, y: this.geometry.y2 },
-    ]];
+    return [
+      [
+        { x: this.geometry.x1, y: this.geometry.y1 },
+        { x: this.geometry.x2, y: this.geometry.y2 },
+      ],
+    ];
   }
 }

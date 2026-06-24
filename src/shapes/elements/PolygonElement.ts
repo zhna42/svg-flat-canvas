@@ -45,13 +45,16 @@ export class PolygonElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.points !== undefined) { this.points = data.points as string; this.markRenderKey('points'); }
-    this.buildHitArea();
+    if (data.points !== undefined) {
+      this.points = data.points as string;
+      this.markRenderKey('points');
+    }
+    this.rebuildHitArea();
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {
     (clone as PolygonElement).points = this.points;
-    clone.buildHitArea();
+    clone.rebuildHitArea();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
@@ -66,7 +69,7 @@ export class PolygonElement extends AbstractGraphicElement {
     }
     this.points = nums.join(' ');
     this.markRenderKey('points');
-    this.buildHitArea();
+    this.rebuildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
@@ -80,7 +83,7 @@ export class PolygonElement extends AbstractGraphicElement {
     this.markRenderKey('points');
     this.transform.reset();
     this.markRenderKey('matrix');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 

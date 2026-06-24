@@ -234,6 +234,24 @@ export abstract class AbstractGraphicElement {
 
   public abstract buildHitArea(): void;
 
+  public _spatialCellIds: number[] = [];
+
+  public onSpatialIndexChanged: ((el: AbstractGraphicElement) => void) | null =
+    null;
+
+  public getSpatialCellIds(): number[] {
+    return this._spatialCellIds;
+  }
+
+  public setSpatialCellIds(ids: number[]): void {
+    this._spatialCellIds = ids;
+  }
+
+  public rebuildHitArea(): void {
+    this.buildHitArea();
+    this.onSpatialIndexChanged?.(this);
+  }
+
   public getTransformMatrix(): DOMMatrix {
     return this.transform.matrix;
   }
@@ -241,7 +259,7 @@ export abstract class AbstractGraphicElement {
   public abstract toSegmentPolygons(): Point[][];
 
   public invalidateHitArea(): void {
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.markRenderKey('matrix');
     this.requestRender();
   }
@@ -378,21 +396,21 @@ export abstract class AbstractGraphicElement {
   public setFill(color: string): void {
     this.style.fill = color;
     this.markRenderKey('fill');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 
   public setStroke(color: string): void {
     this.style.stroke = color;
     this.markRenderKey('stroke');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 
   public setStrokeWidth(w: number): void {
     this.style.strokeWidth = w;
     this.markRenderKey('strokeWidth');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 
@@ -489,7 +507,7 @@ export abstract class AbstractGraphicElement {
   public fromSnapshot(data: Record<string, unknown>): void {
     this.applyCommonSnapshot(data);
     this.applyGeometrySnapshot(data);
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.diffKeysForTimeMashin.clear();
     if (this.diffKeysForRedering.size > 0) {
       this.requestRender();

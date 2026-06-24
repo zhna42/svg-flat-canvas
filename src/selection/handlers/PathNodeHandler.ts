@@ -78,7 +78,7 @@ export class PathNodeHandler {
       cmd.args[idx + 1] += frameDy;
     }
 
-    path.buildHitArea();
+    path.rebuildHitArea();
     path.setDirtyGeometry();
   }
 
@@ -95,7 +95,7 @@ export class PathNodeHandler {
 
     path.geometry.commands = newCommands;
     path.markRenderKey('d');
-    path.buildHitArea();
+    path.rebuildHitArea();
     path.setDirtyGeometry();
 
     this.pathTimeMachine?.capture();

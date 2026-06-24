@@ -2,7 +2,11 @@ import type { Point } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { SpatialGrid } from '@/spatial/SpatialGrid';
 
-export const pointInPolygon = (px: number, py: number, poly: Point[]): boolean => {
+export const pointInPolygon = (
+  px: number,
+  py: number,
+  poly: Point[],
+): boolean => {
   let inside = false;
   const n = poly.length;
   for (let i = 0, j = n - 1; i < n; j = i++) {

@@ -68,13 +68,31 @@ export class TextElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) { this.posX = data.x as string; this.markRenderKey('x'); }
-    if (data.y !== undefined) { this.posY = data.y as string; this.markRenderKey('y'); }
-    if (data.fontSize !== undefined) { this.fontSize = data.fontSize as string; this.markRenderKey('font-size'); }
-    if (data.fontFamily !== undefined) { this.fontFamily = data.fontFamily as string; this.markRenderKey('font-family'); }
-    if (data.textAnchor !== undefined) { this.textAnchor = data.textAnchor as string; this.markRenderKey('text-anchor'); }
-    if (data.textContent !== undefined) { this.textContent = data.textContent as string; this.markRenderKey('textContent'); }
-    this.buildHitArea();
+    if (data.x !== undefined) {
+      this.posX = data.x as string;
+      this.markRenderKey('x');
+    }
+    if (data.y !== undefined) {
+      this.posY = data.y as string;
+      this.markRenderKey('y');
+    }
+    if (data.fontSize !== undefined) {
+      this.fontSize = data.fontSize as string;
+      this.markRenderKey('font-size');
+    }
+    if (data.fontFamily !== undefined) {
+      this.fontFamily = data.fontFamily as string;
+      this.markRenderKey('font-family');
+    }
+    if (data.textAnchor !== undefined) {
+      this.textAnchor = data.textAnchor as string;
+      this.markRenderKey('text-anchor');
+    }
+    if (data.textContent !== undefined) {
+      this.textContent = data.textContent as string;
+      this.markRenderKey('textContent');
+    }
+    this.rebuildHitArea();
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {
@@ -85,13 +103,13 @@ export class TextElement extends AbstractGraphicElement {
     el.fontFamily = this.fontFamily;
     el.textAnchor = this.textAnchor;
     el.textContent = this.textContent;
-    el.buildHitArea();
+    el.rebuildHitArea();
   }
 
   public setTextContent(text: string): void {
     this.textContent = text;
     this.markRenderKey('textContent');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
   public getTextContent(): string {
@@ -104,7 +122,7 @@ export class TextElement extends AbstractGraphicElement {
     this.posX = String(fx);
     this.posY = String(fy);
     this.markRenderKeys('x', 'y');
-    this.buildHitArea();
+    this.rebuildHitArea();
   }
 
   public toSegmentPolygons(): Point[][] {

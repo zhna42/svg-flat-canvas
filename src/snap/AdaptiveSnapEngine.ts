@@ -459,7 +459,12 @@ export class AdaptiveSnapEngine {
         const rawDist = Math.hypot(mPt.x - tNode.x, mPt.y - tNode.y);
         const corrX = tNode.x - mPt.x;
         const corrY = tNode.y - mPt.y;
-        const dirPenalty = this.directionalPenalty(mPt.x, mPt.y, tNode.x, tNode.y);
+        const dirPenalty = this.directionalPenalty(
+          mPt.x,
+          mPt.y,
+          tNode.x,
+          tNode.y,
+        );
         const axisPenalty = this.axisMisalignPenalty(corrX, corrY);
         const effectiveDist = rawDist * dirPenalty * axisPenalty;
 

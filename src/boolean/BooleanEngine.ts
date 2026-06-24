@@ -92,10 +92,7 @@ export class BooleanEngine {
     return commands;
   }
 
-  private commandsToPolygons(
-    commands: PathCommand[],
-    steps: number,
-  ): Pt[][] {
+  private commandsToPolygons(commands: PathCommand[], steps: number): Pt[][] {
     const subPaths = this.splitSubPaths(commands);
     return subPaths
       .map((cmds) => flattenCommands(cmds, steps))

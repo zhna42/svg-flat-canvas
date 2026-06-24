@@ -293,10 +293,7 @@ export class SvgCanvas {
     return this.rulerManager.getGuidelines();
   }
 
-  public setGuidelinesVisible(
-    orientation: 'v' | 'h',
-    visible: boolean,
-  ): void {
+  public setGuidelinesVisible(orientation: 'v' | 'h', visible: boolean): void {
     this.rulerManager.setGuidelinesVisible(orientation, visible);
   }
 
@@ -329,7 +326,7 @@ export class SvgCanvas {
         width: bbox.width,
         height: bbox.height,
       });
-      el.buildHitArea();
+      el.rebuildHitArea();
     }
   }
 
@@ -337,7 +334,7 @@ export class SvgCanvas {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
     el.rotate(angle);
-    el.buildHitArea();
+    el.rebuildHitArea();
   }
 
   public transformElement(
@@ -348,7 +345,7 @@ export class SvgCanvas {
     if (!el) return;
     el.transform.matrix = new DOMMatrix(matrix);
     el.markRenderKey('matrix');
-    el.buildHitArea();
+    el.rebuildHitArea();
     el.setDirtyTransform();
   }
 
@@ -526,14 +523,47 @@ export class SvgCanvas {
 
   indexShape(shape: AbstractGraphicElement): void {
     const bbox = shape.getTransformedBBox();
-    this.spatialGrid.insert(shape.id, bbox.x, bbox.y, bbox.width, bbox.height);
+    const ids = this.spatialGrid.insert(
+      shape.id,
+      bbox.x,
+      bbox.y,
+      bbox.width,
+      bbox.height,
+    );
+    shape.setSpatialCellIds(ids);
+    shape.onSpatialIndexChanged = (el) => {
+      this.reindexElement(el);
+    };
+  }
+
+  reindexElement(el: AbstractGraphicElement): void {
+    const bbox = el.getTransformedBBox();
+    const newIds = this.spatialGrid.updateElement(
+      el.id,
+      el.getSpatialCellIds(),
+      bbox.x,
+      bbox.y,
+      bbox.width,
+      bbox.height,
+    );
+    el.setSpatialCellIds(newIds);
   }
 
   reindexSpatialGrid(): void {
     this.spatialGrid.clear();
     for (const el of this.shapeManager.getAll()) {
       const bbox = el.getTransformedBBox();
-      this.spatialGrid.insert(el.id, bbox.x, bbox.y, bbox.width, bbox.height);
+      const ids = this.spatialGrid.insert(
+        el.id,
+        bbox.x,
+        bbox.y,
+        bbox.width,
+        bbox.height,
+      );
+      el.setSpatialCellIds(ids);
+      el.onSpatialIndexChanged = (element) => {
+        this.reindexElement(element);
+      };
     }
   }
 
@@ -546,7 +576,11 @@ export class SvgCanvas {
     );
   }
 
-  public reorderElement(id: string, position: 'before' | 'after', targetId: string): void {
+  public reorderElement(
+    id: string,
+    position: 'before' | 'after',
+    targetId: string,
+  ): void {
     if (position === 'before') {
       this.renderer.moveElementBefore(id, targetId);
     } else {

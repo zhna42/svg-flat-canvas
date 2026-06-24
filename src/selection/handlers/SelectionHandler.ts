@@ -114,7 +114,8 @@ export class SelectionHandler {
       opts.svg.style.cursor = 'grabbing';
       opts.onDragStart?.();
     };
-    this.dragHandler.onDragMove = (dx: number, dy: number) => opts.onDragMove?.(dx, dy);
+    this.dragHandler.onDragMove = (dx: number, dy: number) =>
+      opts.onDragMove?.(dx, dy);
     this.dragHandler.onDragEnd = () => {
       opts.svg.style.cursor = '';
       opts.onDragEnd?.();
@@ -147,7 +148,8 @@ export class SelectionHandler {
     if (!this.pathTimeMachine) return;
     const editingPath = this.opts.getEditingPath?.();
     if (editingPath && editingPath.type === 'path') {
-      const pathEl = editingPath as any as import('@/shapes/elements/PathElement').PathElement;
+      const pathEl =
+        editingPath as any as import('@/shapes/elements/PathElement').PathElement;
       const postCommands = pathEl.geometry.commands.map((c: any) => ({
         ...c,
         args: [...c.args],
@@ -160,7 +162,7 @@ export class SelectionHandler {
           args: [...c.args],
         }));
         pathEl.markRenderKey('d');
-        pathEl.buildHitArea();
+        pathEl.rebuildHitArea();
         pathEl.setDirtyGeometry();
       }
 
@@ -858,7 +860,7 @@ export class SelectionHandler {
         if (editingPath && act) {
           this.opts.bus.execute({
             type: 'PATH_CHANGE_NODE_TYPE',
-            options: { id: editingPath.id, cmdIdx: act.cmdIdx,             newType: 'C' },
+            options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'C' },
           });
           this.pathTimeMachine?.capture();
           e.preventDefault();
@@ -869,7 +871,7 @@ export class SelectionHandler {
         if (editingPath && act) {
           this.opts.bus.execute({
             type: 'PATH_CHANGE_NODE_TYPE',
-            options: { id: editingPath.id, cmdIdx: act.cmdIdx,             newType: 'L' },
+            options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'L' },
           });
           this.pathTimeMachine?.capture();
           e.preventDefault();
@@ -887,7 +889,8 @@ export class SelectionHandler {
           e.preventDefault();
           this.pathTimeMachine.undo();
           const editingPath = this.opts.getEditingPath?.();
-          if (editingPath) this.opts.selectionOverlay.updatePathNodes(editingPath);
+          if (editingPath)
+            this.opts.selectionOverlay.updatePathNodes(editingPath);
         } else if (this.opts.getEditingPath?.()) {
           e.preventDefault();
         }
@@ -896,7 +899,8 @@ export class SelectionHandler {
           e.preventDefault();
           this.pathTimeMachine.redo();
           const editingPath = this.opts.getEditingPath?.();
-          if (editingPath) this.opts.selectionOverlay.updatePathNodes(editingPath);
+          if (editingPath)
+            this.opts.selectionOverlay.updatePathNodes(editingPath);
         } else if (this.opts.getEditingPath?.()) {
           e.preventDefault();
         }

@@ -96,10 +96,7 @@ export class DragHandler {
     }
 
     if (this.snapToCorners || this.snapToPlanes) {
-      this.dragSnap.buildTargets(
-        this.targets,
-        this.snapToArtboard,
-      );
+      this.dragSnap.buildTargets(this.targets, this.snapToArtboard);
     }
 
     this.onDragStart?.();
@@ -125,10 +122,7 @@ export class DragHandler {
     }
 
     if (this.snapToCorners || this.snapToPlanes) {
-      this.dragSnap.buildTargets(
-        this.targets,
-        this.snapToArtboard,
-      );
+      this.dragSnap.buildTargets(this.targets, this.snapToArtboard);
     } else {
       this.dragSnap.reset();
     }
@@ -268,7 +262,7 @@ export class DragHandler {
     }
 
     for (const el of this.targets) {
-      el.buildHitArea();
+      el.rebuildHitArea();
       el.setDirtyAll();
     }
 

@@ -90,7 +90,11 @@ export class TimeMachine {
     }
 
     const entry: TimeSnapshot = { command, selectIds, selectType, data };
-    this.records.splice(this.index + 1, this.records.length - this.index - 1, entry);
+    this.records.splice(
+      this.index + 1,
+      this.records.length - this.index - 1,
+      entry,
+    );
     this.index++;
 
     if (this.records.length > this.maxRecords) {
@@ -104,13 +108,17 @@ export class TimeMachine {
   private log(action: string): void {
     const lines: string[] = [];
     lines.push(`── TimeMachine ${action} ──`);
-    lines.push(`  root: ${this.root ? `ROOT (${this.root.data.length} elements)` : 'null'}`);
+    lines.push(
+      `  root: ${this.root ? `ROOT (${this.root.data.length} elements)` : 'null'}`,
+    );
     lines.push(`  index: ${this.index}`);
     lines.push(`  records[${this.records.length}]:`);
     for (let i = 0; i < this.records.length; i++) {
       const r = this.records[i];
       const prefix = i === this.index ? ' →' : '  ';
-      lines.push(`  ${prefix} [${i}] ${r.command} select:[${r.selectIds.join(',')}] data:[`);
+      lines.push(
+        `  ${prefix} [${i}] ${r.command} select:[${r.selectIds.join(',')}] data:[`,
+      );
       for (const d of r.data) {
         lines.push(`       ${d.id}: ${JSON.stringify(d.diff)}`);
       }
@@ -198,7 +206,7 @@ export class TimeMachine {
         const el = createElementByType(entry.diff.type as string, entry.id);
         if (el) {
           el.applySnapshot(entry.diff);
-          el.buildHitArea();
+          el.rebuildHitArea();
           this.shapeManager.addElement(el);
         }
       }
@@ -211,7 +219,7 @@ export class TimeMachine {
           const el = createElementByType(entry.diff.type as string, entry.id);
           if (el) {
             el.applySnapshot(entry.diff);
-            el.buildHitArea();
+            el.rebuildHitArea();
             this.shapeManager.addElement(el);
           }
         }
@@ -225,7 +233,7 @@ export class TimeMachine {
         const el = createElementByType(entry.diff.type as string, entry.id);
         if (el) {
           el.applySnapshot(entry.diff);
-          el.buildHitArea();
+          el.rebuildHitArea();
           this.shapeManager.addElement(el);
         }
       }
@@ -242,7 +250,7 @@ export class TimeMachine {
           const el = createElementByType(entry.diff.type as string, entry.id);
           if (el) {
             el.applySnapshot(entry.diff);
-            el.buildHitArea();
+            el.rebuildHitArea();
             this.shapeManager.addElement(el);
           }
         }

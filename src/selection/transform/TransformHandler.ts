@@ -154,18 +154,20 @@ export class TransformHandler {
     if (!this._active) return;
     this._active = false;
     for (const el of this.targets) {
-      el.buildHitArea();
+      el.rebuildHitArea();
       el.setDirtyAll();
     }
 
     const ids = this.targets.map((e) => e.id);
-    this.bus.getTimeMachine().push(
-      this.mode === 'rotate' ? 'ROTATE' : 'RESIZE',
-      ids,
-      'element',
-      [],
-      this.targets,
-    );
+    this.bus
+      .getTimeMachine()
+      .push(
+        this.mode === 'rotate' ? 'ROTATE' : 'RESIZE',
+        ids,
+        'element',
+        [],
+        this.targets,
+      );
 
     this.startMatrices.clear();
     this.anchorWorldPoints.clear();

@@ -10,7 +10,7 @@ export const createCreateHandler = (
 
     const el = command.options.element;
     el.setIsPreview(false);
-    el.buildHitArea();
+    el.rebuildHitArea();
     shapeManager.add(el);
     el.setDirtyAll();
   };

@@ -15,7 +15,10 @@ import {
   offsetOpenPath,
   approximateArc,
 } from '@/spatial/geometry-utils';
-import { polyIntersectsPoly, segmentIntersectsSegment } from '@/spatial/hit-test';
+import {
+  polyIntersectsPoly,
+  segmentIntersectsSegment,
+} from '@/spatial/hit-test';
 
 export function generateCirclePoints(
   cx: number,
@@ -471,11 +474,7 @@ export function checkSceneCollisions(
     virtualMatrix.e += dx;
     virtualMatrix.f += dy;
 
-    const movingPts = getVisualWorldPoints(
-      movingEl,
-      camera,
-      virtualMatrix,
-    );
+    const movingPts = getVisualWorldPoints(movingEl, camera, virtualMatrix);
     if (movingPts.length === 0) continue;
 
     const movingBBox = getMovingBBox(movingPts);
@@ -500,12 +499,10 @@ export function checkSceneCollisions(
           candidate instanceof PathElement &&
           candidate.geometry.commands.length > 0 &&
           !(
-            candidate.geometry.commands[
-              candidate.geometry.commands.length - 1
-            ].command === 'Z' ||
-            candidate.geometry.commands[
-              candidate.geometry.commands.length - 1
-            ].command === 'z'
+            candidate.geometry.commands[candidate.geometry.commands.length - 1]
+              .command === 'Z' ||
+            candidate.geometry.commands[candidate.geometry.commands.length - 1]
+              .command === 'z'
           )
         );
 

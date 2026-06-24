@@ -39,7 +39,7 @@ function createSvgElement(options?: SvgCanvasOptions): SVGSVGElement {
     'viewBox',
     `0 0 ${options?.width ?? 800} ${options?.height ?? 600}`,
   );
-    svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
+  svg.setAttribute('preserveAspectRatio', 'xMinYMin meet');
   svg.style.display = 'block';
   return svg;
 }
@@ -196,7 +196,6 @@ export class CanvasFactory {
     const dragCtx = {
       getElements: () => shapeManager.getAll(),
       onDragEnd: (_ids: string[]) => {
-        canvas.reindexSpatialGrid();
         updateOverlay();
       },
     };
@@ -275,11 +274,15 @@ export class CanvasFactory {
     commandBus.register('GROUP_ADD', createGroupHandler(groupManager));
     commandBus.register('GROUP_REMOVE', createGroupHandler(groupManager));
     commandBus.register('GROUP_CLEAR', createGroupHandler(groupManager));
-    commandBus.register('DELETE', createDeleteHandler(shapeManager));
+    commandBus.register('DELETE', createDeleteHandler(shapeManager, spatialGrid));
     commandBus.register('CREATE', createCreateHandler(shapeManager));
     commandBus.register(
       'BOOLEAN_OPERATION',
-      createBooleanOperationHandler(shapeManager, timeMachine),
+      createBooleanOperationHandler(shapeManager, timeMachine, spatialGrid, (el) => {
+        el.onSpatialIndexChanged = (element) => {
+          canvas.reindexElement(element);
+        };
+      }),
     );
     commandBus.register(
       'CREATE_FILE',
@@ -297,7 +300,11 @@ export class CanvasFactory {
     commandBus.register('RESIZE', (command) => {
       if (command.type !== 'RESIZE') return;
       for (const id of command.options.elementIds) {
-        canvas.resizeElement(id, command.options.bbox.width, command.options.bbox.height);
+        canvas.resizeElement(
+          id,
+          command.options.bbox.width,
+          command.options.bbox.height,
+        );
       }
     });
 
@@ -314,7 +321,7 @@ export class CanvasFactory {
       if (el instanceof PathElement) {
         el.geometry.commands = command.options.newCommands;
         el.markRenderKey('d');
-        el.buildHitArea();
+        el.rebuildHitArea();
         el.setDirtyAll();
       }
     });
@@ -331,7 +338,7 @@ export class CanvasFactory {
           command.options.prevEndX,
           command.options.prevEndY,
         );
-        el.buildHitArea();
+        el.rebuildHitArea();
         el.setDirtyAll();
       }
     });
@@ -341,7 +348,7 @@ export class CanvasFactory {
       const el = shapeManager.getAll().find((e) => e.id === command.options.id);
       if (el instanceof PathElement) {
         el.changeNodeType(command.options.cmdIdx, command.options.newType);
-        el.buildHitArea();
+        el.rebuildHitArea();
         el.setDirtyAll();
       }
     });
@@ -351,7 +358,7 @@ export class CanvasFactory {
       const el = shapeManager.getAll().find((e) => e.id === command.options.id);
       if (el instanceof PathElement) {
         el.removeNodeAt(command.options.cmdIdx);
-        el.buildHitArea();
+        el.rebuildHitArea();
         el.setDirtyAll();
       }
     });
@@ -365,7 +372,7 @@ export class CanvasFactory {
           command.options.delta.x,
           command.options.delta.y,
         );
-        el.buildHitArea();
+        el.rebuildHitArea();
         el.setDirtyAll();
       }
     });

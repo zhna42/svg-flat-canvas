@@ -36,22 +36,31 @@ export class CircleElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.cx !== undefined) { this.geometry.cx = data.cx as number; this.markRenderKey('cx'); }
-    if (data.cy !== undefined) { this.geometry.cy = data.cy as number; this.markRenderKey('cy'); }
-    if (data.r !== undefined) { this.geometry.r = data.r as number; this.markRenderKey('r'); }
-    this.buildHitArea();
+    if (data.cx !== undefined) {
+      this.geometry.cx = data.cx as number;
+      this.markRenderKey('cx');
+    }
+    if (data.cy !== undefined) {
+      this.geometry.cy = data.cy as number;
+      this.markRenderKey('cy');
+    }
+    if (data.r !== undefined) {
+      this.geometry.r = data.r as number;
+      this.markRenderKey('r');
+    }
+    this.rebuildHitArea();
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {
     (clone as CircleElement).geometry = { ...this.geometry };
-    clone.buildHitArea();
+    clone.rebuildHitArea();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.geometry.cx += dx;
     this.geometry.cy += dy;
     this.markRenderKeys('cx', 'cy');
-    this.buildHitArea();
+    this.rebuildHitArea();
   }
 
   public flattenTransformToAttrs(): void {
@@ -62,7 +71,7 @@ export class CircleElement extends AbstractGraphicElement {
     this.markRenderKeys('cx', 'cy', 'r');
     this.transform.reset();
     this.markRenderKey('matrix');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 

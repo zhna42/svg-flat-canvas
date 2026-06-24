@@ -21,14 +21,20 @@ function expandBBox(bbox: BoundingBox, r: number): BoundingBox {
   };
 }
 
-function getStrokeOffset(strokeWidth: number, alignment: 'center' | 'inside' | 'outside'): number {
+function getStrokeOffset(
+  strokeWidth: number,
+  alignment: 'center' | 'inside' | 'outside',
+): number {
   if (alignment === 'outside') return strokeWidth;
   if (alignment === 'center') return strokeWidth / 2;
   return 0;
 }
 
 function computeBounds(points: Point[]): BoundingBox {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
   for (let i = 0; i < points.length; i++) {
     const p = points[i];
     if (p.x < minX) minX = p.x;
@@ -56,7 +62,11 @@ interface GroupPoint {
 }
 
 const NO_CONSTRAINT: SnapConstraint = { type: 'none', snapX: 0, snapY: 0 };
-const EMPTY_RESULT: SnapResult = { delta: { x: 0, y: 0 }, constraint: NO_CONSTRAINT, guidelines: [] };
+const EMPTY_RESULT: SnapResult = {
+  delta: { x: 0, y: 0 },
+  constraint: NO_CONSTRAINT,
+  guidelines: [],
+};
 
 function getGroupPoints(gb: BoundingBox): GroupPoint[] {
   const cx = (gb.minX + gb.maxX) / 2;
@@ -96,11 +106,21 @@ function collectStaticAreas(
 export class StaticSnapEngine {
   public static calculate(config: SnapConfig): SnapResult {
     const {
-      mode, movingElements, groupBounds, grid, camera,
-      currentMouseWorld, accumulatorState,
-      screenSnapRadius, screenDetachThreshold,
-      axisLock, snapToCorners, snapToPlanes,
-      snapToCanvas, canvasBounds, customGuidelines,
+      mode,
+      movingElements,
+      groupBounds,
+      grid,
+      camera,
+      currentMouseWorld,
+      accumulatorState,
+      screenSnapRadius,
+      screenDetachThreshold,
+      axisLock,
+      snapToCorners,
+      snapToPlanes,
+      snapToCanvas,
+      canvasBounds,
+      customGuidelines,
     } = config;
 
     const zoom = camera.zoom > 0.001 ? camera.zoom : 1;
@@ -143,9 +163,13 @@ export class StaticSnapEngine {
           return {
             delta: { x: px - cmx, y: py - cmy },
             constraint: {
-              type: 'line', snapX: px, snapY: py,
-              lineAx: prev.lineAx, lineAy: prev.lineAy,
-              lineBx: prev.lineBx, lineBy: prev.lineBy,
+              type: 'line',
+              snapX: px,
+              snapY: py,
+              lineAx: prev.lineAx,
+              lineAy: prev.lineAy,
+              lineBx: prev.lineBx,
+              lineBy: prev.lineBy,
             },
             guidelines: [],
           };
@@ -162,12 +186,14 @@ export class StaticSnapEngine {
     }
 
     const ha = movingElements[0].getHitArea();
-    const activePoints: GroupPoint[] = (mode === 'group' && groupBounds)
-      ? getGroupPoints(groupBounds)
-      : ha.vertices;
-    const movingBounds = (mode === 'group' && groupBounds)
-      ? groupBounds
-      : computeBounds(activePoints);
+    const activePoints: GroupPoint[] =
+      mode === 'group' && groupBounds
+        ? getGroupPoints(groupBounds)
+        : ha.vertices;
+    const movingBounds =
+      mode === 'group' && groupBounds
+        ? groupBounds
+        : computeBounds(activePoints);
     const searchBounds = expandBBox(movingBounds, rWorld);
     const candidateIds = grid.query(
       searchBounds.minX,
@@ -175,7 +201,11 @@ export class StaticSnapEngine {
       searchBounds.maxX - searchBounds.minX,
       searchBounds.maxY - searchBounds.minY,
     );
-    const staticAreas = collectStaticAreas(movingElements, candidateIds, config.getElementById);
+    const staticAreas = collectStaticAreas(
+      movingElements,
+      candidateIds,
+      config.getElementById,
+    );
 
     let bestCorner: SnapCandidate | null = null;
     let bestPlane: SnapCandidate | null = null;
@@ -198,20 +228,47 @@ export class StaticSnapEngine {
             const dy = v.y - pt.y;
             const dsq = dx * dx + dy * dy;
             if (dsq < rWorldSq && (!bestCorner || dsq < bestCorner.distSq)) {
-              bestCorner = { distSq: dsq, snapX: v.x, snapY: v.y, kind: 'corner' };
+              bestCorner = {
+                distSq: dsq,
+                snapX: v.x,
+                snapY: v.y,
+                kind: 'corner',
+              };
             }
           }
 
           if (sha.shapeType === 'circle') {
-            const sd = sha.shapeData as { cx: number; cy: number; rx: number; ry: number; r?: number } | undefined;
+            const sd = sha.shapeData as
+              | { cx: number; cy: number; rx: number; ry: number; r?: number }
+              | undefined;
             if (sd) {
-              const cx = sd.cx, cy = sd.cy;
+              const cx = sd.cx,
+                cy = sd.cy;
               const r = sd.r ?? sd.rx ?? 0;
               if (r > 0) {
-                const strokeOff = getStrokeOffset(sha.strokeWidth, sha.strokeAlignment);
-                const quadSnap = SnapGeometry.snapToCircleQuadrants(pt.x, pt.y, cx, cy, r, strokeOff, rWorldSq);
-                if (quadSnap && (!bestCorner || quadSnap.distSq < bestCorner.distSq)) {
-                  bestCorner = { distSq: quadSnap.distSq, snapX: quadSnap.snapX, snapY: quadSnap.snapY, kind: 'corner' };
+                const strokeOff = getStrokeOffset(
+                  sha.strokeWidth,
+                  sha.strokeAlignment,
+                );
+                const quadSnap = SnapGeometry.snapToCircleQuadrants(
+                  pt.x,
+                  pt.y,
+                  cx,
+                  cy,
+                  r,
+                  strokeOff,
+                  rWorldSq,
+                );
+                if (
+                  quadSnap &&
+                  (!bestCorner || quadSnap.distSq < bestCorner.distSq)
+                ) {
+                  bestCorner = {
+                    distSq: quadSnap.distSq,
+                    snapX: quadSnap.snapX,
+                    snapY: quadSnap.snapY,
+                    kind: 'corner',
+                  };
                 }
               }
             }
@@ -231,7 +288,12 @@ export class StaticSnapEngine {
             const dy = v.y - pt.y;
             const dsq = dx * dx + dy * dy;
             if (dsq < rWorldSq && (!bestCorner || dsq < bestCorner.distSq)) {
-              bestCorner = { distSq: dsq, snapX: v.x, snapY: v.y, kind: 'corner' };
+              bestCorner = {
+                distSq: dsq,
+                snapX: v.x,
+                snapY: v.y,
+                kind: 'corner',
+              };
             }
           }
         }
@@ -244,29 +306,61 @@ export class StaticSnapEngine {
 
           for (let ei = 0; ei < edges.length; ei++) {
             const edge = edges[ei];
-            const proj = SnapGeometry.pointToSegment(pt.x, pt.y, edge.ax, edge.ay, edge.bx, edge.by);
-            if (proj.distSq < rWorldSq && (!bestPlane || proj.distSq < bestPlane.distSq)) {
+            const proj = SnapGeometry.pointToSegment(
+              pt.x,
+              pt.y,
+              edge.ax,
+              edge.ay,
+              edge.bx,
+              edge.by,
+            );
+            if (
+              proj.distSq < rWorldSq &&
+              (!bestPlane || proj.distSq < bestPlane.distSq)
+            ) {
               bestPlane = {
                 distSq: proj.distSq,
                 snapX: proj.closestX,
                 snapY: proj.closestY,
                 kind: 'plane',
-                planeAx: edge.ax, planeAy: edge.ay,
-                planeBx: edge.bx, planeBy: edge.by,
+                planeAx: edge.ax,
+                planeAy: edge.ay,
+                planeBx: edge.bx,
+                planeBy: edge.by,
               };
             }
           }
 
           if (sha.shapeType === 'ellipse' || sha.shapeType === 'circle') {
-            const sd = sha.shapeData as { cx: number; cy: number; rx: number; ry: number; r?: number } | undefined;
+            const sd = sha.shapeData as
+              | { cx: number; cy: number; rx: number; ry: number; r?: number }
+              | undefined;
             if (sd) {
-              const cx = sd.cx, cy = sd.cy;
-              const rx = sha.shapeType === 'circle' ? (sd.r ?? sd.rx ?? 0) : sd.rx;
-              const ry = sha.shapeType === 'circle' ? (sd.r ?? sd.ry ?? 0) : sd.ry;
+              const cx = sd.cx,
+                cy = sd.cy;
+              const rx =
+                sha.shapeType === 'circle' ? (sd.r ?? sd.rx ?? 0) : sd.rx;
+              const ry =
+                sha.shapeType === 'circle' ? (sd.r ?? sd.ry ?? 0) : sd.ry;
               if (rx > 0 && ry > 0) {
-                const strokeOff = getStrokeOffset(sha.strokeWidth, sha.strokeAlignment);
-                const edge = SnapGeometry.snapToEllipseTangential(pt.x, pt.y, cx, cy, rx, ry, strokeOff);
-                if (edge && edge.distSq < rWorldSq && (!bestPlane || edge.distSq < bestPlane.distSq)) {
+                const strokeOff = getStrokeOffset(
+                  sha.strokeWidth,
+                  sha.strokeAlignment,
+                );
+                const edge = SnapGeometry.snapToEllipseTangential(
+                  pt.x,
+                  pt.y,
+                  cx,
+                  cy,
+                  rx,
+                  ry,
+                  strokeOff,
+                );
+                if (
+                  edge &&
+                  edge.distSq < rWorldSq &&
+                  (!bestPlane || edge.distSq < bestPlane.distSq)
+                ) {
                   const ex = edge.snapX - cx;
                   const ey = edge.snapY - cy;
                   const eLen = Math.sqrt(ex * ex + ey * ey) || 1;
@@ -291,8 +385,15 @@ export class StaticSnapEngine {
             const segments = sha.shapeData as BezierSegment[] | undefined;
             if (segments) {
               for (let bi = 0; bi < segments.length; bi++) {
-                const proj = SnapGeometry.projectToBezier(pt.x, pt.y, segments[bi]);
-                if (proj.distSq < rWorldSq && (!bestPlane || proj.distSq < bestPlane.distSq)) {
+                const proj = SnapGeometry.projectToBezier(
+                  pt.x,
+                  pt.y,
+                  segments[bi],
+                );
+                if (
+                  proj.distSq < rWorldSq &&
+                  (!bestPlane || proj.distSq < bestPlane.distSq)
+                ) {
                   bestPlane = {
                     distSq: proj.distSq,
                     snapX: proj.point.x,
@@ -307,21 +408,53 @@ export class StaticSnapEngine {
 
         if (snapToCanvas && canvasBounds) {
           const canvasEdges: EdgeInfo[] = [
-            { ax: canvasBounds.minX, ay: canvasBounds.minY, bx: canvasBounds.maxX, by: canvasBounds.minY },
-            { ax: canvasBounds.maxX, ay: canvasBounds.minY, bx: canvasBounds.maxX, by: canvasBounds.maxY },
-            { ax: canvasBounds.maxX, ay: canvasBounds.maxY, bx: canvasBounds.minX, by: canvasBounds.maxY },
-            { ax: canvasBounds.minX, ay: canvasBounds.maxY, bx: canvasBounds.minX, by: canvasBounds.minY },
+            {
+              ax: canvasBounds.minX,
+              ay: canvasBounds.minY,
+              bx: canvasBounds.maxX,
+              by: canvasBounds.minY,
+            },
+            {
+              ax: canvasBounds.maxX,
+              ay: canvasBounds.minY,
+              bx: canvasBounds.maxX,
+              by: canvasBounds.maxY,
+            },
+            {
+              ax: canvasBounds.maxX,
+              ay: canvasBounds.maxY,
+              bx: canvasBounds.minX,
+              by: canvasBounds.maxY,
+            },
+            {
+              ax: canvasBounds.minX,
+              ay: canvasBounds.maxY,
+              bx: canvasBounds.minX,
+              by: canvasBounds.minY,
+            },
           ];
           for (let ei = 0; ei < 4; ei++) {
-            const proj = SnapGeometry.pointToSegment(pt.x, pt.y, canvasEdges[ei].ax, canvasEdges[ei].ay, canvasEdges[ei].bx, canvasEdges[ei].by);
-            if (proj.distSq < rWorldSq && (!bestPlane || proj.distSq < bestPlane.distSq)) {
+            const proj = SnapGeometry.pointToSegment(
+              pt.x,
+              pt.y,
+              canvasEdges[ei].ax,
+              canvasEdges[ei].ay,
+              canvasEdges[ei].bx,
+              canvasEdges[ei].by,
+            );
+            if (
+              proj.distSq < rWorldSq &&
+              (!bestPlane || proj.distSq < bestPlane.distSq)
+            ) {
               bestPlane = {
                 distSq: proj.distSq,
                 snapX: proj.closestX,
                 snapY: proj.closestY,
                 kind: 'plane',
-                planeAx: canvasEdges[ei].ax, planeAy: canvasEdges[ei].ay,
-                planeBx: canvasEdges[ei].bx, planeBy: canvasEdges[ei].by,
+                planeAx: canvasEdges[ei].ax,
+                planeAy: canvasEdges[ei].ay,
+                planeBx: canvasEdges[ei].bx,
+                planeBy: canvasEdges[ei].by,
               };
             }
           }
@@ -335,33 +468,54 @@ export class StaticSnapEngine {
             const dsq = dy * dy;
             if (dsq < rWorldSq && (!bestPlane || dsq < bestPlane.distSq)) {
               bestPlane = {
-                distSq: dsq, snapX: pt.x, snapY: gl.value,
+                distSq: dsq,
+                snapX: pt.x,
+                snapY: gl.value,
                 kind: 'plane',
-                planeAx: -1e8, planeAy: gl.value,
-                planeBx: 1e8, planeBy: gl.value,
+                planeAx: -1e8,
+                planeAy: gl.value,
+                planeBx: 1e8,
+                planeBy: gl.value,
               };
-              guidelineHits.push({ type: 'horizontal', value: gl.value, from: { x: -1e8, y: gl.value }, to: { x: 1e8, y: gl.value } });
+              guidelineHits.push({
+                type: 'horizontal',
+                value: gl.value,
+                from: { x: -1e8, y: gl.value },
+                to: { x: 1e8, y: gl.value },
+              });
             }
           } else {
             const dx = gl.value - pt.x;
             const dsq = dx * dx;
             if (dsq < rWorldSq && (!bestPlane || dsq < bestPlane.distSq)) {
               bestPlane = {
-                distSq: dsq, snapX: gl.value, snapY: pt.y,
+                distSq: dsq,
+                snapX: gl.value,
+                snapY: pt.y,
                 kind: 'plane',
-                planeAx: gl.value, planeAy: -1e8,
-                planeBx: gl.value, planeBy: 1e8,
+                planeAx: gl.value,
+                planeAy: -1e8,
+                planeBx: gl.value,
+                planeBy: 1e8,
               };
-              guidelineHits.push({ type: 'vertical', value: gl.value, from: { x: gl.value, y: -1e8 }, to: { x: gl.value, y: 1e8 } });
+              guidelineHits.push({
+                type: 'vertical',
+                value: gl.value,
+                from: { x: gl.value, y: -1e8 },
+                to: { x: gl.value, y: 1e8 },
+              });
             }
           }
         }
       }
     }
 
-    const winner = (bestCorner !== null && bestPlane !== null)
-      ? (bestCorner.distSq <= bestPlane.distSq ? bestCorner : bestPlane)
-      : (bestCorner ?? bestPlane);
+    const winner =
+      bestCorner !== null && bestPlane !== null
+        ? bestCorner.distSq <= bestPlane.distSq
+          ? bestCorner
+          : bestPlane
+        : (bestCorner ?? bestPlane);
 
     if (winner === null) {
       accumulatorState.constraint = NO_CONSTRAINT;
@@ -420,7 +574,11 @@ export class StaticSnapEngine {
           dy = normalY;
         }
       } else {
-        constraint = { type: 'point', snapX: winner.snapX, snapY: winner.snapY };
+        constraint = {
+          type: 'point',
+          snapX: winner.snapX,
+          snapY: winner.snapY,
+        };
         if (axisLock.lockX) dx = 0;
         if (axisLock.lockY) dy = 0;
       }

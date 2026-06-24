@@ -45,10 +45,15 @@ export class PreviewElement extends AbstractGraphicElement {
       }
     }
     if (allPts.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
     for (const pt of allPts) {
-      if (pt.x < minX) minX = pt.x; if (pt.y < minY) minY = pt.y;
-      if (pt.x > maxX) maxX = pt.x; if (pt.y > maxY) maxY = pt.y;
+      if (pt.x < minX) minX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y > maxY) maxY = pt.y;
     }
     return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   }

@@ -25,8 +25,15 @@ export type GuidelineEvents = {
   RULER_VISIBILITY_CHANGED: { visible: boolean };
   RULER_GUIDELINE_ADD: { id: string; orientation: 'v' | 'h'; position: number };
   RULER_GUIDELINE_REMOVE: { id: string };
-  RULER_GUIDELINE_MOVE: { id: string; orientation: 'v' | 'h'; position: number };
-  RULER_GUIDELINES_VISIBILITY_CHANGED: { orientation: 'v' | 'h'; visible: boolean };
+  RULER_GUIDELINE_MOVE: {
+    id: string;
+    orientation: 'v' | 'h';
+    position: number;
+  };
+  RULER_GUIDELINES_VISIBILITY_CHANGED: {
+    orientation: 'v' | 'h';
+    visible: boolean;
+  };
 };
 
 export class RulerManager implements Renderable {
@@ -146,10 +153,7 @@ export class RulerManager implements Renderable {
     }));
   }
 
-  public setGuidelinesVisible(
-    orientation: 'v' | 'h',
-    visible: boolean,
-  ): void {
+  public setGuidelinesVisible(orientation: 'v' | 'h', visible: boolean): void {
     if (orientation === 'v') this.guidelinesVisibleV = visible;
     else this.guidelinesVisibleH = visible;
     this.applyGuidelineVisibility();
@@ -160,7 +164,9 @@ export class RulerManager implements Renderable {
   }
 
   public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
-    return orientation === 'v' ? this.guidelinesVisibleV : this.guidelinesVisibleH;
+    return orientation === 'v'
+      ? this.guidelinesVisibleV
+      : this.guidelinesVisibleH;
   }
 
   // ── render ──
@@ -262,7 +268,10 @@ export class RulerManager implements Renderable {
     this.rulersGroup.innerHTML = h;
   }
 
-  private getTickType(mmVal: number, mmStep: number): 'minor' | 'medium' | 'major' {
+  private getTickType(
+    mmVal: number,
+    mmStep: number,
+  ): 'minor' | 'medium' | 'major' {
     const r10 = Math.abs(mmVal % (mmStep * 10));
     if (r10 < 0.001 || Math.abs(r10 - mmStep * 10) < 0.001) return 'major';
     const r5 = Math.abs(mmVal % (mmStep * 5));
@@ -436,9 +445,7 @@ export class RulerManager implements Renderable {
       if (this.dragging.type === 'ruler') {
         const dx = svgPt.x - this.dragging.startScreenX;
         const dy = svgPt.y - this.dragging.startScreenY;
-        const dist = Math.abs(
-          this.dragging.orientation === 'v' ? dx : dy,
-        );
+        const dist = Math.abs(this.dragging.orientation === 'v' ? dx : dy);
 
         if (dist > MIN_DRAG_DIST && !this.dragging.previewLine) {
           this.dragging.previewLine = this.createGuidelineElement(
@@ -452,31 +459,18 @@ export class RulerManager implements Renderable {
 
         if (this.dragging.previewLine) {
           if (this.dragging.orientation === 'v') {
-            this.dragging.previewLine.setAttribute(
-              'x1',
-              String(svgPt.x),
-            );
-            this.dragging.previewLine.setAttribute(
-              'x2',
-              String(svgPt.x),
-            );
+            this.dragging.previewLine.setAttribute('x1', String(svgPt.x));
+            this.dragging.previewLine.setAttribute('x2', String(svgPt.x));
           } else {
-            this.dragging.previewLine.setAttribute(
-              'y1',
-              String(svgPt.y),
-            );
-            this.dragging.previewLine.setAttribute(
-              'y2',
-              String(svgPt.y),
-            );
+            this.dragging.previewLine.setAttribute('y1', String(svgPt.y));
+            this.dragging.previewLine.setAttribute('y2', String(svgPt.y));
           }
         }
       }
 
       if (this.dragging.type === 'guideline') {
         const wp = this.camera.screenToWorld(svgPt);
-        const newPos =
-          this.dragging.orientation === 'v' ? wp.x : wp.y;
+        const newPos = this.dragging.orientation === 'v' ? wp.x : wp.y;
         const g = this.guidelines.get(this.dragging.guid!);
         if (g) {
           g.position = newPos;
@@ -493,8 +487,7 @@ export class RulerManager implements Renderable {
         if (this.dragging.previewLine) {
           if (svgPt) {
             const wp = this.camera.screenToWorld(svgPt);
-            const pos =
-              this.dragging.orientation === 'v' ? wp.x : wp.y;
+            const pos = this.dragging.orientation === 'v' ? wp.x : wp.y;
             this.dragging.previewLine.remove();
             this.addGuideline(this.dragging.orientation, pos);
           }

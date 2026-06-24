@@ -51,7 +51,7 @@ export class PathTimeMachine {
       args: [...c.args],
     }));
     this.path.markRenderKey('d');
-    this.path.buildHitArea();
+    this.path.rebuildHitArea();
     this.path.setDirtyGeometry();
   }
 

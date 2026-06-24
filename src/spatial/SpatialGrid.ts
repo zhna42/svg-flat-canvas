@@ -6,22 +6,29 @@ export class SpatialGrid {
     this.cellSize = cellSize;
   }
 
-  private cellKeys(x: number, y: number, w: number, h: number): Set<number> {
-    const keys = new Set<number>();
+  public cellKeys(x: number, y: number, w: number, h: number): number[] {
+    const keys: number[] = [];
     const colStart = Math.floor(x / this.cellSize);
     const colEnd = Math.floor((x + w) / this.cellSize);
     const rowStart = Math.floor(y / this.cellSize);
     const rowEnd = Math.floor((y + h) / this.cellSize);
     for (let r = rowStart; r <= rowEnd; r++) {
       for (let c = colStart; c <= colEnd; c++) {
-        keys.add(r * 100000 + c);
+        keys.push(r * 100000 + c);
       }
     }
     return keys;
   }
 
-  public insert(id: string, x: number, y: number, w: number, h: number): void {
-    for (const k of this.cellKeys(x, y, w, h)) {
+  public insert(
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): number[] {
+    const keys = this.cellKeys(x, y, w, h);
+    for (const k of keys) {
       let cell = this.cells.get(k);
       if (!cell) {
         cell = new Map<string, Set<string>>();
@@ -29,6 +36,7 @@ export class SpatialGrid {
       }
       cell.set(id, new Set<string>());
     }
+    return keys;
   }
 
   public remove(id: string, x: number, y: number, w: number, h: number): void {
@@ -36,6 +44,38 @@ export class SpatialGrid {
       const cell = this.cells.get(k);
       if (cell) cell.delete(id);
     }
+  }
+
+  public removeById(id: string, oldCellIds: number[]): void {
+    for (const k of oldCellIds) {
+      const cell = this.cells.get(k);
+      if (cell) cell.delete(id);
+    }
+  }
+
+  public updateElement(
+    id: string,
+    oldCellIds: number[],
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): number[] {
+    for (const k of oldCellIds) {
+      const cell = this.cells.get(k);
+      if (cell) cell.delete(id);
+    }
+
+    const newKeys = this.cellKeys(x, y, w, h);
+    for (const k of newKeys) {
+      let cell = this.cells.get(k);
+      if (!cell) {
+        cell = new Map<string, Set<string>>();
+        this.cells.set(k, cell);
+      }
+      cell.set(id, new Set<string>());
+    }
+    return newKeys;
   }
 
   public query(x: number, y: number, w: number, h: number): string[] {

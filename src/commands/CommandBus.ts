@@ -5,10 +5,20 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import type { EventBus } from '@/core/EventBus';
 
 const EDIT_COMMANDS = new Set([
-  'DRAG_END', 'RESIZE', 'ROTATE', 'TRANSFORM',
-  'GEOMETRY_MUTATE', 'PATH_ADD_NODE', 'PATH_CHANGE_NODE_TYPE',
-  'PATH_REMOVE_NODE', 'PATH_MOVE_SUBPATH',
-  'GROUP_CREATE', 'GROUP_DELETE', 'GROUP_ADD', 'GROUP_REMOVE', 'GROUP_CLEAR',
+  'DRAG_END',
+  'RESIZE',
+  'ROTATE',
+  'TRANSFORM',
+  'GEOMETRY_MUTATE',
+  'PATH_ADD_NODE',
+  'PATH_CHANGE_NODE_TYPE',
+  'PATH_REMOVE_NODE',
+  'PATH_MOVE_SUBPATH',
+  'GROUP_CREATE',
+  'GROUP_DELETE',
+  'GROUP_ADD',
+  'GROUP_REMOVE',
+  'GROUP_CLEAR',
 ]);
 
 export class CommandBus {
@@ -16,7 +26,9 @@ export class CommandBus {
   private readonly timeMachine: TimeMachine;
   private readonly events: EventBus;
   private getSelected: (() => string[]) | undefined;
-  private getElement: ((id: string) => AbstractGraphicElement | undefined) | undefined;
+  private getElement:
+    | ((id: string) => AbstractGraphicElement | undefined)
+    | undefined;
   public suppressTimeMachine = false;
 
   public constructor(timeMachine: TimeMachine, events: EventBus) {
@@ -28,7 +40,9 @@ export class CommandBus {
     this.getSelected = fn;
   }
 
-  public setGetElement(fn: (id: string) => AbstractGraphicElement | undefined): void {
+  public setGetElement(
+    fn: (id: string) => AbstractGraphicElement | undefined,
+  ): void {
     this.getElement = fn;
   }
 
@@ -91,41 +105,31 @@ export class CommandBus {
     }
 
     if (!this.suppressTimeMachine && command.type === 'DELETE') {
-      this.timeMachine.push(
-        'DELETE',
-        ids,
-        'element',
-        ids,
-        [],
-      );
+      this.timeMachine.push('DELETE', ids, 'element', ids, []);
     }
 
-    if (!this.suppressTimeMachine && (command.type === 'CREATE' || command.type === 'CREATE_FILE')) {
+    if (
+      !this.suppressTimeMachine &&
+      (command.type === 'CREATE' || command.type === 'CREATE_FILE')
+    ) {
       const newIds = this.extractIds(command);
       const newElements: AbstractGraphicElement[] = [];
       for (const id of newIds) {
         const el = this.getElement?.(id);
         if (el) newElements.push(el);
       }
-      this.timeMachine.push(
-        command.type as any,
-        newIds,
-        'element',
-        newIds,
-        [],
-      );
+      this.timeMachine.push(command.type as any, newIds, 'element', newIds, []);
     }
 
-    if (!this.suppressTimeMachine && (command.type === 'GROUP_CREATE' || command.type === 'GROUP_DELETE' ||
-        command.type === 'GROUP_ADD' || command.type === 'GROUP_REMOVE' ||
-        command.type === 'GROUP_CLEAR')) {
-      this.timeMachine.push(
-        command.type as any,
-        [],
-        'group',
-        [],
-        [],
-      );
+    if (
+      !this.suppressTimeMachine &&
+      (command.type === 'GROUP_CREATE' ||
+        command.type === 'GROUP_DELETE' ||
+        command.type === 'GROUP_ADD' ||
+        command.type === 'GROUP_REMOVE' ||
+        command.type === 'GROUP_CLEAR')
+    ) {
+      this.timeMachine.push(command.type as any, [], 'group', [], []);
     }
   }
 
@@ -133,7 +137,9 @@ export class CommandBus {
     return this.timeMachine;
   }
 
-  private captureBeforeSnapshots(ids: string[]): Map<string, Record<string, unknown>> {
+  private captureBeforeSnapshots(
+    ids: string[],
+  ): Map<string, Record<string, unknown>> {
     const map = new Map<string, Record<string, unknown>>();
     for (const id of ids) {
       const el = this.getElement?.(id);

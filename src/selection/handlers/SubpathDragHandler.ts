@@ -46,7 +46,7 @@ export class SubpathDragHandler {
 
   public end(): void {
     if (!this._active || !this._element) return;
-    this._element.buildHitArea();
+    this._element.rebuildHitArea();
     this._element.setDirtyGeometry();
 
     this.pathTimeMachine?.capture();

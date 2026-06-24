@@ -72,7 +72,10 @@ export class PathElement extends AbstractGraphicElement {
     return { d: this.toDString() };
   }
 
-  protected buildAdditionalSnapshotKey(key: string, snapshot: Record<string, unknown>): void {
+  protected buildAdditionalSnapshotKey(
+    key: string,
+    snapshot: Record<string, unknown>,
+  ): void {
     if (key === 'd') snapshot.d = this.toDString();
   }
 
@@ -93,7 +96,7 @@ export class PathElement extends AbstractGraphicElement {
       }));
       this.markRenderKey('d');
     }
-    this.buildHitArea();
+    this.rebuildHitArea();
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {
@@ -102,7 +105,7 @@ export class PathElement extends AbstractGraphicElement {
       ...c,
       args: [...c.args],
     }));
-    el.buildHitArea();
+    el.rebuildHitArea();
   }
 
   public get d(): string {
@@ -112,7 +115,7 @@ export class PathElement extends AbstractGraphicElement {
   public set d(val: string) {
     this.geometry.commands = parseD(val);
     this.markRenderKey('d');
-    this.buildHitArea();
+    this.rebuildHitArea();
   }
 
   public toDString(): string {
@@ -130,7 +133,7 @@ export class PathElement extends AbstractGraphicElement {
     const m = new DOMMatrix([a, b, c, d, e, f]);
     this.geometry.commands = transformCommands(this.geometry.commands, m);
     this.markRenderKey('d');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 
@@ -141,7 +144,7 @@ export class PathElement extends AbstractGraphicElement {
     this.markRenderKey('d');
     this.transform.reset();
     this.markRenderKey('matrix');
-    this.buildHitArea();
+    this.rebuildHitArea();
     this.requestRender();
   }
 
@@ -218,7 +221,15 @@ export class PathElement extends AbstractGraphicElement {
       const sy = prevEndY;
       const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
       const { left, right } = PathElement.splitCubic(
-        sx, sy, c1x, c1y, c2x, c2y, ex, ey, t,
+        sx,
+        sy,
+        c1x,
+        c1y,
+        c2x,
+        c2y,
+        ex,
+        ey,
+        t,
       );
       nextCmd.args = [left[2], left[3], left[4], left[5], left[6], left[7]];
       cmds.splice(cmdIdx + 1, 0, {
@@ -238,7 +249,15 @@ export class PathElement extends AbstractGraphicElement {
       }
       const [c2x, c2y, ex, ey] = nextCmd.args;
       const { left, right } = PathElement.splitCubic(
-        sx, sy, reflectX, reflectY, c2x, c2y, ex, ey, t,
+        sx,
+        sy,
+        reflectX,
+        reflectY,
+        c2x,
+        c2y,
+        ex,
+        ey,
+        t,
       );
       nextCmd.args = [left[4], left[5], left[6], left[7]];
       nextCmd.command = 'S';
@@ -248,7 +267,10 @@ export class PathElement extends AbstractGraphicElement {
       });
     } else if (nc === 'Q' && nextCmd.args.length >= 4) {
       const [c1x, c1y, ex, ey] = nextCmd.args;
-      const A = { x: prevEndX + (c1x - prevEndX) * t, y: prevEndY + (c1y - prevEndY) * t };
+      const A = {
+        x: prevEndX + (c1x - prevEndX) * t,
+        y: prevEndY + (c1y - prevEndY) * t,
+      };
       const B = { x: c1x + (ex - c1x) * t, y: c1y + (ey - c1y) * t };
       const F = { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t };
       nextCmd.args = [A.x, A.y, F.x, F.y];
