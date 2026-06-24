@@ -60,6 +60,7 @@ export class TimeMachine {
     selectType: 'element' | 'group',
     getFullSnapshotIds: string[],
     getDiffElements: AbstractGraphicElement[],
+    deletedSnapshots?: EntityDiff[],
   ): void {
     if (!this.root && this.records.length === 0) {
       this.captureRoot();
@@ -79,6 +80,12 @@ export class TimeMachine {
       const diff = el.getDiffSnapshot();
       if (Object.keys(diff).length > 0) {
         data.push({ id: el.id, diff });
+      }
+    }
+
+    if (deletedSnapshots) {
+      for (const ds of deletedSnapshots) {
+        data.push(ds);
       }
     }
 
@@ -195,6 +202,20 @@ export class TimeMachine {
           this.shapeManager.addElement(el);
         }
       }
+    } else if (snapshot.command === 'BOOLEAN_OPERATION') {
+      for (const entry of snapshot.data) {
+        const existing = this.shapeManager.getById(entry.id);
+        if (existing) {
+          this.shapeManager.removeElementAndNode(entry.id);
+        } else {
+          const el = createElementByType(entry.diff.type as string, entry.id);
+          if (el) {
+            el.applySnapshot(entry.diff);
+            el.buildHitArea();
+            this.shapeManager.addElement(el);
+          }
+        }
+      }
     }
   }
 
@@ -211,6 +232,20 @@ export class TimeMachine {
     } else if (snapshot.command === 'DELETE') {
       for (const entry of snapshot.data) {
         this.shapeManager.removeElementAndNode(entry.id);
+      }
+    } else if (snapshot.command === 'BOOLEAN_OPERATION') {
+      for (const entry of snapshot.data) {
+        const existing = this.shapeManager.getById(entry.id);
+        if (existing) {
+          this.shapeManager.removeElementAndNode(entry.id);
+        } else {
+          const el = createElementByType(entry.diff.type as string, entry.id);
+          if (el) {
+            el.applySnapshot(entry.diff);
+            el.buildHitArea();
+            this.shapeManager.addElement(el);
+          }
+        }
       }
     }
   }

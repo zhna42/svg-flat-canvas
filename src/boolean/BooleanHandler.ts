@@ -6,8 +6,8 @@ import type { BooleanOp, Pt } from './BooleanKernel';
 import { booleanOperation } from './BooleanKernel';
 import { dString } from './BooleanEngine';
 import { PreviewElement } from '@/shapes/elements/PreviewElement';
-import { PathElement } from '@/shapes/elements/PathElement';
 import type { EventBus } from '@/core/EventBus';
+import type { CommandBus } from '@/commands/CommandBus';
 import { hitTestByPoint } from '@/spatial/hit-test';
 import { polyIntersectsPoly } from '@/spatial/hit-test';
 
@@ -21,6 +21,7 @@ export class BooleanHandler {
   private grid: SpatialGrid;
   private svg: SVGSVGElement;
   private events: EventBus;
+  private commandBus: CommandBus;
 
   private op: BooleanOp = 'UNION';
   private active = false;
@@ -38,12 +39,14 @@ export class BooleanHandler {
     shapeManager: ShapeManager,
     grid: SpatialGrid,
     events: EventBus,
+    commandBus: CommandBus,
   ) {
     this.svg = svg;
     this.selectionState = selectionState;
     this.shapeManager = shapeManager;
     this.grid = grid;
     this.events = events;
+    this.commandBus = commandBus;
 
     this.svg.addEventListener('mousedown', (e: MouseEvent) => {
       if (!this.active || e.button !== 0) return;
@@ -325,24 +328,26 @@ export class BooleanHandler {
       for (let i = 1; i < ring.length; i++) commands.push({ command: 'L', args: [ring[i].x, ring[i].y] });
       commands.push({ command: 'Z', args: [] });
     }
-    const d = dString(commands);
 
     this.hidePreview();
 
-    for (const id of this.clipIds) this.shapeManager.removeElementAndNode(id);
-    for (const id of this.subjectIds) this.shapeManager.removeElementAndNode(id);
+    this.commandBus.execute({
+      type: 'BOOLEAN_OPERATION',
+      options: {
+        subjectIds: this.subjectIds,
+        clipIds: this.clipIds,
+        resultCommands: commands,
+        resultFill: '#cccccc',
+        resultStroke: '#000000',
+      },
+    });
 
-    const newEl = new PathElement(crypto.randomUUID());
-    newEl.d = d;
-    newEl.setFill('#cccccc');
-    newEl.setStroke('#000000');
-    newEl.setStrokeWidth(2);
-    newEl.buildHitArea();
-    newEl.setDirtyAll();
-    this.shapeManager.addElement(newEl);
-    this.selectionState.clear();
-    this.selectionState.add([newEl]);
-    this.events.emit('BOOLEAN_COMMIT', { op: this.op, newId: newEl.id, d });
+    this.events.emit('BOOLEAN_COMMIT', {
+      op: this.op,
+      subjectIds: this.subjectIds,
+      clipIds: this.clipIds,
+    });
+
     this.cleanup();
   }
 

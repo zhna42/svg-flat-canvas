@@ -26,6 +26,7 @@ import { createGroupHandler } from '@/commands/handlers/group-handler';
 import { createDeleteHandler } from '@/commands/handlers/delete-handler';
 import { createCreateHandler } from '@/commands/handlers/create-handler';
 import { createCreateFileHandler } from '@/commands/handlers/create-file-handler';
+import { createBooleanOperationHandler } from '@/commands/handlers/boolean-handler';
 import { ExternalApi } from '@/api/external-api';
 import { PathElement } from '@/shapes/elements/PathElement';
 import { SvgCanvas } from './SvgCanvas';
@@ -107,6 +108,7 @@ export class CanvasFactory {
       shapeManager,
       spatialGrid,
       events,
+      commandBus,
     );
 
     const canvas = Object.create(SvgCanvas.prototype) as SvgCanvas;
@@ -274,6 +276,10 @@ export class CanvasFactory {
     commandBus.register('GROUP_CLEAR', createGroupHandler(groupManager));
     commandBus.register('DELETE', createDeleteHandler(shapeManager));
     commandBus.register('CREATE', createCreateHandler(shapeManager));
+    commandBus.register(
+      'BOOLEAN_OPERATION',
+      createBooleanOperationHandler(shapeManager, timeMachine),
+    );
     commandBus.register(
       'CREATE_FILE',
       createCreateFileHandler(shapeManager, groupManager, (el) =>

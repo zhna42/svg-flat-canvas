@@ -21,7 +21,8 @@ export type CommandType =
   | 'PATH_ADD_NODE'
   | 'PATH_CHANGE_NODE_TYPE'
   | 'PATH_REMOVE_NODE'
-  | 'PATH_MOVE_SUBPATH';
+  | 'PATH_MOVE_SUBPATH'
+  | 'BOOLEAN_OPERATION';
 
 export type SelectionMode = 'element' | 'group';
 export type SelectionGesture = 'click' | 'rect' | 'lasso';
@@ -176,6 +177,17 @@ export interface PathMoveSubpathCommand {
   };
 }
 
+export interface BooleanOperationCommand {
+  type: 'BOOLEAN_OPERATION';
+  options: {
+    subjectIds: string[];
+    clipIds: string[];
+    resultCommands: PathCommand[];
+    resultFill: string;
+    resultStroke: string;
+  };
+}
+
 export type Command =
   | CreateCommand
   | CreateFileCommand
@@ -195,4 +207,5 @@ export type Command =
   | PathAddNodeCommand
   | PathChangeNodeTypeCommand
   | PathRemoveNodeCommand
-  | PathMoveSubpathCommand;
+  | PathMoveSubpathCommand
+  | BooleanOperationCommand;
