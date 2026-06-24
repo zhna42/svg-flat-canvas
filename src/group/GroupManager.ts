@@ -1,5 +1,6 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import { Group, type GroupData } from './Group';
+import type { EventBus } from '@/core/EventBus';
 
 export type GroupConflictAction = 'move' | 'cancel';
 
@@ -17,12 +18,17 @@ export class GroupManager {
       ) => GroupConflictAction | null)
     | null = null;
   public conflictSuppressed = false;
+  private events: EventBus | null = null;
 
   public constructor(
     _overlay: unknown,
     getElements: () => AbstractGraphicElement[],
   ) {
     this.getElements = getElements;
+  }
+
+  public setEvents(events: EventBus): void {
+    this.events = events;
   }
 
   public refreshOverlay(): void {}
@@ -36,7 +42,9 @@ export class GroupManager {
     for (const id of ids) {
       if (this.groups.has(id)) this.selectedGroupIds.add(id);
     }
-    this.onGroupSelect?.(Array.from(this.selectedGroupIds));
+    const selected = Array.from(this.selectedGroupIds);
+    this.onGroupSelect?.(selected);
+    this.events?.emit('GROUP_SELECTION_CHANGED', { ids: selected });
   }
 
   public clearSelectedGroups(): void {
@@ -58,16 +66,10 @@ export class GroupManager {
   }
 
   public createGroup(name?: string): string {
-    const id =
-      'grp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-    this.groups.set(
-      id,
-      new Group({
-        id,
-        name: name || `Group-${this.groups.size + 1}`,
-        elementIds: [],
-      }),
-    );
+    const id = 'grp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const groupName = name || `Group-${this.groups.size + 1}`;
+    this.groups.set(id, new Group({ id, name: groupName, elementIds: [] }));
+    this.events?.emit('GROUP_CREATED', { id, name: groupName });
     this.notify();
     return id;
   }
@@ -85,6 +87,7 @@ export class GroupManager {
       if (el) el.setGroupId('');
     }
     this.groups.delete(id);
+    this.events?.emit('GROUP_DELETED', { id });
     this.notify();
   }
 
@@ -102,6 +105,7 @@ export class GroupManager {
     }
     el.setGroupId(groupId);
     g.elementIds.add(elementId);
+    this.events?.emit('GROUP_ELEMENT_ADDED', { groupId, elementId });
     this.notify();
   }
 
@@ -111,6 +115,7 @@ export class GroupManager {
     g.elementIds.delete(elementId);
     const el = this.findElement(elementId);
     if (el && el.groupId === groupId) el.setGroupId('');
+    this.events?.emit('GROUP_ELEMENT_REMOVED', { groupId, elementId });
     this.notify();
   }
 
@@ -122,6 +127,7 @@ export class GroupManager {
       if (el && el.groupId === id) el.setGroupId('');
     }
     g.elementIds.clear();
+    this.events?.emit('GROUP_CLEARED', { id });
     this.notify();
   }
 

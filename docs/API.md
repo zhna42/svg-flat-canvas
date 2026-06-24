@@ -1,94 +1,130 @@
-# External API Reference
+# ExternalApi
 
-## Методы
-
-### Создание элементов
+## События
 
 | Метод | Описание |
 |---|---|
-| `createShape(dto: CreateShapeDTO)` | Создать элемент (rect, circle, ellipse, line, polyline, polygon, path, text, image) |
-| `createFile(dtos: CreateShapeDTO[], name?: string)` | Создать несколько элементов как группу-файл, возвращает `{ groupId, elements }` |
+| `on(type, fn)` | Подписка на событие, возвращает функцию отписки. `type = '*'` — все события |
+| `off(type, fn)` | Отписка от события |
 
-### Редактирование
+### Типы событий
 
-| Метод | Описание |
-|---|---|
-| `updateShapes(dto: UpdateShapesDTO)` | Обновить стили, трансформ, геометрию, имя, видимость, блокировку, groupId, data |
-| `moveShapes(dto: MoveShapesDTO)` | Сдвинуть элементы на дельту |
-| `rotateShapes(dto: RotateShapesDTO)` | Повернуть элементы на угол |
-| `resizeShapes(dto: ResizeShapesDTO)` | Изменить размер по bbox |
-| `setTransformShapes(dto: SetTransformShapesDTO)` | Применить матрицу трансформации |
-| `deleteShapes(dto: DeleteShapesDTO)` | Удалить элементы |
-| `sortShapes(dto: SortShapesDTO)` | Переместить элементы (before/after target) |
-
-### Группы
-
-| Метод | Описание |
-|---|---|
-| `groupCreate(dto: GroupCreateDTO)` | Создать группу, возвращает groupId |
-| `groupDelete(dto: GroupDeleteDTO)` | Удалить группу |
-| `groupAddElements(dto: GroupAddElementsDTO)` | Добавить элементы в группу |
-| `groupRemoveElements(dto: GroupRemoveElementsDTO)` | Удалить элементы из группы |
-
-### Выделение
-
-| Метод | Описание |
-|---|---|
-| `selectShapes(dto: SelectShapesDTO)` | Выбрать элементы (с режимом toggle) |
-| `clearSelection()` | Сбросить выделение |
-| `getAllShapes()` | Вернуть все выбранные элементы |
-
-### Холст
-
-| Метод | Описание |
-|---|---|
-| `getCanvasSize()` | Размер холста: `{ widthMM, heightMM, widthPx, heightPx, pxPerMM }` |
-| `setActiveCreationTool(type: ElementType \| null)` | Включить инструмент рисования (rect, circle, ellipse, line, polyline, polygon, path, null) |
-| `setPanMode(enabled: boolean)` | Включить/выключить режим панорамирования |
-
-### Подписка на события
-
-| Метод | Описание |
-|---|---|
-| `on(type: string, fn: (event: BusEvent) => void)` | Подписаться на событие, возвращает `() => void` для отписки |
-| `off(type: string, fn: (event: BusEvent) => void)` | Отписаться |
-
-Событие `BusEvent`: `{ type: string, data: unknown }`
-
-Для `type = '*'` — подписка на все события. Слушатель получает `data` напрямую (без обёртки `BusEvent`).
-
----
-
-## Команды (эмитят `SVG_CAD_{COMMAND}` с `diff: Record<elementId, { type, changed поля }>`)
-
-| Команда | Событие | Diff содержит |
+| Событие | `data` | Когда |
 |---|---|---|
-| `CREATE` | `SVG_CAD_CREATE` | type, id, fill, stroke, matrix, geometry… |
-| `DELETE` | `SVG_CAD_DELETE` | type: '', все поля null |
-| `DRAG_END` | `SVG_CAD_DRAG_END` | type, matrix (+ mode: element/group) |
-| `RESIZE` | `SVG_CAD_RESIZE` | type, matrix |
-| `ROTATE` | `SVG_CAD_ROTATE` | type, matrix |
-| `TRANSFORM` | `SVG_CAD_TRANSFORM` | type, matrix |
-| `SELECT` | `SVG_CAD_SELECT` | `{}` пустой (+ mode: element/group) |
-| `GEOMETRY_MUTATE` | `SVG_CAD_GEOMETRY_MUTATE` | type, commands |
-| `PATH_ADD_NODE` | `SVG_CAD_PATH_ADD_NODE` | type, commands |
-| `PATH_REMOVE_NODE` | `SVG_CAD_PATH_REMOVE_NODE` | type, commands |
-| `PATH_CHANGE_NODE_TYPE` | `SVG_CAD_PATH_CHANGE_NODE_TYPE` | type, commands |
-| `PATH_MOVE_SUBPATH` | `SVG_CAD_PATH_MOVE_SUBPATH` | type, commands |
-| `CREATE_FILE` | `SVG_CAD_CREATE_FILE` | type, matrix, groupId… |
-| `GROUP_CREATE` | `SVG_CAD_GROUP_CREATE` | — |
-| `GROUP_DELETE` | `SVG_CAD_GROUP_DELETE` | — |
-| `GROUP_ADD` | `SVG_CAD_GROUP_ADD` | — |
-| `GROUP_REMOVE` | `SVG_CAD_GROUP_REMOVE` | — |
-| `GROUP_CLEAR` | `SVG_CAD_GROUP_CLEAR` | — |
-| — | `SVG_CAD_PAN_MODE_CHANGED` | `{ enabled: boolean }` |
+| `SVG_CAD_SELECT` | `{ mode, elementIds, diff }` | Изменение селекта |
+| `SVG_CAD_PAN_MODE_CHANGED` | `{ enabled }` | Вкл/выкл режим панорамирования |
+| `RULER_VISIBILITY_CHANGED` | `{ visible }` | Изменение видимости линеек |
+| `RULER_GUIDELINE_ADD` | `{ id, orientation, position }` | Добавлена направляющая |
+| `RULER_GUIDELINE_REMOVE` | `{ id }` | Удалена направляющая |
+| `RULER_GUIDELINE_MOVE` | `{ id, orientation, position }` | Перемещена направляющая |
+| `RULER_GUIDELINES_VISIBILITY_CHANGED` | `{ orientation, visible }` | Видимость направляющих |
+| `BOOLEAN_MODE_ENTER` | `{ op }` | Вход в режим булевой операции |
+| `BOOLEAN_MODE_EXIT` | `{}` | Выход из режима |
+| `BOOLEAN_COMMIT` | `{ op, subjectIds, clipIds }` | Завершение булевой операции |
+| `BOOLEAN_CANCEL` | `{ op, subjectIds }` | Отмена булевой операции |
 
 ---
 
-## Интерфейсы DTO
+## Создание / удаление
 
-```typescript
-// --- Стили ---
+| Метод | Описание |
+|---|---|
+| `createShape(dto)` | Создать фигуру. Пишет в TimeMachine |
+| `createFile(dtos, name?)` | Создать группу фигур как файл. Возвращает `{ groupId, elements }` |
+| `deleteShapes(dto)` | Удалить фигуры по ID |
+| `updateShapes(dto)` | Обновить свойства фигур. Без TimeMachine |
+
+---
+
+## Трансформации
+
+| Метод | Описание |
+|---|---|
+| `moveShapes(dto)` | DRAG_MOVE — переместить на delta. Без TimeMachine |
+| `rotateShapes(dto)` | ROTATE — повернуть на угол. Пишет в TimeMachine |
+| `resizeShapes(dto)` | RESIZE — изменить размер по bbox. Пишет в TimeMachine |
+| `setTransformShapes(dto)` | TRANSFORM — установить матрицу. Пишет в TimeMachine |
+
+---
+
+## Селект
+
+| Метод | Описание |
+|---|---|
+| `selectShapes(dto)` | Выбрать фигуры (toggle) |
+| `clearSelection()` | Сбросить выделение |
+| `getAllShapes()` | Получить все фигуры на сцене |
+
+---
+
+## Группировка
+
+| Метод | Описание |
+|---|---|
+| `groupCreate(dto)` | Создать группу |
+| `groupDelete(dto)` | Удалить группу |
+| `groupAddElements(dto)` | Добавить элементы в группу |
+| `groupRemoveElements(dto)` | Удалить элементы из группы |
+
+---
+
+## Z-порядок
+
+| Метод | Описание |
+|---|---|
+| `sortShapes(dto)` | Переместить фигуры перед/за targetId |
+
+---
+
+## Канвас / артборд
+
+| Метод | Описание |
+|---|---|
+| `getCanvasSize()` | Размеры артборда: `{ widthMM, heightMM, widthPx, heightPx, pxPerMM }` |
+| `setPanMode(enabled)` | Вкл/выкл ручное панорамирование |
+| `setActiveCreationTool(type)` | Инструмент рисования: `rect`, `circle`, `path`… `null` = селект |
+| `setTransformMode(mode)` | Режим трансформации: `'resize'` \| `'rotate'` |
+
+---
+
+## Snap-настройки
+
+| Метод | Описание |
+|---|---|
+| `setSnapToCorners(enabled)` | Прилипание к углам |
+| `setSnapToPlanes(enabled)` | Прилипание к плоскостям |
+| `setSnapToArtboard(enabled)` | Прилипание к артборду |
+| `setAvoidCollisions(enabled)` | Избегать коллизий |
+
+---
+
+## Линейки и направляющие
+
+| Метод | Описание |
+|---|---|
+| `setRulersVisible(v)` | Показать/скрыть линейки |
+| `getRulersVisible()` | Видимость линеек |
+| `addGuideline(orientation, position)` | Добавить направляющую. Возвращает ID |
+| `removeGuideline(id)` | Удалить направляющую |
+| `getGuidelines()` | Все направляющие |
+| `setGuidelinesVisible(orientation, v)` | Показать/скрыть по оси |
+| `getGuidelinesVisible(orientation)` | Видимость по оси |
+
+---
+
+## Булевы операции
+
+| Метод | Описание |
+|---|---|
+| `enterBooleanMode(op)` | Войти в режим: `'UNION'` \| `'INTERSECT'` \| `'DIFFERENCE'` |
+| `exitBooleanMode()` | Выйти из режима |
+
+---
+
+# DTO — аргументы методов
+
+### `StyleDTO`
+```ts
 interface StyleDTO {
   fill?: string;
   stroke?: string;
@@ -96,91 +132,25 @@ interface StyleDTO {
   opacity?: number;
   visible?: boolean;
 }
+```
 
-// --- Трансформация ---
+### `TransformDTO`
+```ts
 interface TransformDTO {
   x?: number;
   y?: number;
   scaleX?: number;
   scaleY?: number;
   angle?: number;
-  matrix?: [number, number, number, number, number, number];
+  matrix?: [number, number, number, number, number, number]; // a,b,c,d,e,f
 }
+```
 
-// --- Геометрия ---
-interface RectGeometryDTO {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  rx?: number;
-  ry?: number;
-}
-
-interface CircleGeometryDTO {
-  cx: number;
-  cy: number;
-  r: number;
-}
-
-interface EllipseGeometryDTO {
-  cx: number;
-  cy: number;
-  rx: number;
-  ry: number;
-}
-
-interface LineGeometryDTO {
-  x1: number;
-  y1: number;
-  x2: number;
-  y2: number;
-}
-
-interface PathGeometryDTO {
-  d: string;
-}
-
-interface PolygonGeometryDTO {
-  points: string;
-}
-
-interface PolylineGeometryDTO {
-  points: string;
-}
-
-interface TextGeometryDTO {
-  x: string;
-  y: string;
-  fontSize?: string;
-  fontFamily?: string;
-  textAnchor?: string;
-  textContent?: string;
-}
-
-interface ImageGeometryDTO {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  href: string;
-}
-
-type ElementGeometryDTO =
-  | RectGeometryDTO
-  | CircleGeometryDTO
-  | EllipseGeometryDTO
-  | LineGeometryDTO
-  | PathGeometryDTO
-  | PolygonGeometryDTO
-  | PolylineGeometryDTO
-  | TextGeometryDTO
-  | ImageGeometryDTO;
-
-// --- CRUD ---
+### `CreateShapeDTO`
+```ts
 interface CreateShapeDTO {
   id?: string;
-  type: ElementType;
+  type: ElementType;                            // 'rect' | 'circle' | 'ellipse' | 'line' | 'path' | 'polygon' | 'polyline' | 'text' | 'image'
   geometry: ElementGeometryDTO;
   style?: StyleDTO;
   transform?: TransformDTO;
@@ -190,7 +160,10 @@ interface CreateShapeDTO {
   groupId?: string;
   data?: Record<string, unknown>;
 }
+```
 
+### `UpdateShapesDTO`
+```ts
 interface UpdateShapesDTO {
   elementIds: string[];
   style?: Partial<StyleDTO>;
@@ -202,65 +175,178 @@ interface UpdateShapesDTO {
   groupId?: string;
   data?: Record<string, unknown>;
 }
+```
 
+### `DeleteShapesDTO`
+```ts
 interface DeleteShapesDTO {
   elementIds: string[];
 }
+```
 
+### `MoveShapesDTO`
+```ts
 interface MoveShapesDTO {
   elementIds: string[];
   delta: { x: number; y: number };
 }
+```
 
+### `RotateShapesDTO`
+```ts
 interface RotateShapesDTO {
   elementIds: string[];
   angle: number;
 }
+```
 
+### `ResizeShapesDTO`
+```ts
 interface ResizeShapesDTO {
   elementIds: string[];
   bbox: { x: number; y: number; width: number; height: number };
 }
+```
 
+### `SetTransformShapesDTO`
+```ts
 interface SetTransformShapesDTO {
   elementIds: string[];
   matrix: [number, number, number, number, number, number];
 }
+```
 
-// --- Выделение ---
+### `SelectShapesDTO`
+```ts
 interface SelectShapesDTO {
   elementIds: string[];
   toggle?: boolean;
 }
+```
 
+### `SortShapesDTO`
+```ts
 interface SortShapesDTO {
   elementIds: string[];
   targetId: string;
   position: 'before' | 'after';
 }
+```
 
-// --- Группы ---
+### `GroupCreateDTO`
+```ts
 interface GroupCreateDTO {
   name?: string;
 }
+```
 
+### `GroupDeleteDTO`
+```ts
 interface GroupDeleteDTO {
   groupId: string;
 }
+```
 
+### `GroupAddElementsDTO`
+```ts
 interface GroupAddElementsDTO {
   groupId: string;
   elementIds: string[];
 }
+```
 
+### `GroupRemoveElementsDTO`
+```ts
 interface GroupRemoveElementsDTO {
   groupId: string;
   elementIds: string[];
 }
+```
 
-// --- Типы элементов ---
-type ElementType =
-  | 'rect' | 'circle' | 'ellipse' | 'line'
-  | 'polyline' | 'polygon' | 'path'
-  | 'text' | 'image';
+### `ElementGeometryDTO` — union type
+```ts
+type ElementGeometryDTO =
+  | RectGeometryDTO
+  | CircleGeometryDTO
+  | EllipseGeometryDTO
+  | LineGeometryDTO
+  | PathGeometryDTO
+  | PolygonGeometryDTO
+  | PolylineGeometryDTO
+  | TextGeometryDTO
+  | ImageGeometryDTO;
+```
+
+### `RectGeometryDTO`
+```ts
+interface RectGeometryDTO {
+  x: number; y: number;
+  width: number; height: number;
+  rx?: number; ry?: number;
+}
+```
+
+### `CircleGeometryDTO`
+```ts
+interface CircleGeometryDTO {
+  cx: number; cy: number;
+  r: number;
+}
+```
+
+### `EllipseGeometryDTO`
+```ts
+interface EllipseGeometryDTO {
+  cx: number; cy: number;
+  rx: number; ry: number;
+}
+```
+
+### `LineGeometryDTO`
+```ts
+interface LineGeometryDTO {
+  x1: number; y1: number;
+  x2: number; y2: number;
+}
+```
+
+### `PathGeometryDTO`
+```ts
+interface PathGeometryDTO {
+  d: string;       // SVG path data
+}
+```
+
+### `PolygonGeometryDTO`
+```ts
+interface PolygonGeometryDTO {
+  points: string;  // "x1,y1 x2,y2 ..."
+}
+```
+
+### `PolylineGeometryDTO`
+```ts
+interface PolylineGeometryDTO {
+  points: string;  // "x1,y1 x2,y2 ..."
+}
+```
+
+### `TextGeometryDTO`
+```ts
+interface TextGeometryDTO {
+  x: string; y: string;
+  fontSize?: string;
+  fontFamily?: string;
+  textAnchor?: string;
+  textContent?: string;
+}
+```
+
+### `ImageGeometryDTO`
+```ts
+interface ImageGeometryDTO {
+  x: number; y: number;
+  width: number; height: number;
+  href: string;
+}
 ```

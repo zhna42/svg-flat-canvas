@@ -83,6 +83,22 @@ export class Renderer {
     }
   }
 
+  public moveElementBefore(id: string, beforeId: string): void {
+    const el = this.nodeMap.get(id);
+    const before = this.nodeMap.get(beforeId);
+    if (el && before) {
+      this.shapesGroup.insertBefore(el, before);
+    }
+  }
+
+  public moveElementAfter(id: string, afterId: string): void {
+    const el = this.nodeMap.get(id);
+    const after = this.nodeMap.get(afterId);
+    if (el && after) {
+      this.shapesGroup.insertBefore(el, after.nextSibling);
+    }
+  }
+
   public removePreviewElement(id: string): void {
     const el = this.previewNodeMap.get(id);
     if (el) {

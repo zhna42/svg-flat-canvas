@@ -265,6 +265,7 @@ export class CanvasFactory {
     const groupManager = new GroupManager(null as never, () =>
       shapeManager.getAll(),
     );
+    groupManager.setEvents(events);
     groupManager.setOnChange(() => {
       canvas.syncGroupSelectionOverlay();
     });
@@ -286,6 +287,27 @@ export class CanvasFactory {
         canvas.indexShape(el),
       ),
     );
+    commandBus.register('ROTATE', (command) => {
+      if (command.type !== 'ROTATE') return;
+      for (const id of command.options.elementIds) {
+        canvas.rotateElement(id, command.options.angle);
+      }
+    });
+
+    commandBus.register('RESIZE', (command) => {
+      if (command.type !== 'RESIZE') return;
+      for (const id of command.options.elementIds) {
+        canvas.resizeElement(id, command.options.bbox.width, command.options.bbox.height);
+      }
+    });
+
+    commandBus.register('TRANSFORM', (command) => {
+      if (command.type !== 'TRANSFORM') return;
+      for (const id of command.options.elementIds) {
+        canvas.transformElement(id, command.options.matrix);
+      }
+    });
+
     commandBus.register('GEOMETRY_MUTATE', (command) => {
       if (command.type !== 'GEOMETRY_MUTATE') return;
       const el = shapeManager.getAll().find((e) => e.id === command.options.id);

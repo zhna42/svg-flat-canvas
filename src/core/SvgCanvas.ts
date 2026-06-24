@@ -545,4 +545,12 @@ export class SvgCanvas {
       this.shapeManager.getAll().find((e) => e.id === id),
     );
   }
+
+  public reorderElement(id: string, position: 'before' | 'after', targetId: string): void {
+    if (position === 'before') {
+      this.renderer.moveElementBefore(id, targetId);
+    } else {
+      this.renderer.moveElementAfter(id, targetId);
+    }
+  }
 }

@@ -3,6 +3,7 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import type { BusEvent } from '@/core/EventBus';
 import type { GuidelineData } from '@/ruler';
 import type { BooleanOp } from '@/boolean';
+import type { Group } from '@/group';
 import { createFromJSON } from '@/shapes/elements/factory';
 import {
   createCreateCommand,
@@ -134,24 +135,21 @@ export class ExternalApi {
   }
 
   public rotateShapes(dto: RotateShapesDTO): void {
-    for (const id of dto.elementIds) {
-      this.canvas.rotateElement(id, dto.angle);
-    }
+    if (!dto.elementIds?.length) return;
     this.canvas
       .getCommandBus()
       .execute(createRotateCommand(dto.elementIds, dto.angle));
   }
 
   public resizeShapes(dto: ResizeShapesDTO): void {
+    if (!dto.elementIds?.length) return;
     this.canvas
       .getCommandBus()
       .execute(createResizeCommand(dto.elementIds, dto.bbox));
   }
 
   public setTransformShapes(dto: SetTransformShapesDTO): void {
-    for (const id of dto.elementIds) {
-      this.canvas.transformElement(id, dto.matrix);
-    }
+    if (!dto.elementIds?.length) return;
     this.canvas
       .getCommandBus()
       .execute(createTransformCommand(dto.elementIds, dto.matrix));
@@ -174,6 +172,22 @@ export class ExternalApi {
       dto.groupId,
       dto.elementIds as unknown as string,
     );
+  }
+
+  public getGroups(): Group[] {
+    return this.canvas.groups;
+  }
+
+  public selectGroup(id: string): void {
+    this.canvas.selectGroup(id);
+  }
+
+  public selectGroupElements(id: string): void {
+    this.canvas.selectGroupElements(id);
+  }
+
+  public getElementIdsInGroup(id: string): string[] {
+    return this.canvas.getElementIdsInGroup(id);
   }
 
   public selectShapes(dto: SelectShapesDTO): void {
@@ -199,11 +213,11 @@ export class ExternalApi {
   }
 
   public getAllShapes(): readonly AbstractGraphicElement[] {
-    return this.canvas.getSelected();
+    return this.canvas.shapeManager.getAll();
   }
 
   private findElements(ids: string[]): AbstractGraphicElement[] {
-    const all = this.canvas.getSelected();
+    const all = this.canvas.shapeManager.getAll();
     return all.filter((e) => ids.includes(e.id));
   }
 
@@ -373,19 +387,9 @@ export class ExternalApi {
   }
 
   public sortShapes(dto: SortShapesDTO): void {
-    const container = this.canvas.getSVG();
-    const svg = container;
-    const elements = this.findElements(dto.elementIds);
-    const targetNode = svg.querySelector(`[data-id="${dto.targetId}"]`);
-    if (!targetNode) return;
-    for (const el of elements) {
-      const node = svg.querySelector(`[data-id="${el.id}"]`);
-      if (!node) continue;
-      if (dto.position === 'before') {
-        node.parentNode?.insertBefore(node, targetNode);
-      } else {
-        node.parentNode?.insertBefore(node, targetNode.nextSibling);
-      }
+    if (!dto.elementIds?.length) return;
+    for (const id of dto.elementIds) {
+      this.canvas.reorderElement(id, dto.position, dto.targetId);
     }
   }
 
