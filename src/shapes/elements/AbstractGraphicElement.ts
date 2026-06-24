@@ -234,6 +234,12 @@ export abstract class AbstractGraphicElement {
 
   public abstract buildHitArea(): void;
 
+  public getTransformMatrix(): DOMMatrix {
+    return this.transform.matrix;
+  }
+
+  public abstract toSegmentPolygons(): Point[][];
+
   public invalidateHitArea(): void {
     this.buildHitArea();
     this.markRenderKey('matrix');

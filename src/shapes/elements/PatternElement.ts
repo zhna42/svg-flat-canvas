@@ -61,4 +61,8 @@ export class PatternElement extends AbstractGraphicElement {
     el.geometry = { ...this.geometry };
     el.cells = this.cells.map((c) => ({ ...c }));
   }
+
+  public toSegmentPolygons(): Point[][] {
+    return [];
+  }
 }

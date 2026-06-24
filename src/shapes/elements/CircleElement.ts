@@ -65,4 +65,15 @@ export class CircleElement extends AbstractGraphicElement {
     this.buildHitArea();
     this.requestRender();
   }
+
+  public toSegmentPolygons(): Point[][] {
+    const { cx, cy, r } = this.geometry;
+    const pts: Point[] = [];
+    const steps = 24;
+    for (let i = 0; i < steps; i++) {
+      const a = (Math.PI * 2 * i) / steps;
+      pts.push({ x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r });
+    }
+    return [pts];
+  }
 }

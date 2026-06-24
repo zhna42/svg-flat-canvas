@@ -11,6 +11,7 @@ import { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay
 import { TransformHandler } from '@/selection/transform/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
 import { RulerManager } from '@/ruler';
+import { BooleanHandler } from '@/boolean';
 import { CreationHandler } from '@/creation/CreationHandler';
 import { GroupManager } from '@/group';
 import { EventBus } from './EventBus';
@@ -100,6 +101,13 @@ export class CanvasFactory {
     );
     overlayRoot.appendChild(rulerManager.root);
 
+    const booleanHandler = new BooleanHandler(
+      svg,
+      selectionState,
+      shapeManager,
+      events,
+    );
+
     const canvas = Object.create(SvgCanvas.prototype) as SvgCanvas;
     const c = canvas as unknown as Record<string, unknown>;
 
@@ -118,6 +126,7 @@ export class CanvasFactory {
     c.transformHandler = transformHandler;
     c.debugOverlay = debugOverlay;
     c.rulerManager = rulerManager;
+    c.booleanHandler = booleanHandler;
     c._debugShowHitArea = debugShowHitArea;
     c._editingPath = null;
     c.panActive = panActive;
@@ -379,7 +388,6 @@ export class CanvasFactory {
       'keydown',
       (e: KeyboardEvent) => {
         if (e.code === 'Space' && e.target === rootSvg) {
-          console.log('Space pressed — pan mode (123)');
           e.preventDefault();
         }
       },
@@ -389,7 +397,6 @@ export class CanvasFactory {
       'keyup',
       (e: KeyboardEvent) => {
         if (e.code === 'Space' && e.target === rootSvg) {
-          console.log('Space released — pan mode off (123)');
         }
       },
       true,

@@ -444,5 +444,27 @@ document.querySelectorAll('.tool-btn').forEach((btn) => {
 
 setActiveTool('select');
 
+// ----- boolean operation buttons -----
+let boolActive: string | null = null;
+
+function setBooleanMode(op: string | null) {
+  boolActive = op;
+  document.querySelectorAll('.bool-btn').forEach((b) => b.classList.remove('active'));
+  if (op) {
+    document.getElementById(`btn-bool-${op}`)?.classList.add('active');
+    api.enterBooleanMode(op as any);
+    info(`Boolean mode: ${op}`);
+  } else {
+    document.getElementById('btn-bool-off')?.classList.add('active');
+    api.exitBooleanMode();
+    info('Boolean mode: OFF');
+  }
+}
+
+document.getElementById('btn-bool-union')!.onclick = () => setBooleanMode('UNION');
+document.getElementById('btn-bool-intersect')!.onclick = () => setBooleanMode('INTERSECT');
+document.getElementById('btn-bool-difference')!.onclick = () => setBooleanMode('DIFFERENCE');
+document.getElementById('btn-bool-off')!.onclick = () => setBooleanMode(null);
+
 // External API — доступна из консоли
 (window as any).api = api;

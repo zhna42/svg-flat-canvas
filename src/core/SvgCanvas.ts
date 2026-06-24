@@ -14,6 +14,8 @@ import { CommandBus } from '@/commands';
 import { TimeMachine } from '@/time-machine';
 import { RulerManager } from '@/ruler';
 import type { GuidelineData } from '@/ruler';
+import { BooleanHandler } from '@/boolean';
+import type { BooleanOp } from '@/boolean';
 import { CreationHandler } from '@/creation/CreationHandler';
 import { ExternalApi } from '@/api/external-api';
 import { PathElement } from '@/shapes/elements/PathElement';
@@ -59,6 +61,7 @@ export class SvgCanvas {
   timeMachine!: TimeMachine;
   creationHandler!: CreationHandler;
   rulerManager!: RulerManager;
+  booleanHandler!: BooleanHandler;
   _debugShowHitArea!: boolean;
   _externalApi!: ExternalApi;
   _editingPath: PathElement | null = null;
@@ -299,6 +302,18 @@ export class SvgCanvas {
 
   public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
     return this.rulerManager.getGuidelinesVisible(orientation);
+  }
+
+  public enterBooleanMode(op: BooleanOp): void {
+    this.booleanHandler.enterMode(op);
+  }
+
+  public exitBooleanMode(): void {
+    this.booleanHandler.exitMode();
+  }
+
+  public getBooleanHandler(): BooleanHandler {
+    return this.booleanHandler;
   }
 
   public resizeElement(id: string, _width: number, _height: number): void {

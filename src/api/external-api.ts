@@ -2,6 +2,7 @@ import type { SvgCanvas } from '@/core/SvgCanvas';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { BusEvent } from '@/core/EventBus';
 import type { GuidelineData } from '@/ruler';
+import type { BooleanOp } from '@/boolean';
 import { createFromJSON } from '@/shapes/elements/factory';
 import {
   createCreateCommand,
@@ -479,5 +480,13 @@ export class ExternalApi {
 
   public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
     return this.canvas.getGuidelinesVisible(orientation);
+  }
+
+  public enterBooleanMode(op: BooleanOp): void {
+    this.canvas.enterBooleanMode(op);
+  }
+
+  public exitBooleanMode(): void {
+    this.canvas.exitBooleanMode();
   }
 }

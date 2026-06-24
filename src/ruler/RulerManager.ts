@@ -187,6 +187,11 @@ export class RulerManager implements Renderable {
     const rs = RULER_SIZE;
     const lineW = 0.5;
 
+    if (svgW < rs || svgH < rs) {
+      this.rulersGroup.innerHTML = '';
+      return;
+    }
+
     let h = '';
 
     // corner

@@ -79,3 +79,5 @@ export { svgNodesToElements } from '@/dto';
 export type { SvgNodeDto } from '@/dto';
 export { RulerManager } from '@/ruler';
 export type { GuidelineData, GuidelineEvents } from '@/ruler';
+export { BooleanEngine, BooleanHandler, booleanOperation } from '@/boolean';
+export type { BooleanOp, Pt } from '@/boolean';

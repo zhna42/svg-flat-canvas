@@ -72,4 +72,15 @@ export class EllipseElement extends AbstractGraphicElement {
     this.buildHitArea();
     this.requestRender();
   }
+
+  public toSegmentPolygons(): Point[][] {
+    const { cx, cy, rx, ry } = this.geometry;
+    const pts: Point[] = [];
+    const steps = 24;
+    for (let i = 0; i < steps; i++) {
+      const a = (Math.PI * 2 * i) / steps;
+      pts.push({ x: cx + Math.cos(a) * rx, y: cy + Math.sin(a) * ry });
+    }
+    return [pts];
+  }
 }

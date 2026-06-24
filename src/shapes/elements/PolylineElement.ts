@@ -83,4 +83,8 @@ export class PolylineElement extends AbstractGraphicElement {
     this.buildHitArea();
     this.requestRender();
   }
+
+  public toSegmentPolygons(): Point[][] {
+    return [this.parsePoints(this.points)];
+  }
 }

@@ -473,4 +473,24 @@ export class PathElement extends AbstractGraphicElement {
     }
     return result;
   }
+
+  public toSegmentPolygons(): Point[][] {
+    const subPaths: PathCommand[][] = [];
+    let cur: PathCommand[] = [];
+    for (const cmd of this.geometry.commands) {
+      if (cmd.command === 'M' && cur.length > 0) {
+        subPaths.push(cur);
+        cur = [];
+      }
+      cur.push(cmd);
+    }
+    if (cur.length > 0) subPaths.push(cur);
+
+    const result: Point[][] = [];
+    for (const sp of subPaths) {
+      const pts = flattenCommands(sp);
+      if (pts.length >= 2) result.push(pts);
+    }
+    return result;
+  }
 }

@@ -109,7 +109,6 @@ export class TimeMachine {
       }
       lines.push(`    ]`);
     }
-    console.log(lines.join('\n'));
   }
 
   public undo(): void {

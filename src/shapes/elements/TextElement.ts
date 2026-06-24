@@ -106,4 +106,8 @@ export class TextElement extends AbstractGraphicElement {
     this.markRenderKeys('x', 'y');
     this.buildHitArea();
   }
+
+  public toSegmentPolygons(): Point[][] {
+    return [];
+  }
 }

@@ -92,4 +92,14 @@ export class RectElement extends AbstractGraphicElement {
     this.buildHitArea();
     this.requestRender();
   }
+
+  public toSegmentPolygons(): Point[][] {
+    const { x, y, width, height } = this.geometry;
+    return [[
+      { x, y },
+      { x: x + width, y },
+      { x: x + width, y: y + height },
+      { x, y: y + height },
+    ]];
+  }
 }

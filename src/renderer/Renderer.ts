@@ -144,30 +144,6 @@ export class Renderer {
       }
 
       const pending = this.queue.drain();
-      if (pending.length > 0) {
-        const lines: string[] = [];
-        lines.push(`── Render frame ──`);
-        for (const entry of pending) {
-          const node = this.nodeMap.get(entry.element.id);
-          const flags =
-            (entry.flags & 1 ? 'T' : '') +
-            (entry.flags & 2 ? 'S' : '') +
-            (entry.flags & 4 ? 'G' : '') +
-            (entry.flags & 8 ? 'V' : '');
-          const changedKeys = Array.from(entry.element.getDiffKeysForRedering());
-          const snapshot = entry.element.getRenderSnapshot();
-          const vals = changedKeys.length > 0
-            ? ` ${JSON.stringify(snapshot.style)} ${JSON.stringify(snapshot.geometry)} v:${snapshot.visible} m:${JSON.stringify(snapshot.matrix)}`
-            : '';
-          if (!node) {
-            lines.push(`  ✗ ${entry.element.id} (${entry.element.type}) flags:${flags}${vals} — NO NODE`);
-            continue;
-          }
-          lines.push(`  ✓ ${entry.element.id} (${entry.element.type}) flags:${flags}${vals}`);
-        }
-        console.log(lines.join('\n'));
-      }
-
       for (const entry of pending) {
         const node = this.nodeMap.get(entry.element.id);
         if (!node) continue;

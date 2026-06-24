@@ -83,4 +83,11 @@ export class LineElement extends AbstractGraphicElement {
     this.buildHitArea();
     this.requestRender();
   }
+
+  public toSegmentPolygons(): Point[][] {
+    return [[
+      { x: this.geometry.x1, y: this.geometry.y1 },
+      { x: this.geometry.x2, y: this.geometry.y2 },
+    ]];
+  }
 }
