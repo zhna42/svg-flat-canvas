@@ -35,5 +35,8 @@
     "tsx": "^4.22.4",
     "typescript": "^5.5.4",
     "vite": "^8.0.16"
+  },
+  "dependencies": {
+    "clipper-lib": "^6.4.2"
   }
 }
