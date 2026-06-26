@@ -70,44 +70,49 @@ export class DragSnapHelper {
   buildTargets(
     targets: AbstractGraphicElement[],
     snapToArtboard: boolean,
+    snapToCorners: boolean,
+    snapToPlanes: boolean,
   ): void {
     this.engine.reset();
     const selectedIds = new Set(targets.map((t) => t.id));
-    const allElementsScreenPoints: { x: number; y: number }[][] = [];
 
-    for (const el of this.getElements()) {
-      if (selectedIds.has(el.id)) continue;
-      const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
-      const worldPts = getCenterlinePoints(el, this.camera);
-      if (!worldPts || worldPts.length === 0) continue;
-      let screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
-      if (strokeOffsetPx > 0) {
-        const isClosed = el.type !== 'polyline' && el.type !== 'line';
-        screenPts = offsetScreenPoints(
-          screenPts,
-          strokeOffsetPx,
-          el.style.hasFill,
-          isClosed,
-        );
+    if (snapToCorners || snapToPlanes) {
+      const allElementsScreenPoints: { x: number; y: number }[][] = [];
+
+      for (const el of this.getElements()) {
+        if (selectedIds.has(el.id)) continue;
+        const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
+        const worldPts = getCenterlinePoints(el, this.camera);
+        if (!worldPts || worldPts.length === 0) continue;
+        let screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
+        if (strokeOffsetPx > 0) {
+          const isClosed = el.type !== 'polyline' && el.type !== 'line';
+          screenPts = offsetScreenPoints(
+            screenPts,
+            strokeOffsetPx,
+            el.style.hasFill,
+            isClosed,
+          );
+        }
+        allElementsScreenPoints.push(screenPts);
       }
-      allElementsScreenPoints.push(screenPts);
-    }
-    this.engine.buildTargetLinesAndNodes(allElementsScreenPoints);
+      this.engine.buildTargetLinesAndNodes(allElementsScreenPoints);
 
-    const curveElements = this.getElements().filter(
-      (e) =>
-        !selectedIds.has(e.id) &&
-        (e instanceof CircleElement || e instanceof EllipseElement),
-    );
-    const bezierElements = this.getElements().filter(
-      (e) => !selectedIds.has(e.id) && e instanceof PathElement,
-    );
-    const allCurveTargets = [
-      ...getScreenCurveTargets(curveElements, this.camera),
-      ...extractBezierTargets(bezierElements, this.camera),
-    ];
-    if (allCurveTargets.length > 0) {
-      this.engine.buildCurveTargets(allCurveTargets);
+      const curveElements = this.getElements().filter(
+        (e) =>
+          !selectedIds.has(e.id) &&
+          (e instanceof CircleElement || e instanceof EllipseElement),
+      );
+      const bezierElements = this.getElements().filter(
+        (e) => !selectedIds.has(e.id) && e instanceof PathElement,
+      );
+      const allCurveTargets = [
+        ...getScreenCurveTargets(curveElements, this.camera),
+        ...extractBezierTargets(bezierElements, this.camera),
+      ];
+      if (allCurveTargets.length > 0) {
+        this.engine.buildCurveTargets(allCurveTargets);
+      }
     }
 
     if (snapToArtboard) {

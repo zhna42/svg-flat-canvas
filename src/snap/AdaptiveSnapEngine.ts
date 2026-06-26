@@ -461,6 +461,16 @@ export class AdaptiveSnapEngine {
     let curveCorrX = 0;
     let curveCorrY = 0;
 
+    let nodeCorrX = 0;
+    let nodeCorrY = 0;
+    let nodeDistX = Infinity;
+    let nodeDistY = Infinity;
+
+    let lineCorrX = 0;
+    let lineCorrY = 0;
+    let lineDistX = Infinity;
+    let lineDistY = Infinity;
+
     for (const mPt of movingPoints) {
       for (const tNode of this.snapNodes) {
         const rawDist = Math.hypot(mPt.x - tNode.x, mPt.y - tNode.y);
@@ -477,97 +487,96 @@ export class AdaptiveSnapEngine {
 
         if (effectiveDist < engageDist && effectiveDist < bestNodeDist) {
           bestNodeDist = effectiveDist;
-          bestDistX = Math.abs(corrX);
-          bestDistY = Math.abs(corrY);
-          bestCorrX = corrX;
-          bestCorrY = corrY;
+          nodeDistX = Math.abs(corrX);
+          nodeDistY = Math.abs(corrY);
+          nodeCorrX = corrX;
+          nodeCorrY = corrY;
         }
       }
     }
 
-    if (bestNodeDist === Infinity) {
-      for (const pt of movingPoints) {
-        for (const curve of this.curveTargets) {
-          const snap = this.projectToCurve(pt.x, pt.y, curve);
-          if (snap.dist < engageDist && snap.dist < bestCurveDist) {
-            bestCurveDist = snap.dist;
-            curveCorrX = snap.snapX - pt.x;
-            curveCorrY = snap.snapY - pt.y;
-            bestDistX = Math.abs(snap.snapX - pt.x);
-            bestDistY = Math.abs(snap.snapY - pt.y);
-          }
+    for (const pt of movingPoints) {
+      for (const curve of this.curveTargets) {
+        const snap = this.projectToCurve(pt.x, pt.y, curve);
+        if (snap.dist < engageDist && snap.dist < bestCurveDist) {
+          bestCurveDist = snap.dist;
+          curveCorrX = snap.snapX - pt.x;
+          curveCorrY = snap.snapY - pt.y;
         }
       }
     }
 
-    if (bestCurveDist !== Infinity) {
-      if (this.onCurve) {
-        if (bestCurveDist >= holdDist) {
-          this.onCurve = false;
-          this.active = {};
-          return { correctionX: 0, correctionY: 0 };
-        }
-      } else {
-        if (bestCurveDist >= engageDist) {
-          return { correctionX: 0, correctionY: 0 };
-        }
-        this.onCurve = true;
-      }
-      this.active = { x: true, y: true };
-      return { correctionX: curveCorrX, correctionY: curveCorrY };
-    }
+    for (const pt of movingPoints) {
+      for (const line of this.snapLines) {
+        const { dist, closestX, closestY } = this.pointToSegmentDist(
+          pt.x,
+          pt.y,
+          line.x,
+          line.y,
+          line.x2,
+          line.y2,
+        );
 
-    this.onCurve = false;
-
-    if (bestNodeDist === Infinity) {
-      for (const pt of movingPoints) {
-        for (const line of this.snapLines) {
-          const { dist, closestX, closestY } = this.pointToSegmentDist(
-            pt.x,
-            pt.y,
-            line.x,
-            line.y,
-            line.x2,
-            line.y2,
-          );
-
-          if (dist < engageDist && dist < bestLineDist) {
-            bestLineDist = dist;
-            bestDistX = Math.abs(closestX - pt.x);
-            bestDistY = Math.abs(closestY - pt.y);
-            bestCorrX = closestX - pt.x;
-            bestCorrY = closestY - pt.y;
-          }
-        }
-      }
-
-      const movingLines = this.buildMovingLines(movingPoints);
-      for (const tNode of this.snapNodes) {
-        for (const mLine of movingLines) {
-          const { dist, closestX, closestY } = this.pointToSegmentDist(
-            tNode.x,
-            tNode.y,
-            mLine.x,
-            mLine.y,
-            mLine.x2,
-            mLine.y2,
-          );
-
-          if (dist < engageDist && dist < bestLineDist) {
-            bestLineDist = dist;
-            bestDistX = Math.abs(tNode.x - closestX);
-            bestDistY = Math.abs(tNode.y - closestY);
-            bestCorrX = tNode.x - closestX;
-            bestCorrY = tNode.y - closestY;
-          }
+        if (dist < engageDist && dist < bestLineDist) {
+          bestLineDist = dist;
+          lineDistX = Math.abs(closestX - pt.x);
+          lineDistY = Math.abs(closestY - pt.y);
+          lineCorrX = closestX - pt.x;
+          lineCorrY = closestY - pt.y;
         }
       }
     }
 
-    if (bestNodeDist === Infinity && bestLineDist === Infinity) {
-      this.resetAxis('x');
-      this.resetAxis('y');
-      return { correctionX: 0, correctionY: 0 };
+    const movingLines = this.buildMovingLines(movingPoints);
+    for (const tNode of this.snapNodes) {
+      for (const mLine of movingLines) {
+        const { dist, closestX, closestY } = this.pointToSegmentDist(
+          tNode.x,
+          tNode.y,
+          mLine.x,
+          mLine.y,
+          mLine.x2,
+          mLine.y2,
+        );
+
+        if (dist < engageDist && dist < bestLineDist) {
+          bestLineDist = dist;
+          lineDistX = Math.abs(tNode.x - closestX);
+          lineDistY = Math.abs(tNode.y - closestY);
+          lineCorrX = tNode.x - closestX;
+          lineCorrY = tNode.y - closestY;
+        }
+      }
+    }
+
+    const picked = this.pickSnapType(
+      bestNodeDist,
+      bestCurveDist,
+      bestLineDist,
+      engageDist,
+      holdDist,
+    );
+
+    switch (picked) {
+      case 'curve':
+        this.active = { x: true, y: true };
+        return { correctionX: curveCorrX, correctionY: curveCorrY };
+      case 'node':
+        bestCorrX = nodeCorrX;
+        bestCorrY = nodeCorrY;
+        bestDistX = nodeDistX;
+        bestDistY = nodeDistY;
+        break;
+      case 'line':
+        bestCorrX = lineCorrX;
+        bestCorrY = lineCorrY;
+        bestDistX = lineDistX;
+        bestDistY = lineDistY;
+        break;
+      default:
+        this.resetAxis('x');
+        this.resetAxis('y');
+        return { correctionX: 0, correctionY: 0 };
     }
 
     return {
@@ -586,6 +595,35 @@ export class AdaptiveSnapEngine {
         holdDist,
       ),
     };
+  }
+
+  private pickSnapType(
+    nodeDist: number,
+    curveDist: number,
+    lineDist: number,
+    engageDist: number,
+    holdDist: number,
+  ): 'node' | 'curve' | 'line' | null {
+    if (curveDist !== Infinity) {
+      if (this.onCurve) {
+        if (curveDist >= holdDist) {
+          this.onCurve = false;
+          return null;
+        }
+      } else if (curveDist >= engageDist) {
+        return null;
+      }
+      this.onCurve = true;
+      return 'curve';
+    }
+    this.onCurve = false;
+
+    if (nodeDist === Infinity && lineDist === Infinity) return null;
+
+    if (nodeDist === Infinity) return 'line';
+    if (lineDist === Infinity) return 'node';
+
+    return nodeDist <= lineDist ? 'node' : 'line';
   }
 
   private resetAxis(axis: SnapAxis): void {

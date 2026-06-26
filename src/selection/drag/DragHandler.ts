@@ -121,8 +121,18 @@ export class DragHandler {
       );
     }
 
-    if (this.snapToCorners || this.snapToPlanes) {
-      this.dragSnap.buildTargets(this.targets, this.snapToArtboard);
+    if (
+      this.snapToCorners ||
+      this.snapToPlanes ||
+      this.dragSnap.snapToGuidelines ||
+      this.dragSnap.snapToGrid
+    ) {
+      this.dragSnap.buildTargets(
+        this.targets,
+        this.snapToArtboard,
+        this.snapToCorners,
+        this.snapToPlanes,
+      );
     }
 
     this.onDragStart?.();
@@ -147,8 +157,18 @@ export class DragHandler {
       );
     }
 
-    if (this.snapToCorners || this.snapToPlanes) {
-      this.dragSnap.buildTargets(this.targets, this.snapToArtboard);
+    if (
+      this.snapToCorners ||
+      this.snapToPlanes ||
+      this.dragSnap.snapToGuidelines ||
+      this.dragSnap.snapToGrid
+    ) {
+      this.dragSnap.buildTargets(
+        this.targets,
+        this.snapToArtboard,
+        this.snapToCorners,
+        this.snapToPlanes,
+      );
     } else {
       this.dragSnap.reset();
     }
