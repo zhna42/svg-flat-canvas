@@ -37,6 +37,16 @@ export abstract class AbstractGraphicElement {
   protected diffKeysForTimeMashin = new Set<string>();
   protected _savedFlag = false;
   protected _unsavedKeys = new Set<string>();
+  protected _fillColorKey: string | null = null;
+  protected _strokeColorKey: string | null = null;
+
+  public onColorChanged:
+    | ((
+        el: AbstractGraphicElement,
+        oldFillKey: string | null,
+        oldStrokeKey: string | null,
+      ) => void)
+    | null = null;
 
   public constructor(id: string, type: ElementType) {
     this.id = id;
@@ -421,6 +431,7 @@ export abstract class AbstractGraphicElement {
     this.markRenderKey('fill');
     this.rebuildHitArea();
     this.requestRender();
+    this.triggerColorChanged();
   }
 
   public setStroke(color: string): void {
@@ -428,6 +439,14 @@ export abstract class AbstractGraphicElement {
     this.markRenderKey('stroke');
     this.rebuildHitArea();
     this.requestRender();
+    this.triggerColorChanged();
+  }
+
+  private triggerColorChanged(): void {
+    if (!this.onColorChanged) return;
+    const oldFill = this._fillColorKey;
+    const oldStroke = this._strokeColorKey;
+    this.onColorChanged(this, oldFill, oldStroke);
   }
 
   public setStrokeWidth(w: number): void {

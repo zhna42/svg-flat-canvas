@@ -224,6 +224,11 @@ export class TimeMachine {
           }
         }
       }
+    } else if (snapshot.command === 'UPDATE') {
+      for (const entry of snapshot.data) {
+        const existing = this.shapeManager.getById(entry.id);
+        if (existing) existing.applySnapshot(entry.diff);
+      }
     }
   }
 
@@ -254,6 +259,11 @@ export class TimeMachine {
             this.shapeManager.addElement(el);
           }
         }
+      }
+    } else if (snapshot.command === 'UPDATE') {
+      for (const entry of snapshot.data) {
+        const existing = this.shapeManager.getById(entry.id);
+        if (existing) existing.applySnapshot(entry.diff);
       }
     }
   }

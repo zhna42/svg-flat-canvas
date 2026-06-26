@@ -22,7 +22,8 @@ export type CommandType =
   | 'PATH_CHANGE_NODE_TYPE'
   | 'PATH_REMOVE_NODE'
   | 'PATH_MOVE_SUBPATH'
-  | 'BOOLEAN_OPERATION';
+  | 'BOOLEAN_OPERATION'
+  | 'UPDATE';
 
 export type SelectionMode = 'element' | 'group';
 export type SelectionGesture = 'click' | 'rect' | 'lasso';

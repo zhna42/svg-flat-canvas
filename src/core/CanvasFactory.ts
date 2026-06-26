@@ -13,6 +13,7 @@ import { TransformHandler } from '@/selection/transform/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
 import { PreloaderOverlay } from '@/debug/PreloaderOverlay';
 import { GridOverlay } from '@/debug/GridOverlay';
+import { ColorMap } from '@/color/ColorMap';
 import { RulerManager } from '@/ruler';
 import { BooleanHandler } from '@/boolean';
 import { CreationHandler } from '@/creation/CreationHandler';
@@ -109,6 +110,8 @@ export class CanvasFactory {
     });
     renderer.getCameraGroup().appendChild(gridOverlay.getElement());
 
+    const colorMap = new ColorMap();
+
     const rulerManager = new RulerManager(
       camera,
       events,
@@ -146,6 +149,7 @@ export class CanvasFactory {
     c.debugOverlay = debugOverlay;
     c.preloaderOverlay = preloaderOverlay;
     c.gridOverlay = gridOverlay;
+    c.colorMap = colorMap;
     c.rulerManager = rulerManager;
     c.booleanHandler = booleanHandler;
     c._debugShowHitArea = debugShowHitArea;

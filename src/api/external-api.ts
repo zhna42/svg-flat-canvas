@@ -694,6 +694,38 @@ export class ExternalApi {
     return this.canvas.getUnsavedGroupDTOs();
   }
 
+  public selectElements(ids: string[]): void {
+    this.canvas.selectElements(ids);
+  }
+
+  public getSelectedStyles(): Array<Record<string, unknown>> {
+    return this.canvas.getSelectedStyles();
+  }
+
+  public getFillColorMap(): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    for (const [key, set] of this.canvas.getFillColorMap()) {
+      result[key] = Array.from(set);
+    }
+    return result;
+  }
+
+  public getStrokeColorMap(): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    for (const [key, set] of this.canvas.getStrokeColorMap()) {
+      result[key] = Array.from(set);
+    }
+    return result;
+  }
+
+  public recalculateColorMaps(): void {
+    this.canvas.recalculateColorMaps();
+  }
+
+  public setColorQuantStep(step: number): void {
+    this.canvas.setColorQuantStep(step);
+  }
+
   private applyGeometryDelta(
     el: AbstractGraphicElement,
     geo: Partial<ElementGeometryDTO>,

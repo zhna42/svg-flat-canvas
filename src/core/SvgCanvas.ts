@@ -11,6 +11,7 @@ import { TransformHandler } from '@/selection/transform/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
 import { PreloaderOverlay } from '@/debug/PreloaderOverlay';
 import { GridOverlay } from '@/debug/GridOverlay';
+import { ColorMap } from '@/color/ColorMap';
 import { GroupManager } from '@/group';
 import { CommandBus } from '@/commands';
 import { TimeMachine } from '@/time-machine';
@@ -60,6 +61,7 @@ export class SvgCanvas {
   debugOverlay!: DebugOverlay;
   preloaderOverlay!: PreloaderOverlay;
   gridOverlay!: GridOverlay;
+  colorMap!: ColorMap;
   groupManager!: GroupManager;
   commandBus!: CommandBus;
   timeMachine!: TimeMachine;
@@ -599,6 +601,47 @@ export class SvgCanvas {
     shape.onSpatialIndexChanged = (el) => {
       this.reindexElement(el);
     };
+    shape.onColorChanged = (el, oldFillKey, oldStrokeKey) => {
+      this.updateColorMapEntry(el, oldFillKey, oldStrokeKey);
+    };
+    this.addToColorMap(shape);
+  }
+
+  private updateColorMapEntry(
+    el: AbstractGraphicElement,
+    oldFillKey: string | null,
+    oldStrokeKey: string | null,
+  ): void {
+    if (oldFillKey) this.colorMap.removeFromFillMap(oldFillKey, el.id);
+    if (oldStrokeKey) this.colorMap.removeFromStrokeMap(oldStrokeKey, el.id);
+
+    let newFillKey: string | null = null;
+    let newStrokeKey: string | null = null;
+
+    if (el.style.fill && el.style.fill !== 'none') {
+      newFillKey = this.colorMap.getFillKey(el.style.fill);
+      this.colorMap.addToFillMap(newFillKey, el.id);
+    }
+    if (el.style.stroke && el.style.stroke !== 'none') {
+      newStrokeKey = this.colorMap.getStrokeKey(el.style.stroke);
+      this.colorMap.addToStrokeMap(newStrokeKey, el.id);
+    }
+
+    el['_fillColorKey'] = newFillKey;
+    el['_strokeColorKey'] = newStrokeKey;
+  }
+
+  private addToColorMap(el: AbstractGraphicElement): void {
+    if (el.style.fill && el.style.fill !== 'none') {
+      const key = this.colorMap.getFillKey(el.style.fill);
+      this.colorMap.addToFillMap(key, el.id);
+      el['_fillColorKey'] = key;
+    }
+    if (el.style.stroke && el.style.stroke !== 'none') {
+      const key = this.colorMap.getStrokeKey(el.style.stroke);
+      this.colorMap.addToStrokeMap(key, el.id);
+      el['_strokeColorKey'] = key;
+    }
   }
 
   reindexElement(el: AbstractGraphicElement): void {
@@ -628,6 +671,9 @@ export class SvgCanvas {
       el.setSpatialCellIds(ids);
       el.onSpatialIndexChanged = (element) => {
         this.reindexElement(element);
+      };
+      el.onColorChanged = (element, oldFill, oldStroke) => {
+        this.updateColorMapEntry(element, oldFill, oldStroke);
       };
     }
   }
@@ -676,13 +722,71 @@ export class SvgCanvas {
     patches: Array<{ id: string; fields: Record<string, unknown> }>,
   ): void {
     const all = this.shapeManager.getAll();
+    const affected: AbstractGraphicElement[] = [];
     for (const { id, fields } of patches) {
       const el = all.find((e) => e.id === id);
       if (el) {
         el.applyDTO(fields);
+        affected.push(el);
       }
     }
+    if (affected.length > 0) {
+      this.timeMachine.push(
+        'UPDATE',
+        affected.map((e) => e.id),
+        'element',
+        [],
+        affected,
+      );
+    }
     this.events.emit('elements-updated', patches);
+  }
+
+  public selectElements(ids: string[]): void {
+    const elements = this.shapeManager
+      .getAll()
+      .filter((e) => ids.includes(e.id));
+    this.selectionState.replace(elements);
+    this.selectionOverlay.setPositions(elements);
+  }
+
+  public getSelectedStyles(): Array<Record<string, unknown>> {
+    return this.selectionState.selected.map((el) => ({
+      id: el.id,
+      type: el.type,
+      fill: el.style.fill,
+      stroke: el.style.stroke,
+      strokeWidth: el.style.strokeWidth,
+      opacity: el.style.opacity,
+      visible: el.visible,
+    }));
+  }
+
+  public getFillColorMap(): ReadonlyMap<string, ReadonlySet<string>> {
+    return this.colorMap.fillMap;
+  }
+
+  public getStrokeColorMap(): ReadonlyMap<string, ReadonlySet<string>> {
+    return this.colorMap.strokeMap;
+  }
+
+  public recalculateColorMaps(): void {
+    this.colorMap.recalculate(
+      this.shapeManager.getAll().map((el) => ({
+        id: el.id,
+        fill: el.style.fill,
+        stroke: el.style.stroke,
+      })),
+    );
+    this.events.emit('color-map-recalculated', {
+      fillMap: this.getFillColorMap(),
+      strokeMap: this.getStrokeColorMap(),
+    });
+  }
+
+  public setColorQuantStep(step: number): void {
+    this.colorMap.setStep(step);
+    this.recalculateColorMaps();
   }
 
   public showPreloader(): void {
