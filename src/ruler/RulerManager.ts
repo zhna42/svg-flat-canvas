@@ -4,7 +4,7 @@ import type { Renderable } from '@/renderer/RenderQueue';
 import { getRenderQueue } from '@/utils/render-queue-utils';
 import { SVG_NS } from '@/constants';
 
-const RULER_SIZE = 24;
+const RULER_SIZE_PX = 20;
 const RULER_BG = '#fff';
 const RULER_BORDER = '#888';
 const RULER_TEXT_COLOR = '#555';
@@ -69,6 +69,7 @@ export class RulerManager implements Renderable {
   } | null = null;
 
   private activeGuideline: string | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   public get isDragging(): boolean {
     return this.dragging !== null;
@@ -99,6 +100,11 @@ export class RulerManager implements Renderable {
     this.buildRulers();
     this._dirty = true;
     getRenderQueue()?.addDrainable('ruler', this);
+
+    this.resizeObserver = new ResizeObserver(() => {
+      this.onCameraChange();
+    });
+    this.resizeObserver.observe(this.svg);
 
     this.bindPointerEvents();
   }
@@ -190,7 +196,7 @@ export class RulerManager implements Renderable {
     const bounds = this.getViewportBounds();
     const svgW = bounds.w;
     const svgH = bounds.h;
-    const rs = RULER_SIZE;
+    const rs = RULER_SIZE_PX;
     const lineW = 0.5;
 
     if (svgW < rs || svgH < rs) {
@@ -408,7 +414,7 @@ export class RulerManager implements Renderable {
 
         // Check ruler drag start
         if (this.rulersVisible) {
-          if (svgPt.x <= RULER_SIZE && svgPt.y > RULER_SIZE) {
+          if (svgPt.x <= RULER_SIZE_PX && svgPt.y > RULER_SIZE_PX) {
             const wp = this.camera.screenToWorld(svgPt);
             this.dragging = {
               type: 'ruler',
@@ -420,7 +426,7 @@ export class RulerManager implements Renderable {
             e.preventDefault();
             return;
           }
-          if (svgPt.y <= RULER_SIZE && svgPt.x > RULER_SIZE) {
+          if (svgPt.y <= RULER_SIZE_PX && svgPt.x > RULER_SIZE_PX) {
             const wp = this.camera.screenToWorld(svgPt);
             this.dragging = {
               type: 'ruler',
@@ -563,5 +569,10 @@ export class RulerManager implements Renderable {
     if (!ctm) return null;
     const svgPt = point.matrixTransform(ctm.inverse());
     return { x: svgPt.x, y: svgPt.y };
+  }
+
+  public destroy(): void {
+    this.resizeObserver?.disconnect();
+    this.resizeObserver = null;
   }
 }

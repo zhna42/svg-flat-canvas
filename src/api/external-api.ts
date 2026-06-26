@@ -44,7 +44,7 @@ import type {
 } from './dto';
 
 let _idCounter = 0;
-const generateId = (): string => `shape_${Date.now()}_${++_idCounter}`;
+const generateId = (): string => crypto.randomUUID?.() ?? `shape_${Date.now()}_${++_idCounter}`;
 
 export class ExternalApi {
   private readonly canvas: SvgCanvas;
@@ -317,8 +317,29 @@ export class ExternalApi {
   }
 
   public setAvoidCollisions(enabled: boolean): void {
-    this.dbg.log('API', 'setAvoidCollisions', { enabled });
     this.canvas.setAvoidCollisions(enabled);
+  }
+
+  public setSnapToGuidelines(enabled: boolean): void {
+    this.canvas.setSnapToGuidelines(enabled);
+  }
+
+  public setSnapToGrid(enabled: boolean): void {
+    this.canvas.setSnapToGrid(enabled);
+  }
+
+  public setSnapAxis(mode: 'both' | 'horizontal' | 'vertical'): void {
+    this.canvas.setSnapAxis(mode);
+  }
+
+  public outlineElement(id: string): void {
+    this.canvas.outlineElement(id);
+  }
+
+  public getOutlinePath(id: string): Record<string, unknown> | null {
+    const path = this.canvas.getOutlinePath(id);
+    if (!path) return null;
+    return path.toDTO();
   }
 
   public setActiveCreationTool(type: ElementType | null): void {
@@ -537,6 +558,137 @@ export class ExternalApi {
     }
     if (angle !== undefined) el.rotate(angle - el.transform.angle);
     el.rebuildHitArea();
+  }
+
+  public loadElements(dtos: Record<string, unknown>[]): void {
+    this.canvas.loadElements(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        type: d.type as ElementType,
+        attributes: (d.attributes ?? d) as Record<string, string>,
+        groupId: d.groupId as string | undefined,
+        name: d.name as string | undefined,
+        visible: d.visible as boolean | undefined,
+        lock: d.lock as boolean | undefined,
+        data: d.data as Record<string, unknown> | undefined,
+      })),
+    );
+  }
+
+  public addElements(dtos: Record<string, unknown>[]): void {
+    this.canvas.addElements(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        type: d.type as ElementType,
+        attributes: (d.attributes ?? d) as Record<string, string>,
+        groupId: d.groupId as string | undefined,
+        name: d.name as string | undefined,
+        visible: d.visible as boolean | undefined,
+        lock: d.lock as boolean | undefined,
+        data: d.data as Record<string, unknown> | undefined,
+      })),
+    );
+  }
+
+  public replaceElements(dtos: Record<string, unknown>[]): void {
+    this.canvas.replaceElements(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        type: d.type as ElementType,
+        attributes: (d.attributes ?? d) as Record<string, string>,
+        groupId: d.groupId as string | undefined,
+        name: d.name as string | undefined,
+        visible: d.visible as boolean | undefined,
+        lock: d.lock as boolean | undefined,
+        data: d.data as Record<string, unknown> | undefined,
+      })),
+    );
+  }
+
+  public updateElements(
+    patches: Array<{ id: string; fields: Record<string, unknown> }>,
+  ): void {
+    this.canvas.updateElements(patches);
+  }
+
+  public showPreloader(): void {
+    this.canvas.showPreloader();
+  }
+
+  public hidePreloader(): void {
+    this.canvas.hidePreloader();
+  }
+
+  public isPreloaderVisible(): boolean {
+    return this.canvas.isPreloaderVisible();
+  }
+
+  public showGrid(): void {
+    this.canvas.showGrid();
+  }
+
+  public hideGrid(): void {
+    this.canvas.hideGrid();
+  }
+
+  public isGridVisible(): boolean {
+    return this.canvas.isGridVisible();
+  }
+
+  public setGridStep(mm: number): void {
+    this.canvas.setGridStep(mm);
+  }
+
+  public getGridStep(): number {
+    return this.canvas.getGridStep();
+  }
+
+  public getUnsavedDTOs(): Array<Record<string, unknown>> {
+    return this.canvas.getUnsavedDTOs();
+  }
+
+  public setArtboardSize(widthMM: number, heightMM: number): void {
+    this.canvas.setArtboardSize(widthMM, heightMM);
+  }
+
+  public loadGroups(dtos: Record<string, unknown>[]): void {
+    this.canvas.loadGroups(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        name: (d.name as string) ?? '',
+        elementIds: (d.elementIds as string[]) ?? [],
+      })),
+    );
+  }
+
+  public addGroups(dtos: Record<string, unknown>[]): void {
+    this.canvas.addGroups(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        name: (d.name as string) ?? '',
+        elementIds: (d.elementIds as string[]) ?? [],
+      })),
+    );
+  }
+
+  public replaceGroups(dtos: Record<string, unknown>[]): void {
+    this.canvas.replaceGroups(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        name: (d.name as string) ?? '',
+        elementIds: (d.elementIds as string[]) ?? [],
+      })),
+    );
+  }
+
+  public updateGroups(
+    patches: Array<{ id: string; fields: Record<string, unknown> }>,
+  ): void {
+    this.canvas.updateGroups(patches);
+  }
+
+  public getUnsavedGroupDTOs(): Array<Record<string, unknown>> {
+    return this.canvas.getUnsavedGroupDTOs();
   }
 
   private applyGeometryDelta(

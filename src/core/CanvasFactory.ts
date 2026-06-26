@@ -5,11 +5,14 @@ import { Camera } from '@/camera/Camera';
 import type { SvgCanvasOptions } from '@/types';
 import { SelectionState } from '@/selection/SelectionState';
 import { SpatialGrid } from '@/spatial/SpatialGrid';
+import { MM_TO_PX } from '@/constants';
 import { SelectionHandler } from '@/selection/handlers/SelectionHandler';
 import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
 import { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay';
 import { TransformHandler } from '@/selection/transform/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
+import { PreloaderOverlay } from '@/debug/PreloaderOverlay';
+import { GridOverlay } from '@/debug/GridOverlay';
 import { RulerManager } from '@/ruler';
 import { BooleanHandler } from '@/boolean';
 import { CreationHandler } from '@/creation/CreationHandler';
@@ -93,6 +96,19 @@ export class CanvasFactory {
     overlayRoot.appendChild(debugOverlay.getElement());
     const debugShowHitArea = options?.debugShowHitArea ?? false;
 
+    const preloaderOverlay = new PreloaderOverlay();
+    preloaderOverlay.hide();
+    overlayRoot.appendChild(preloaderOverlay.getElement());
+
+    const gridOverlay = new GridOverlay(camera, () => {
+      const artboard = renderer.getArtboard();
+      return {
+        width: artboard.widthMM * MM_TO_PX,
+        height: artboard.heightMM * MM_TO_PX,
+      };
+    });
+    renderer.getCameraGroup().appendChild(gridOverlay.getElement());
+
     const rulerManager = new RulerManager(
       camera,
       events,
@@ -128,6 +144,8 @@ export class CanvasFactory {
     c.groupSelectionOverlay = groupSelectionOverlay;
     c.transformHandler = transformHandler;
     c.debugOverlay = debugOverlay;
+    c.preloaderOverlay = preloaderOverlay;
+    c.gridOverlay = gridOverlay;
     c.rulerManager = rulerManager;
     c.booleanHandler = booleanHandler;
     c._debugShowHitArea = debugShowHitArea;
@@ -257,6 +275,8 @@ export class CanvasFactory {
         }
       },
       getEditingPath: () => canvas.editingPath,
+      getGuidelines: () => rulerManager.getGuidelines(),
+      getGridLines: () => gridOverlay.getGridLines(),
     });
 
     element.appendChild(svg);

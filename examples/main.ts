@@ -466,5 +466,88 @@ document.getElementById('btn-bool-intersect')!.onclick = () => setBooleanMode('I
 document.getElementById('btn-bool-difference')!.onclick = () => setBooleanMode('DIFFERENCE');
 document.getElementById('btn-bool-off')!.onclick = () => setBooleanMode(null);
 
+// ----- grid controls -----
+let gridVisible = false;
+document.getElementById('btn-grid-toggle')!.onclick = () => {
+  gridVisible = !gridVisible;
+  const btn = document.getElementById('btn-grid-toggle')!;
+  if (gridVisible) {
+    api.showGrid();
+    btn.textContent = 'Grid: on';
+    btn.classList.add('active');
+    info('Grid: ON');
+  } else {
+    api.hideGrid();
+    btn.textContent = 'Grid: off';
+    btn.classList.remove('active');
+    info('Grid: OFF');
+  }
+};
+
+(document.getElementById('input-grid-step') as HTMLInputElement).onchange = (e) => {
+  const step = parseInt((e.target as HTMLInputElement).value, 10);
+  if (step > 0) {
+    api.setGridStep(step);
+    info(`Grid step: ${step} mm`);
+  }
+};
+
+// ----- snap guidelines / grid -----
+let snapGuidelines = false;
+document.getElementById('btn-snap-guidelines')!.onclick = () => {
+  snapGuidelines = !snapGuidelines;
+  api.setSnapToGuidelines(snapGuidelines);
+  const btn = document.getElementById('btn-snap-guidelines')!;
+  btn.textContent = snapGuidelines ? 'Snap guides: on' : 'Snap guides: off';
+  btn.classList.toggle('active', snapGuidelines);
+  info(snapGuidelines ? 'Snap to guidelines: ON' : 'Snap to guidelines: OFF');
+};
+
+let snapGrid = false;
+document.getElementById('btn-snap-grid')!.onclick = () => {
+  snapGrid = !snapGrid;
+  api.setSnapToGrid(snapGrid);
+  const btn = document.getElementById('btn-snap-grid')!;
+  btn.textContent = snapGrid ? 'Snap grid: on' : 'Snap grid: off';
+  btn.classList.toggle('active', snapGrid);
+  info(snapGrid ? 'Snap to grid: ON' : 'Snap to grid: OFF');
+};
+
+(document.getElementById('select-snap-axis') as HTMLSelectElement).onchange = (e) => {
+  const axis = (e.target as HTMLSelectElement).value as 'both' | 'horizontal' | 'vertical';
+  api.setSnapAxis(axis);
+  info(`Snap axis: ${axis}`);
+};
+
+// ----- outline -----
+document.getElementById('btn-outline')!.onclick = () => {
+  const selected = Array.from(canvas.getSelected());
+  if (selected.length === 0) {
+    info('No element selected for outline');
+    return;
+  }
+  for (const el of selected) {
+    api.outlineElement(el.id);
+  }
+  info(`Outlined ${selected.length} element(s)`);
+};
+
+// ----- preloader toggle -----
+let preloaderVisible = false;
+document.getElementById('btn-preloader-toggle')!.onclick = () => {
+  preloaderVisible = !preloaderVisible;
+  const btn = document.getElementById('btn-preloader-toggle')!;
+  if (preloaderVisible) {
+    api.showPreloader();
+    btn.textContent = 'Preloader: on';
+    btn.classList.add('active');
+  } else {
+    api.hidePreloader();
+    btn.textContent = 'Preloader: off';
+    btn.classList.remove('active');
+  }
+  info(preloaderVisible ? 'Preloader: ON' : 'Preloader: OFF');
+};
+
 // External API — доступна из консоли
 (window as any).api = api;

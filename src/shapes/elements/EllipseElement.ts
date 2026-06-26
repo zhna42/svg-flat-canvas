@@ -85,6 +85,14 @@ export class EllipseElement extends AbstractGraphicElement {
     this.requestRender();
   }
 
+  public toOutlinePath(): import('./PathElement').PathElement {
+    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const { cx, cy, rx, ry } = this.geometry;
+    const fill = this.style.hasFill ? `fill="${this.style.fill}"` : 'fill="none"';
+    const svgStr = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" ${fill} stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
+    return svgStringToOutlinePath(svgStr, `${this.id}-outline`);
+  }
+
   public toSegmentPolygons(): Point[][] {
     const { cx, cy, rx, ry } = this.geometry;
     const pts: Point[] = [];

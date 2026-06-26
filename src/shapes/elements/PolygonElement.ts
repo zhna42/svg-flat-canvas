@@ -87,6 +87,13 @@ export class PolygonElement extends AbstractGraphicElement {
     this.requestRender();
   }
 
+  public toOutlinePath(): import('./PathElement').PathElement {
+    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const fill = this.style.hasFill ? `fill="${this.style.fill}"` : 'fill="none"';
+    const svgStr = `<polygon points="${this.points}" ${fill} stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
+    return svgStringToOutlinePath(svgStr, `${this.id}-outline`);
+  }
+
   public toSegmentPolygons(): Point[][] {
     return [this.parsePoints(this.points)];
   }

@@ -56,6 +56,14 @@ export interface SelectionHandlerOptions {
   onDragEnd?: () => void;
   onSetEditingPath?: (path: AbstractGraphicElement | null) => void;
   getEditingPath?: () => AbstractGraphicElement | null;
+  getGuidelines?: () => Array<{
+    orientation: 'v' | 'h';
+    position: number;
+  }>;
+  getGridLines?: () => Array<{
+    orientation: 'v' | 'h';
+    position: number;
+  }>;
 }
 
 export class SelectionHandler {
@@ -89,6 +97,8 @@ export class SelectionHandler {
       opts.grid,
       opts.getElements,
       opts.getArtboardRect ?? (() => null),
+      opts.getGuidelines ?? (() => []),
+      opts.getGridLines ?? (() => []),
     );
 
     const groupLookup = opts.getGroupIdForElement ?? (() => undefined);
@@ -200,6 +210,18 @@ export class SelectionHandler {
 
   public setSnapToArtboard(enabled: boolean): void {
     this.dragHandler.setSnapToArtboard(enabled);
+  }
+
+  public setSnapToGuidelines(enabled: boolean): void {
+    this.dragHandler.setSnapToGuidelines(enabled);
+  }
+
+  public setSnapToGrid(enabled: boolean): void {
+    this.dragHandler.setSnapToGrid(enabled);
+  }
+
+  public setSnapAxis(mode: string): void {
+    this.dragHandler.setSnapAxis(mode as any);
   }
 
   public setAvoidCollisions(enabled: boolean): void {

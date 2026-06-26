@@ -3,7 +3,7 @@ import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/camera/Camera';
 import type { SpatialGrid } from '@/spatial/SpatialGrid';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
-import { DragSnapHelper } from '@/selection/drag/DragSnap';
+import { DragSnapHelper, type SnapAxisMode } from '@/selection/drag/DragSnap';
 import { checkSceneCollisions } from '@/selection/drag/DragCollision';
 
 export class DragHandler {
@@ -39,12 +39,26 @@ export class DragHandler {
       width: number;
       height: number;
     } | null,
+    getGuidelines: () => Array<{
+      orientation: 'v' | 'h';
+      position: number;
+    }>,
+    getGridLines: () => Array<{
+      orientation: 'v' | 'h';
+      position: number;
+    }>,
   ) {
     this.bus = bus;
     this.camera = camera;
     this.grid = grid;
     this.getElements = getElements;
-    this.dragSnap = new DragSnapHelper(camera, getElements, getArtboardRect);
+    this.dragSnap = new DragSnapHelper(
+      camera,
+      getElements,
+      getArtboardRect,
+      getGuidelines,
+      getGridLines,
+    );
   }
 
   public setMode(mode: string): void {
@@ -65,6 +79,18 @@ export class DragHandler {
 
   public setSnapToArtboard(enabled: boolean): void {
     this.snapToArtboard = enabled;
+  }
+
+  public setSnapToGuidelines(enabled: boolean): void {
+    this.dragSnap.snapToGuidelines = enabled;
+  }
+
+  public setSnapToGrid(enabled: boolean): void {
+    this.dragSnap.snapToGrid = enabled;
+  }
+
+  public setSnapAxis(mode: SnapAxisMode): void {
+    this.dragSnap.snapAxis = mode;
   }
 
   public get isActive(): boolean {

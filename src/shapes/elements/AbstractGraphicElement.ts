@@ -35,11 +35,30 @@ export abstract class AbstractGraphicElement {
   protected _dirty = false;
   protected diffKeysForRedering = new Set<string>();
   protected diffKeysForTimeMashin = new Set<string>();
+  protected _savedFlag = false;
+  protected _unsavedKeys = new Set<string>();
 
   public constructor(id: string, type: ElementType) {
     this.id = id;
     this.type = type;
     this.name = type;
+  }
+
+  public get isSaved(): boolean {
+    return this._savedFlag && this._unsavedKeys.size === 0;
+  }
+
+  public getUnsavedDTO(): Record<string, unknown> | null {
+    if (!this._savedFlag) {
+      this._savedFlag = true;
+      this._unsavedKeys.clear();
+      return this.toSnapshot();
+    }
+
+    const keys = Array.from(this._unsavedKeys);
+    this._unsavedKeys.clear();
+    if (keys.length === 0) return null;
+    return this.buildSnapshotFromKeys(keys);
   }
 
   public get dirty(): boolean {
@@ -53,12 +72,14 @@ export abstract class AbstractGraphicElement {
   public markRenderKey(key: string): void {
     this.diffKeysForRedering.add(key);
     this.diffKeysForTimeMashin.add(key);
+    this._unsavedKeys.add(key);
   }
 
   public markRenderKeys(...keys: string[]): void {
     for (const key of keys) {
       this.diffKeysForRedering.add(key);
       this.diffKeysForTimeMashin.add(key);
+      this._unsavedKeys.add(key);
     }
   }
 
@@ -257,6 +278,8 @@ export abstract class AbstractGraphicElement {
   }
 
   public abstract toSegmentPolygons(): Point[][];
+
+  public abstract toOutlinePath(): import('./PathElement').PathElement;
 
   public invalidateHitArea(): void {
     this.rebuildHitArea();

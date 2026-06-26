@@ -496,6 +496,14 @@ export class PathElement extends AbstractGraphicElement {
     return result;
   }
 
+  public toOutlinePath(): PathElement {
+    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const d = this.toDString();
+    const fill = this.style.hasFill ? `fill="${this.style.fill}"` : 'fill="none"';
+    const svgStr = `<path d="${d}" ${fill} stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
+    return svgStringToOutlinePath(svgStr, `${this.id}-outline`);
+  }
+
   public toSegmentPolygons(): Point[][] {
     const subPaths: PathCommand[][] = [];
     let cur: PathCommand[] = [];

@@ -102,10 +102,14 @@ export class GroupManager {
       if (this.resolveConflict(elementId, el.groupId, groupId) === 'cancel')
         return;
       const oldGroup = this.groups.get(el.groupId);
-      if (oldGroup) oldGroup.elementIds.delete(elementId);
+      if (oldGroup) {
+        oldGroup.elementIds.delete(elementId);
+        oldGroup.markUnsaved('elementIds');
+      }
     }
     el.setGroupId(groupId);
     g.elementIds.add(elementId);
+    g.markUnsaved('elementIds');
     this.events?.emit('GROUP_ELEMENT_ADDED', { groupId, elementId });
     this.notify();
   }
@@ -114,6 +118,7 @@ export class GroupManager {
     const g = this.groups.get(groupId);
     if (!g || !g.elementIds.has(elementId)) return;
     g.elementIds.delete(elementId);
+    g.markUnsaved('elementIds');
     const el = this.findElement(elementId);
     if (el && el.groupId === groupId) el.setGroupId('');
     this.events?.emit('GROUP_ELEMENT_REMOVED', { groupId, elementId });
@@ -128,6 +133,7 @@ export class GroupManager {
       if (el && el.groupId === id) el.setGroupId('');
     }
     g.elementIds.clear();
+    g.markUnsaved('elementIds');
     this.events?.emit('GROUP_CLEARED', { id });
     this.notify();
   }
@@ -189,6 +195,80 @@ export class GroupManager {
         : 'cancel';
     }
     return 'cancel';
+  }
+
+  public loadGroups(data: GroupData[]): void {
+    for (const g of this.groups.values()) {
+      for (const elId of g.elementIds) {
+        const el = this.findElement(elId);
+        if (el) el.setGroupId('');
+      }
+    }
+    this.groups.clear();
+    for (const d of data) {
+      const group = new Group({ ...d, elementIds: d.elementIds ?? [] });
+      this.groups.set(d.id, group);
+      for (const elId of d.elementIds ?? []) {
+        const el = this.findElement(elId);
+        if (el) el.setGroupId(d.id);
+      }
+    }
+    this.events?.emit('groups-loaded', data);
+    this.notify();
+  }
+
+  public addGroups(data: GroupData[]): void {
+    for (const d of data) {
+      const group = new Group({ ...d, elementIds: d.elementIds ?? [] });
+      this.groups.set(d.id, group);
+      for (const elId of d.elementIds ?? []) {
+        const el = this.findElement(elId);
+        if (el) el.setGroupId(d.id);
+      }
+    }
+    this.events?.emit('groups-added', data);
+    this.notify();
+  }
+
+  public replaceGroups(data: GroupData[]): void {
+    for (const d of data) {
+      const old = this.groups.get(d.id);
+      if (old) {
+        for (const elId of old.elementIds) {
+          const el = this.findElement(elId);
+          if (el) el.setGroupId('');
+        }
+        this.groups.delete(d.id);
+      }
+      const group = new Group({ ...d, elementIds: d.elementIds ?? [] });
+      this.groups.set(d.id, group);
+      for (const elId of d.elementIds ?? []) {
+        const el = this.findElement(elId);
+        if (el) el.setGroupId(d.id);
+      }
+    }
+    this.events?.emit('groups-replaced', data);
+    this.notify();
+  }
+
+  public updateGroups(
+    patches: Array<{ id: string; fields: Record<string, unknown> }>,
+  ): void {
+    for (const { id, fields } of patches) {
+      const g = this.groups.get(id);
+      if (g) g.applyDTO(fields);
+    }
+    this.events?.emit('groups-updated', patches);
+    this.notify();
+  }
+
+  public getUnsavedDTOs(): Array<Record<string, unknown>> {
+    const result: Array<Record<string, unknown>> = [];
+    for (const g of this.groups.values()) {
+      const dto = g.getUnsavedDTO();
+      if (dto) result.push(dto);
+    }
+    return result;
   }
 
   private findElement(id: string): AbstractGraphicElement | undefined {

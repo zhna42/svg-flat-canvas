@@ -13,6 +13,8 @@ import {
   getVisualWorldPoints,
 } from '@/selection/drag/DragCollision';
 
+export type SnapAxisMode = 'both' | 'horizontal' | 'vertical';
+
 export class DragSnapHelper {
   private engine = new AdaptiveSnapEngine();
   private camera: Camera;
@@ -23,6 +25,18 @@ export class DragSnapHelper {
     width: number;
     height: number;
   } | null;
+  private getGuidelines: () => Array<{
+    orientation: 'v' | 'h';
+    position: number;
+  }>;
+  private getGridLines: () => Array<{
+    orientation: 'v' | 'h';
+    position: number;
+  }>;
+
+  public snapToGuidelines = false;
+  public snapToGrid = false;
+  public snapAxis: SnapAxisMode = 'both';
 
   constructor(
     camera: Camera,
@@ -33,10 +47,20 @@ export class DragSnapHelper {
       width: number;
       height: number;
     } | null,
+    getGuidelines: () => Array<{
+      orientation: 'v' | 'h';
+      position: number;
+    }>,
+    getGridLines: () => Array<{
+      orientation: 'v' | 'h';
+      position: number;
+    }>,
   ) {
     this.camera = camera;
     this.getElements = getElements;
     this.getArtboardRect = getArtboardRect;
+    this.getGuidelines = getGuidelines;
+    this.getGridLines = getGridLines;
   }
 
   reset(): void {
@@ -93,6 +117,56 @@ export class DragSnapHelper {
         this.engine.buildArtboardLines(screen);
       }
     }
+
+    if (this.snapToGuidelines) {
+      const guidelines = this.getGuidelines();
+      const screenLines: { x: number; y: number }[][] = [];
+      for (const g of guidelines) {
+        const pos = this.camera.worldToScreen({
+          x: g.orientation === 'v' ? g.position : 0,
+          y: g.orientation === 'h' ? g.position : 0,
+        });
+        if (g.orientation === 'v') {
+          screenLines.push([
+            { x: pos.x, y: -1e8 },
+            { x: pos.x, y: 1e8 },
+          ]);
+        } else {
+          screenLines.push([
+            { x: -1e8, y: pos.y },
+            { x: 1e8, y: pos.y },
+          ]);
+        }
+      }
+      if (screenLines.length > 0) {
+        this.engine.addStaticTargets(screenLines);
+      }
+    }
+
+    if (this.snapToGrid) {
+      const gridLines = this.getGridLines();
+      const screenLines: { x: number; y: number }[][] = [];
+      for (const g of gridLines) {
+        const pos = this.camera.worldToScreen({
+          x: g.orientation === 'v' ? g.position : 0,
+          y: g.orientation === 'h' ? g.position : 0,
+        });
+        if (g.orientation === 'v') {
+          screenLines.push([
+            { x: pos.x, y: -1e8 },
+            { x: pos.x, y: 1e8 },
+          ]);
+        } else {
+          screenLines.push([
+            { x: -1e8, y: pos.y },
+            { x: 1e8, y: pos.y },
+          ]);
+        }
+      }
+      if (screenLines.length > 0) {
+        this.engine.addStaticTargets(screenLines);
+      }
+    }
   }
 
   computeCorrection(
@@ -125,6 +199,14 @@ export class DragSnapHelper {
       frameDx * this.camera.zoom,
       frameDy * this.camera.zoom,
     );
-    return this.engine.computeCorrection(movingScreenPoints);
+    const result = this.engine.computeCorrection(movingScreenPoints);
+
+    if (this.snapAxis === 'horizontal') {
+      return { correctionX: result.correctionX, correctionY: 0 };
+    }
+    if (this.snapAxis === 'vertical') {
+      return { correctionX: 0, correctionY: result.correctionY };
+    }
+    return result;
   }
 }

@@ -97,6 +97,11 @@ export class ImageElement extends AbstractGraphicElement {
     this.requestRender();
   }
 
+  public toOutlinePath(): import('./PathElement').PathElement {
+    const { PathElement: PE } = require('./PathElement');
+    return new PE(`${this.id}-outline`);
+  }
+
   public toSegmentPolygons(): Point[][] {
     const { x, y, width, height } = this.geometry;
     return [

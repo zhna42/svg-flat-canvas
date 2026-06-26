@@ -10,6 +10,7 @@ export class PreviewElement extends AbstractGraphicElement {
 
   constructor(id: string) {
     super(id, 'path');
+    this.isPreview = true;
   }
 
   public get d(): string {
@@ -75,6 +76,11 @@ export class PreviewElement extends AbstractGraphicElement {
   public flattenTransformToAttrs(): void {}
 
   protected flattenTranslateDelta(_dx: number, _dy: number): void {}
+
+  public toOutlinePath(): import('./PathElement').PathElement {
+    const { PathElement: PE } = require('./PathElement');
+    return new PE(`${this.id}-outline`);
+  }
 
   public requestRender(): void {
     getRenderQueue()?.add(this);

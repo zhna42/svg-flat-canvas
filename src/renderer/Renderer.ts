@@ -109,7 +109,9 @@ export class Renderer {
 
   public clear(): void {
     for (const [, el] of this.nodeMap) {
-      this.cameraGroup.removeChild(el);
+      if (el.parentNode === this.shapesGroup) {
+        this.shapesGroup.removeChild(el);
+      }
     }
     this.nodeMap.clear();
   }

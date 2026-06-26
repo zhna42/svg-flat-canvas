@@ -9,6 +9,8 @@ import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
 import { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay';
 import { TransformHandler } from '@/selection/transform/TransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
+import { PreloaderOverlay } from '@/debug/PreloaderOverlay';
+import { GridOverlay } from '@/debug/GridOverlay';
 import { GroupManager } from '@/group';
 import { CommandBus } from '@/commands';
 import { TimeMachine } from '@/time-machine';
@@ -56,6 +58,8 @@ export class SvgCanvas {
   groupSelectionOverlay!: GroupSelectionOverlay;
   transformHandler!: TransformHandler;
   debugOverlay!: DebugOverlay;
+  preloaderOverlay!: PreloaderOverlay;
+  gridOverlay!: GridOverlay;
   groupManager!: GroupManager;
   commandBus!: CommandBus;
   timeMachine!: TimeMachine;
@@ -125,6 +129,7 @@ export class SvgCanvas {
       realH,
       40,
     );
+    this.events.emit('artboard-resized', { widthMM, heightMM });
   }
 
   public setSelectionMode(mode: SelectionMode): void {
@@ -365,6 +370,36 @@ export class SvgCanvas {
     this.selectionHandler.setAvoidCollisions(enabled);
   }
 
+  public setSnapToGuidelines(enabled: boolean): void {
+    this.selectionHandler.setSnapToGuidelines(enabled);
+  }
+
+  public setSnapToGrid(enabled: boolean): void {
+    this.selectionHandler.setSnapToGrid(enabled);
+  }
+
+  public setSnapAxis(mode: 'both' | 'horizontal' | 'vertical'): void {
+    this.selectionHandler.setSnapAxis(mode);
+  }
+
+  public getOutlinePath(id: string): import('@/shapes/elements/PathElement').PathElement | null {
+    const el = this.shapeManager.getAll().find((e) => e.id === id);
+    if (!el) return null;
+    return el.toOutlinePath();
+  }
+
+  public outlineElement(id: string): void {
+    const el = this.shapeManager.getAll().find((e) => e.id === id);
+    if (!el) return;
+    const outline = el.toOutlinePath();
+    this.spatialGrid.removeById(el.id, el.getSpatialCellIds());
+    this.shapeManager.removeElementAndNode(el.id);
+    this.shapeManager.addElement(outline);
+    this.indexShape(outline);
+    outline.setDirtyAll();
+    this.events.emit('element-outlined', { id, newId: outline.id });
+  }
+
   getArtboardRect(): {
     x: number;
     y: number;
@@ -481,6 +516,32 @@ export class SvgCanvas {
     );
   }
 
+  public loadGroups(data: GroupData[]): void {
+    this.groupManager.loadGroups(data);
+    this.events.emit('groups-loaded', data);
+  }
+
+  public addGroups(data: GroupData[]): void {
+    this.groupManager.addGroups(data);
+    this.events.emit('groups-added', data);
+  }
+
+  public replaceGroups(data: GroupData[]): void {
+    this.groupManager.replaceGroups(data);
+    this.events.emit('groups-replaced', data);
+  }
+
+  public updateGroups(
+    patches: Array<{ id: string; fields: Record<string, unknown> }>,
+  ): void {
+    this.groupManager.updateGroups(patches);
+    this.events.emit('groups-updated', patches);
+  }
+
+  public getUnsavedGroupDTOs(): Array<Record<string, unknown>> {
+    return this.groupManager.getUnsavedDTOs();
+  }
+
   public set onGroupsChange(fn: (() => void) | null) {
     this.groupManager.setOnChange(fn);
   }
@@ -565,6 +626,112 @@ export class SvgCanvas {
         this.reindexElement(element);
       };
     }
+  }
+
+  public loadElements(items: ElementJSON[]): void {
+    this.shapeManager.clear();
+    this.spatialGrid.clear();
+    const elements = createFromJSONArray(items);
+    for (const el of elements) {
+      this.shapeManager.add(el);
+      this.indexShape(el);
+      el.setDirtyAll();
+    }
+    this.timeMachine.clear();
+    this.events.emit('elements-loaded', elements);
+  }
+
+  public addElements(items: ElementJSON[]): void {
+    const elements = createFromJSONArray(items);
+    for (const el of elements) {
+      this.shapeManager.add(el);
+      this.indexShape(el);
+      el.setDirtyAll();
+    }
+    this.events.emit('elements-added', elements);
+  }
+
+  public replaceElements(items: ElementJSON[]): void {
+    const elements: AbstractGraphicElement[] = [];
+    for (const item of items) {
+      const old = this.shapeManager.getAll().find((e) => e.id === item.id);
+      if (old) {
+        this.spatialGrid.removeById(old.id, old.getSpatialCellIds());
+        this.shapeManager.remove(old.id);
+      }
+      const el = createFromJSONArray([item])[0];
+      this.shapeManager.add(el);
+      this.indexShape(el);
+      el.setDirtyAll();
+      elements.push(el);
+    }
+    this.events.emit('elements-replaced', elements);
+  }
+
+  public updateElements(
+    patches: Array<{ id: string; fields: Record<string, unknown> }>,
+  ): void {
+    const all = this.shapeManager.getAll();
+    for (const { id, fields } of patches) {
+      const el = all.find((e) => e.id === id);
+      if (el) {
+        el.applyDTO(fields);
+      }
+    }
+    this.events.emit('elements-updated', patches);
+  }
+
+  public showPreloader(): void {
+    if (this.preloaderOverlay.visible) return;
+    const vb = this.svg.getAttribute('viewBox') || '0 0 800 600';
+    const parts = vb.split(/\s+/).map(Number);
+    this.preloaderOverlay.showCentered(parts[2] || 800, parts[3] || 600);
+    this.events.emit('preloader-toggled', { visible: true });
+  }
+
+  public hidePreloader(): void {
+    if (!this.preloaderOverlay.visible) return;
+    this.preloaderOverlay.hide();
+    this.events.emit('preloader-toggled', { visible: false });
+  }
+
+  public isPreloaderVisible(): boolean {
+    return this.preloaderOverlay.visible;
+  }
+
+  public showGrid(): void {
+    if (this.gridOverlay.visible) return;
+    this.gridOverlay.show();
+    this.events.emit('grid-toggled', { visible: true });
+  }
+
+  public hideGrid(): void {
+    if (!this.gridOverlay.visible) return;
+    this.gridOverlay.hide();
+    this.events.emit('grid-toggled', { visible: false });
+  }
+
+  public isGridVisible(): boolean {
+    return this.gridOverlay.visible;
+  }
+
+  public setGridStep(mm: number): void {
+    this.gridOverlay.setStep(mm);
+    this.events.emit('grid-step-changed', { stepMM: mm });
+  }
+
+  public getGridStep(): number {
+    return this.gridOverlay.stepMM;
+  }
+
+  public getUnsavedDTOs(): Array<Record<string, unknown>> {
+    const result: Array<Record<string, unknown>> = [];
+    for (const el of this.shapeManager.getAll()) {
+      if (el.isPreview) continue;
+      const dto = el.getUnsavedDTO();
+      if (dto) result.push(dto);
+    }
+    return result;
   }
 
   syncGroupSelectionOverlay(): void {

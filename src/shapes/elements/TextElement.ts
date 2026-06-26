@@ -125,6 +125,11 @@ export class TextElement extends AbstractGraphicElement {
     this.rebuildHitArea();
   }
 
+  public toOutlinePath(): import('./PathElement').PathElement {
+    const { PathElement: PE } = require('./PathElement');
+    return new PE(`${this.id}-outline`);
+  }
+
   public toSegmentPolygons(): Point[][] {
     return [];
   }

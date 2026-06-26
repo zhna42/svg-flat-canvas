@@ -80,6 +80,11 @@ export class PatternElement extends AbstractGraphicElement {
     el.cells = this.cells.map((c) => ({ ...c }));
   }
 
+  public toOutlinePath(): import('./PathElement').PathElement {
+    const { PathElement: PE } = require('./PathElement');
+    return new PE(`${this.id}-outline`);
+  }
+
   public toSegmentPolygons(): Point[][] {
     return [];
   }

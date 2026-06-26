@@ -111,15 +111,21 @@ export class RectElement extends AbstractGraphicElement {
     this.requestRender();
   }
 
+  public toOutlinePath(): import('./PathElement').PathElement {
+    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const { x, y, width, height, rx, ry } = this.geometry;
+    const fill = this.style.hasFill ? `fill="${this.style.fill}"` : 'fill="none"';
+    const svgStr = `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" ry="${ry}" ${fill} stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
+    return svgStringToOutlinePath(svgStr, `${this.id}-outline`);
+  }
+
   public toSegmentPolygons(): Point[][] {
     const { x, y, width, height } = this.geometry;
-    return [
-      [
-        { x, y },
-        { x: x + width, y },
-        { x: x + width, y: y + height },
-        { x, y: y + height },
-      ],
-    ];
+    return [[
+      { x, y },
+      { x: x + width, y },
+      { x: x + width, y: y + height },
+      { x, y: y + height },
+    ]];
   }
 }

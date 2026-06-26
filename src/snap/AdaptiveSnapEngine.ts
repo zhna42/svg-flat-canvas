@@ -146,7 +146,14 @@ export class AdaptiveSnapEngine {
   buildTargetLinesAndNodes(elementsPoints: { x: number; y: number }[][]): void {
     this.snapLines = [];
     this.snapNodes = [];
+    this.addPoints(elementsPoints);
+  }
 
+  addStaticTargets(elementsPoints: { x: number; y: number }[][]): void {
+    this.addPoints(elementsPoints);
+  }
+
+  private addPoints(elementsPoints: { x: number; y: number }[][]): void {
     for (const points of elementsPoints) {
       if (points.length === 0) continue;
 
