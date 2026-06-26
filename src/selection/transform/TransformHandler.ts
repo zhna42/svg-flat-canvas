@@ -31,6 +31,7 @@ const HANDLE_FLIP: Record<string, { x: number; y: number }> = {
 export class TransformHandler {
   private _active = false;
   private mode: TransformMode = 'resize';
+  private proportionalResize = false;
   private handle: HandlePosition = 'se';
   private targets: AbstractGraphicElement[] = [];
   private startWorldPoint: Point = { x: 0, y: 0 };
@@ -54,6 +55,10 @@ export class TransformHandler {
 
   public setMode(mode: TransformMode): void {
     this.mode = mode;
+  }
+
+  public setProportionalResize(enabled: boolean): void {
+    this.proportionalResize = enabled;
   }
 
   public tryStart(
@@ -223,11 +228,23 @@ export class TransformHandler {
 
       const factorX = 1 + localDx / effectiveW;
       const factorY = 1 + localDy / effectiveH;
-      if (factorX <= 0 || factorY <= 0) continue;
+
+      let usedFactorX = factorX;
+      let usedFactorY = factorY;
+
+      if (this.proportionalResize) {
+        const absDX = Math.abs(factorX - 1);
+        const absDY = Math.abs(factorY - 1);
+        const dominantFactor = absDX >= absDY ? factorX : factorY;
+        usedFactorX = dominantFactor;
+        usedFactorY = dominantFactor;
+      }
+
+      if (usedFactorX <= 0 || usedFactorY <= 0) continue;
 
       const m = new DOMMatrix(startMatrix.toString())
         .translateSelf(localAnchor.x, localAnchor.y)
-        .scaleSelf(factorX, factorY)
+        .scaleSelf(usedFactorX, usedFactorY)
         .translateSelf(-localAnchor.x, -localAnchor.y);
 
       el.transform.matrix = m;

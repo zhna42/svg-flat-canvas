@@ -362,8 +362,11 @@ export class ExternalApi {
   }
 
   public setTransformMode(mode: 'resize' | 'rotate'): void {
-    this.dbg.log('API', 'setTransformMode', { mode });
     this.canvas.setTransformMode(mode);
+  }
+
+  public setProportionalResize(enabled: boolean): void {
+    this.canvas.setProportionalResize(enabled);
   }
 
   public setRulersVisible(v: boolean): void {

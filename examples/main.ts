@@ -355,9 +355,15 @@ document.getElementById('btn-handle-rotate')!.onclick = () => {
   handleMode = 'rotate';
   canvas.setTransformMode('rotate');
   api.setTransformMode('rotate');
-  document.getElementById('btn-handle-rotate')!.classList.add('active');
   document.getElementById('btn-handle-resize')!.classList.remove('active');
+  document.getElementById('btn-handle-rotate')!.classList.add('active');
   info('Handle mode: rotate');
+};
+
+(document.getElementById('chk-proportional-resize') as HTMLInputElement).onchange = (e) => {
+  const enabled = (e.target as HTMLInputElement).checked;
+  api.setProportionalResize(enabled);
+  info(`Proportional resize: ${enabled ? 'ON' : 'OFF'}`);
 };
 
 // ----- delete keyboard -----

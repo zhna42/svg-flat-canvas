@@ -260,6 +260,10 @@ export class SvgCanvas {
     this.transformHandler.setMode(mode);
   }
 
+  public setProportionalResize(enabled: boolean): void {
+    this.transformHandler.setProportionalResize(enabled);
+  }
+
   public startTransform(mode: TransformMode): void {
     const selected = this.selectionState.selected;
     if (selected.length === 0) return;
