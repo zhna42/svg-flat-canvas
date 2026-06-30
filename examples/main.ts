@@ -279,7 +279,7 @@ document.getElementById('btn-group-add')!.onclick = () => {
   }
   canvas.addToGroup(
     gid,
-    selected.map((e) => e.id),
+    selected.map((e: any) => e.id),
   );
   renderGroupList();
   info(`Added ${selected.length} element(s) to group`);
@@ -299,7 +299,7 @@ document.getElementById('btn-group-remove')!.onclick = () => {
   }
   canvas.removeFromGroup(
     gid,
-    selected.map((e) => e.id),
+    selected.map((e: any) => e.id),
   );
   renderGroupList();
   info(`Removed ${selected.length} element(s) from group`);
@@ -386,7 +386,7 @@ window.addEventListener('keydown', (e: KeyboardEvent) => {
         const selected = Array.from(canvas.getSelected());
         if (selected.length > 0) {
           e.preventDefault();
-          canvas.deleteElements(selected.map((s) => s.id));
+          canvas.deleteElements(selected.map((s: any) => s.id));
           info(`Deleted ${selected.length} element(s)`);
         }
       }
@@ -533,7 +533,7 @@ document.getElementById('btn-outline')!.onclick = () => {
     return;
   }
   for (const el of selected) {
-    api.outlineElement(el.id);
+    api.outlineElement((el as any).id);
   }
   info(`Outlined ${selected.length} element(s)`);
 };

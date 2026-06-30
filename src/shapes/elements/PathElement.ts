@@ -1,3 +1,4 @@
+import { getRenderQueue } from '@/utils/render-queue-utils';
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox, PathCommand } from '@/types';
 import { PathHitArea } from '../modules/HitArea';
@@ -134,7 +135,7 @@ export class PathElement extends AbstractGraphicElement {
     this.geometry.commands = transformCommands(this.geometry.commands, m);
     this.markRenderKey('d');
     this.rebuildHitArea();
-    this.requestRender();
+    getRenderQueue()?.add(this);
   }
 
   public flattenTransform(): void {
@@ -145,7 +146,7 @@ export class PathElement extends AbstractGraphicElement {
     this.transform.reset();
     this.markRenderKey('matrix');
     this.rebuildHitArea();
-    this.requestRender();
+    getRenderQueue()?.add(this);
   }
 
   public flattenTransformToAttrs(): void {

@@ -1,3 +1,4 @@
+import { getRenderQueue } from '@/utils/render-queue-utils';
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { RectHitAreaSimple } from '../modules/HitArea';
@@ -110,7 +111,7 @@ export class TextElement extends AbstractGraphicElement {
     this.textContent = text;
     this.markRenderKey('textContent');
     this.rebuildHitArea();
-    this.requestRender();
+    getRenderQueue()?.add(this);
   }
   public getTextContent(): string {
     return this.textContent;

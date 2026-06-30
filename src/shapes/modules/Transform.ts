@@ -99,13 +99,21 @@ export class Transform {
   }
 
   public toArray(): number[] {
-    return [
-      this.matrix.a,
-      this.matrix.b,
-      this.matrix.c,
-      this.matrix.d,
-      this.matrix.e,
-      this.matrix.f,
-    ];
+    return [this.matrix.a, this.matrix.b, this.matrix.c, this.matrix.d, this.matrix.e, this.matrix.f];
+  }
+
+  public translate(dx: number, dy: number): void {
+    this.applyTranslate(dx, dy, this.angle);
+    this.matrix = new DOMMatrix(this.matrix.toString());
+  }
+
+  public rotate(angle: number, localCenter: Point): void {
+    this.applyRotate(angle, localCenter, this.matrix);
+    this.matrix = new DOMMatrix(this.matrix.toString());
+  }
+
+  public scale(delta: Record<string, number>): void {
+    this.applyScale(delta, this.matrix);
+    this.matrix = new DOMMatrix(this.matrix.toString());
   }
 }

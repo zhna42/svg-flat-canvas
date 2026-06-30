@@ -602,7 +602,7 @@ export class SvgCanvas {
       this.reindexElement(el);
     };
     shape.onColorChanged = (el, oldFillKey, oldStrokeKey) => {
-      this.updateColorMapEntry(el, oldFillKey, oldStrokeKey);
+      this.updateColorMapEntry(el, oldFillKey ?? null, oldStrokeKey ?? null);
     };
     this.addToColorMap(shape);
   }
@@ -673,7 +673,7 @@ export class SvgCanvas {
         this.reindexElement(element);
       };
       el.onColorChanged = (element, oldFill, oldStroke) => {
-        this.updateColorMapEntry(element, oldFill, oldStroke);
+        this.updateColorMapEntry(element, oldFill ?? null, oldStroke ?? null);
       };
     }
   }
