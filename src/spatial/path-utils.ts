@@ -234,43 +234,56 @@ export const flattenCommands = (
 export const transformCommands = (
   commands: PathCommand[],
   m: DOMMatrix,
-): PathCommand[] =>
-  commands.map((cmd) => {
-    if (cmd.command === 'M' || cmd.command === 'L') {
+): PathCommand[] => {
+  let curX = 0;
+  let curY = 0;
+  const result: PathCommand[] = [];
+  for (const cmd of commands) {
+    const cc = cmd.command.toUpperCase();
+    if (cc === 'M' || cc === 'L') {
       const pt = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
-      return { command: cmd.command, args: [pt.x, pt.y] };
-    }
-    if (cmd.command === 'H') {
-      const pt = m.transformPoint({ x: cmd.args[0], y: 0 });
-      return { command: 'L', args: [pt.x, pt.y] };
-    }
-    if (cmd.command === 'V') {
-      const pt = m.transformPoint({ x: 0, y: cmd.args[0] });
-      return { command: 'L', args: [pt.x, pt.y] };
-    }
-    if (cmd.command === 'C') {
+      curX = pt.x;
+      curY = pt.y;
+      result.push({ command: cc, args: [pt.x, pt.y] });
+    } else if (cc === 'H') {
+      const x = cmd.command === 'h' ? curX + cmd.args[0] : cmd.args[0];
+      const pt = m.transformPoint({ x, y: curY });
+      curX = pt.x;
+      result.push({ command: 'L', args: [pt.x, pt.y] });
+    } else if (cc === 'V') {
+      const y = cmd.command === 'v' ? curY + cmd.args[0] : cmd.args[0];
+      const pt = m.transformPoint({ x: curX, y });
+      curY = pt.y;
+      result.push({ command: 'L', args: [pt.x, pt.y] });
+    } else if (cc === 'C') {
       const p1 = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
       const p2 = m.transformPoint({ x: cmd.args[2], y: cmd.args[3] });
       const p3 = m.transformPoint({ x: cmd.args[4], y: cmd.args[5] });
-      return { command: 'C', args: [p1.x, p1.y, p2.x, p2.y, p3.x, p3.y] };
-    }
-    if (cmd.command === 'S') {
+      curX = p3.x;
+      curY = p3.y;
+      result.push({ command: 'C', args: [p1.x, p1.y, p2.x, p2.y, p3.x, p3.y] });
+    } else if (cc === 'S') {
       const p1 = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
       const p2 = m.transformPoint({ x: cmd.args[2], y: cmd.args[3] });
-      return { command: 'S', args: [p1.x, p1.y, p2.x, p2.y] };
-    }
-    if (cmd.command === 'Q') {
+      curX = p2.x;
+      curY = p2.y;
+      result.push({ command: 'S', args: [p1.x, p1.y, p2.x, p2.y] });
+    } else if (cc === 'Q') {
       const p1 = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
       const p2 = m.transformPoint({ x: cmd.args[2], y: cmd.args[3] });
-      return { command: 'Q', args: [p1.x, p1.y, p2.x, p2.y] };
-    }
-    if (cmd.command === 'T') {
+      curX = p2.x;
+      curY = p2.y;
+      result.push({ command: 'Q', args: [p1.x, p1.y, p2.x, p2.y] });
+    } else if (cc === 'T') {
       const pt = m.transformPoint({ x: cmd.args[0], y: cmd.args[1] });
-      return { command: 'T', args: [pt.x, pt.y] };
-    }
-    if (cmd.command === 'A') {
+      curX = pt.x;
+      curY = pt.y;
+      result.push({ command: 'T', args: [pt.x, pt.y] });
+    } else if (cc === 'A') {
       const pt = m.transformPoint({ x: cmd.args[5], y: cmd.args[6] });
-      return {
+      curX = pt.x;
+      curY = pt.y;
+      result.push({
         command: 'A',
         args: [
           cmd.args[0],
@@ -281,10 +294,13 @@ export const transformCommands = (
           pt.x,
           pt.y,
         ],
-      };
+      });
+    } else if (cc === 'Z') {
+      result.push({ command: 'Z', args: [] });
     }
-    return cmd;
-  });
+  }
+  return result;
+};
 
 export const applyMatrixToPoint = (
   m: DOMMatrix,

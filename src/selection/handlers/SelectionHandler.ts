@@ -28,6 +28,8 @@ import {
   hideLassoOverlay,
 } from '@/utils/overlay-utils';
 import type { RectOverlay, LassoOverlay } from '@/utils/overlay-utils';
+import type { EventBus } from '@/core/EventBus';
+import type { ImageElement } from '@/shapes/elements/ImageElement';
 
 export interface SelectionHandlerOptions {
   svg: SVGSVGElement;
@@ -64,6 +66,7 @@ export interface SelectionHandlerOptions {
     orientation: 'v' | 'h';
     position: number;
   }>;
+  events: EventBus;
 }
 
 export class SelectionHandler {
@@ -838,6 +841,10 @@ export class SelectionHandler {
           picked.type === 'polygon'
         ) {
           this.opts.onSetEditingPath?.(picked);
+        } else if (picked.type === 'image') {
+          const dto = (picked as ImageElement).toDTO();
+          console.log('IMG_SELECT_EDIT', dto);
+          this.opts.events.emit('IMG_SELECT_EDIT', dto);
         }
       }
     });

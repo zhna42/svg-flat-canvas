@@ -7,6 +7,9 @@ export class ImageElement extends AbstractGraphicElement {
 
   public geometry = { x: 0, y: 0, width: 0, height: 0 };
   public href = '';
+  public editedImage?: string;
+  public originalImage?: string;
+  public rasterEditorOptions?: Record<string, unknown>;
 
   public constructor(id: string) {
     super(id, 'image');
@@ -33,11 +36,20 @@ export class ImageElement extends AbstractGraphicElement {
     return { ...this.geometry };
   }
 
+  private getEffectiveHref(): string {
+    return this.editedImage || this.href;
+  }
+
   protected getGeometryProps(): Record<string, unknown> {
-    return { ...this.geometry, href: this.href };
+    return { ...this.geometry, href: this.getEffectiveHref() };
   }
   protected getGeometrySnapshot(): Record<string, unknown> {
-    return { ...this.geometry, href: this.href };
+    return {
+      ...this.geometry,
+      href: this.href,
+      editedImage: this.editedImage,
+      originalImage: this.originalImage,
+    };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
@@ -61,6 +73,21 @@ export class ImageElement extends AbstractGraphicElement {
       this.href = data.href as string;
       this.markRenderKey('href');
     }
+    if ((data as Record<string, unknown>).editedImage !== undefined) {
+      this.editedImage = (data as Record<string, unknown>).editedImage as
+        | string
+        | undefined;
+      this.markRenderKey('href');
+    }
+    if ((data as Record<string, unknown>).originalImage !== undefined) {
+      this.originalImage = (data as Record<string, unknown>).originalImage as
+        | string
+        | undefined;
+    }
+    if ((data as Record<string, unknown>).rasterEditorOptions !== undefined) {
+      this.rasterEditorOptions = (data as Record<string, unknown>)
+        .rasterEditorOptions as Record<string, unknown> | undefined;
+    }
     this.rebuildHitArea();
   }
 
@@ -68,11 +95,39 @@ export class ImageElement extends AbstractGraphicElement {
     const el = clone as ImageElement;
     el.geometry = { ...this.geometry };
     el.href = this.href;
+    el.editedImage = this.editedImage;
+    el.originalImage = this.originalImage;
+    el.rasterEditorOptions = this.rasterEditorOptions
+      ? { ...this.rasterEditorOptions }
+      : undefined;
     el.rebuildHitArea();
+  }
+
+  public override toDTO(): Record<string, unknown> {
+    return {
+      id: this.id,
+      type: this.type,
+      attributes: this.getGeometryProps() as Record<string, string>,
+      groupId: this.groupId,
+      name: this.name,
+      visible: this.visible,
+      lock: this.lock,
+      data: { ...this.data },
+      href: this.href,
+      editedImage: this.editedImage,
+      originalImage: this.originalImage,
+      rasterEditorOptions: this.rasterEditorOptions,
+    };
   }
 
   public setHref(href: string): void {
     this.href = href;
+    this.markRenderKey('href');
+    this.requestRender();
+  }
+
+  public setEditedImage(base64: string | undefined): void {
+    this.editedImage = base64;
     this.markRenderKey('href');
     this.requestRender();
   }

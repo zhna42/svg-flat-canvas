@@ -73,6 +73,9 @@ export interface ImageGeometryDTO {
   width: number;
   height: number;
   href: string;
+  editedImage?: string;
+  originalImage?: string;
+  rasterEditorOptions?: Record<string, unknown>;
 }
 
 export type ElementGeometryDTO =
@@ -95,8 +98,9 @@ export interface CreateShapeDTO {
   name?: string;
   visible?: boolean;
   lock?: boolean;
-  groupId?: string;
+  groupId?: string | null;
   data?: Record<string, unknown>;
+  laserData?: Record<string, unknown>;
 }
 
 export interface UpdateShapesDTO {

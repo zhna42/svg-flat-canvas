@@ -281,6 +281,7 @@ export class CanvasFactory {
       getEditingPath: () => canvas.editingPath,
       getGuidelines: () => rulerManager.getGuidelines(),
       getGridLines: () => gridOverlay.getGridLines(),
+      events,
     });
 
     element.appendChild(svg);
@@ -299,7 +300,9 @@ export class CanvasFactory {
     commandBus.register('GROUP_REMOVE', createGroupHandler(groupManager));
     commandBus.register('GROUP_CLEAR', createGroupHandler(groupManager));
     commandBus.register('DELETE', createDeleteHandler(shapeManager, spatialGrid));
-    commandBus.register('CREATE', createCreateHandler(shapeManager));
+    commandBus.register('CREATE', createCreateHandler(shapeManager, (el) =>
+      canvas.indexShape(el),
+    ));
     commandBus.register(
       'BOOLEAN_OPERATION',
       createBooleanOperationHandler(shapeManager, timeMachine, spatialGrid, (el) => {

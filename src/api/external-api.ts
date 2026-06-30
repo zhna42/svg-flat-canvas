@@ -78,9 +78,9 @@ export class ExternalApi {
     if (dto.name !== undefined) el.setName(dto.name);
     if (dto.visible !== undefined) el.setVisible(dto.visible);
     if (dto.lock !== undefined) el.setLock(dto.lock);
-    if (dto.groupId !== undefined) el.setGroupId(dto.groupId);
-    if (dto.data !== undefined) {
-      el.data = { ...dto.data };
+    if (dto.groupId !== undefined) el.setGroupId(dto.groupId ?? '');
+    if (dto.data !== undefined || dto.laserData !== undefined) {
+      el.data = { ...dto.data, laserData: dto.laserData };
       el.markRenderKey('data');
     }
 
@@ -105,8 +105,9 @@ export class ExternalApi {
       if (dto.name !== undefined) el.setName(dto.name);
       if (dto.visible !== undefined) el.setVisible(dto.visible);
       if (dto.lock !== undefined) el.setLock(dto.lock);
-      if (dto.data !== undefined) {
-        el.data = { ...dto.data };
+      if (dto.groupId !== undefined) el.setGroupId(dto.groupId ?? '');
+      if (dto.data !== undefined || dto.laserData !== undefined) {
+        el.data = { ...dto.data, laserData: dto.laserData };
         el.markRenderKey('data');
       }
 
@@ -720,6 +721,13 @@ export class ExternalApi {
 
   public recalculateColorMaps(): void {
     this.canvas.recalculateColorMaps();
+  }
+
+  public getElementById(id: string): Record<string, unknown> | null {
+    this.dbg.log('API', 'getElementById', id);
+    const el = this.canvas.shapeManager.getById(id) as AbstractGraphicElement | undefined;
+    if (!el) return null;
+    return el.toDTO();
   }
 
   public setColorQuantStep(step: number): void {
