@@ -1,4 +1,3 @@
-import { getRenderQueue } from '@/utils/render-queue-utils';
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { RectHitAreaSimple } from '../modules/HitArea';
@@ -124,13 +123,13 @@ export class ImageElement extends AbstractGraphicElement {
   public setHref(href: string): void {
     this.href = href;
     this.markRenderKey('href');
-    getRenderQueue()?.add(this);
+    this.requestRender();
   }
 
   public setEditedImage(base64: string | undefined): void {
     this.editedImage = base64;
     this.markRenderKey('href');
-    getRenderQueue()?.add(this);
+    this.requestRender();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
@@ -150,7 +149,7 @@ export class ImageElement extends AbstractGraphicElement {
     this.transform.reset();
     this.markRenderKey('matrix');
     this.rebuildHitArea();
-    getRenderQueue()?.add(this);
+    this.requestRender();
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {

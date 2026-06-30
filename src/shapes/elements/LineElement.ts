@@ -1,4 +1,3 @@
-import { getRenderQueue } from '@/utils/render-queue-utils';
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { LineHitArea } from '../modules/HitArea';
@@ -94,7 +93,7 @@ export class LineElement extends AbstractGraphicElement {
     this.transform.reset();
     this.markRenderKey('matrix');
     this.rebuildHitArea();
-    getRenderQueue()?.add(this);
+    this.requestRender();
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {

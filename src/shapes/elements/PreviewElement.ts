@@ -90,6 +90,6 @@ export class PreviewElement extends AbstractGraphicElement {
     this.visible = v;
     this.style.visible = v;
     this.markRenderKeys('visible', 'style.visible');
-    getRenderQueue()?.add(this);
+    this.requestRender();
   }
 }
