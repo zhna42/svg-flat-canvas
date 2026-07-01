@@ -33,7 +33,10 @@ export class PreloaderOverlay {
     arc.setAttribute('stroke', '#4285f4');
     arc.setAttribute('stroke-width', String(sw));
     arc.setAttribute('stroke-linecap', 'round');
-    arc.setAttribute('stroke-dasharray', `${Math.PI * r * 0.6} ${Math.PI * r * 0.4}`);
+    arc.setAttribute(
+      'stroke-dasharray',
+      `${Math.PI * r * 0.6} ${Math.PI * r * 0.4}`,
+    );
     arc.setAttribute('transform-origin', `${cx} ${cy}`);
     this.group.appendChild(arc);
 

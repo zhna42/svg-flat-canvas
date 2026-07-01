@@ -2,6 +2,7 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import { PathElement } from '@/shapes/elements/PathElement';
 import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import type { Point, PathCommand } from '@/types';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export interface PathNodeActivation {
   element: PathElement;
@@ -79,7 +80,7 @@ export class PathNodeHandler {
     }
 
     path.rebuildHitArea();
-    path.setDirtyGeometry();
+    getRenderQueue()?.add(path);
   }
 
   public end(): void {
@@ -94,9 +95,8 @@ export class PathNodeHandler {
     this.active = null;
 
     path.geometry.commands = newCommands;
-    path.markRenderKey('d');
     path.rebuildHitArea();
-    path.setDirtyGeometry();
+    getRenderQueue()?.add(path);
 
     this.pathTimeMachine?.capture();
 

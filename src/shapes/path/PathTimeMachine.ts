@@ -1,5 +1,6 @@
 import type { PathCommand } from '@/types';
 import type { PathElement } from '@/shapes/elements/PathElement';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export class PathTimeMachine {
   private path: PathElement;
@@ -50,9 +51,8 @@ export class PathTimeMachine {
       ...c,
       args: [...c.args],
     }));
-    this.path.markRenderKey('d');
     this.path.rebuildHitArea();
-    this.path.setDirtyGeometry();
+    getRenderQueue()?.add(this.path);
   }
 
   public getFinalCommands(): PathCommand[] {

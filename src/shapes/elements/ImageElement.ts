@@ -13,6 +13,14 @@ export class ImageElement extends AbstractGraphicElement {
 
   public constructor(id: string) {
     super(id, 'image');
+    this.subscribeGeometry(
+      'geometry.x',
+      'geometry.y',
+      'geometry.width',
+      'geometry.height',
+      'href',
+      'editedImage',
+    );
   }
 
   public get hitArea(): Point[] {
@@ -53,31 +61,15 @@ export class ImageElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) {
-      this.geometry.x = data.x as number;
-      this.markRenderKey('x');
-    }
-    if (data.y !== undefined) {
-      this.geometry.y = data.y as number;
-      this.markRenderKey('y');
-    }
-    if (data.width !== undefined) {
-      this.geometry.width = data.width as number;
-      this.markRenderKey('width');
-    }
-    if (data.height !== undefined) {
-      this.geometry.height = data.height as number;
-      this.markRenderKey('height');
-    }
-    if (data.href !== undefined) {
-      this.href = data.href as string;
-      this.markRenderKey('href');
-    }
+    if (data.x !== undefined) this.geometry.x = data.x as number;
+    if (data.y !== undefined) this.geometry.y = data.y as number;
+    if (data.width !== undefined) this.geometry.width = data.width as number;
+    if (data.height !== undefined) this.geometry.height = data.height as number;
+    if (data.href !== undefined) this.href = data.href as string;
     if ((data as Record<string, unknown>).editedImage !== undefined) {
       this.editedImage = (data as Record<string, unknown>).editedImage as
         | string
         | undefined;
-      this.markRenderKey('href');
     }
     if ((data as Record<string, unknown>).originalImage !== undefined) {
       this.originalImage = (data as Record<string, unknown>).originalImage as
@@ -122,20 +114,15 @@ export class ImageElement extends AbstractGraphicElement {
 
   public setHref(href: string): void {
     this.href = href;
-    this.markRenderKey('href');
-    this.requestRender();
   }
 
   public setEditedImage(base64: string | undefined): void {
     this.editedImage = base64;
-    this.markRenderKey('href');
-    this.requestRender();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.geometry.x += dx;
     this.geometry.y += dy;
-    this.markRenderKeys('x', 'y');
     this.rebuildHitArea();
   }
 
@@ -145,11 +132,8 @@ export class ImageElement extends AbstractGraphicElement {
     this.geometry.y = bbox.y;
     this.geometry.width = bbox.width;
     this.geometry.height = bbox.height;
-    this.markRenderKeys('x', 'y', 'width', 'height');
     this.transform.reset();
-    this.markRenderKey('matrix');
     this.rebuildHitArea();
-    this.requestRender();
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {

@@ -9,12 +9,11 @@ export class Artboard {
 
   public constructor() {
     this.rect = new RectElement('artboard');
-    this.rect.setFill('#ffffff');
+    this.rect.style.fill = '#ffffff';
     //this.rect.setStroke('#cccccc');
     //this.rect.setStrokeWidth(1);
     this.rect.setVisible(true);
     this.rect.data = { pointerEvents: 'none' };
-    this.rect.markRenderKey('data');
   }
 
   public get dirty(): boolean {
@@ -51,7 +50,5 @@ export class Artboard {
     this.rect.geometry.y = 0;
     this.rect.geometry.width = w;
     this.rect.geometry.height = h;
-    this.rect.markRenderKeys('x', 'y', 'width', 'height');
-    this.rect.requestRender();
   }
 }

@@ -99,7 +99,14 @@ export class Transform {
   }
 
   public toArray(): number[] {
-    return [this.matrix.a, this.matrix.b, this.matrix.c, this.matrix.d, this.matrix.e, this.matrix.f];
+    return [
+      this.matrix.a,
+      this.matrix.b,
+      this.matrix.c,
+      this.matrix.d,
+      this.matrix.e,
+      this.matrix.f,
+    ];
   }
 
   public translate(dx: number, dy: number): void {

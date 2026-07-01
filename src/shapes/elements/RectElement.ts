@@ -9,6 +9,14 @@ export class RectElement extends AbstractGraphicElement {
 
   public constructor(id: string) {
     super(id, 'rect');
+    this.subscribeGeometry(
+      'geometry.x',
+      'geometry.y',
+      'geometry.width',
+      'geometry.height',
+      'geometry.rx',
+      'geometry.ry',
+    );
   }
 
   public get hitArea(): Point[] {
@@ -45,30 +53,12 @@ export class RectElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) {
-      this.geometry.x = data.x as number;
-      this.markRenderKey('x');
-    }
-    if (data.y !== undefined) {
-      this.geometry.y = data.y as number;
-      this.markRenderKey('y');
-    }
-    if (data.width !== undefined) {
-      this.geometry.width = data.width as number;
-      this.markRenderKey('width');
-    }
-    if (data.height !== undefined) {
-      this.geometry.height = data.height as number;
-      this.markRenderKey('height');
-    }
-    if (data.rx !== undefined) {
-      this.geometry.rx = data.rx as number;
-      this.markRenderKey('rx');
-    }
-    if (data.ry !== undefined) {
-      this.geometry.ry = data.ry as number;
-      this.markRenderKey('ry');
-    }
+    if (data.x !== undefined) this.geometry.x = data.x as number;
+    if (data.y !== undefined) this.geometry.y = data.y as number;
+    if (data.width !== undefined) this.geometry.width = data.width as number;
+    if (data.height !== undefined) this.geometry.height = data.height as number;
+    if (data.rx !== undefined) this.geometry.rx = data.rx as number;
+    if (data.ry !== undefined) this.geometry.ry = data.ry as number;
     this.rebuildHitArea();
   }
 
@@ -80,21 +70,16 @@ export class RectElement extends AbstractGraphicElement {
 
   public setX(x: number): void {
     this.geometry.x = x;
-    this.markRenderKey('x');
     this.rebuildHitArea();
-    this.requestRender();
   }
   public setY(y: number): void {
     this.geometry.y = y;
-    this.markRenderKey('y');
     this.rebuildHitArea();
-    this.requestRender();
   }
 
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.geometry.x += dx;
     this.geometry.y += dy;
-    this.markRenderKeys('x', 'y');
     this.rebuildHitArea();
   }
 
@@ -104,28 +89,29 @@ export class RectElement extends AbstractGraphicElement {
     this.geometry.y = bbox.y;
     this.geometry.width = bbox.width;
     this.geometry.height = bbox.height;
-    this.markRenderKeys('x', 'y', 'width', 'height');
     this.transform.reset();
-    this.markRenderKey('matrix');
     this.rebuildHitArea();
-    this.requestRender();
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {
     const { svgStringToOutlinePath } = require('./svg-outline-utils');
     const { x, y, width, height, rx, ry } = this.geometry;
-    const fill = this.style.hasFill ? `fill="${this.style.fill}"` : 'fill="none"';
+    const fill = this.style.hasFill
+      ? `fill="${this.style.fill}"`
+      : 'fill="none"';
     const svgStr = `<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="${rx}" ry="${ry}" ${fill} stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
     return svgStringToOutlinePath(svgStr, `${this.id}-outline`);
   }
 
   public toSegmentPolygons(): Point[][] {
     const { x, y, width, height } = this.geometry;
-    return [[
-      { x, y },
-      { x: x + width, y },
-      { x: x + width, y: y + height },
-      { x, y: y + height },
-    ]];
+    return [
+      [
+        { x, y },
+        { x: x + width, y },
+        { x: x + width, y: y + height },
+        { x, y: y + height },
+      ],
+    ];
   }
 }

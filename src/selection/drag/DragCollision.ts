@@ -40,7 +40,7 @@ export function getCenterlinePoints(
   local = false,
 ): Point[] | null {
   const toWorld = (pts: Point[]) =>
-    local ? pts : pts.map((p) => el.transformPoint(p));
+    local ? pts : pts.map((p) => el.transform.transformPoint(p));
 
   if (el instanceof CircleElement) {
     const count = Math.max(16, Math.round(16 * camera.zoom));
@@ -177,7 +177,7 @@ export function getVisualWorldPoints(
       count,
     );
     if (m) return localPts.map((p) => m.transformPoint(p));
-    return localPts.map((p) => el.transformPoint(p));
+    return localPts.map((p) => el.transform.transformPoint(p));
   }
 
   const localPts = getCenterlinePoints(el, camera, true);
@@ -186,7 +186,7 @@ export function getVisualWorldPoints(
   const halfSw = el.style.strokeWidth / 2;
   let result: Point[];
   if (m) result = localPts.map((p) => m.transformPoint(p));
-  else result = localPts.map((p) => el.transformPoint(p));
+  else result = localPts.map((p) => el.transform.transformPoint(p));
 
   if (halfSw > 0 && result.length >= 2) {
     const cx = result.reduce((s, p) => s + p.x, 0) / result.length;
@@ -212,8 +212,11 @@ export function getScreenCurveTargets(
     if (el instanceof CircleElement) {
       const geo = el.geometry;
       const visualR = geo.r + halfSw;
-      const worldCenter = el.transformPoint({ x: geo.cx, y: geo.cy });
-      const worldEdge = el.transformPoint({ x: geo.cx + visualR, y: geo.cy });
+      const worldCenter = el.transform.transformPoint({ x: geo.cx, y: geo.cy });
+      const worldEdge = el.transform.transformPoint({
+        x: geo.cx + visualR,
+        y: geo.cy,
+      });
       const sc = camera.worldToScreen(worldCenter);
       const se = camera.worldToScreen(worldEdge);
       const screenR = Math.hypot(se.x - sc.x, se.y - sc.y);
@@ -230,9 +233,15 @@ export function getScreenCurveTargets(
       const geo = el.geometry;
       const visualRx = geo.rx + halfSw;
       const visualRy = geo.ry + halfSw;
-      const worldCenter = el.transformPoint({ x: geo.cx, y: geo.cy });
-      const worldRX = el.transformPoint({ x: geo.cx + visualRx, y: geo.cy });
-      const worldRY = el.transformPoint({ x: geo.cx, y: geo.cy + visualRy });
+      const worldCenter = el.transform.transformPoint({ x: geo.cx, y: geo.cy });
+      const worldRX = el.transform.transformPoint({
+        x: geo.cx + visualRx,
+        y: geo.cy,
+      });
+      const worldRY = el.transform.transformPoint({
+        x: geo.cx,
+        y: geo.cy + visualRy,
+      });
       const sc = camera.worldToScreen(worldCenter);
       const sx = camera.worldToScreen(worldRX);
       const sy = camera.worldToScreen(worldRY);
@@ -288,10 +297,10 @@ export function extractBezierTargets(
         const p2y = isRel ? curY + a[3] : a[3];
         const p3x = isRel ? curX + a[4] : a[4];
         const p3y = isRel ? curY + a[5] : a[5];
-        const wp0 = el.transformPoint({ x: p0x, y: p0y });
-        const wp1 = el.transformPoint({ x: p1x, y: p1y });
-        const wp2 = el.transformPoint({ x: p2x, y: p2y });
-        const wp3 = el.transformPoint({ x: p3x, y: p3y });
+        const wp0 = el.transform.transformPoint({ x: p0x, y: p0y });
+        const wp1 = el.transform.transformPoint({ x: p1x, y: p1y });
+        const wp2 = el.transform.transformPoint({ x: p2x, y: p2y });
+        const wp3 = el.transform.transformPoint({ x: p3x, y: p3y });
         const sp0 = camera.worldToScreen(wp0);
         const sp1 = camera.worldToScreen(wp1);
         const sp2 = camera.worldToScreen(wp2);
@@ -316,9 +325,9 @@ export function extractBezierTargets(
         const p1y = isRel ? curY + a[1] : a[1];
         const p2x = isRel ? curX + a[2] : a[2];
         const p2y = isRel ? curY + a[3] : a[3];
-        const wp0 = el.transformPoint({ x: p0x, y: p0y });
-        const wp1 = el.transformPoint({ x: p1x, y: p1y });
-        const wp2 = el.transformPoint({ x: p2x, y: p2y });
+        const wp0 = el.transform.transformPoint({ x: p0x, y: p0y });
+        const wp1 = el.transform.transformPoint({ x: p1x, y: p1y });
+        const wp2 = el.transform.transformPoint({ x: p2x, y: p2y });
         const sp0 = camera.worldToScreen(wp0);
         const sp1 = camera.worldToScreen(wp1);
         const sp2 = camera.worldToScreen(wp2);
@@ -364,10 +373,10 @@ export function extractBezierTargets(
         const p2y = isRel ? curY + a[1] : a[1];
         const p3x = isRel ? curX + a[2] : a[2];
         const p3y = isRel ? curY + a[3] : a[3];
-        const wp0 = el.transformPoint({ x: p0x, y: p0y });
-        const wp1 = el.transformPoint({ x: p1x, y: p1y });
-        const wp2 = el.transformPoint({ x: p2x, y: p2y });
-        const wp3 = el.transformPoint({ x: p3x, y: p3y });
+        const wp0 = el.transform.transformPoint({ x: p0x, y: p0y });
+        const wp1 = el.transform.transformPoint({ x: p1x, y: p1y });
+        const wp2 = el.transform.transformPoint({ x: p2x, y: p2y });
+        const wp3 = el.transform.transformPoint({ x: p3x, y: p3y });
         const sp0 = camera.worldToScreen(wp0);
         const sp1 = camera.worldToScreen(wp1);
         const sp2 = camera.worldToScreen(wp2);

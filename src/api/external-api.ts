@@ -16,6 +16,7 @@ import {
 } from '@/commands';
 import type { ElementType } from '@/types';
 import { MM_TO_PX } from '@/constants';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 import type {
   CreateShapeDTO,
   UpdateShapesDTO,
@@ -44,7 +45,8 @@ import type {
 } from './dto';
 
 let _idCounter = 0;
-const generateId = (): string => crypto.randomUUID?.() ?? `shape_${Date.now()}_${++_idCounter}`;
+const generateId = (): string =>
+  crypto.randomUUID?.() ?? `shape_${Date.now()}_${++_idCounter}`;
 
 export class ExternalApi {
   private readonly canvas: SvgCanvas;
@@ -75,13 +77,12 @@ export class ExternalApi {
     const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
 
     if (dto.transform) this.applyTransformDto(el, dto.transform);
-    if (dto.name !== undefined) el.setName(dto.name);
+    if (dto.name !== undefined) el.name = dto.name;
     if (dto.visible !== undefined) el.setVisible(dto.visible);
-    if (dto.lock !== undefined) el.setLock(dto.lock);
-    if (dto.groupId !== undefined) el.setGroupId(dto.groupId ?? '');
+    if (dto.lock !== undefined) el.lock = dto.lock;
+    if (dto.groupId !== undefined) el.groupId = dto.groupId ?? '';
     if (dto.data !== undefined || dto.laserData !== undefined) {
       el.data = { ...dto.data, laserData: dto.laserData };
-      el.markRenderKey('data');
     }
 
     this.canvas.getCommandBus().execute(createCreateCommand(el));
@@ -102,13 +103,12 @@ export class ExternalApi {
       const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
 
       if (dto.transform) this.applyTransformDto(el, dto.transform);
-      if (dto.name !== undefined) el.setName(dto.name);
+      if (dto.name !== undefined) el.name = dto.name;
       if (dto.visible !== undefined) el.setVisible(dto.visible);
-      if (dto.lock !== undefined) el.setLock(dto.lock);
-      if (dto.groupId !== undefined) el.setGroupId(dto.groupId ?? '');
+      if (dto.lock !== undefined) el.lock = dto.lock;
+      if (dto.groupId !== undefined) el.groupId = dto.groupId ?? '';
       if (dto.data !== undefined || dto.laserData !== undefined) {
         el.data = { ...dto.data, laserData: dto.laserData };
-        el.markRenderKey('data');
       }
 
       elements.push(el);
@@ -133,13 +133,12 @@ export class ExternalApi {
       if (dto.style) this.applyStyleDto(el, dto.style);
       if (dto.transform) this.applyTransformDto(el, dto.transform);
       if (dto.geometry) this.applyGeometryDelta(el, dto.geometry);
-      if (dto.name !== undefined) el.setName(dto.name);
+      if (dto.name !== undefined) el.name = dto.name;
       if (dto.visible !== undefined) el.setVisible(dto.visible);
-      if (dto.lock !== undefined) el.setLock(dto.lock);
-      if (dto.groupId !== undefined) el.setGroupId(dto.groupId);
+      if (dto.lock !== undefined) el.lock = dto.lock;
+      if (dto.groupId !== undefined) el.groupId = dto.groupId;
       if (dto.data !== undefined) {
         el.data = { ...el.data, ...dto.data };
-        el.markRenderKey('data');
       }
     }
   }
@@ -519,10 +518,11 @@ export class ExternalApi {
     el: AbstractGraphicElement,
     style: Partial<StyleDTO>,
   ): void {
-    if (style.fill !== undefined) el.setFill(style.fill);
-    if (style.stroke !== undefined) el.setStroke(style.stroke);
-    if (style.strokeWidth !== undefined) el.setStrokeWidth(style.strokeWidth);
-    if (style.opacity !== undefined) el.setOpacity(style.opacity);
+    if (style.fill !== undefined) el.style.fill = style.fill;
+    if (style.stroke !== undefined) el.style.stroke = style.stroke;
+    if (style.strokeWidth !== undefined)
+      el.style.strokeWidth = style.strokeWidth;
+    if (style.opacity !== undefined) el.style.opacity = style.opacity;
     if (style.visible !== undefined) el.setVisible(style.visible);
   }
 
@@ -539,19 +539,19 @@ export class ExternalApi {
   ): void {
     if (t.matrix) {
       el.transform.matrix = new DOMMatrix(t.matrix);
-      el.markRenderKey('matrix');
-      el.invalidateHitArea();
+      el.rebuildHitArea();
+      getRenderQueue()?.add(el);
       return;
     }
     const { x, y, scaleX, scaleY, angle } = t;
     if (x !== undefined || y !== undefined) {
       const dx = x !== undefined ? x - el.transform.x : 0;
       const dy = y !== undefined ? y - el.transform.y : 0;
-      if (dx !== 0 || dy !== 0) el.translate(dx, dy);
+      if (dx !== 0 || dy !== 0) el.transform.translate(dx, dy);
     }
     if (scaleX !== undefined || scaleY !== undefined) {
       const center = el.getCenter();
-      el.applyTransformation('scale', {
+      el.transform.scale({
         x: 0,
         y: 0,
         originX: center.x,
@@ -560,7 +560,8 @@ export class ExternalApi {
         height: el.getTransformedBBox().height,
       });
     }
-    if (angle !== undefined) el.rotate(angle - el.transform.angle);
+    if (angle !== undefined)
+      el.transform.rotate(angle - el.transform.angle, el.getLocalCenter());
     el.rebuildHitArea();
   }
 
@@ -725,7 +726,9 @@ export class ExternalApi {
 
   public getElementById(id: string): Record<string, unknown> | null {
     this.dbg.log('API', 'getElementById', id);
-    const el = this.canvas.shapeManager.getById(id) as AbstractGraphicElement | undefined;
+    const el = this.canvas.shapeManager.getById(id) as
+      | AbstractGraphicElement
+      | undefined;
     if (!el) return null;
     return el.toDTO();
   }

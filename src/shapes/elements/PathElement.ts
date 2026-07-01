@@ -26,6 +26,7 @@ export class PathElement extends AbstractGraphicElement {
 
   public constructor(id: string) {
     super(id, 'path');
+    this.subscribeGeometry('geometry.commands');
   }
 
   public get hitArea(): Point[] {
@@ -38,7 +39,6 @@ export class PathElement extends AbstractGraphicElement {
 
   public set commands(cmds: PathCommand[]) {
     this.geometry.commands = cmds;
-    this.markRenderKey('d');
   }
 
   public buildHitArea(): void {
@@ -72,13 +72,6 @@ export class PathElement extends AbstractGraphicElement {
     return { d: this.toDString() };
   }
 
-  protected buildAdditionalSnapshotKey(
-    key: string,
-    snapshot: Record<string, unknown>,
-  ): void {
-    if (key === 'd') snapshot.d = this.toDString();
-  }
-
   protected getGeometrySnapshot(): Record<string, unknown> {
     return {
       commands: this.geometry.commands.map((c) => ({
@@ -94,7 +87,6 @@ export class PathElement extends AbstractGraphicElement {
         ...c,
         args: [...c.args],
       }));
-      this.markRenderKey('d');
     }
     this.rebuildHitArea();
   }
@@ -114,7 +106,6 @@ export class PathElement extends AbstractGraphicElement {
 
   public set d(val: string) {
     this.geometry.commands = parseD(val);
-    this.markRenderKey('d');
     this.rebuildHitArea();
   }
 
@@ -132,20 +123,15 @@ export class PathElement extends AbstractGraphicElement {
   ): void {
     const m = new DOMMatrix([a, b, c, d, e, f]);
     this.geometry.commands = transformCommands(this.geometry.commands, m);
-    this.markRenderKey('d');
     this.rebuildHitArea();
-    this.requestRender();
   }
 
   public flattenTransform(): void {
     const m = this.transform.matrix;
     if (m.isIdentity) return;
     this.geometry.commands = transformCommands(this.geometry.commands, m);
-    this.markRenderKey('d');
     this.transform.reset();
-    this.markRenderKey('matrix');
     this.rebuildHitArea();
-    this.requestRender();
   }
 
   public flattenTransformToAttrs(): void {
@@ -210,7 +196,6 @@ export class PathElement extends AbstractGraphicElement {
     const nextCmd = cmds[cmdIdx + 1];
     if (!nextCmd) {
       cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
-      this.markRenderKey('d');
       return;
     }
 
@@ -281,7 +266,6 @@ export class PathElement extends AbstractGraphicElement {
     } else {
       cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
     }
-    this.markRenderKey('d');
   }
 
   public changeNodeType(cmdIdx: number, newType: 'L' | 'C'): void {
@@ -305,7 +289,6 @@ export class PathElement extends AbstractGraphicElement {
         cmd.command = 'C';
       }
     }
-    this.markRenderKey('d');
   }
 
   public removeNodeAt(cmdIdx: number): void {
@@ -319,7 +302,6 @@ export class PathElement extends AbstractGraphicElement {
         next.command = 'M';
       }
     }
-    this.markRenderKey('d');
   }
 
   public translateSubpath(subpathIdx: number, dx: number, dy: number): void {
@@ -333,7 +315,6 @@ export class PathElement extends AbstractGraphicElement {
         else cmd.args[j] += dy;
       }
     }
-    this.markRenderKey('d');
   }
 
   // ---- Node editing ----
@@ -349,7 +330,7 @@ export class PathElement extends AbstractGraphicElement {
 
       if (c === 'M') {
         if (cmd.args.length >= 2) {
-          const world = this.transformPoint({
+          const world = this.transform.transformPoint({
             x: cmd.args[0],
             y: cmd.args[1],
           });
@@ -364,7 +345,7 @@ export class PathElement extends AbstractGraphicElement {
         }
       } else if (c === 'L') {
         if (cmd.args.length >= 2) {
-          const world = this.transformPoint({
+          const world = this.transform.transformPoint({
             x: cmd.args[0],
             y: cmd.args[1],
           });
@@ -378,15 +359,15 @@ export class PathElement extends AbstractGraphicElement {
           prevAnchor = world;
         }
       } else if (c === 'C' && cmd.args.length >= 6) {
-        const endWorld = this.transformPoint({
+        const endWorld = this.transform.transformPoint({
           x: cmd.args[4],
           y: cmd.args[5],
         });
-        const control1World = this.transformPoint({
+        const control1World = this.transform.transformPoint({
           x: cmd.args[0],
           y: cmd.args[1],
         });
-        const control2World = this.transformPoint({
+        const control2World = this.transform.transformPoint({
           x: cmd.args[2],
           y: cmd.args[3],
         });
@@ -420,11 +401,11 @@ export class PathElement extends AbstractGraphicElement {
         });
         prevAnchor = endWorld;
       } else if (c === 'Q' && cmd.args.length >= 4) {
-        const endWorld = this.transformPoint({
+        const endWorld = this.transform.transformPoint({
           x: cmd.args[2],
           y: cmd.args[3],
         });
-        const controlWorld = this.transformPoint({
+        const controlWorld = this.transform.transformPoint({
           x: cmd.args[0],
           y: cmd.args[1],
         });
@@ -449,11 +430,11 @@ export class PathElement extends AbstractGraphicElement {
         });
         prevAnchor = endWorld;
       } else if (c === 'S' && cmd.args.length >= 4) {
-        const controlWorld = this.transformPoint({
+        const controlWorld = this.transform.transformPoint({
           x: cmd.args[0],
           y: cmd.args[1],
         });
-        const endWorld = this.transformPoint({
+        const endWorld = this.transform.transformPoint({
           x: cmd.args[2],
           y: cmd.args[3],
         });
@@ -478,7 +459,7 @@ export class PathElement extends AbstractGraphicElement {
         });
         prevAnchor = endWorld;
       } else if (c === 'T' && cmd.args.length >= 2) {
-        const endWorld = this.transformPoint({
+        const endWorld = this.transform.transformPoint({
           x: cmd.args[0],
           y: cmd.args[1],
         });
@@ -499,7 +480,9 @@ export class PathElement extends AbstractGraphicElement {
   public toOutlinePath(): PathElement {
     const { svgStringToOutlinePath } = require('./svg-outline-utils');
     const d = this.toDString();
-    const fill = this.style.hasFill ? `fill="${this.style.fill}"` : 'fill="none"';
+    const fill = this.style.hasFill
+      ? `fill="${this.style.fill}"`
+      : 'fill="none"';
     const svgStr = `<path d="${d}" ${fill} stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
     return svgStringToOutlinePath(svgStr, `${this.id}-outline`);
   }

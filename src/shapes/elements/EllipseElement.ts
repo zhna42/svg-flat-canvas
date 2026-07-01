@@ -9,6 +9,12 @@ export class EllipseElement extends AbstractGraphicElement {
 
   public constructor(id: string) {
     super(id, 'ellipse');
+    this.subscribeGeometry(
+      'geometry.cx',
+      'geometry.cy',
+      'geometry.rx',
+      'geometry.ry',
+    );
   }
 
   public get hitArea(): Point[] {
@@ -41,22 +47,10 @@ export class EllipseElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.cx !== undefined) {
-      this.geometry.cx = data.cx as number;
-      this.markRenderKey('cx');
-    }
-    if (data.cy !== undefined) {
-      this.geometry.cy = data.cy as number;
-      this.markRenderKey('cy');
-    }
-    if (data.rx !== undefined) {
-      this.geometry.rx = data.rx as number;
-      this.markRenderKey('rx');
-    }
-    if (data.ry !== undefined) {
-      this.geometry.ry = data.ry as number;
-      this.markRenderKey('ry');
-    }
+    if (data.cx !== undefined) this.geometry.cx = data.cx as number;
+    if (data.cy !== undefined) this.geometry.cy = data.cy as number;
+    if (data.rx !== undefined) this.geometry.rx = data.rx as number;
+    if (data.ry !== undefined) this.geometry.ry = data.ry as number;
     this.rebuildHitArea();
   }
 
@@ -68,7 +62,6 @@ export class EllipseElement extends AbstractGraphicElement {
   protected flattenTranslateDelta(dx: number, dy: number): void {
     this.geometry.cx += dx;
     this.geometry.cy += dy;
-    this.markRenderKeys('cx', 'cy');
     this.rebuildHitArea();
   }
 
@@ -78,17 +71,16 @@ export class EllipseElement extends AbstractGraphicElement {
     this.geometry.cy = bbox.y + bbox.height / 2;
     this.geometry.rx = bbox.width / 2;
     this.geometry.ry = bbox.height / 2;
-    this.markRenderKeys('cx', 'cy', 'rx', 'ry');
     this.transform.reset();
-    this.markRenderKey('matrix');
     this.rebuildHitArea();
-    this.requestRender();
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {
     const { svgStringToOutlinePath } = require('./svg-outline-utils');
     const { cx, cy, rx, ry } = this.geometry;
-    const fill = this.style.hasFill ? `fill="${this.style.fill}"` : 'fill="none"';
+    const fill = this.style.hasFill
+      ? `fill="${this.style.fill}"`
+      : 'fill="none"';
     const svgStr = `<ellipse cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" ${fill} stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
     return svgStringToOutlinePath(svgStr, `${this.id}-outline`);
   }

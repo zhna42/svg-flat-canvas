@@ -10,6 +10,7 @@ export class PolylineElement extends AbstractGraphicElement {
 
   public constructor(id: string) {
     super(id, 'polyline');
+    this.subscribeGeometry('points');
   }
 
   public get hitArea(): Point[] {
@@ -45,10 +46,7 @@ export class PolylineElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.points !== undefined) {
-      this.points = data.points as string;
-      this.markRenderKey('points');
-    }
+    if (data.points !== undefined) this.points = data.points as string;
     this.rebuildHitArea();
   }
 
@@ -68,7 +66,6 @@ export class PolylineElement extends AbstractGraphicElement {
       if (i + 1 < nums.length) nums[i + 1] += dy;
     }
     this.points = nums.join(' ');
-    this.markRenderKey('points');
     this.rebuildHitArea();
   }
 
@@ -80,16 +77,15 @@ export class PolylineElement extends AbstractGraphicElement {
       this.getTransformedBBox(),
     );
     this.points = scaled.map((p) => `${p.x},${p.y}`).join(' ');
-    this.markRenderKey('points');
     this.transform.reset();
-    this.markRenderKey('matrix');
     this.rebuildHitArea();
-    this.requestRender();
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {
     const { svgStringToOutlinePath } = require('./svg-outline-utils');
-    const fill = this.style.hasFill ? `fill="${this.style.fill}"` : 'fill="none"';
+    const fill = this.style.hasFill
+      ? `fill="${this.style.fill}"`
+      : 'fill="none"';
     const svgStr = `<polyline points="${this.points}" ${fill} stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
     return svgStringToOutlinePath(svgStr, `${this.id}-outline`);
   }

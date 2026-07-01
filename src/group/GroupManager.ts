@@ -85,7 +85,7 @@ export class GroupManager {
     if (!g) return;
     for (const elId of g.elementIds) {
       const el = this.findElement(elId);
-      if (el) el.setGroupId('');
+      if (el) el.groupId = '';
     }
     this.groups.delete(id);
     this.events?.emit('GROUP_DELETED', { id });
@@ -107,7 +107,7 @@ export class GroupManager {
         oldGroup.markUnsaved('elementIds');
       }
     }
-    el.setGroupId(groupId);
+    el.groupId = groupId;
     g.elementIds.add(elementId);
     g.markUnsaved('elementIds');
     this.events?.emit('GROUP_ELEMENT_ADDED', { groupId, elementId });
@@ -120,7 +120,7 @@ export class GroupManager {
     g.elementIds.delete(elementId);
     g.markUnsaved('elementIds');
     const el = this.findElement(elementId);
-    if (el && el.groupId === groupId) el.setGroupId('');
+    if (el && el.groupId === groupId) el.groupId = '';
     this.events?.emit('GROUP_ELEMENT_REMOVED', { groupId, elementId });
     this.notify();
   }
@@ -130,7 +130,7 @@ export class GroupManager {
     if (!g) return;
     for (const elId of g.elementIds) {
       const el = this.findElement(elId);
-      if (el && el.groupId === id) el.setGroupId('');
+      if (el && el.groupId === id) el.groupId = '';
     }
     g.elementIds.clear();
     g.markUnsaved('elementIds');
@@ -160,7 +160,7 @@ export class GroupManager {
     for (const g of this.groups.values()) {
       for (const elId of g.elementIds) {
         const el = this.findElement(elId);
-        if (el) el.setGroupId('');
+        if (el) el.groupId = '';
       }
     }
     this.groups.clear();
@@ -172,7 +172,7 @@ export class GroupManager {
       this.groups.set(d.id, group);
       for (const elId of validIds) {
         const el = this.findElement(elId);
-        if (el) el.setGroupId(d.id);
+        if (el) el.groupId = d.id;
       }
     }
     this.notify();
@@ -201,7 +201,7 @@ export class GroupManager {
     for (const g of this.groups.values()) {
       for (const elId of g.elementIds) {
         const el = this.findElement(elId);
-        if (el) el.setGroupId('');
+        if (el) el.groupId = '';
       }
     }
     this.groups.clear();
@@ -210,7 +210,7 @@ export class GroupManager {
       this.groups.set(d.id, group);
       for (const elId of d.elementIds ?? []) {
         const el = this.findElement(elId);
-        if (el) el.setGroupId(d.id);
+        if (el) el.groupId = d.id;
       }
     }
     this.events?.emit('groups-loaded', data);
@@ -223,7 +223,7 @@ export class GroupManager {
       this.groups.set(d.id, group);
       for (const elId of d.elementIds ?? []) {
         const el = this.findElement(elId);
-        if (el) el.setGroupId(d.id);
+        if (el) el.groupId = d.id;
       }
     }
     this.events?.emit('groups-added', data);
@@ -236,7 +236,7 @@ export class GroupManager {
       if (old) {
         for (const elId of old.elementIds) {
           const el = this.findElement(elId);
-          if (el) el.setGroupId('');
+          if (el) el.groupId = '';
         }
         this.groups.delete(d.id);
       }
@@ -244,7 +244,7 @@ export class GroupManager {
       this.groups.set(d.id, group);
       for (const elId of d.elementIds ?? []) {
         const el = this.findElement(elId);
-        if (el) el.setGroupId(d.id);
+        if (el) el.groupId = d.id;
       }
     }
     this.events?.emit('groups-replaced', data);

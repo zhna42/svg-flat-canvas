@@ -1,5 +1,6 @@
 import type { Renderer } from '@/renderer/Renderer';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export class ShapeManager {
   private readonly renderer: Renderer;
@@ -17,13 +18,13 @@ export class ShapeManager {
   public addElement(el: AbstractGraphicElement): void {
     this.shapes.push(el);
     this.renderer.addElement(el.id, el.type);
-    el.requestRender();
+    getRenderQueue()?.add(el);
   }
 
   public addPreviewElement(el: AbstractGraphicElement): void {
     this.shapes.push(el);
     this.renderer.addPreviewElement(el.id, el.type);
-    el.requestRender();
+    getRenderQueue()?.add(el);
   }
 
   public remove(id: string): void {

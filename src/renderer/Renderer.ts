@@ -4,7 +4,7 @@ import { Background } from './Background';
 import { Artboard } from './Artboard';
 import { RenderQueue } from './RenderQueue';
 import { setRenderQueue } from '@/utils/render-queue-utils';
-import { TAG_BY_TYPE, applyRenderSnapshot } from '@/utils/render-utils';
+import { TAG_BY_TYPE, applyElementToDOM } from '@/utils/render-utils';
 
 export class Renderer {
   private readonly svg: SVGSVGElement;
@@ -161,7 +161,7 @@ export class Renderer {
     this.svg.insertBefore(fillNode, this.svg.firstChild);
     this.nodeMap.set('bg-fill', fillNode);
 
-    applyRenderSnapshot(bg.fillRect.getRenderSnapshot(), fillNode);
+    applyElementToDOM(bg.fillRect, fillNode);
   }
 
   private bootstrapArtboardDom(): void {
@@ -170,7 +170,7 @@ export class Renderer {
     this.cameraGroup.insertBefore(artboardNode, this.shapesGroup);
     this.nodeMap.set('artboard', artboardNode);
 
-    applyRenderSnapshot(this.artboard.rect.getRenderSnapshot(), artboardNode);
+    applyElementToDOM(this.artboard.rect, artboardNode);
   }
 
   private startLoop(): void {
@@ -183,22 +183,17 @@ export class Renderer {
       if (this.artboard.dirty) {
         const node = this.nodeMap.get('artboard');
         if (node) {
-          applyRenderSnapshot(this.artboard.rect.getRenderSnapshot(), node);
+          applyElementToDOM(this.artboard.rect, node);
         }
         this.artboard.markClean();
       }
 
       const pending = this.queue.drain();
-      for (const entry of pending) {
-        let node = this.nodeMap.get(entry.element.id);
-        if (!node) node = this.previewNodeMap.get(entry.element.id);
+      for (const element of pending) {
+        let node = this.nodeMap.get(element.id);
+        if (!node) node = this.previewNodeMap.get(element.id);
         if (!node) continue;
-        applyRenderSnapshot(
-          entry.element.getRenderSnapshot(),
-          node,
-          entry.flags,
-        );
-        entry.element.markClean();
+        applyElementToDOM(element, node);
       }
 
       const overlayPending = this.queue.drainOverlays();

@@ -5,6 +5,7 @@ import type { SpatialGrid } from '@/spatial/SpatialGrid';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
 import { DragSnapHelper, type SnapAxisMode } from '@/selection/drag/DragSnap';
 import { checkSceneCollisions } from '@/selection/drag/DragCollision';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export class DragHandler {
   private _active = false;
@@ -288,8 +289,7 @@ export class DragHandler {
       m.e += this.currentDx;
       m.f += this.currentDy;
       el.transform.matrix = m;
-      el.markRenderKey('matrix');
-      el.setDirtyTransform();
+      getRenderQueue()?.add(el);
     }
 
     this.onDragMove?.(this.currentDx, this.currentDy);
@@ -309,7 +309,7 @@ export class DragHandler {
 
     for (const el of this.targets) {
       el.rebuildHitArea();
-      el.setDirtyAll();
+      getRenderQueue()?.add(el);
     }
 
     const ids = this.targets.map((e) => e.id);

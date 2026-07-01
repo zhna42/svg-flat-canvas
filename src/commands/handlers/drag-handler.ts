@@ -1,6 +1,7 @@
 import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export interface DragHandlerContext {
   getElements: () => AbstractGraphicElement[];
@@ -17,7 +18,7 @@ export const createDragMoveHandler = (
     for (const id of elementIds) {
       const el = all.find((e) => e.id === id);
       if (!el) continue;
-      el.applyDelta(delta.x, delta.y);
+      el.transform.translate(delta.x, delta.y);
     }
   };
 };
@@ -33,7 +34,7 @@ export const createDragEndHandler = (
       const el = all.find((e) => e.id === id);
       if (!el) continue;
       el.rebuildHitArea();
-      el.setDirtyAll();
+      getRenderQueue()?.add(el);
     }
     ctx.onDragEnd?.(elementIds);
   };

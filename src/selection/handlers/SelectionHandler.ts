@@ -28,6 +28,7 @@ import {
   hideLassoOverlay,
 } from '@/utils/overlay-utils';
 import type { RectOverlay, LassoOverlay } from '@/utils/overlay-utils';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 import type { EventBus } from '@/core/EventBus';
 import type { ImageElement } from '@/shapes/elements/ImageElement';
 
@@ -174,9 +175,8 @@ export class SelectionHandler {
           ...c,
           args: [...c.args],
         }));
-        pathEl.markRenderKey('d');
         pathEl.rebuildHitArea();
-        pathEl.setDirtyGeometry();
+        getRenderQueue()?.add(pathEl);
       }
 
       this.opts.bus.suppressTimeMachine = false;

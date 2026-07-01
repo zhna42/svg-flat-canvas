@@ -4,6 +4,7 @@ import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { GroupManager } from '@/group';
 import { Group } from '@/group';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export const createCreateFileHandler = (
   shapeManager: ShapeManager,
@@ -16,11 +17,11 @@ export const createCreateFileHandler = (
     const { elements, groupId, groupName } = command.options;
 
     for (const el of elements) {
-      el.setIsPreview(false);
+      el.isPreview = false;
       shapeManager.add(el);
       indexShape(el);
-      el.setDirtyAll();
-      el.setGroupId(groupId);
+      getRenderQueue()?.add(el);
+      el.groupId = groupId;
     }
 
     groupManager.addGroup(

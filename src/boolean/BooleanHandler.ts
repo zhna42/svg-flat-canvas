@@ -10,6 +10,7 @@ import type { EventBus } from '@/core/EventBus';
 import type { CommandBus } from '@/commands/CommandBus';
 import { hitTestByPoint } from '@/spatial/hit-test';
 import { polyIntersectsPoly } from '@/spatial/hit-test';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 const PREVIEW_FILL_COLOR = '#ff0000';
 const PREVIEW_STROKE_COLOR = '#cc0000';
@@ -121,10 +122,10 @@ export class BooleanHandler {
 
   private createPreviewElement(): void {
     this.previewEl = new PreviewElement(PREVIEW_ID);
-    this.previewEl.setFill(PREVIEW_FILL_COLOR);
-    this.previewEl.setStroke(PREVIEW_STROKE_COLOR);
-    this.previewEl.setStrokeWidth(1);
-    this.previewEl.setVisible(false);
+    this.previewEl.style.fill = PREVIEW_FILL_COLOR;
+    this.previewEl.style.stroke = PREVIEW_STROKE_COLOR;
+    this.previewEl.style.strokeWidth = 1;
+    this.previewEl.visible = false;
     this.shapeManager.addPreviewElement(this.previewEl);
   }
 
@@ -137,15 +138,15 @@ export class BooleanHandler {
 
   private showPreview(): void {
     if (this.previewEl) {
-      this.previewEl.setVisible(true);
-      this.previewEl.requestRender();
+      this.previewEl.visible = true;
+      getRenderQueue()?.add(this.previewEl);
     }
   }
 
   private hidePreview(): void {
     if (this.previewEl) {
-      this.previewEl.setVisible(false);
-      this.previewEl.requestRender();
+      this.previewEl.visible = false;
+      getRenderQueue()?.add(this.previewEl);
     }
   }
 
@@ -293,7 +294,7 @@ export class BooleanHandler {
       const el = this.shapeManager.getById(id);
       if (!el) continue;
       const local = el.toSegmentPolygons();
-      const mat = el.getTransformMatrix();
+      const mat = el.transform.matrix;
       subjectPolygons.push(
         ...local.map((ring) =>
           ring.map((p) => {
@@ -309,7 +310,7 @@ export class BooleanHandler {
       const el = this.shapeManager.getById(id);
       if (!el) continue;
       const local = el.toSegmentPolygons();
-      const mat = el.getTransformMatrix();
+      const mat = el.transform.matrix;
       clipPolygons.push(
         ...local.map((ring) =>
           ring.map((p) => {
@@ -338,7 +339,7 @@ export class BooleanHandler {
 
     if (this.previewEl) {
       this.previewEl.d = dString(commands);
-      this.previewEl.requestRender();
+      getRenderQueue()?.add(this.previewEl);
       this.showPreview();
     }
   }
@@ -351,7 +352,7 @@ export class BooleanHandler {
       const el = this.shapeManager.getById(id);
       if (!el) continue;
       const local = el.toSegmentPolygons();
-      const mat = el.getTransformMatrix();
+      const mat = el.transform.matrix;
       subjectPolygons.push(
         ...local.map((ring) =>
           ring.map((p) => {
@@ -367,7 +368,7 @@ export class BooleanHandler {
       const el = this.shapeManager.getById(id);
       if (!el) continue;
       const local = el.toSegmentPolygons();
-      const mat = el.getTransformMatrix();
+      const mat = el.transform.matrix;
       clipPolygons.push(
         ...local.map((ring) =>
           ring.map((p) => {

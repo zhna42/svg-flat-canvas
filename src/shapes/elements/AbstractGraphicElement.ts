@@ -81,6 +81,73 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
     this.style.visible = v;
   }
 
+  public getRenderGeometry(): Record<string, unknown> {
+    return this.getGeometryProps();
+  }
+
+  public transformPoint(p: Point): Point {
+    return this.transform.transformPoint(p);
+  }
+
+  public getTransformedBBox(): BoundingBox {
+    const pts = this.hitArea;
+    if (pts.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+    let minX = Infinity,
+      minY = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity;
+    for (const p of pts) {
+      const tp = this.transformPoint(p);
+      if (tp.x < minX) minX = tp.x;
+      if (tp.y < minY) minY = tp.y;
+      if (tp.x > maxX) maxX = tp.x;
+      if (tp.y > maxY) maxY = tp.y;
+    }
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  }
+
+  public getWorldBBox(): BoundingBox {
+    return this.getTransformedBBox();
+  }
+
+  public getWorldCorners(): Point[] {
+    const bbox = this.getVisualBBox();
+    return [
+      this.transformPoint({ x: bbox.x, y: bbox.y }),
+      this.transformPoint({ x: bbox.x + bbox.width, y: bbox.y }),
+      this.transformPoint({ x: bbox.x + bbox.width, y: bbox.y + bbox.height }),
+      this.transformPoint({ x: bbox.x, y: bbox.y + bbox.height }),
+    ];
+  }
+
+  public getWorldHitPoints(): Point[] {
+    const ha = this.hitArea;
+    if (ha.length === 0) return [];
+    return ha.map((p) => this.transformPoint(p));
+  }
+
+  public getCenter(): Point {
+    const bbox = this.getTransformedBBox();
+    return { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+  }
+
+  public getLocalCenter(): Point {
+    const bbox = this.getVisualBBox();
+    return { x: bbox.x + bbox.width / 2, y: bbox.y + bbox.height / 2 };
+  }
+
+  public getVisualBBox(): BoundingBox {
+    const bbox = this.getBBox();
+    const halfSw = this.style.strokeWidth / 2;
+    if (halfSw <= 0) return bbox;
+    return {
+      x: bbox.x - halfSw,
+      y: bbox.y - halfSw,
+      width: bbox.width + halfSw * 2,
+      height: bbox.height + halfSw * 2,
+    };
+  }
+
   private _fadedOriginalOpacity: number | null = null;
   public setFaded(faded: boolean): void {
     if (faded && this._fadedOriginalOpacity === null) {

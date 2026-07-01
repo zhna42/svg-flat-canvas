@@ -1,1 +1,4 @@
-export class LaserProps { public laserGroupId = ''; public laserType = ''; }
+export class LaserProps {
+  public laserGroupId = '';
+  public laserType = '';
+}

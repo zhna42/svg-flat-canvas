@@ -11,6 +11,7 @@ export class PreviewElement extends AbstractGraphicElement {
   constructor(id: string) {
     super(id, 'path');
     this.isPreview = true;
+    this.subscribeGeometry('geometry.commands');
   }
 
   public get d(): string {
@@ -19,7 +20,6 @@ export class PreviewElement extends AbstractGraphicElement {
 
   public set d(val: string) {
     this.geometry.commands = parseD(val);
-    this.markRenderKey('d');
   }
 
   public get hitArea(): Point[] {
@@ -89,7 +89,6 @@ export class PreviewElement extends AbstractGraphicElement {
   public setVisible(v: boolean): void {
     this.visible = v;
     this.style.visible = v;
-    this.markRenderKeys('visible', 'style.visible');
-    this.requestRender();
+    getRenderQueue()?.add(this);
   }
 }

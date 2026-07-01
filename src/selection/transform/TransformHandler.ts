@@ -3,6 +3,7 @@ import type { HandlePosition } from '../overlay/SelectionOverlay';
 import type { Camera } from '@/camera/Camera';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { Point } from '@/types';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export type TransformMode = 'resize' | 'rotate';
 
@@ -150,8 +151,7 @@ export class TransformHandler {
       if (!startMatrix) continue;
       const localCenter = el.getLocalCenter();
       el.transform.applyRotate(deltaAngle, localCenter, startMatrix);
-      el.markRenderKey('matrix');
-      el.setDirtyTransform();
+      getRenderQueue()?.add(el);
     }
   }
 
@@ -160,7 +160,7 @@ export class TransformHandler {
     this._active = false;
     for (const el of this.targets) {
       el.rebuildHitArea();
-      el.setDirtyAll();
+      getRenderQueue()?.add(el);
     }
 
     const ids = this.targets.map((e) => e.id);
@@ -248,8 +248,7 @@ export class TransformHandler {
         .translateSelf(-localAnchor.x, -localAnchor.y);
 
       el.transform.matrix = m;
-      el.markRenderKey('matrix');
-      el.setDirtyTransform();
+      getRenderQueue()?.add(el);
     }
   }
 

@@ -33,6 +33,7 @@ import { createCreateFileHandler } from '@/commands/handlers/create-file-handler
 import { createBooleanOperationHandler } from '@/commands/handlers/boolean-handler';
 import { ExternalApi } from '@/api/external-api';
 import { PathElement } from '@/shapes/elements/PathElement';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 import { SvgCanvas } from './SvgCanvas';
 
 function createSvgElement(options?: SvgCanvasOptions): SVGSVGElement {
@@ -299,17 +300,26 @@ export class CanvasFactory {
     commandBus.register('GROUP_ADD', createGroupHandler(groupManager));
     commandBus.register('GROUP_REMOVE', createGroupHandler(groupManager));
     commandBus.register('GROUP_CLEAR', createGroupHandler(groupManager));
-    commandBus.register('DELETE', createDeleteHandler(shapeManager, spatialGrid));
-    commandBus.register('CREATE', createCreateHandler(shapeManager, (el) =>
-      canvas.indexShape(el),
-    ));
+    commandBus.register(
+      'DELETE',
+      createDeleteHandler(shapeManager, spatialGrid),
+    );
+    commandBus.register(
+      'CREATE',
+      createCreateHandler(shapeManager, (el) => canvas.indexShape(el)),
+    );
     commandBus.register(
       'BOOLEAN_OPERATION',
-      createBooleanOperationHandler(shapeManager, timeMachine, spatialGrid, (el) => {
-        el.onSpatialIndexChanged = (element) => {
-          canvas.reindexElement(element);
-        };
-      }),
+      createBooleanOperationHandler(
+        shapeManager,
+        timeMachine,
+        spatialGrid,
+        (el) => {
+          el.onSpatialIndexChanged = (element) => {
+            canvas.reindexElement(element);
+          };
+        },
+      ),
     );
     commandBus.register(
       'CREATE_FILE',
@@ -347,9 +357,8 @@ export class CanvasFactory {
       const el = shapeManager.getAll().find((e) => e.id === command.options.id);
       if (el instanceof PathElement) {
         el.geometry.commands = command.options.newCommands;
-        el.markRenderKey('d');
         el.rebuildHitArea();
-        el.setDirtyAll();
+        getRenderQueue()?.add(el);
       }
     });
 
@@ -366,7 +375,7 @@ export class CanvasFactory {
           command.options.prevEndY,
         );
         el.rebuildHitArea();
-        el.setDirtyAll();
+        getRenderQueue()?.add(el);
       }
     });
 
@@ -376,7 +385,7 @@ export class CanvasFactory {
       if (el instanceof PathElement) {
         el.changeNodeType(command.options.cmdIdx, command.options.newType);
         el.rebuildHitArea();
-        el.setDirtyAll();
+        getRenderQueue()?.add(el);
       }
     });
 
@@ -386,7 +395,7 @@ export class CanvasFactory {
       if (el instanceof PathElement) {
         el.removeNodeAt(command.options.cmdIdx);
         el.rebuildHitArea();
-        el.setDirtyAll();
+        getRenderQueue()?.add(el);
       }
     });
 
@@ -400,7 +409,7 @@ export class CanvasFactory {
           command.options.delta.y,
         );
         el.rebuildHitArea();
-        el.setDirtyAll();
+        getRenderQueue()?.add(el);
       }
     });
 

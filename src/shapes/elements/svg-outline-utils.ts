@@ -1,7 +1,11 @@
 import { PathElement } from './PathElement';
 import { parseD } from '@/spatial/path-utils';
 
-type OutlineFn = (svgData: string, distance: number, opts?: Record<string, unknown>) => string;
+type OutlineFn = (
+  svgData: string,
+  distance: number,
+  opts?: Record<string, unknown>,
+) => string;
 
 let _outlineFn: OutlineFn | null = null;
 
@@ -15,7 +19,10 @@ function getOutlineFn(): OutlineFn {
   return _outlineFn;
 }
 
-export function svgStringToOutlinePath(svgString: string, id: string): PathElement {
+export function svgStringToOutlinePath(
+  svgString: string,
+  id: string,
+): PathElement {
   const outline = getOutlineFn();
   const d = outline(svgString, 0, { tagName: 'path' });
   const path = new PathElement(id);

@@ -22,6 +22,7 @@ import type { BooleanOp } from '@/boolean';
 import { CreationHandler } from '@/creation/CreationHandler';
 import { ExternalApi } from '@/api/external-api';
 import { PathElement } from '@/shapes/elements/PathElement';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 import { EventBus } from './EventBus';
 import { CanvasFactory } from './CanvasFactory';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
@@ -88,8 +89,8 @@ export class SvgCanvas {
   public addShape(shape: AbstractGraphicElement): void {
     this.shapeManager.add(shape);
     this.indexShape(shape);
-    shape.getDiffKeysForTimeMashin().clear();
-    shape.setDirtyAll();
+    shape.clearHistoryDiff();
+    getRenderQueue()?.add(shape);
   }
 
   public loadJSON(items: ElementJSON[]): void {
@@ -97,7 +98,7 @@ export class SvgCanvas {
     for (const el of elements) {
       this.shapeManager.add(el);
       this.indexShape(el);
-      el.setDirtyAll();
+      getRenderQueue()?.add(el);
     }
     this.timeMachine.clear();
   }
@@ -166,7 +167,7 @@ export class SvgCanvas {
         if (v) node.setAttribute('vector-effect', 'non-scaling-stroke');
         else node.removeAttribute('vector-effect');
       }
-      el.setDirtyAll();
+      getRenderQueue()?.add(el);
     }
   }
 
@@ -204,18 +205,23 @@ export class SvgCanvas {
     return this._editingPath;
   }
 
+  private _editingPathUnsub: (() => void) | null = null;
+
   public set editingPath(path: PathElement | null) {
     if (this._editingPath && this._editingPath !== path) {
-      this._editingPath.setIsNodeEditing(false);
-      this._editingPath.onDirty = null;
+      this._editingPath.isNodeEditing = false;
+      if (this._editingPathUnsub) {
+        this._editingPathUnsub();
+        this._editingPathUnsub = null;
+      }
     }
     this._editingPath = path;
     this.creationHandler.editingPathElement = path;
     if (path) {
-      path.setIsNodeEditing(true);
-      path.onDirty = () => {
+      path.isNodeEditing = true;
+      this._editingPathUnsub = path.subscribe('geometry.commands', () => {
         this.selectionOverlay.updatePathNodes(path);
-      };
+      });
       this.selectionOverlay.setElements([path]);
     } else {
       this.selectionOverlay.setElements(this.selectionState.selected);
@@ -329,7 +335,7 @@ export class SvgCanvas {
     if (!el) return;
     const bbox = el.getTransformedBBox();
     if (bbox.width > 0) {
-      el.applyTransformation('scale', {
+      el.transform.scale({
         x: 0,
         y: 0,
         originX: bbox.x,
@@ -344,7 +350,7 @@ export class SvgCanvas {
   public rotateElement(id: string, angle: number): void {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
-    el.rotate(angle);
+    el.transform.rotate(angle, el.getLocalCenter());
     el.rebuildHitArea();
   }
 
@@ -355,9 +361,7 @@ export class SvgCanvas {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
     el.transform.matrix = new DOMMatrix(matrix);
-    el.markRenderKey('matrix');
     el.rebuildHitArea();
-    el.setDirtyTransform();
   }
 
   public setSnapToCorners(enabled: boolean): void {
@@ -388,7 +392,9 @@ export class SvgCanvas {
     this.selectionHandler.setSnapAxis(mode);
   }
 
-  public getOutlinePath(id: string): import('@/shapes/elements/PathElement').PathElement | null {
+  public getOutlinePath(
+    id: string,
+  ): import('@/shapes/elements/PathElement').PathElement | null {
     const el = this.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return null;
     return el.toOutlinePath();
@@ -402,7 +408,7 @@ export class SvgCanvas {
     this.shapeManager.removeElementAndNode(el.id);
     this.shapeManager.addElement(outline);
     this.indexShape(outline);
-    outline.setDirtyAll();
+    getRenderQueue()?.add(outline);
     this.events.emit('element-outlined', { id, newId: outline.id });
   }
 
@@ -601,7 +607,9 @@ export class SvgCanvas {
     shape.onSpatialIndexChanged = (el) => {
       this.reindexElement(el);
     };
-    shape.onColorChanged = (el, oldFillKey, oldStrokeKey) => {
+    shape.onColorChanged = (el) => {
+      const oldFillKey = (el.data._prevFillKey as string) || null;
+      const oldStrokeKey = (el.data._prevStrokeKey as string) || null;
       this.updateColorMapEntry(el, oldFillKey, oldStrokeKey);
     };
     this.addToColorMap(shape);
@@ -627,20 +635,20 @@ export class SvgCanvas {
       this.colorMap.addToStrokeMap(newStrokeKey, el.id);
     }
 
-    el['_fillColorKey'] = newFillKey;
-    el['_strokeColorKey'] = newStrokeKey;
+    el.data._prevFillKey = newFillKey;
+    el.data._prevStrokeKey = newStrokeKey;
   }
 
   private addToColorMap(el: AbstractGraphicElement): void {
     if (el.style.fill && el.style.fill !== 'none') {
       const key = this.colorMap.getFillKey(el.style.fill);
       this.colorMap.addToFillMap(key, el.id);
-      el['_fillColorKey'] = key;
+      el.data._prevFillKey = key;
     }
     if (el.style.stroke && el.style.stroke !== 'none') {
       const key = this.colorMap.getStrokeKey(el.style.stroke);
       this.colorMap.addToStrokeMap(key, el.id);
-      el['_strokeColorKey'] = key;
+      el.data._prevStrokeKey = key;
     }
   }
 
@@ -672,8 +680,10 @@ export class SvgCanvas {
       el.onSpatialIndexChanged = (element) => {
         this.reindexElement(element);
       };
-      el.onColorChanged = (element, oldFill, oldStroke) => {
-        this.updateColorMapEntry(element, oldFill, oldStroke);
+      el.onColorChanged = (element) => {
+        const oldFillKey = (element.data._prevFillKey as string) || null;
+        const oldStrokeKey = (element.data._prevStrokeKey as string) || null;
+        this.updateColorMapEntry(element, oldFillKey, oldStrokeKey);
       };
     }
   }
@@ -685,7 +695,7 @@ export class SvgCanvas {
     for (const el of elements) {
       this.shapeManager.add(el);
       this.indexShape(el);
-      el.setDirtyAll();
+      getRenderQueue()?.add(el);
     }
     this.timeMachine.clear();
     this.events.emit('elements-loaded', elements);
@@ -696,7 +706,7 @@ export class SvgCanvas {
     for (const el of elements) {
       this.shapeManager.add(el);
       this.indexShape(el);
-      el.setDirtyAll();
+      getRenderQueue()?.add(el);
     }
     this.events.emit('elements-added', elements);
   }
@@ -712,7 +722,7 @@ export class SvgCanvas {
       const el = createFromJSONArray([item])[0];
       this.shapeManager.add(el);
       this.indexShape(el);
-      el.setDirtyAll();
+      getRenderQueue()?.add(el);
       elements.push(el);
     }
     this.events.emit('elements-replaced', elements);

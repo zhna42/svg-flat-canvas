@@ -2,6 +2,7 @@ import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export const createCreateHandler = (
   shapeManager: ShapeManager,
@@ -11,10 +12,10 @@ export const createCreateHandler = (
     if (command.type !== 'CREATE') return;
 
     const el = command.options.element;
-    el.setIsPreview(false);
+    el.isPreview = false;
     el.rebuildHitArea();
     shapeManager.add(el);
     indexShape(el);
-    el.setDirtyAll();
+    getRenderQueue()?.add(el);
   };
 };

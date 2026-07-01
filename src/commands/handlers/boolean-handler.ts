@@ -4,6 +4,7 @@ import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { TimeMachine } from '@/time-machine/TimeMachine';
 import type { SpatialGrid } from '@/spatial/SpatialGrid';
 import { PathElement } from '@/shapes/elements/PathElement';
+import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export const createBooleanOperationHandler = (
   shapeManager: ShapeManager,
@@ -32,15 +33,21 @@ export const createBooleanOperationHandler = (
     const newId = crypto.randomUUID();
     const resultEl = new PathElement(newId);
     resultEl.commands = resultCommands;
-    resultEl.setFill(resultFill);
-    resultEl.setStroke(resultStroke);
-    resultEl.setStrokeWidth(2);
+    resultEl.style.fill = resultFill;
+    resultEl.style.stroke = resultStroke;
+    resultEl.style.strokeWidth = 2;
     resultEl.rebuildHitArea();
-    resultEl.setDirtyAll();
+    getRenderQueue()?.add(resultEl);
     shapeManager.addElement(resultEl);
 
     const bbox = resultEl.getTransformedBBox();
-    const cellIds = spatialGrid.insert(resultEl.id, bbox.x, bbox.y, bbox.width, bbox.height);
+    const cellIds = spatialGrid.insert(
+      resultEl.id,
+      bbox.x,
+      bbox.y,
+      bbox.width,
+      bbox.height,
+    );
     resultEl.setSpatialCellIds(cellIds);
     onIndexElement(resultEl);
 

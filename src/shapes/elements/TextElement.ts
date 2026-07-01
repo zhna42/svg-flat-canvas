@@ -14,6 +14,14 @@ export class TextElement extends AbstractGraphicElement {
 
   public constructor(id: string) {
     super(id, 'text');
+    this.subscribeGeometry(
+      'posX',
+      'posY',
+      'fontSize',
+      'fontFamily',
+      'textAnchor',
+      'textContent',
+    );
   }
 
   public get hitArea(): Point[] {
@@ -68,30 +76,15 @@ export class TextElement extends AbstractGraphicElement {
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.x !== undefined) {
-      this.posX = data.x as string;
-      this.markRenderKey('x');
-    }
-    if (data.y !== undefined) {
-      this.posY = data.y as string;
-      this.markRenderKey('y');
-    }
-    if (data.fontSize !== undefined) {
-      this.fontSize = data.fontSize as string;
-      this.markRenderKey('font-size');
-    }
-    if (data.fontFamily !== undefined) {
+    if (data.x !== undefined) this.posX = data.x as string;
+    if (data.y !== undefined) this.posY = data.y as string;
+    if (data.fontSize !== undefined) this.fontSize = data.fontSize as string;
+    if (data.fontFamily !== undefined)
       this.fontFamily = data.fontFamily as string;
-      this.markRenderKey('font-family');
-    }
-    if (data.textAnchor !== undefined) {
+    if (data.textAnchor !== undefined)
       this.textAnchor = data.textAnchor as string;
-      this.markRenderKey('text-anchor');
-    }
-    if (data.textContent !== undefined) {
+    if (data.textContent !== undefined)
       this.textContent = data.textContent as string;
-      this.markRenderKey('textContent');
-    }
     this.rebuildHitArea();
   }
 
@@ -108,9 +101,7 @@ export class TextElement extends AbstractGraphicElement {
 
   public setTextContent(text: string): void {
     this.textContent = text;
-    this.markRenderKey('textContent');
     this.rebuildHitArea();
-    this.requestRender();
   }
   public getTextContent(): string {
     return this.textContent;
@@ -121,7 +112,6 @@ export class TextElement extends AbstractGraphicElement {
       fy = parseFloat(this.posY) + dy;
     this.posX = String(fx);
     this.posY = String(fy);
-    this.markRenderKeys('x', 'y');
     this.rebuildHitArea();
   }
 

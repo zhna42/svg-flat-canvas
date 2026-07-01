@@ -47,7 +47,7 @@ export class TimeMachine {
   public captureRoot(): void {
     const data: EntityDiff[] = [];
     for (const el of this.shapeManager.getAll()) {
-      data.push({ id: el.id, diff: el.getFullSnapshot() });
+      data.push({ id: el.id, diff: el.getFullData() });
     }
     this.root = { command: 'ROOT', selectIds: [], selectType: 'element', data };
     this.records = [];
@@ -71,7 +71,7 @@ export class TimeMachine {
     for (const id of getFullSnapshotIds) {
       const el = this.shapeManager.getById(id);
       if (el) {
-        data.push({ id, diff: el.getFullSnapshot() });
+        data.push({ id, diff: el.getFullData() });
       }
     }
 
