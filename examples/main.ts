@@ -1,559 +1,411 @@
-import { SvgCanvas, svgNodesToElements } from '../src/index';
-import type { SvgNodeDto } from '../src/index';
-import nodesData from './svg-nodes.json';
+import { SvgCanvas } from '../src/core';
+import type { ExternalApi } from '../src/api/external-api';
+import type { BusEvent } from '../src/core/EventBus';
+import type { Group, GroupData } from '../src/group';
+import { svgNodesToElements } from '../src/dto/svg-node-factory';
+import type { SvgNodeDto } from '../src/dto/svg-node-dto';
+import svgNodes from './svg-nodes.json';
 import groupsData from './groups.json';
+import type { CreateShapeDTO } from '../src/api/dto';
 
-const canvas = new SvgCanvas(document.getElementById('canvas-container')!, {
-  width: 800,
-  height: 600,
-});
+let api: ExternalApi;
+let canvas: SvgCanvas;
 
-const api = canvas.getExternalApi();
+// ─── Initialization ──────────────────────────────────────
 
-canvas.setArtboardSize(210, 297);
+function init(): void {
+  const container = document.getElementById('canvas-container')!;
+  canvas = new SvgCanvas(container, { width: 800, height: 600 });
+  api = canvas.getExternalApi();
+  api.setArtboardSize(210, 297);
 
-const log = document.getElementById('info')!;
-function info(msg: string) {
-  log.textContent += '\n' + msg;
-  log.scrollTop = log.scrollHeight;
+  loadDemoData();
+  setupEventLog();
+  setupTopToolbar();
+  setupLeftToolbar();
+  setupRightPanel();
+  setupKeyboardShortcuts();
 }
 
-const elements = svgNodesToElements(nodesData as SvgNodeDto[]);
-for (const el of elements) {
-  canvas.addShape(el);
+// ─── Demo Data ───────────────────────────────────────────
+
+function loadDemoData(): void {
+  const elements = svgNodesToElements(svgNodes as SvgNodeDto[]);
+  for (const el of elements) {
+    canvas.addShape(el);
+  }
+
+  api.loadGroups(groupsData as GroupData[]);
+
+  for (const el of elements) {
+    if (el.groupId) {
+      canvas.addToGroup(el.groupId, el.id);
+    }
+  }
 }
 
-info(`Loaded ${elements.length} shapes from svg-nodes.json`);
-info('Scroll to zoom, drag to pan');
-info('Artboard: A4 (210×297 mm)');
+// ─── Event Log ───────────────────────────────────────────
 
-const pathCutout = elements.find((e) => e.id === 'path-cutout-001');
-if (pathCutout) {
-  info(`  path-cutout-001 hitArea points: ${pathCutout.hitArea.length}`);
+let logPaused = false;
+let logEntries: HTMLElement[] = [];
+const MAX_LOG = 200;
+
+function setupEventLog(): void {
+  const logEl = document.getElementById('event-log')!;
+
+  api.on('*', (event: BusEvent) => {
+    if (logPaused) return;
+
+    const time = new Date().toLocaleTimeString();
+    const dataStr =
+      event.data !== undefined && event.data !== null
+        ? typeof event.data === 'object'
+          ? JSON.stringify(event.data).slice(0, 120)
+          : String(event.data).slice(0, 120)
+        : '';
+
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<span class="time">${time}</span><span class="event-name">${event.type}</span> <span class="event-data">${dataStr}</span>`;
+    logEl.prepend(entry);
+    logEntries.push(entry);
+
+    while (logEntries.length > MAX_LOG) {
+      const old = logEntries.shift();
+      old?.remove();
+    }
+  });
+
+  document.getElementById('btn-log-clear')!.onclick = () => {
+    logEl.innerHTML = '';
+    logEntries = [];
+  };
+
+  const pauseChk = document.getElementById('chk-log-pause') as HTMLInputElement;
+  pauseChk.onchange = () => {
+    logPaused = pauseChk.checked;
+  };
 }
-const independentEl = elements.find(
-  (e) => e.id === 'independent-inside-cutout',
-);
-if (independentEl) {
-  info(
-    `  independent-inside-cutout hitArea points: ${independentEl.hitArea.length}`,
+
+// ─── Top Toolbar ─────────────────────────────────────────
+
+function setupTopToolbar(): void {
+  // --- Snap Toggles ---
+  toggleButton('btn-snap-corners', false, (v) => api.setSnapToCorners(v));
+  toggleButton('btn-snap-planes', false, (v) => api.setSnapToPlanes(v));
+  toggleButton('btn-snap-artboard', false, (v) => api.setSnapToArtboard(v));
+  toggleButton('btn-snap-guidelines', false, (v) =>
+    api.setSnapToGuidelines(v),
   );
+  toggleButton('btn-snap-grid', false, (v) => api.setSnapToGrid(v));
+  toggleButton('btn-avoid-collisions', false, (v) =>
+    api.setAvoidCollisions(v),
+  );
+
+  // --- Snap Axis ---
+  const snapAxis = document.getElementById('sel-snap-axis') as HTMLSelectElement;
+  snapAxis.onchange = () => {
+    api.setSnapAxis(snapAxis.value as 'both' | 'horizontal' | 'vertical');
+  };
+
+  // --- Transform ---
+  document.getElementById('btn-transform-resize')!.onclick = () =>
+    api.setTransformMode('resize');
+  document.getElementById('btn-transform-rotate')!.onclick = () =>
+    api.setTransformMode('rotate');
+  toggleButton('btn-proportional-resize', false, (v) =>
+    api.setProportionalResize(v),
+  );
+
+  // --- View ---
+  toggleButton('btn-pan-mode', false, (v) => api.setPanMode(v));
+  toggleButton('btn-toggle-rulers', false, (v) => api.setRulersVisible(v));
+  toggleButton('btn-toggle-grid', false, (v) =>
+    v ? api.showGrid() : api.hideGrid(),
+  );
+
+  const gridStep = document.getElementById('input-grid-step') as HTMLInputElement;
+  gridStep.onchange = () => api.setGridStep(Number(gridStep.value));
+
+  // --- Boolean ---
+  let booleanActive = false;
+  document.getElementById('btn-bool-union')!.onclick = () => {
+    api.enterBooleanMode('UNION');
+    setBooleanActive(true);
+  };
+  document.getElementById('btn-bool-intersect')!.onclick = () => {
+    api.enterBooleanMode('INTERSECT');
+    setBooleanActive(true);
+  };
+  document.getElementById('btn-bool-diff')!.onclick = () => {
+    api.enterBooleanMode('DIFFERENCE');
+    setBooleanActive(true);
+  };
+  document.getElementById('btn-bool-exit')!.onclick = () => {
+    api.exitBooleanMode();
+    setBooleanActive(false);
+  };
+
+  function setBooleanActive(v: boolean): void {
+    booleanActive = v;
+    [
+      'btn-bool-union',
+      'btn-bool-intersect',
+      'btn-bool-diff',
+    ].forEach((id) => {
+      const btn = document.getElementById(id)!;
+      btn.style.display = v ? 'none' : '';
+    });
+    document.getElementById('btn-bool-exit')!.style.display = v ? '' : 'none';
+  }
+
+  // --- Debug ---
+  toggleButton('btn-debug-hitarea', false, (v) => {
+    canvas.debugShowHitArea = v;
+  });
+
+  document.getElementById('btn-preloader')!.onclick = () => {
+    if (api.isPreloaderVisible()) {
+      api.hidePreloader();
+    } else {
+      api.showPreloader();
+    }
+  };
 }
 
-// ----- groups -----
-canvas.setGroups(groupsData);
-info(`Loaded ${canvas.groups.length} groups from groups.json`);
+// ─── Left Toolbar ────────────────────────────────────────
 
-// ----- selection debug -----
-canvas.on('SVG_CAD_SELECT', (event) => {
-  const selected = event.data as any;
-  info(`Selection: ${selected.elementIds?.join(', ') || '(none)'}`);
-});
+let currentCreationType: string | null = null;
 
-// ----- selection mode toggle -----
-function setMode(mode: 'element' | 'group') {
-  canvas.setSelectionMode(mode);
-  info(`Mode: ${mode}`);
-  document
-    .querySelectorAll('.mode-btn')
-    .forEach((b) => b.classList.remove('active'));
-  document.getElementById(`btn-mode-${mode}`)?.classList.add('active');
-  document.getElementById('btn-mode-element')!.textContent =
-    mode === 'element' ? '● Element' : '○ Element';
-  document.getElementById('btn-mode-group')!.textContent =
-    mode === 'group' ? '● Group' : '○ Group';
+function setupLeftToolbar(): void {
+  // --- Selection Mode ---
+  const btnElem = document.getElementById('btn-sel-element')!;
+  const btnGroup = document.getElementById('btn-sel-group')!;
+
+  btnElem.onclick = () => {
+    canvas.setSelectionMode('element');
+    btnElem.classList.add('active');
+    btnGroup.classList.remove('active');
+  };
+  btnGroup.onclick = () => {
+    canvas.setSelectionMode('group');
+    btnGroup.classList.add('active');
+    btnElem.classList.remove('active');
+  };
+
+  // --- Creation Tools ---
+  const creationTools = document.querySelectorAll('.creation-tool[data-type]');
+  const cancelBtn = document.getElementById('btn-creation-cancel')!;
+
+  creationTools.forEach((btn) => {
+    const type = (btn as HTMLElement).dataset.type!;
+    btn.addEventListener('click', () => {
+      currentCreationType = type;
+      api.setActiveCreationTool(type as any);
+      creationTools.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      cancelBtn.style.display = '';
+    });
+  });
+
+  cancelBtn.onclick = () => {
+    currentCreationType = null;
+    api.setActiveCreationTool(null);
+    creationTools.forEach((b) => b.classList.remove('active'));
+    cancelBtn.style.display = 'none';
+  };
+
+  // --- Undo / Redo ---
+  document.getElementById('btn-undo')!.onclick = () => canvas.undo();
+  document.getElementById('btn-redo')!.onclick = () => canvas.redo();
+
+  // --- Delete ---
+  document.getElementById('btn-delete')!.onclick = () => {
+    const selected = canvas.getSelected();
+    if (selected.length > 0) {
+      api.deleteShapes({ elementIds: selected.map((e) => e.id) });
+    }
+  };
+
+  // --- Outline ---
+  document.getElementById('btn-outline')!.onclick = () => {
+    const selected = canvas.getSelected();
+    if (selected.length > 0) {
+      api.outlineElement(selected[0].id);
+    }
+  };
+
+  // --- Select All / None ---
+  document.getElementById('btn-sel-all')!.onclick = () => {
+    const all = api.getAllShapes();
+    api.selectShapes({ elementIds: all.map((e) => e.id) });
+  };
+  document.getElementById('btn-sel-none')!.onclick = () => api.clearSelection();
+
+  // --- Style ---
+  document.getElementById('btn-apply-style')!.onclick = () => {
+    const selected = canvas.getSelected();
+    if (selected.length === 0) return;
+
+    const fill = (document.getElementById('input-fill') as HTMLInputElement)
+      .value;
+    const stroke = (
+      document.getElementById('input-stroke') as HTMLInputElement
+    ).value;
+    const strokeWidth = Number(
+      (document.getElementById('input-stroke-width') as HTMLInputElement).value,
+    );
+
+    api.updateShapes({
+      elementIds: selected.map((e) => e.id),
+      style: {
+        fill,
+        stroke,
+        strokeWidth: isNaN(strokeWidth) ? undefined : strokeWidth,
+      },
+    });
+  };
 }
-document.getElementById('btn-mode-element')!.onclick = () => setMode('element');
-document.getElementById('btn-mode-group')!.onclick = () => setMode('group');
-setMode('element');
 
-let currentGesture = 'click';
+// ─── Right Panel: Groups ─────────────────────────────────
 
-function setGesture(g: string) {
-  currentGesture = g;
-  canvas.setSelectionGesture(g as any);
-  info(`Gesture: ${g}`);
-  document
-    .querySelectorAll('.gesture-btn')
-    .forEach((b) => b.classList.remove('active'));
-  document.getElementById(`btn-gesture-${g}`)?.classList.add('active');
+function setupRightPanel(): void {
+  const list = document.getElementById('group-list')!;
+  const nameInput = document.getElementById('input-group-name') as HTMLInputElement;
+  let selectedGroupId: string | null = null;
+
+  function renderGroups(): void {
+    const groups = api.getGroups();
+    list.innerHTML = '';
+
+    for (const g of groups) {
+      const li = document.createElement('li');
+      li.innerHTML = `<span>${g.name}</span><span class="group-count">${g.elementIds.size} elem</span>`;
+      if (g.id === selectedGroupId) li.classList.add('selected');
+
+      li.onclick = () => {
+        selectedGroupId = g.id;
+        api.selectGroup(g.id);
+        renderGroups();
+      };
+
+      li.ondblclick = () => {
+        api.selectGroupElements(g.id);
+      };
+
+      list.appendChild(li);
+    }
+
+    if (groups.length === 0) {
+      list.innerHTML =
+        '<li style="color:var(--text-muted);cursor:default">No groups</li>';
+    }
+  }
+
+  canvas.onGroupsChange = () => renderGroups();
+
+  document.getElementById('btn-group-create')!.onclick = () => {
+    const name = nameInput.value.trim() || 'New Group';
+    api.groupCreate({ name });
+    renderGroups();
+  };
+
+  document.getElementById('btn-group-delete')!.onclick = () => {
+    if (selectedGroupId) {
+      api.groupDelete({ groupId: selectedGroupId });
+      selectedGroupId = null;
+      renderGroups();
+    }
+  };
+
+  document.getElementById('btn-group-add-elem')!.onclick = () => {
+    if (!selectedGroupId) return;
+    const selected = canvas.getSelected();
+    if (selected.length > 0) {
+      api.groupAddElements({
+        groupId: selectedGroupId,
+        elementIds: selected.map((e) => e.id),
+      });
+    }
+  };
+
+  document.getElementById('btn-group-rem-elem')!.onclick = () => {
+    if (!selectedGroupId) return;
+    const selected = canvas.getSelected();
+    if (selected.length > 0) {
+      api.groupRemoveElements({
+        groupId: selectedGroupId,
+        elementIds: selected.map((e) => e.id),
+      });
+    }
+  };
+
+  renderGroups();
 }
 
-document.getElementById('btn-gesture-click')!.onclick = () =>
-  setGesture('click');
-document.getElementById('btn-gesture-rect')!.onclick = () => setGesture('rect');
-document.getElementById('btn-gesture-lasso')!.onclick = () =>
-  setGesture('lasso');
-setGesture('click');
+// ─── Keyboard Shortcuts ──────────────────────────────────
 
-// ----- debug hitArea button -----
-document.getElementById('btn-debug-hitarea')!.onclick = () => {
-  canvas.debugShowHitArea = !canvas.debugShowHitArea;
-  const btn = document.getElementById('btn-debug-hitarea')!;
-  btn.textContent = canvas.debugShowHitArea ? 'HitArea: on' : 'HitArea: off';
-  btn.classList.toggle('active', canvas.debugShowHitArea);
-  info(canvas.debugShowHitArea ? 'HitArea debug: ON' : 'HitArea debug: OFF');
-};
-
-// ----- snap toggles -----
-let snapCorners = false;
-document.getElementById('btn-snap-corners')!.onclick = () => {
-  snapCorners = !snapCorners;
-  canvas.setSnapToCorners(snapCorners);
-  const btn = document.getElementById('btn-snap-corners')!;
-  btn.textContent = snapCorners ? 'Snap corners: on' : 'Snap corners: off';
-  btn.classList.toggle('active', snapCorners);
-  info(snapCorners ? 'Snap to corners: ON' : 'Snap to corners: OFF');
-};
-
-let snapPlanes = false;
-document.getElementById('btn-snap-planes')!.onclick = () => {
-  snapPlanes = !snapPlanes;
-  canvas.setSnapToPlanes(snapPlanes);
-  const btn = document.getElementById('btn-snap-planes')!;
-  btn.textContent = snapPlanes ? 'Snap planes: on' : 'Snap planes: off';
-  btn.classList.toggle('active', snapPlanes);
-  info(snapPlanes ? 'Snap to planes: ON' : 'Snap to planes: OFF');
-};
-
-let snapArtboard = false;
-document.getElementById('btn-snap-artboard')!.onclick = () => {
-  snapArtboard = !snapArtboard;
-  canvas.setSnapToArtboard(snapArtboard);
-  const btn = document.getElementById('btn-snap-artboard')!;
-  btn.textContent = snapArtboard ? 'Snap artboard: on' : 'Snap artboard: off';
-  btn.classList.toggle('active', snapArtboard);
-  info(snapArtboard ? 'Snap to artboard: ON' : 'Snap to artboard: OFF');
-};
-
-// ----- avoid collisions toggle -----
-let avoidCollisions = false;
-document.getElementById('btn-avoid-collisions')!.onclick = () => {
-  avoidCollisions = !avoidCollisions;
-  canvas.setAvoidCollisions(avoidCollisions);
-  const btn = document.getElementById('btn-avoid-collisions')!;
-  btn.textContent = avoidCollisions ? 'Avoid collisions: on' : 'Avoid collisions: off';
-  btn.classList.toggle('active', avoidCollisions);
-  info(avoidCollisions ? 'Avoid collisions: ON' : 'Avoid collisions: OFF');
-};
-
-// ----- pan mode button -----
-let panActive = false;
-document.getElementById('btn-toggle-pan')!.onclick = () => {
-  panActive = !panActive;
-  api.setPanMode(panActive);
-  if (zoomRaf) { cancelAnimationFrame(zoomRaf); zoomRaf = null; zoomTarget = null; }
-  document.getElementById('btn-toggle-pan')!.textContent = panActive ? 'Pan: on' : 'Pan: off';
-  info(panActive ? 'Pan mode: ON' : 'Pan mode: OFF');
-};
-
-// ----- mouse wheel zoom (smooth) -----
-const svgEl = canvas.getSVG();
-let zoomTarget: { x: number; y: number; zoom: number } | null = null;
-let zoomRaf: number | null = null;
-
-svgEl.addEventListener('wheel', (e: WheelEvent) => {
-  e.preventDefault();
-  const point = svgEl.createSVGPoint();
-  point.x = e.clientX;
-  point.y = e.clientY;
-  const ctm = svgEl.getScreenCTM();
-  if (!ctm) return;
-  const svgPt = point.matrixTransform(ctm.inverse());
-  const cam = canvas.getCamera();
-  const speed = 0.12 * (1 + 5 / (cam.zoom + 0.8));
-  const factor = e.deltaY < 0 ? 1 + speed : 1 / (1 + speed);
-  const targetZoom = Math.max(0.05, Math.min(cam.zoom * factor, 50));
-  zoomTarget = { x: svgPt.x, y: svgPt.y, zoom: targetZoom };
-
-  if (zoomRaf) return;
-
-  const easeOut = (t: number): number => 1 - Math.pow(1 - t, 3);
-
-  const animate = (): void => {
-    if (!zoomTarget) { zoomRaf = null; return; }
-    const cam2 = canvas.getCamera();
-    const dz = zoomTarget.zoom - cam2.zoom;
-    if (Math.abs(dz) < 0.001) {
-      cam2.setZoom({ x: zoomTarget.x, y: zoomTarget.y }, 1);
-      zoomTarget = null;
-      zoomRaf = null;
+function setupKeyboardShortcuts(): void {
+  document.addEventListener('keydown', (e) => {
+    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) {
       return;
     }
-    const step = dz * 0.09;
-    cam2.setZoom({ x: zoomTarget.x, y: zoomTarget.y }, (cam2.zoom + step) / cam2.zoom);
-    zoomRaf = requestAnimationFrame(animate);
-  };
-  zoomRaf = requestAnimationFrame(animate);
-});
 
-// ----- set A4 / A3 buttons -----
-document.getElementById('btn-size-a4')!.onclick = () => {
-  canvas.setArtboardSize(210, 297);
-  info('Artboard: A4 (210×297 mm)');
-};
-document.getElementById('btn-size-a3')!.onclick = () => {
-  canvas.setArtboardSize(297, 420);
-  info('Artboard: A3 (297×420 mm)');
-};
+    const meta = e.metaKey || e.ctrlKey;
 
-// ----- group UI -----
-let selectedGroupId: string | null = null;
-
-function renderGroupList() {
-  const list = document.getElementById('group-list')!;
-  list.innerHTML = '';
-  for (const g of canvas.groups) {
-    const div = document.createElement('div');
-    div.className = 'group-item' + (g.id === selectedGroupId ? ' active' : '');
-    div.textContent = `${g.name} (${g.elementIds.size})`;
-    div.onclick = () => {
-      selectedGroupId = g.id;
-      canvas.highlightGroupElements(g.id);
-      canvas.selectGroup(g.id);
-      renderGroupList();
-    };
-    list.appendChild(div);
-  }
-
-  const sel = document.getElementById('group-select') as HTMLSelectElement;
-  sel.innerHTML = '<option value="">— no group —</option>';
-  for (const g of canvas.groups) {
-    const opt = document.createElement('option');
-    opt.value = g.id;
-    opt.textContent = g.name;
-    sel.appendChild(opt);
-  }
-}
-
-document.getElementById('btn-group-create')!.onclick = () => {
-  const id = canvas.createGroup();
-  selectedGroupId = id;
-  renderGroupList();
-  info(`Group created: ${id}`);
-};
-
-document.getElementById('btn-group-delete')!.onclick = () => {
-  if (!selectedGroupId) {
-    info('No group selected');
-    return;
-  }
-  canvas.deleteGroup(selectedGroupId);
-  selectedGroupId = null;
-  renderGroupList();
-  info('Group deleted');
-};
-
-document.getElementById('btn-group-clear')!.onclick = () => {
-  if (!selectedGroupId) {
-    info('No group selected');
-    return;
-  }
-  canvas.clearGroup(selectedGroupId);
-  renderGroupList();
-  info('Group cleared');
-};
-
-document.getElementById('btn-group-select')!.onclick = () => {
-  if (!selectedGroupId) {
-    info('No group selected');
-    return;
-  }
-  canvas.selectGroupElements(selectedGroupId);
-  canvas.selectMultipleGroups([]);
-  renderGroupList();
-  info('Selected all elements in group');
-};
-
-document.getElementById('btn-group-add')!.onclick = () => {
-  const sel = document.getElementById('group-select') as HTMLSelectElement;
-  const gid = sel.value;
-  if (!gid) {
-    info('Select a group first');
-    return;
-  }
-  const selected = Array.from(canvas.getSelected());
-  if (selected.length === 0) {
-    info('No elements selected');
-    return;
-  }
-  canvas.addToGroup(
-    gid,
-    selected.map((e: any) => e.id),
-  );
-  renderGroupList();
-  info(`Added ${selected.length} element(s) to group`);
-};
-
-document.getElementById('btn-group-remove')!.onclick = () => {
-  const sel = document.getElementById('group-select') as HTMLSelectElement;
-  const gid = sel.value;
-  if (!gid) {
-    info('Select a group first');
-    return;
-  }
-  const selected = Array.from(canvas.getSelected());
-  if (selected.length === 0) {
-    info('No elements selected');
-    return;
-  }
-  canvas.removeFromGroup(
-    gid,
-    selected.map((e: any) => e.id),
-  );
-  renderGroupList();
-  info(`Removed ${selected.length} element(s) from group`);
-};
-
-// ----- transform buttons -----
-document.getElementById('btn-transform-resize')!.onclick = () => {
-  const sel = canvas.getSelected();
-  if (sel.length === 0) {
-    info('No element selected');
-    return;
-  }
-  const el = sel[0];
-  const bbox = el.getTransformedBBox();
-  canvas.resizeElement(el.id, bbox.width * 1.2, bbox.height * 1.2);
-  canvas.getTimeMachine().push('RESIZE');
-  info(`Resized ${el.id} +20%`);
-};
-document.getElementById('btn-transform-rotate')!.onclick = () => {
-  const sel = canvas.getSelected();
-  if (sel.length === 0) {
-    info('No element selected');
-    return;
-  }
-  const el = sel[0];
-  canvas.rotateElement(el.id, 15);
-  canvas.getTimeMachine().push('ROTATE', [el.id], 'element', [el.id], []);
-  info(`Rotated ${el.id} 15deg`);
-};
-document.getElementById('btn-transform-matrix')!.onclick = () => {
-  const sel = canvas.getSelected();
-  if (sel.length === 0) {
-    info('No element selected');
-    return;
-  }
-  const el = sel[0];
-  canvas.transformElement(el.id, [1, 0.2, 0, 1, 0, 0]);
-  canvas.getTimeMachine().push('TRANSFORM');
-  info(`Applied matrix skew to ${el.id}`);
-};
-
-// ----- handle mode toggle -----
-let handleMode: 'resize' | 'rotate' = 'resize';
-document.getElementById('btn-handle-resize')!.onclick = () => {
-  handleMode = 'resize';
-  canvas.setTransformMode('resize');
-  api.setTransformMode('resize');
-  document.getElementById('btn-handle-resize')!.classList.add('active');
-  document.getElementById('btn-handle-rotate')!.classList.remove('active');
-  info('Handle mode: resize');
-};
-document.getElementById('btn-handle-rotate')!.onclick = () => {
-  handleMode = 'rotate';
-  canvas.setTransformMode('rotate');
-  api.setTransformMode('rotate');
-  document.getElementById('btn-handle-resize')!.classList.remove('active');
-  document.getElementById('btn-handle-rotate')!.classList.add('active');
-  info('Handle mode: rotate');
-};
-
-(document.getElementById('chk-proportional-resize') as HTMLInputElement).onchange = (e) => {
-  const enabled = (e.target as HTMLInputElement).checked;
-  api.setProportionalResize(enabled);
-  info(`Proportional resize: ${enabled ? 'ON' : 'OFF'}`);
-};
-
-// ----- delete keyboard -----
-window.addEventListener('keydown', (e: KeyboardEvent) => {
-  if (e.key === 'Delete' || e.key === 'Backspace') {
-    if (!e.target || (e.target as HTMLElement).tagName === 'BODY') {
-      const mode = canvas.getSelectionMode();
-      if (mode === 'group') {
-        const gids = canvas.getSelectedGroupIds();
-        if (gids.length > 0) {
-          e.preventDefault();
-          for (const gid of gids) {
-            const ids = canvas.getElementIdsInGroup(gid);
-            if (ids.length > 0) canvas.deleteElements(ids);
-            canvas.deleteGroup(gid);
-          }
-          info(`Deleted ${gids.length} group(s)`);
-        }
-      } else {
-        const selected = Array.from(canvas.getSelected());
-        if (selected.length > 0) {
-          e.preventDefault();
-          canvas.deleteElements(selected.map((s: any) => s.id));
-          info(`Deleted ${selected.length} element(s)`);
-        }
-      }
-    }
-  }
-});
-
-// ----- undo/redo keyboard shortcuts -----
-window.addEventListener('keydown', (e: KeyboardEvent) => {
-  const isCmd = e.metaKey || e.ctrlKey;
-  if (isCmd && e.key === 'z' && !e.shiftKey) {
-    e.preventDefault();
-    if (canvas.canUndo) {
+    // Undo
+    if (meta && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
       canvas.undo();
-      info('Undo');
+      return;
     }
-  } else if (
-    (isCmd && e.key === 'z' && e.shiftKey) ||
-    (isCmd && e.key === 'y')
-  ) {
-    e.preventDefault();
-    if (canvas.canRedo) {
+    // Redo
+    if (meta && e.key === 'z' && e.shiftKey) {
+      e.preventDefault();
       canvas.redo();
-      info('Redo');
+      return;
     }
-  }
-});
-
-canvas.onGroupsChange = renderGroupList;
-renderGroupList();
-
-// ----- creation tools -----
-type CreationTool = 'select' | 'rect' | 'circle' | 'ellipse' | 'line' | 'polyline' | 'polygon' | 'path';
-
-const TOOL_TO_CREATION_TYPE: Record<string, CreationTool | null> = {
-  select: null,
-  rect: 'rect',
-  circle: 'circle',
-  ellipse: 'ellipse',
-  line: 'line',
-  polyline: 'polyline',
-  polygon: 'polygon',
-  path: 'path',
-};
-
-function setActiveTool(tool: CreationTool) {
-  document.querySelectorAll('.tool-btn').forEach((b) => b.classList.remove('active'));
-  document.getElementById(`btn-tool-${tool}`)?.classList.add('active');
-
-  const creationType = TOOL_TO_CREATION_TYPE[tool];
-  canvas.setActiveCreationTool(creationType ?? null);
-  info(`Tool: ${tool}`);
-}
-
-document.querySelectorAll('.tool-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const tool = (btn as HTMLElement).id.replace('btn-tool-', '') as CreationTool;
-    setActiveTool(tool);
+    // Delete
+    if (e.key === 'Delete' || e.key === 'Backspace') {
+      const selected = canvas.getSelected();
+      if (selected.length > 0) {
+        api.deleteShapes({ elementIds: selected.map((el) => el.id) });
+      }
+      return;
+    }
+    // Select All
+    if (meta && e.key === 'a') {
+      e.preventDefault();
+      const all = api.getAllShapes();
+      api.selectShapes({ elementIds: all.map((el) => el.id) });
+      return;
+    }
   });
-});
-
-setActiveTool('select');
-
-// ----- boolean operation buttons -----
-let boolActive: string | null = null;
-
-function setBooleanMode(op: string | null) {
-  boolActive = op;
-  document.querySelectorAll('.bool-btn').forEach((b) => b.classList.remove('active'));
-  if (op) {
-    document.getElementById(`btn-bool-${op}`)?.classList.add('active');
-    api.enterBooleanMode(op as any);
-    info(`Boolean mode: ${op}`);
-  } else {
-    document.getElementById('btn-bool-off')?.classList.add('active');
-    api.exitBooleanMode();
-    info('Boolean mode: OFF');
-  }
 }
 
-document.getElementById('btn-bool-union')!.onclick = () => setBooleanMode('UNION');
-document.getElementById('btn-bool-intersect')!.onclick = () => setBooleanMode('INTERSECT');
-document.getElementById('btn-bool-difference')!.onclick = () => setBooleanMode('DIFFERENCE');
-document.getElementById('btn-bool-off')!.onclick = () => setBooleanMode(null);
+// ─── Helpers ─────────────────────────────────────────────
 
-// ----- grid controls -----
-let gridVisible = false;
-document.getElementById('btn-grid-toggle')!.onclick = () => {
-  gridVisible = !gridVisible;
-  const btn = document.getElementById('btn-grid-toggle')!;
-  if (gridVisible) {
-    api.showGrid();
-    btn.textContent = 'Grid: on';
-    btn.classList.add('active');
-    info('Grid: ON');
-  } else {
-    api.hideGrid();
-    btn.textContent = 'Grid: off';
-    btn.classList.remove('active');
-    info('Grid: OFF');
-  }
-};
+function toggleButton(
+  id: string,
+  initial: boolean,
+  onChange: (value: boolean) => void,
+): void {
+  const btn = document.getElementById(id)!;
+  let state = initial;
 
-(document.getElementById('input-grid-step') as HTMLInputElement).onchange = (e) => {
-  const step = parseInt((e.target as HTMLInputElement).value, 10);
-  if (step > 0) {
-    api.setGridStep(step);
-    info(`Grid step: ${step} mm`);
-  }
-};
+  if (state) btn.classList.add('on');
 
-// ----- snap guidelines / grid -----
-let snapGuidelines = false;
-document.getElementById('btn-snap-guidelines')!.onclick = () => {
-  snapGuidelines = !snapGuidelines;
-  api.setSnapToGuidelines(snapGuidelines);
-  const btn = document.getElementById('btn-snap-guidelines')!;
-  btn.textContent = snapGuidelines ? 'Snap guides: on' : 'Snap guides: off';
-  btn.classList.toggle('active', snapGuidelines);
-  info(snapGuidelines ? 'Snap to guidelines: ON' : 'Snap to guidelines: OFF');
-};
+  btn.addEventListener('click', () => {
+    state = !state;
+    if (state) {
+      btn.classList.add('on');
+    } else {
+      btn.classList.remove('on');
+    }
+    onChange(state);
+  });
+}
 
-let snapGrid = false;
-document.getElementById('btn-snap-grid')!.onclick = () => {
-  snapGrid = !snapGrid;
-  api.setSnapToGrid(snapGrid);
-  const btn = document.getElementById('btn-snap-grid')!;
-  btn.textContent = snapGrid ? 'Snap grid: on' : 'Snap grid: off';
-  btn.classList.toggle('active', snapGrid);
-  info(snapGrid ? 'Snap to grid: ON' : 'Snap to grid: OFF');
-};
+// ─── Boot ────────────────────────────────────────────────
 
-(document.getElementById('select-snap-axis') as HTMLSelectElement).onchange = (e) => {
-  const axis = (e.target as HTMLSelectElement).value as 'both' | 'horizontal' | 'vertical';
-  api.setSnapAxis(axis);
-  info(`Snap axis: ${axis}`);
-};
-
-// ----- outline -----
-document.getElementById('btn-outline')!.onclick = () => {
-  const selected = Array.from(canvas.getSelected());
-  if (selected.length === 0) {
-    info('No element selected for outline');
-    return;
-  }
-  for (const el of selected) {
-    api.outlineElement((el as any).id);
-  }
-  info(`Outlined ${selected.length} element(s)`);
-};
-
-// ----- preloader toggle -----
-let preloaderVisible = false;
-document.getElementById('btn-preloader-toggle')!.onclick = () => {
-  preloaderVisible = !preloaderVisible;
-  const btn = document.getElementById('btn-preloader-toggle')!;
-  if (preloaderVisible) {
-    api.showPreloader();
-    btn.textContent = 'Preloader: on';
-    btn.classList.add('active');
-  } else {
-    api.hidePreloader();
-    btn.textContent = 'Preloader: off';
-    btn.classList.remove('active');
-  }
-  info(preloaderVisible ? 'Preloader: ON' : 'Preloader: OFF');
-};
-
-// External API — доступна из консоли
-(window as any).api = api;
+document.addEventListener('DOMContentLoaded', init);

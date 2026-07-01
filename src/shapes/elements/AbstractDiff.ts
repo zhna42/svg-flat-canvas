@@ -13,16 +13,21 @@ export abstract class AbstractDiff {
     return this._wrapWithProxy(this, '');
   }
 
+  private static _isWrapSafe(value: unknown): boolean {
+    if (!value || typeof value !== 'object') return false;
+    if (value instanceof AbstractDiff) return false;
+    if (value instanceof Node) return false;
+    if (value instanceof DOMMatrix) return false;
+    if (value instanceof DOMPoint) return false;
+    return true;
+  }
+
   private _wrapWithProxy(obj: Record<string, any>, path: string): any {
     const self = this;
     for (const key of Object.keys(obj)) {
       if (key.startsWith('_')) continue;
       const value = obj[key];
-      if (
-        value &&
-        typeof value === 'object' &&
-        !(value instanceof AbstractDiff)
-      ) {
+      if (AbstractDiff._isWrapSafe(value)) {
         const nextPath = path ? `${path}.${key}` : key;
         obj[key] = this._wrapWithProxy(value, nextPath);
       }
@@ -39,12 +44,9 @@ export abstract class AbstractDiff {
           self._backendDiff[currentPath] = value;
           self._renderDiff[currentPath] = value;
         }
-        if (
-          value &&
-          typeof value === 'object' &&
-          !(value instanceof AbstractDiff)
-        )
+        if (AbstractDiff._isWrapSafe(value)) {
           value = self._wrapWithProxy(value, currentPath);
+        }
         const success = Reflect.set(target, prop, value, receiver);
         if (success) self._notifyListeners(currentPath, value);
         return success;

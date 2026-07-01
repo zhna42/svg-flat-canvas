@@ -1,152 +1,136 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SVG Canvas Example</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; background: #1a1a1a; color: #ddd; }
-    #app { display: flex; flex-direction: column; height: 100vh; }
-    #toolbar {
-      display: flex; align-items: center; gap: 6px; padding: 4px 8px;
-      background: #2a2a2a; border-bottom: 1px solid #444;
-      flex-wrap: wrap;
-    }
-    #toolbar button {
-      background: #3a3a3a; color: #ddd; border: 1px solid #555;
-      padding: 4px 10px; cursor: pointer; font-size: 13px; border-radius: 3px;
-    }
-    #toolbar button:hover { background: #4a4a4a; }
-    #toolbar button.active { background: #4285f4; border-color: #4285f4; color: #fff; }
-    #toolbar select {
-      background: #3a3a3a; color: #ddd; border: 1px solid #555;
-      padding: 4px 6px; font-size: 13px; border-radius: 3px;
-    }
-    #main-area { display: flex; flex: 1; min-height: 0; }
-    #canvas-area { flex: 1; position: relative; min-width: 0; display: flex; }
-    #canvas-container { position: absolute; inset: 0; }
-    #side-panel {
-      width: 280px; display: flex; flex-direction: column;
-      background: #2a2a2a; border-left: 1px solid #444;
-    }
-    #group-section { padding: 8px; border-bottom: 1px solid #444; }
-    #group-section .label { color: #888; font-size: 12px; margin-bottom: 4px; }
-    #group-list { max-height: 180px; overflow-y: auto; margin-bottom: 6px; }
-    .group-item {
-      padding: 3px 6px; cursor: pointer; font-size: 12px; border-radius: 3px;
-    }
-    .group-item:hover { background: #3a3a3a; }
-    .group-item.active { background: #4285f4; color: #fff; }
-    #group-section .btn-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
-    #group-section button, #group-section select {
-      background: #3a3a3a; color: #ddd; border: 1px solid #555;
-      padding: 3px 8px; cursor: pointer; font-size: 12px; border-radius: 3px;
-    }
-    #group-section select { flex: 1; }
-    #info-bar { flex: 1; padding: 8px; overflow-y: auto; }
-    #info { white-space: pre-wrap; font-size: 12px; color: #aaa; }
-  </style>
+  <title>SVG Canvas — Example</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div id="app">
-    <div id="toolbar">
-      <span style="color:#888;font-size:12px">Mode:</span>
-      <button id="btn-mode-element">● Element</button>
-      <button id="btn-mode-group">○ Group</button>
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <button id="btn-gesture-click">Click</button>
-      <button id="btn-gesture-rect">Rect</button>
-      <button id="btn-gesture-lasso">Lasso</button>
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <span style="color:#888;font-size:12px">Transform:</span>
-      <button id="btn-transform-resize">⊞ Resize</button>
-      <button id="btn-transform-rotate">↻ Rotate</button>
-      <button id="btn-transform-matrix">⟐ Matrix</button>
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <span style="color:#888;font-size:12px">Handle:</span>
-      <button id="btn-handle-resize" class="active">⤡ Resize</button>
-      <button id="btn-handle-rotate">↻ Rotate</button>
-      <label style="color:#ddd;font-size:12px;display:flex;align-items:center;gap:3px;cursor:pointer">
-        <input type="checkbox" id="chk-proportional-resize" style="cursor:pointer"> Prop
-      </label>
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <span style="color:#888;font-size:12px">Snap:</span>
-      <button id="btn-snap-corners">Snap corners: off</button>
-      <button id="btn-snap-planes">Snap planes: off</button>
-      <button id="btn-snap-artboard">Snap artboard: off</button>
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <button id="btn-avoid-collisions">Avoid collisions: off</button>
-      <button id="btn-toggle-pan">Pan: off</button>
-      <button id="btn-debug-hitarea">HitArea: off</button>
+  <!-- Top Toolbar -->
+  <div id="top-toolbar" class="toolbar top-toolbar">
+    <div class="toolbar-section">
+      <span class="section-label">Snap</span>
+      <button id="btn-snap-corners" data-toggle title="Snap to Corners">📐 Corners</button>
+      <button id="btn-snap-planes" data-toggle title="Snap to Planes">📏 Planes</button>
+      <button id="btn-snap-artboard" data-toggle title="Snap to Artboard">🖼️ Artboard</button>
+      <button id="btn-snap-guidelines" data-toggle title="Snap to Guidelines">📌 Guidelines</button>
+      <button id="btn-snap-grid" data-toggle title="Snap to Grid">🔲 Grid</button>
+      <button id="btn-avoid-collisions" data-toggle title="Avoid Collisions">🚫 Collide</button>
     </div>
-    <div id="toolbar-row2" style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:#2a2a2a;border-bottom:1px solid #444;flex-wrap:wrap;">
-      <span style="color:#888;font-size:12px">Draw:</span>
-      <button id="btn-tool-select" class="tool-btn active">Select</button>
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <button id="btn-tool-rect" class="tool-btn">Rect</button>
-      <button id="btn-tool-circle" class="tool-btn">Circle</button>
-      <button id="btn-tool-ellipse" class="tool-btn">Ellipse</button>
-      <button id="btn-tool-line" class="tool-btn">Line</button>
-      <button id="btn-tool-polyline" class="tool-btn">Polyline</button>
-      <button id="btn-tool-polygon" class="tool-btn">Polygon</button>
-      <button id="btn-tool-path" class="tool-btn">Path</button>
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <span style="color:#888;font-size:12px">Boolean:</span>
-      <button id="btn-bool-union" class="bool-btn">∪ Union</button>
-      <button id="btn-bool-intersect" class="bool-btn">∩ Intersect</button>
-      <button id="btn-bool-difference" class="bool-btn">∖ Diff</button>
-      <button id="btn-bool-off" class="bool-btn active">✕ Off</button>
-    </div>
-    <div id="toolbar-row3" style="display:flex;align-items:center;gap:6px;padding:4px 8px;background:#2a2a2a;border-bottom:1px solid #444;flex-wrap:wrap;">
-      <span style="color:#888;font-size:12px">Grid:</span>
-      <button id="btn-grid-toggle">Grid: off</button>
-      <span style="color:#888;font-size:12px">Step mm:</span>
-      <input id="input-grid-step" type="number" value="10" min="1" max="100" step="1" style="width:50px;background:#3a3a3a;color:#ddd;border:1px solid #555;padding:3px 4px;font-size:12px;border-radius:3px">
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <span style="color:#888;font-size:12px">Snap:</span>
-      <button id="btn-snap-guidelines">Snap guides: off</button>
-      <button id="btn-snap-grid">Snap grid: off</button>
-      <span style="color:#888;font-size:12px">Axis:</span>
-      <select id="select-snap-axis" style="width:70px">
+    <div class="toolbar-section">
+      <span class="section-label">Snap Axis</span>
+      <select id="sel-snap-axis" title="Snap Axis">
         <option value="both">Both</option>
-        <option value="horizontal">Horiz</option>
-        <option value="vertical">Vert</option>
+        <option value="horizontal">H</option>
+        <option value="vertical">V</option>
       </select>
-      <span style="color:#888;font-size:12px;margin-left:8px">|</span>
-      <button id="btn-outline">Outline</button>
-      <button id="btn-preloader-toggle">Preloader: off</button>
     </div>
-    <div id="main-area">
-      <div id="canvas-area">
-        <div id="canvas-container"></div>
+    <div class="toolbar-section">
+      <span class="section-label">Transform</span>
+      <button id="btn-transform-resize" title="Resize Mode">↔️ Resize</button>
+      <button id="btn-transform-rotate" title="Rotate Mode">🔄 Rotate</button>
+      <button id="btn-proportional-resize" data-toggle title="Proportional Resize">🔒 Proportional</button>
+    </div>
+    <div class="toolbar-section">
+      <span class="section-label">View</span>
+      <button id="btn-pan-mode" data-toggle title="Pan Mode">✋ Pan</button>
+      <button id="btn-toggle-rulers" data-toggle title="Toggle Rulers">📐 Rulers</button>
+      <button id="btn-toggle-grid" data-toggle title="Toggle Grid">🔲 Grid</button>
+      <span class="grid-step-group">
+        <label>Step:</label>
+        <input id="input-grid-step" type="number" value="10" min="1" max="100" step="1" title="Grid Step (mm)" />
+      </span>
+    </div>
+    <div class="toolbar-section">
+      <span class="section-label">Boolean</span>
+      <button id="btn-bool-union" title="Boolean Union">∪ Union</button>
+      <button id="btn-bool-intersect" title="Boolean Intersect">∩ Intersect</button>
+      <button id="btn-bool-diff" title="Boolean Difference">− Diff</button>
+      <button id="btn-bool-exit" title="Exit Boolean Mode" style="display:none">✕ Exit</button>
+    </div>
+    <div class="toolbar-section">
+      <span class="section-label">Debug</span>
+      <button id="btn-debug-hitarea" data-toggle title="Show Hit Areas">🎯 HitArea</button>
+      <button id="btn-preloader" title="Show/Hide Preloader">⏳ Preloader</button>
+    </div>
+  </div>
+
+  <div id="main-layout">
+    <!-- Left Toolbar -->
+    <div id="left-toolbar" class="toolbar left-toolbar">
+      <div class="toolbar-section">
+        <span class="section-label">Tools</span>
+        <button id="btn-sel-element" class="tool-mode active" title="Select Element (V)">🖱️ Elem</button>
+        <button id="btn-sel-group" class="tool-mode" title="Select Group (G)">📦 Group</button>
+        <button id="btn-creation-rect" class="creation-tool" data-type="rect" title="Rectangle">⬜ Rect</button>
+        <button id="btn-creation-circle" class="creation-tool" data-type="circle" title="Circle">⚫ Circle</button>
+        <button id="btn-creation-ellipse" class="creation-tool" data-type="ellipse" title="Ellipse">🔵 Ellipse</button>
+        <button id="btn-creation-line" class="creation-tool" data-type="line" title="Line">📏 Line</button>
+        <button id="btn-creation-path" class="creation-tool" data-type="path" title="Path">✏️ Path</button>
+        <button id="btn-creation-polygon" class="creation-tool" data-type="polygon" title="Polygon">⬠ Polygon</button>
+        <button id="btn-creation-polyline" class="creation-tool" data-type="polyline" title="Polyline">📐 Pline</button>
+        <button id="btn-creation-cancel" class="creation-tool cancel" title="Cancel Creation" style="display:none">🚫 Cancel</button>
       </div>
-      <div id="side-panel">
-        <div id="group-section">
-          <div class="label">Groups</div>
-          <div id="group-list"></div>
-          <div class="btn-row">
-            <button id="btn-group-create">+ Create</button>
-            <button id="btn-group-delete">− Delete</button>
-            <button id="btn-group-clear">Clear</button>
-            <button id="btn-group-select">Select all</button>
-          </div>
-          <div class="btn-row">
-            <select id="group-select"><option value="">— no group —</option></select>
-            <button id="btn-group-add">+ to group</button>
-            <button id="btn-group-remove">− from group</button>
-          </div>
-          <div class="btn-row">
-            <button id="btn-size-a4">A4</button>
-            <button id="btn-size-a3">A3</button>
-          </div>
+      <div class="toolbar-section">
+        <span class="section-label">Actions</span>
+        <button id="btn-undo" title="Undo (Ctrl+Z)">↩️ Undo</button>
+        <button id="btn-redo" title="Redo (Ctrl+Shift+Z)">↪️ Redo</button>
+        <button id="btn-delete" title="Delete Selected">🗑️ Delete</button>
+        <button id="btn-outline" title="Outline Element">✂️ Outline</button>
+      </div>
+      <div class="toolbar-section">
+        <span class="section-label">Selection</span>
+        <button id="btn-sel-all" title="Select All">✅ All</button>
+        <button id="btn-sel-none" title="Clear Selection">❎ None</button>
+      </div>
+      <div class="toolbar-section">
+        <span class="section-label">Style</span>
+        <div class="style-row">
+          <label>Fill</label>
+          <input id="input-fill" type="color" value="#3498db" />
         </div>
-        <div id="info-bar">
-          <div id="info"></div>
+        <div class="style-row">
+          <label>Stroke</label>
+          <input id="input-stroke" type="color" value="#2c3e50" />
         </div>
+        <div class="style-row">
+          <label>Width</label>
+          <input id="input-stroke-width" type="number" value="2" min="0" max="20" step="0.5" />
+        </div>
+        <button id="btn-apply-style">🎨 Apply Style</button>
+      </div>
+    </div>
+
+    <!-- Canvas Area -->
+    <div id="canvas-container"></div>
+
+    <!-- Right Panel -->
+    <div id="right-panel">
+      <div id="groups-panel" class="right-block">
+        <h3>📦 Groups</h3>
+        <div class="group-actions">
+          <button id="btn-group-create">+ Create</button>
+          <button id="btn-group-delete">✕ Delete</button>
+          <input id="input-group-name" type="text" placeholder="Group name" value="New Group" />
+        </div>
+        <div class="group-actions">
+          <button id="btn-group-add-elem">+ Add Sel</button>
+          <button id="btn-group-rem-elem">− Rem Sel</button>
+        </div>
+        <ul id="group-list"></ul>
+      </div>
+      <div id="event-log-panel" class="right-block">
+        <h3>📋 Events</h3>
+        <div class="event-controls">
+          <button id="btn-log-clear">Clear</button>
+          <label><input id="chk-log-pause" type="checkbox" /> Pause</label>
+        </div>
+        <div id="event-log"></div>
       </div>
     </div>
   </div>
+
   <script type="module" src="./main.ts"></script>
 </body>
 </html>
