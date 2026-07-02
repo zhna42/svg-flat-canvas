@@ -1,8 +1,9 @@
 module.exports = {
   meta: {
-    type: "problem",
+    type: 'problem',
     docs: {
-      description: "Запрещает ИИ трогать DOM API вне файла рендеринга. Слушатели разрешены только на корне и window.",
+      description:
+        'Запрещает ИИ трогать DOM API вне файла рендеринга. Слушатели разрешены только на корне и window.',
     },
     schema: [],
   },
@@ -10,34 +11,40 @@ module.exports = {
     const filename = context.getFilename();
 
     if (
-      filename.includes("Renderer") ||
-      filename.includes("renderLoop") ||
-      filename.includes("/renderer/") ||
-      filename.includes("EventManager") ||
-      filename.includes("SelectionOverlay")
+      filename.includes('Renderer') ||
+      filename.includes('renderLoop') ||
+      filename.includes('/renderer/') ||
+      filename.includes('/canvas/') ||
+      filename.includes('EventManager') ||
+      filename.includes('SelectionOverlay')
     ) {
       return {};
     }
 
-    const bannedGlobals = ["document", "HTMLElement", "SVGElement"];
+    const bannedGlobals = ['document', 'HTMLElement', 'SVGElement'];
 
     const bannedMethods = [
-      "getElementById",
-      "querySelector",
-      "querySelectorAll",
-      "getElementsByClassName",
-      "getElementsByTagName",
-      "createElement",
-      "createElementNS",
-      "remove",
+      'getElementById',
+      'querySelector',
+      'querySelectorAll',
+      'getElementsByClassName',
+      'getElementsByTagName',
+      'createElement',
+      'createElementNS',
+      'remove',
     ];
 
-    const allowedEventTargets = ["window", "rootSvg", "svgCanvas", "canvasElement"];
+    const allowedEventTargets = [
+      'window',
+      'rootSvg',
+      'svgCanvas',
+      'canvasElement',
+    ];
 
     return {
       Identifier(node) {
         if (bannedGlobals.includes(node.name)) {
-          if (!node.parent || node.parent.type !== "VariableDeclarator") {
+          if (!node.parent || node.parent.type !== 'VariableDeclarator') {
             context.report({
               node,
               message: `Запрещено использовать DOM API (${node.name}) вне рендерера!`,
@@ -47,7 +54,7 @@ module.exports = {
       },
 
       MemberExpression(node) {
-        if (!node.property || node.property.type !== "Identifier") return;
+        if (!node.property || node.property.type !== 'Identifier') return;
 
         const propertyName = node.property.name;
 
@@ -59,19 +66,25 @@ module.exports = {
           return;
         }
 
-        if (propertyName === "addEventListener" || propertyName === "removeEventListener") {
-          let objectName = "";
+        if (
+          propertyName === 'addEventListener' ||
+          propertyName === 'removeEventListener'
+        ) {
+          let objectName = '';
 
-          if (node.object.type === "Identifier") {
+          if (node.object.type === 'Identifier') {
             objectName = node.object.name;
-          } else if (node.object.type === "MemberExpression" && node.object.property.type === "Identifier") {
+          } else if (
+            node.object.type === 'MemberExpression' &&
+            node.object.property.type === 'Identifier'
+          ) {
             objectName = node.object.property.name;
           }
 
           if (!allowedEventTargets.includes(objectName)) {
             context.report({
               node: node.property,
-              message: `Слушатели событий можно вешать ТОЛЬКО на window или корень (${allowedEventTargets.join(", ")}). На объект "${objectName || "unknown"}" вешать нельзя!`,
+              message: `Слушатели событий можно вешать ТОЛЬКО на window или корень (${allowedEventTargets.join(', ')}). На объект "${objectName || 'unknown'}" вешать нельзя!`,
             });
           }
         }

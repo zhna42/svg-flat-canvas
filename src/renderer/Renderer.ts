@@ -32,7 +32,7 @@ export class Renderer {
     this.svg.appendChild(this.defs);
 
     this.background = new Background();
-    this.bootstrapBackgroundDom();
+    this.background.createDOM(this.svg, this.defs);
 
     this.cameraGroup = document.createElementNS(ns, 'g');
     this.svg.appendChild(this.cameraGroup);
@@ -44,7 +44,9 @@ export class Renderer {
     this.cameraGroup.appendChild(this.previewGroup);
 
     this.artboard = new Artboard();
-    this.bootstrapArtboardDom();
+    const artNode = this.artboard.createDOM(this.cameraGroup, this.shapesGroup);
+    this.nodeMap.set('artboard', artNode);
+
     this.startLoop();
   }
 
@@ -128,64 +130,11 @@ export class Renderer {
     }
   }
 
-  private bootstrapBackgroundDom(): void {
-    const bg = this.background;
-    const p = bg.pattern;
-
-    const patternNode = document.createElementNS(SVG_NS, 'pattern');
-    patternNode.id = p.id;
-    patternNode.setAttribute('width', String(p.geometry.width));
-    patternNode.setAttribute('height', String(p.geometry.height));
-    patternNode.setAttribute('patternUnits', p.geometry.patternUnits);
-
-    const bgRect = document.createElementNS(SVG_NS, 'rect');
-    bgRect.setAttribute('width', String(p.geometry.width));
-    bgRect.setAttribute('height', String(p.geometry.height));
-    bgRect.setAttribute('fill', '#f0f0f0');
-    patternNode.appendChild(bgRect);
-
-    for (const cell of p.cells) {
-      const cellNode = document.createElementNS(SVG_NS, 'rect');
-      cellNode.setAttribute('x', String(cell.x));
-      cellNode.setAttribute('y', String(cell.y));
-      cellNode.setAttribute('width', String(cell.width));
-      cellNode.setAttribute('height', String(cell.height));
-      cellNode.setAttribute('fill', cell.fill);
-      patternNode.appendChild(cellNode);
-    }
-
-    this.defs.appendChild(patternNode);
-
-    const fillNode = document.createElementNS(SVG_NS, 'rect');
-    fillNode.setAttribute('pointer-events', 'none');
-    this.svg.insertBefore(fillNode, this.svg.firstChild);
-    this.nodeMap.set('bg-fill', fillNode);
-
-    applyElementToDOM(bg.fillRect, fillNode);
-  }
-
-  private bootstrapArtboardDom(): void {
-    const artboardNode = document.createElementNS(SVG_NS, 'rect');
-    artboardNode.setAttribute('pointer-events', 'none');
-    this.cameraGroup.insertBefore(artboardNode, this.shapesGroup);
-    this.nodeMap.set('artboard', artboardNode);
-
-    applyElementToDOM(this.artboard.rect, artboardNode);
-  }
-
   private startLoop(): void {
     const tick = (): void => {
       if (this.camera.dirty) {
         this.cameraGroup.setAttribute('transform', this.camera.getTransform());
         this.camera.markClean();
-      }
-
-      if (this.artboard.dirty) {
-        const node = this.nodeMap.get('artboard');
-        if (node) {
-          applyElementToDOM(this.artboard.rect, node);
-        }
-        this.artboard.markClean();
       }
 
       const pending = this.queue.drain();
