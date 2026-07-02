@@ -10,6 +10,7 @@ import { SelectionHandler } from '@/selection/handlers/SelectionHandler';
 import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
 import { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay';
 import { TransformHandler } from '@/selection/transform/TransformHandler';
+import { GroupTransformHandler } from '@/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
 import { PreloaderOverlay } from '@/debug/PreloaderOverlay';
 import { GridOverlay } from '@/debug/GridOverlay';
@@ -17,7 +18,7 @@ import { ColorMap } from '@/color/ColorMap';
 import { RulerManager } from '@/ruler';
 import { BooleanHandler } from '@/boolean';
 import { CreationHandler } from '@/creation/CreationHandler';
-import { GroupManager } from '@/group';
+import { GroupManager, type Group } from '@/group';
 import { EventBus } from './EventBus';
 import { CommandBus } from '@/commands';
 import { TimeMachine } from '@/time-machine';
@@ -82,6 +83,7 @@ export class CanvasFactory {
     });
 
     const transformHandler = new TransformHandler(camera, commandBus);
+    const groupTransformHandler = new GroupTransformHandler(camera, commandBus);
 
     const overlayRoot = document.createElementNS(
       'http://www.w3.org/2000/svg',
@@ -147,6 +149,7 @@ export class CanvasFactory {
     c.selectionOverlay = selectionOverlay;
     c.groupSelectionOverlay = groupSelectionOverlay;
     c.transformHandler = transformHandler;
+    c._groupTransformHandler = groupTransformHandler;
     c.debugOverlay = debugOverlay;
     c.preloaderOverlay = preloaderOverlay;
     c.gridOverlay = gridOverlay;
@@ -189,6 +192,19 @@ export class CanvasFactory {
       if (selected.length > 0) {
         selectionOverlay.setPositions(selected);
       }
+    };
+
+    groupTransformHandler.onTransformStart = () => {
+      canvas.syncGroupSelectionOverlay();
+    };
+
+    groupTransformHandler.onTransformMove = () => {
+      groupSelectionOverlay.rotateBy(groupTransformHandler.rotationAngle);
+    };
+
+    groupTransformHandler.onTransformEnd = () => {
+      groupSelectionOverlay.clearRotation();
+      canvas.syncGroupSelectionOverlay();
     };
 
     camera.onChange = () => {
@@ -239,7 +255,9 @@ export class CanvasFactory {
       camera,
       overlayRoot,
       selectionOverlay,
+      groupSelectionOverlay,
       transformHandler,
+      groupTransformHandler,
       state: selectionState,
       getElements: () => shapeManager.getAll(),
       grid: spatialGrid,
@@ -249,6 +267,10 @@ export class CanvasFactory {
       isGuidelineDragging: () => rulerManager.isDragging,
       getGroupIdForElement: (elementId) =>
         groupManager.getGroupByElement(elementId)?.id,
+      getSelectedGroups: () =>
+        Array.from(groupManager.selectedGroupIds)
+          .map((id) => groupManager.getGroup(id))
+          .filter((g): g is Group => g !== undefined),
       onGroupSelect,
       getArtboardRect: () => canvas.getArtboardRect(),
       onDragStart: () => {

@@ -8,6 +8,9 @@ import { DragHandler } from '@/selection/drag';
 import { GroupSelectionHandler } from '@/selection/handlers/GroupSelectionHandler';
 import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
 import type { TransformHandler } from '@/selection/transform/TransformHandler';
+import type { GroupTransformHandler } from '@/selection/transform/GroupTransformHandler';
+import type { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay';
+import type { Group } from '@/group/Group';
 import { PathNodeHandler } from '@/selection/handlers/PathNodeHandler';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
@@ -31,13 +34,16 @@ import type { RectOverlay, LassoOverlay } from '@/utils/overlay-utils';
 import { getRenderQueue } from '@/utils/render-queue-utils';
 import type { EventBus } from '@/core/EventBus';
 import type { ImageElement } from '@/shapes/elements/ImageElement';
+import { computeGroupWorldBBox } from '@/spatial/group-bbox-utils';
 
 export interface SelectionHandlerOptions {
   svg: SVGSVGElement;
   camera: Camera;
   overlayRoot: SVGGElement;
   selectionOverlay: SelectionOverlay;
+  groupSelectionOverlay: GroupSelectionOverlay;
   transformHandler: TransformHandler;
+  groupTransformHandler: GroupTransformHandler;
   state: SelectionState;
   getElements: () => AbstractGraphicElement[];
   grid: SpatialGrid;
@@ -47,6 +53,7 @@ export interface SelectionHandlerOptions {
   isGuidelineDragging?: () => boolean;
   shortcuts?: Partial<SelectionShortcuts>;
   getGroupIdForElement?: (elementId: string) => string | undefined;
+  getSelectedGroups?: () => Group[];
   getArtboardRect?: () => {
     x: number;
     y: number;
@@ -286,6 +293,36 @@ export class SelectionHandler {
     );
   }
 
+  private tryGroupHandleHitTest(svgPt: { x: number; y: number }): boolean {
+    const hit = this.opts.groupSelectionOverlay.hitTestHandle(
+      svgPt.x,
+      svgPt.y,
+    );
+    if (!hit) return false;
+
+    const groups = this.opts.getSelectedGroups?.() ?? [];
+    const findElement = (id: string) =>
+      this.opts.getElements().find((e) => e.id === id);
+
+    let groupBBox: { x: number; y: number; width: number; height: number } | null = null;
+    for (const g of groups) {
+      if (g.id === hit.groupId) {
+        groupBBox = computeGroupWorldBBox(g, findElement);
+        break;
+      }
+    }
+    if (!groupBBox) return false;
+
+    const worldPt = this.opts.camera.screenToWorld(svgPt);
+    return this.opts.groupTransformHandler.tryStart(
+      hit.handle,
+      groupBBox,
+      worldPt,
+      groups,
+      findElement,
+    );
+  }
+
   private bindEvents(): void {
     const rootSvg = this.opts.svg;
     const isGroup = () => this.opts.state.mode === 'group';
@@ -363,6 +400,11 @@ export class SelectionHandler {
       }
 
       if (isGroup()) {
+        if (this.tryGroupHandleHitTest(svgPt)) {
+          e.preventDefault();
+          return;
+        }
+
         const started = this.groupHandler.onMouseDown(
           worldPt,
           this.ctrlHeld,
@@ -459,6 +501,10 @@ export class SelectionHandler {
       }
 
       if (isGroup()) {
+        if (this.opts.groupTransformHandler.isActive) {
+          this.opts.groupTransformHandler.move(worldPt, e.shiftKey);
+          return;
+        }
         if (this.dragHandler.isActive) this.dragHandler.move(worldPt);
         if (this.rectActive) this.updateRect(svgPt);
         if (this.lassoActive) {
@@ -520,6 +566,10 @@ export class SelectionHandler {
       }
 
       if (isGroup()) {
+        if (this.opts.groupTransformHandler.isActive) {
+          this.opts.groupTransformHandler.end();
+          return;
+        }
         if (this.dragHandler.isActive) this.dragHandler.end();
         else if (this.rectActive) {
           this.rectActive = false;

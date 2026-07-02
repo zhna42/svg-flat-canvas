@@ -8,6 +8,7 @@ import { SelectionHandler } from '@/selection/handlers/SelectionHandler';
 import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
 import { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay';
 import { TransformHandler } from '@/selection/transform/TransformHandler';
+import { GroupTransformHandler } from '@/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/debug/DebugOverlay';
 import { PreloaderOverlay } from '@/debug/PreloaderOverlay';
 import { GridOverlay } from '@/debug/GridOverlay';
@@ -72,6 +73,7 @@ export class SvgCanvas {
   _debugShowHitArea!: boolean;
   _externalApi!: ExternalApi;
   _editingPath: PathElement | null = null;
+  _groupTransformHandler!: GroupTransformHandler;
   panActive!: { value: boolean };
   events!: EventBus;
 
@@ -232,6 +234,10 @@ export class SvgCanvas {
     return this._externalApi;
   }
 
+  public getGroupTransformHandler(): GroupTransformHandler {
+    return this._groupTransformHandler;
+  }
+
   public setActiveCreationTool(type: CreationElementType | null): void {
     this.creationHandler.setActiveType(type);
     if (type !== null) {
@@ -266,10 +272,12 @@ export class SvgCanvas {
 
   public setTransformMode(mode: TransformMode): void {
     this.transformHandler.setMode(mode);
+    this._groupTransformHandler.setMode(mode);
   }
 
   public setProportionalResize(enabled: boolean): void {
     this.transformHandler.setProportionalResize(enabled);
+    this._groupTransformHandler.setProportionalResize(enabled);
   }
 
   public startTransform(mode: TransformMode): void {

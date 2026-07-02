@@ -7,12 +7,25 @@ import { DragSnapHelper, type SnapAxisMode } from '@/selection/drag/DragSnap';
 import { checkSceneCollisions } from '@/selection/drag/DragCollision';
 import { getRenderQueue } from '@/utils/render-queue-utils';
 
+const HOLD_DIST_SCREEN = 40;
+
+interface SnapState {
+  type: 'point' | 'line' | 'curve';
+  dx: number;
+  dy: number;
+  lineStartX?: number;
+  lineStartY?: number;
+  lineEndX?: number;
+  lineEndY?: number;
+}
+
 export class DragHandler {
   private _active = false;
   private snapToCorners = false;
   private snapToPlanes = false;
   private snapToArtboard = false;
   private avoidCollisions = false;
+  private dragStartMouse = { x: 0, y: 0 };
   private lastMouseWorld = { x: 0, y: 0 };
   private currentDx = 0;
   private currentDy = 0;
@@ -24,6 +37,8 @@ export class DragHandler {
   private camera: Camera;
   private grid: SpatialGrid;
   private getElements: () => AbstractGraphicElement[];
+
+  private snapState: SnapState | null = null;
 
   public onDragStart: (() => void) | null = null;
   public onDragMove: ((dx: number, dy: number) => void) | null = null;
@@ -107,36 +122,7 @@ export class DragHandler {
     currentSelected: readonly AbstractGraphicElement[],
   ): boolean {
     if (currentSelected.length === 0) return false;
-
-    this._active = true;
-    this.lastMouseWorld = { x: worldPoint.x, y: worldPoint.y };
-    this.currentDx = 0;
-    this.currentDy = 0;
-    this.targets = Array.from(currentSelected);
-    this._mode = 'element';
-    this.startMatrices.clear();
-    for (const el of currentSelected) {
-      this.startMatrices.set(
-        el.id,
-        new DOMMatrix(el.transform.matrix.toString()),
-      );
-    }
-
-    if (
-      this.snapToCorners ||
-      this.snapToPlanes ||
-      this.dragSnap.snapToGuidelines ||
-      this.dragSnap.snapToGrid
-    ) {
-      this.dragSnap.buildTargets(
-        this.targets,
-        this.snapToArtboard,
-        this.snapToCorners,
-        this.snapToPlanes,
-      );
-    }
-
-    this.onDragStart?.();
+    this.startCommon(worldPoint, currentSelected);
     return true;
   }
 
@@ -145,11 +131,21 @@ export class DragHandler {
     currentSelected: readonly AbstractGraphicElement[],
   ): void {
     if (currentSelected.length === 0) return;
+    this.startCommon(worldPoint, currentSelected);
+  }
+
+  private startCommon(
+    worldPoint: { x: number; y: number },
+    currentSelected: readonly AbstractGraphicElement[],
+  ): void {
     this._active = true;
+    this.dragStartMouse = { x: worldPoint.x, y: worldPoint.y };
     this.lastMouseWorld = { x: worldPoint.x, y: worldPoint.y };
     this.currentDx = 0;
     this.currentDy = 0;
+    this.snapState = null;
     this.targets = Array.from(currentSelected);
+    this._mode = 'element';
     this.startMatrices.clear();
     for (const el of currentSelected) {
       this.startMatrices.set(
@@ -186,26 +182,113 @@ export class DragHandler {
 
     if (Math.abs(frameDx) < 0.1 && Math.abs(frameDy) < 0.1) return;
 
-    let currentFrameDx = frameDx;
-    let currentFrameDy = frameDy;
+    const mouseDx = worldPoint.x - this.dragStartMouse.x;
+    const mouseDy = worldPoint.y - this.dragStartMouse.y;
 
-    if (this.snapToCorners || this.snapToPlanes) {
-      const snapResult = this.dragSnap.computeCorrection(
+    let elemDx = mouseDx;
+    let elemDy = mouseDy;
+    let snapEngaged = false;
+
+    const snapEnabled = this.snapToCorners || this.snapToPlanes;
+
+    if (snapEnabled) {
+      const snapResult = this.dragSnap.computeWorldSnap(
         this.targets,
         this.startMatrices,
-        this.currentDx,
-        this.currentDy,
-        frameDx,
-        frameDy,
+        mouseDx,
+        mouseDy,
+        0,
+        0,
       );
 
-      currentFrameDx += snapResult.correctionX / this.camera.zoom;
-      currentFrameDy += snapResult.correctionY / this.camera.zoom;
+      if (this.snapState) {
+        elemDx = this.snapState.dx;
+        elemDy = this.snapState.dy;
+
+        if (this.snapState.type === 'line' || this.snapState.type === 'curve') {
+          const lx =
+            (this.snapState.lineEndX ?? 0) - (this.snapState.lineStartX ?? 0);
+          const ly =
+            (this.snapState.lineEndY ?? 0) - (this.snapState.lineStartY ?? 0);
+          const lineLen = Math.hypot(lx, ly);
+
+          if (lineLen > 1e-6) {
+            const dirX = lx / lineLen;
+            const dirY = ly / lineLen;
+
+            const mouseAlong = (mouseDx - elemDx) * dirX + (mouseDy - elemDy) * dirY;
+            elemDx = elemDx + mouseAlong * dirX;
+            elemDy = elemDy + mouseAlong * dirY;
+
+            const perpX = (mouseDx - elemDx) - (mouseAlong * dirX);
+            const perpY = (mouseDy - elemDy) - (mouseAlong * dirY);
+            const perpDist = Math.hypot(perpX, perpY) * this.camera.zoom;
+
+            if (perpDist > HOLD_DIST_SCREEN) {
+              this.snapState = null;
+            } else {
+              snapEngaged = true;
+            }
+          } else {
+            this.snapState = null;
+          }
+        } else {
+          const gapX = (mouseDx - elemDx) * this.camera.zoom;
+          const gapY = (mouseDy - elemDy) * this.camera.zoom;
+          const gapDist = Math.hypot(gapX, gapY);
+
+          if (gapDist > HOLD_DIST_SCREEN) {
+            this.snapState = null;
+          } else if (mouseDx * mouseDx + mouseDy * mouseDy > 0.01) {
+            const mouseDotDrag =
+              mouseDx * (elemDx - mouseDx) + mouseDy * (elemDy - mouseDy);
+            if (mouseDotDrag > 0) {
+              this.snapState = null;
+            } else {
+              snapEngaged = true;
+            }
+          } else {
+            snapEngaged = true;
+          }
+        }
+      }
+
+      if (!this.snapState && snapResult.screenDx !== 0 || snapResult.screenDy !== 0) {
+        const newDx = mouseDx + snapResult.correctionDx;
+        const newDy = mouseDy + snapResult.correctionDy;
+
+        const correctionLen = Math.hypot(snapResult.screenDx, snapResult.screenDy);
+        if (correctionLen > 0.1) {
+          this.snapState = {
+            type: snapResult.type,
+            dx: newDx,
+            dy: newDy,
+            lineStartX: snapResult.lineStartX,
+            lineStartY: snapResult.lineStartY,
+            lineEndX: snapResult.lineEndX,
+            lineEndY: snapResult.lineEndY,
+          };
+          elemDx = newDx;
+          elemDy = newDy;
+          snapEngaged = true;
+        }
+      }
+
+      if (!this.snapState && !snapEngaged) {
+        elemDx = mouseDx;
+        elemDy = mouseDy;
+      }
     }
 
+    const prevDx = this.currentDx;
+    const prevDy = this.currentDy;
+
+    let currentFrameDx = elemDx - prevDx;
+    let currentFrameDy = elemDy - prevDy;
+
     if (this.avoidCollisions) {
-      let nextDx = this.currentDx + currentFrameDx;
-      let nextDy = this.currentDy + currentFrameDy;
+      let nextDx = prevDx + currentFrameDx;
+      let nextDy = prevDy + currentFrameDy;
 
       const collisionNormal = checkSceneCollisions(
         this.targets,
@@ -227,8 +310,8 @@ export class DragHandler {
           currentFrameDy -= dotProduct * collisionNormal.y;
         }
 
-        nextDx = this.currentDx + currentFrameDx;
-        nextDy = this.currentDy + currentFrameDy;
+        nextDx = prevDx + currentFrameDx;
+        nextDy = prevDy + currentFrameDy;
 
         if (
           !checkSceneCollisions(
@@ -244,15 +327,15 @@ export class DragHandler {
           this.currentDx = nextDx;
           this.currentDy = nextDy;
         } else {
-          const testXDx = this.currentDx + currentFrameDx;
-          const testYDy = this.currentDy + currentFrameDy;
+          const testXDx = prevDx + currentFrameDx;
+          const testYDy = prevDy + currentFrameDy;
 
           if (
             !checkSceneCollisions(
               this.targets,
               this.startMatrices,
               testXDx,
-              this.currentDy,
+              prevDy,
               this.camera,
               this.grid,
               this.getElements,
@@ -263,7 +346,7 @@ export class DragHandler {
             !checkSceneCollisions(
               this.targets,
               this.startMatrices,
-              this.currentDx,
+              prevDx,
               testYDy,
               this.camera,
               this.grid,
@@ -273,13 +356,21 @@ export class DragHandler {
             this.currentDy = testYDy;
           }
         }
+
+        if (snapEngaged) {
+          const newGapX = Math.abs(mouseDx - this.currentDx) * this.camera.zoom;
+          const newGapY = Math.abs(mouseDy - this.currentDy) * this.camera.zoom;
+          if (newGapX > HOLD_DIST_SCREEN || newGapY > HOLD_DIST_SCREEN) {
+            this.snapState = null;
+          }
+        }
       } else {
         this.currentDx = nextDx;
         this.currentDy = nextDy;
       }
     } else {
-      this.currentDx += currentFrameDx;
-      this.currentDy += currentFrameDy;
+      this.currentDx = prevDx + currentFrameDx;
+      this.currentDy = prevDy + currentFrameDy;
     }
 
     for (const el of this.targets) {
@@ -300,9 +391,7 @@ export class DragHandler {
     this._active = false;
 
     if (this.currentDx === 0 && this.currentDy === 0) {
-      this.targets = [];
-      this.startMatrices.clear();
-      this.dragSnap.reset();
+      this.resetDrag();
       this.onDragEnd?.();
       return;
     }
@@ -317,17 +406,20 @@ export class DragHandler {
     (cmd as any).options.mode = this._mode;
     this.bus.execute(cmd);
 
-    this.targets = [];
-    this.startMatrices.clear();
-    this.dragSnap.reset();
+    this.resetDrag();
     this.onDragEnd?.();
   }
 
   public abort(): void {
     if (!this._active) return;
     this._active = false;
+    this.resetDrag();
+  }
+
+  private resetDrag(): void {
     this.targets = [];
     this.startMatrices.clear();
     this.dragSnap.reset();
+    this.snapState = null;
   }
 }

@@ -15,6 +15,18 @@ import {
 
 export type SnapAxisMode = 'both' | 'horizontal' | 'vertical';
 
+export interface WorldSnapResult {
+  correctionDx: number;
+  correctionDy: number;
+  screenDx: number;
+  screenDy: number;
+  type: 'point' | 'line' | 'curve';
+  lineStartX?: number;
+  lineStartY?: number;
+  lineEndX?: number;
+  lineEndY?: number;
+}
+
 export class DragSnapHelper {
   private engine = new AdaptiveSnapEngine();
   private camera: Camera;
@@ -182,6 +194,36 @@ export class DragSnapHelper {
     frameDx: number,
     frameDy: number,
   ): { correctionX: number; correctionY: number } {
+    const result = this.computeWorldSnap(
+      targets,
+      startMatrices,
+      currentDx,
+      currentDy,
+      frameDx,
+      frameDy,
+    );
+    return {
+      correctionX: result.screenDx,
+      correctionY: result.screenDy,
+    };
+  }
+
+  computeWorldSnap(
+    targets: AbstractGraphicElement[],
+    startMatrices: Map<string, DOMMatrix>,
+    currentDx: number,
+    currentDy: number,
+    frameDx: number,
+    frameDy: number,
+  ): WorldSnapResult {
+    const empty: WorldSnapResult = {
+      correctionDx: 0,
+      correctionDy: 0,
+      screenDx: 0,
+      screenDy: 0,
+      type: 'point',
+    };
+
     const movingScreenPoints: Point[] = [];
     const testTargetDx = currentDx + frameDx;
     const testTargetDy = currentDy + frameDy;
@@ -204,14 +246,26 @@ export class DragSnapHelper {
       frameDx * this.camera.zoom,
       frameDy * this.camera.zoom,
     );
-    const result = this.engine.computeCorrection(movingScreenPoints);
+    const result = this.engine.computeCorrectionWithType(movingScreenPoints);
 
-    if (this.snapAxis === 'horizontal') {
-      return { correctionX: result.correctionX, correctionY: 0 };
-    }
-    if (this.snapAxis === 'vertical') {
-      return { correctionX: 0, correctionY: result.correctionY };
-    }
-    return result;
+    if (result.type === 'none') return empty;
+
+    let screenDx = result.correctionX;
+    let screenDy = result.correctionY;
+
+    if (this.snapAxis === 'horizontal') screenDy = 0;
+    else if (this.snapAxis === 'vertical') screenDx = 0;
+
+    return {
+      correctionDx: screenDx / this.camera.zoom,
+      correctionDy: screenDy / this.camera.zoom,
+      screenDx,
+      screenDy,
+      type: result.type,
+      lineStartX: result.lineStartX,
+      lineStartY: result.lineStartY,
+      lineEndX: result.lineEndX,
+      lineEndY: result.lineEndY,
+    };
   }
 }

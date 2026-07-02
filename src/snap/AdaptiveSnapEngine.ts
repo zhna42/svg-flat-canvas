@@ -5,6 +5,16 @@ export interface SnapResult {
   correctionY: number;
 }
 
+export interface TypedSnapResult {
+  correctionX: number;
+  correctionY: number;
+  type: 'none' | 'point' | 'line' | 'curve';
+  lineStartX?: number;
+  lineStartY?: number;
+  lineEndX?: number;
+  lineEndY?: number;
+}
+
 export interface SnapLine {
   x: number;
   y: number;
@@ -446,6 +456,13 @@ export class AdaptiveSnapEngine {
   }
 
   computeCorrection(movingPoints: { x: number; y: number }[]): SnapResult {
+    const r = this.computeCorrectionWithType(movingPoints);
+    return { correctionX: r.correctionX, correctionY: r.correctionY };
+  }
+
+  computeCorrectionWithType(
+    movingPoints: { x: number; y: number }[],
+  ): TypedSnapResult {
     const engageDist = this.engageDist();
     const holdDist = this.holdDist();
 
@@ -470,6 +487,11 @@ export class AdaptiveSnapEngine {
     let lineCorrY = 0;
     let lineDistX = Infinity;
     let lineDistY = Infinity;
+
+    let bestLineStartX: number | undefined;
+    let bestLineStartY: number | undefined;
+    let bestLineEndX: number | undefined;
+    let bestLineEndY: number | undefined;
 
     for (const mPt of movingPoints) {
       for (const tNode of this.snapNodes) {
@@ -523,6 +545,10 @@ export class AdaptiveSnapEngine {
           lineDistY = Math.abs(closestY - pt.y);
           lineCorrX = closestX - pt.x;
           lineCorrY = closestY - pt.y;
+          bestLineStartX = line.x;
+          bestLineStartY = line.y;
+          bestLineEndX = line.x2;
+          bestLineEndY = line.y2;
         }
       }
     }
@@ -545,6 +571,10 @@ export class AdaptiveSnapEngine {
           lineDistY = Math.abs(tNode.y - closestY);
           lineCorrX = tNode.x - closestX;
           lineCorrY = tNode.y - closestY;
+          bestLineStartX = mLine.x;
+          bestLineStartY = mLine.y;
+          bestLineEndX = mLine.x2;
+          bestLineEndY = mLine.y2;
         }
       }
     }
@@ -560,7 +590,11 @@ export class AdaptiveSnapEngine {
     switch (picked) {
       case 'curve':
         this.active = { x: true, y: true };
-        return { correctionX: curveCorrX, correctionY: curveCorrY };
+        return {
+          correctionX: curveCorrX,
+          correctionY: curveCorrY,
+          type: 'curve',
+        };
       case 'node':
         bestCorrX = nodeCorrX;
         bestCorrY = nodeCorrY;
@@ -576,24 +610,32 @@ export class AdaptiveSnapEngine {
       default:
         this.resetAxis('x');
         this.resetAxis('y');
-        return { correctionX: 0, correctionY: 0 };
+        return { correctionX: 0, correctionY: 0, type: 'none' };
     }
 
+    const resolvedX = this.resolveAxis(
+      'x',
+      bestCorrX,
+      bestDistX,
+      engageDist,
+      holdDist,
+    );
+    const resolvedY = this.resolveAxis(
+      'y',
+      bestCorrY,
+      bestDistY,
+      engageDist,
+      holdDist,
+    );
+
     return {
-      correctionX: this.resolveAxis(
-        'x',
-        bestCorrX,
-        bestDistX,
-        engageDist,
-        holdDist,
-      ),
-      correctionY: this.resolveAxis(
-        'y',
-        bestCorrY,
-        bestDistY,
-        engageDist,
-        holdDist,
-      ),
+      correctionX: resolvedX,
+      correctionY: resolvedY,
+      type: picked === 'node' ? 'point' : 'line',
+      lineStartX: bestLineStartX,
+      lineStartY: bestLineStartY,
+      lineEndX: bestLineEndX,
+      lineEndY: bestLineEndY,
     };
   }
 
