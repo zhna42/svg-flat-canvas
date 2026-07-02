@@ -1,5 +1,4 @@
 import { SVG_NS } from '@/constants';
-import type { Camera } from '@/camera/Camera';
 import type { Group } from '@/group/Group';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import { computeGroupWorldBBox } from '@/spatial/group-bbox-utils';
@@ -19,7 +18,7 @@ const HANDLE_OFFSET = HANDLE_SIZE / 2;
 const HANDLE_FILL = '#fff';
 const HANDLE_STROKE = '#4285f4';
 
-const handlePositions = (
+const handleLocalPositions = (
   w: number,
   h: number,
 ): { pos: GroupHandlePosition; cx: number; cy: number }[] => [
@@ -34,18 +33,17 @@ const handlePositions = (
 ];
 
 interface GroupOverlayData {
+  group: SVGGElement;
   rect: SVGRectElement;
   handleGroup: SVGGElement;
-  screenBBox: { x: number; y: number; width: number; height: number };
+  bbox: { x: number; y: number; width: number; height: number };
 }
 
 export class GroupSelectionOverlay {
   private readonly root: SVGGElement;
-  private readonly camera: Camera;
   private overlays = new Map<string, GroupOverlayData>();
 
-  public constructor(camera: Camera) {
-    this.camera = camera;
+  public constructor() {
     this.root = document.createElementNS(SVG_NS, 'g');
     this.root.setAttribute('pointer-events', 'none');
   }
@@ -58,8 +56,7 @@ export class GroupSelectionOverlay {
 
     for (const [id, data] of this.overlays) {
       if (!needed.has(id)) {
-        data.rect.remove();
-        data.handleGroup.remove();
+        data.group.remove();
         this.overlays.delete(id);
       }
     }
@@ -68,36 +65,49 @@ export class GroupSelectionOverlay {
       const worldBBox = computeGroupWorldBBox(g, findElement);
       if (!worldBBox) continue;
 
-      const screenBBox = this.camera.worldRectToScreen(worldBBox);
-
       let overlay = this.overlays.get(g.id);
       if (!overlay) {
+        const group = document.createElementNS(SVG_NS, 'g');
+        group.setAttribute('pointer-events', 'none');
+
         const rect = document.createElementNS(SVG_NS, 'rect');
         rect.setAttribute('fill', 'none');
-        rect.setAttribute('stroke', '#4285f4');
-        rect.setAttribute('stroke-width', '1.5');
+        rect.setAttribute('stroke', HANDLE_STROKE);
+        rect.setAttribute('stroke-width', String(1.5));
         rect.setAttribute('stroke-dasharray', '6 3');
         rect.setAttribute('pointer-events', 'none');
+        group.appendChild(rect);
 
         const handleGroup = document.createElementNS(SVG_NS, 'g');
         handleGroup.setAttribute('pointer-events', 'none');
         this.createHandlesDOM(handleGroup);
+        group.appendChild(handleGroup);
 
-        this.root.appendChild(rect);
-        this.root.appendChild(handleGroup);
-
-        overlay = { rect, handleGroup, screenBBox: { x: 0, y: 0, width: 0, height: 0 } };
+        this.root.appendChild(group);
+        overlay = { group, rect, handleGroup, bbox: { x: 0, y: 0, width: 0, height: 0 } };
         this.overlays.set(g.id, overlay);
       }
 
       const pad = 2;
-      overlay.rect.setAttribute('x', String(screenBBox.x - pad));
-      overlay.rect.setAttribute('y', String(screenBBox.y - pad));
-      overlay.rect.setAttribute('width', String(screenBBox.width + pad * 2));
-      overlay.rect.setAttribute('height', String(screenBBox.height + pad * 2));
+      overlay.rect.setAttribute('x', String(worldBBox.x - pad));
+      overlay.rect.setAttribute('y', String(worldBBox.y - pad));
+      overlay.rect.setAttribute('width', String(worldBBox.width + pad * 2));
+      overlay.rect.setAttribute('height', String(worldBBox.height + pad * 2));
 
-      overlay.screenBBox = screenBBox;
-      this.updateHandlePositions(overlay.handleGroup, screenBBox);
+      overlay.bbox = worldBBox;
+      this.updateHandlePositions(overlay.handleGroup, worldBBox);
+
+      const m = g.matrix;
+      const isIdentity =
+        m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1 && m.e === 0 && m.f === 0;
+      if (!isIdentity) {
+        overlay.group.setAttribute(
+          'transform',
+          `matrix(${m.a},${m.b},${m.c},${m.d},${m.e},${m.f})`,
+        );
+      } else {
+        overlay.group.removeAttribute('transform');
+      }
     }
   }
 
@@ -108,30 +118,13 @@ export class GroupSelectionOverlay {
       data.rect.setAttribute('x', String(x));
       data.rect.setAttribute('y', String(y));
 
-      data.screenBBox = {
-        x: data.screenBBox.x + dx,
-        y: data.screenBBox.y + dy,
-        width: data.screenBBox.width,
-        height: data.screenBBox.height,
+      data.bbox = {
+        x: data.bbox.x + dx,
+        y: data.bbox.y + dy,
+        width: data.bbox.width,
+        height: data.bbox.height,
       };
-      this.updateHandlePositions(data.handleGroup, data.screenBBox);
-    }
-  }
-
-  public rotateBy(angleDeg: number): void {
-    for (const [, data] of this.overlays) {
-      const cx = data.screenBBox.x + data.screenBBox.width / 2;
-      const cy = data.screenBBox.y + data.screenBBox.height / 2;
-      const tform = `rotate(${angleDeg} ${cx} ${cy})`;
-      data.rect.setAttribute('transform', tform);
-      data.handleGroup.setAttribute('transform', tform);
-    }
-  }
-
-  public clearRotation(): void {
-    for (const [, data] of this.overlays) {
-      data.rect.removeAttribute('transform');
-      data.handleGroup.removeAttribute('transform');
+      this.updateHandlePositions(data.handleGroup, data.bbox);
     }
   }
 
@@ -140,8 +133,8 @@ export class GroupSelectionOverlay {
     svgY: number,
   ): { handle: GroupHandlePosition; groupId: string } | null {
     for (const [groupId, data] of this.overlays) {
-      const bbox = data.screenBBox;
-      for (const { pos, cx, cy } of handlePositions(
+      const bbox = data.bbox;
+      for (const { pos, cx, cy } of handleLocalPositions(
         bbox.width,
         bbox.height,
       )) {
@@ -162,8 +155,7 @@ export class GroupSelectionOverlay {
 
   public clear(): void {
     for (const data of this.overlays.values()) {
-      data.rect.remove();
-      data.handleGroup.remove();
+      data.group.remove();
     }
     this.overlays.clear();
   }
@@ -195,7 +187,7 @@ export class GroupSelectionOverlay {
     bbox: { x: number; y: number; width: number; height: number },
   ): void {
     const children = handleGroup.children;
-    const positions = handlePositions(bbox.width, bbox.height);
+    const positions = handleLocalPositions(bbox.width, bbox.height);
     for (let i = 0; i < children.length && i < positions.length; i++) {
       const handle = children[i] as SVGRectElement;
       const { cx, cy } = positions[i];

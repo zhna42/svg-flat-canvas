@@ -20,6 +20,7 @@ import { BooleanHandler } from '@/boolean';
 import { CreationHandler } from '@/creation/CreationHandler';
 import { GroupManager, type Group } from '@/group';
 import { EventBus } from './EventBus';
+import { invalidateGroupBBox } from '@/spatial/group-bbox-utils';
 import { CommandBus } from '@/commands';
 import { TimeMachine } from '@/time-machine';
 import { createSelectHandler } from '@/commands/handlers/select-handler';
@@ -93,8 +94,8 @@ export class CanvasFactory {
 
     overlayRoot.appendChild(selectionOverlay.getElement());
 
-    const groupSelectionOverlay = new GroupSelectionOverlay(camera);
-    overlayRoot.appendChild(groupSelectionOverlay.getElement());
+    const groupSelectionOverlay = new GroupSelectionOverlay();
+    renderer.getCameraGroup().appendChild(groupSelectionOverlay.getElement());
 
     const debugOverlay = new DebugOverlay(camera);
     overlayRoot.appendChild(debugOverlay.getElement());
@@ -179,6 +180,7 @@ export class CanvasFactory {
         selectionOverlay.setPositions(selected);
       }
       if (groupManager.selectedGroupIds.size > 0) {
+        canvas.invalidateSelectedGroupBBoxes();
         canvas.syncGroupSelectionOverlay();
       }
     }
@@ -195,15 +197,18 @@ export class CanvasFactory {
     };
 
     groupTransformHandler.onTransformStart = () => {
+      for (const g of groupTransformHandler.selectedGroups) {
+        g.matrix = new DOMMatrix();
+        invalidateGroupBBox(g);
+      }
       canvas.syncGroupSelectionOverlay();
     };
 
     groupTransformHandler.onTransformMove = () => {
-      groupSelectionOverlay.rotateBy(groupTransformHandler.rotationAngle);
+      canvas.syncGroupSelectionOverlay();
     };
 
     groupTransformHandler.onTransformEnd = () => {
-      groupSelectionOverlay.clearRotation();
       canvas.syncGroupSelectionOverlay();
     };
 

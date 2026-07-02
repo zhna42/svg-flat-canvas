@@ -8,6 +8,11 @@ export class Group {
   public readonly id: string;
   public name: string;
   public readonly elementIds: Set<string>;
+  public matrix = new DOMMatrix();
+
+  public _cachedWorldBBox: { x: number; y: number; width: number; height: number } | null = null;
+  public _bboxDirty = true;
+
   protected _savedFlag = false;
   protected _unsavedKeys = new Set<string>();
 
@@ -45,6 +50,11 @@ export class Group {
         case 'elementIds':
           dto.elementIds = Array.from(this.elementIds);
           break;
+        case 'matrix': {
+          const m = this.matrix;
+          dto.matrix = [m.a, m.b, m.c, m.d, m.e, m.f];
+          break;
+        }
       }
     }
     return dto;
@@ -59,7 +69,10 @@ export class Group {
   }
 
   public toDTO(): Record<string, unknown> {
-    return this.toData() as unknown as Record<string, unknown>;
+    const d = this.toData() as unknown as Record<string, unknown>;
+    const m = this.matrix;
+    d.matrix = [m.a, m.b, m.c, m.d, m.e, m.f];
+    return d;
   }
 
   public applyDTO(dto: Record<string, unknown>): void {
@@ -73,6 +86,12 @@ export class Group {
         if (typeof id === 'string') this.elementIds.add(id);
       }
       this.markUnsaved('elementIds');
+      this._bboxDirty = true;
+    }
+    if (Array.isArray(dto.matrix) && dto.matrix.length === 6) {
+      const [a, b, c, d, e, f] = dto.matrix as number[];
+      this.matrix = new DOMMatrix([a, b, c, d, e, f]);
+      this.markUnsaved('matrix');
     }
   }
 }

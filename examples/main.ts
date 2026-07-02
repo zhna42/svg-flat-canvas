@@ -19,6 +19,16 @@ function init(): void {
   api = canvas.getExternalApi();
   api.setArtboardSize(210, 297);
 
+  container.addEventListener('wheel', (e: WheelEvent) => {
+    e.preventDefault();
+    const rect = container.getBoundingClientRect();
+    const svgPt = {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+    canvas.getCamera().setZoom(svgPt, e.deltaY > 0 ? 0.95 : 1.05);
+  }, { passive: false });
+
   loadDemoData();
   setupEventLog();
   setupTopToolbar();

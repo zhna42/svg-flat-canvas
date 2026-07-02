@@ -105,11 +105,13 @@ export class GroupManager {
       if (oldGroup) {
         oldGroup.elementIds.delete(elementId);
         oldGroup.markUnsaved('elementIds');
+        oldGroup._bboxDirty = true;
       }
     }
     el.groupId = groupId;
     g.elementIds.add(elementId);
     g.markUnsaved('elementIds');
+    g._bboxDirty = true;
     this.events?.emit('GROUP_ELEMENT_ADDED', { groupId, elementId });
     this.notify();
   }
@@ -119,6 +121,7 @@ export class GroupManager {
     if (!g || !g.elementIds.has(elementId)) return;
     g.elementIds.delete(elementId);
     g.markUnsaved('elementIds');
+    g._bboxDirty = true;
     const el = this.findElement(elementId);
     if (el && el.groupId === groupId) el.groupId = '';
     this.events?.emit('GROUP_ELEMENT_REMOVED', { groupId, elementId });

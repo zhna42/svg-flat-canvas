@@ -50,8 +50,8 @@ export class GroupTransformHandler {
   private rotationCenter: Point = { x: 0, y: 0 };
   private startAngle = 0;
   private startWorldPoint: Point = { x: 0, y: 0 };
-  private currentAngle = 0;
   private bus: CommandBus;
+  private groups: Group[] = [];
 
   public onTransformStart: ((mode: GroupTransformMode) => void) | null = null;
   public onTransformMove: (() => void) | null = null;
@@ -66,8 +66,8 @@ export class GroupTransformHandler {
     return this._active;
   }
 
-  public get rotationAngle(): number {
-    return this.currentAngle;
+  public get selectedGroups(): readonly Group[] {
+    return this.groups;
   }
 
   public setMode(mode: GroupTransformMode): void {
@@ -87,6 +87,7 @@ export class GroupTransformHandler {
   ): boolean {
     if (groups.length === 0) return false;
 
+    this.groups = Array.from(groups);
     this.handle = handle;
     this.startWorldPoint = { x: worldPoint.x, y: worldPoint.y };
     this.groupStartBBox = {
@@ -117,8 +118,6 @@ export class GroupTransformHandler {
 
     if (this.elements.length === 0) return false;
 
-    this.currentAngle = 0;
-
     if (this.mode === 'rotate') {
       this.rotationCenter = {
         x: groupBBox.x + groupBBox.width / 2,
@@ -146,7 +145,6 @@ export class GroupTransformHandler {
           worldPoint.x - this.rotationCenter.x,
         ) * (180 / Math.PI);
       let delta = currentAngle - this.startAngle;
-      this.currentAngle = delta;
       if (shiftHeld) {
         delta = Math.round(delta / 15) * 15;
       }
@@ -202,6 +200,16 @@ export class GroupTransformHandler {
       });
       el.transform.applyRotate(deltaAngle, localCenter, startMatrix);
       getRenderQueue()?.add(el);
+    }
+
+    const cx = this.rotationCenter.x;
+    const cy = this.rotationCenter.y;
+    const m = new DOMMatrix()
+      .translateSelf(cx, cy)
+      .rotateSelf(deltaAngle)
+      .translateSelf(-cx, -cy);
+    for (const g of this.groups) {
+      g.matrix = m;
     }
   }
 

@@ -7,6 +7,10 @@ export const computeGroupWorldBBox = (
 ): { x: number; y: number; width: number; height: number } | null => {
   if (g.elementIds.size === 0) return null;
 
+  if (!g._bboxDirty && g._cachedWorldBBox) {
+    return g._cachedWorldBBox;
+  }
+
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
@@ -26,5 +30,13 @@ export const computeGroupWorldBBox = (
   }
 
   if (!hasAny) return null;
-  return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+
+  g._cachedWorldBBox = { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+  g._bboxDirty = false;
+  return g._cachedWorldBBox;
+};
+
+export const invalidateGroupBBox = (g: Group): void => {
+  g._bboxDirty = true;
+  g._cachedWorldBBox = null;
 };

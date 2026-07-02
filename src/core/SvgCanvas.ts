@@ -869,6 +869,16 @@ export class SvgCanvas {
     );
   }
 
+  invalidateSelectedGroupBBoxes(): void {
+    for (const id of this.groupManager.selectedGroupIds) {
+      const g = this.groupManager.getGroup(id);
+      if (g) {
+        g._bboxDirty = true;
+        g._cachedWorldBBox = null;
+      }
+    }
+  }
+
   public reorderElement(
     id: string,
     position: 'before' | 'after',
