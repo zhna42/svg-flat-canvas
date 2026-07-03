@@ -1,141 +1,192 @@
 import { NodeDOMFactory } from './NodeDOMFactory';
-import { DrawPayload, LayerName } from './types/DrawPayload';
+import { Camera } from './Camera';
+import { DrawPayload, LayerName } from '@/types';
 
-// Интерфейсы для системных классов (чтобы не привязываться к реализации)
-interface ISystemNode {
-  setId(id: string): void;
-}
+const SYSTEM_IDS = new Set([
+  'camera',
+  'artboard',
+  'grid',
+  'rulers',
+  'selection',
+  'selection-group',
+]);
+
+const TAG_BY_SYS_ID: Record<string, string> = {
+  camera: 'g',
+  artboard: 'rect',
+  grid: 'g',
+  rulers: 'g',
+  selection: 'g',
+  'selection-group': 'g',
+};
 
 export class CanvasView {
-  private readonly _svgRoot: SVGSVGElement;
-  private readonly _factory: NodeDOMFactory;
-
-  // Плоская карта всех элементов на холсте: от фона до рамки выделения
-  private _elements = new Map<string, SVGElement>();
-
-  // Ссылки на группы-слои для быстрого поиска при создании элементов
-  private _layers = new Map<LayerName, SVGGElement>();
-
-  // Ссылки на корневые системные узлы
-  private _defsNode!: SVGDefsElement;
-  private _cameraGroup!: SVGGElement;
+  readonly _svgRoot: SVGSVGElement;
+  readonly _factory: NodeDOMFactory;
+  readonly _camera: Camera;
+  _elements = new Map<string, SVGElement>();
+  _layers = new Map<LayerName, SVGGElement>();
+  _defsNode!: SVGDefsElement;
+  _cameraGroup!: SVGGElement;
 
   constructor(
     svgElement: SVGSVGElement,
     factory: NodeDOMFactory,
-    camera: ISystemNode,
-    artboard: ISystemNode,
-    background: ISystemNode,
+    camera: Camera,
   ) {
     this._svgRoot = svgElement;
     this._factory = factory;
-
-    // 1. Генерируем жесткую структуру слоев
+    this._camera = camera;
     this._buildDOMSkeleton();
-
-    // 2. Генерируем уникальные ID для системных компонентов и связываем их
-    this._initSystemNodes(camera, artboard, background);
+    this._elements.set(camera.id, this._cameraGroup);
+    camera.groupId = this._cameraGroup.getAttribute('id') || '';
   }
 
-  /**
-   * Сборка стартового каркаса SVG согласно схеме
-   */
-  private _buildDOMSkeleton(): void {
+  _buildDOMSkeleton(): void {
     this._svgRoot.innerHTML = '';
 
-    // <defs />
-    this._defsNode = document.createElementNS('http://w3.org', 'defs');
+    this._defsNode = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'defs',
+    );
     this._svgRoot.appendChild(this._defsNode);
 
-    // <g id="cameraGroup">
-    this._cameraGroup = document.createElementNS('http://w3.org', 'g');
+    this._cameraGroup = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'g',
+    );
+    this._cameraGroup.setAttribute('id', 'cameraGroup');
     this._svgRoot.appendChild(this._cameraGroup);
 
-    // Создаем рабочие слои-группы
-    const shapes = document.createElementNS('http://w3.org', 'g');
-    const preview = document.createElementNS('http://w3.org', 'g');
-    const groupSelection = document.createElementNS('http://w3.org', 'g');
-    const overlay = document.createElementNS('http://w3.org', 'g');
+    const ns = 'http://www.w3.org/2000/svg';
+    const shapes = document.createElementNS(ns, 'g');
+    const preview = document.createElementNS(ns, 'g');
+    const groupSelection = document.createElementNS(ns, 'g');
+    const overlay = document.createElementNS(ns, 'g');
 
-    // Раскладываем их по местам в соответствии со структурой
     this._cameraGroup.appendChild(shapes);
     this._cameraGroup.appendChild(preview);
     this._cameraGroup.appendChild(groupSelection);
-    this._svgRoot.appendChild(overlay); // overlayRoot вне камеры!
+    this._svgRoot.appendChild(overlay);
 
-    // Сохраняем ссылки в карту слоев для метода draw()
     this._layers.set('shapesGroup', shapes);
     this._layers.set('previewGroup', preview);
     this._layers.set('groupSelectionOverlay', groupSelection);
     this._layers.set('overlayRoot', overlay);
   }
 
-  /**
-   * Регистрация системных узлов в плоской структуре элементов
-   */
-  private _initSystemNodes(
-    camera: ISystemNode,
-    artboard: ISystemNode,
-    background: ISystemNode,
-  ): void {
-    const bgId = crypto.randomUUID();
-    const camId = crypto.randomUUID();
-    const artId = crypto.randomUUID();
-
-    // 1. Создаем и монтируем Бэкграунд (он идет перед cameraGroup)
-    const bgEl = this._factory.createDOM('background');
-    this._svgRoot.insertBefore(bgEl, this._cameraGroup);
-    this._elements.set(bgId, bgEl);
-    background.setId(bgId);
-
-    // 2. Связываем камеру (ей не нужен отдельный тег, она управляет самой группой cameraGroup)
-    this._elements.set(camId, this._cameraGroup);
-    camera.setId(camId);
-
-    // 3. Создаем и монтируем Артборд (первым элементом внутрь cameraGroup)
-    const artEl = this._factory.createDOM('artboard');
-    this._cameraGroup.insertBefore(artEl, this._cameraGroup.firstChild);
-    this._elements.set(artId, artEl);
-    artboard.setId(artId);
+  public initSystemNodes(systemNodes: Record<string, string>): void {
+    for (const [sysId, id] of Object.entries(systemNodes)) {
+      const tag = TAG_BY_SYS_ID[sysId] || 'rect';
+      const el = this._factory.createDOM(tag);
+      this._mountSystemNode(sysId, el);
+      this._elements.set(id, el);
+    }
   }
 
-  /**
-   * Главный метод отрисовки (Универсальный draw)
-   * Либо создает элемент и монтирует в слой, либо обновляет свойства существующего.
-   */
+  _mountSystemNode(sysId: string, el: SVGElement): void {
+    switch (sysId) {
+      case 'artboard':
+        this._cameraGroup.insertBefore(el, this._cameraGroup.firstChild);
+        break;
+      case 'grid':
+        this._cameraGroup.insertBefore(
+          el,
+          this._cameraGroup.firstChild?.nextSibling ?? null,
+        );
+        break;
+      case 'rulers':
+        this._svgRoot.appendChild(el);
+        break;
+      case 'selection':
+        this._svgRoot.lastElementChild?.appendChild(el);
+        break;
+      case 'selection-group':
+        this._cameraGroup.querySelectorAll('g')[2]?.appendChild(el);
+        break;
+    }
+  }
+
   public draw(payload: DrawPayload): void {
     const { id, type, layerName, ...diff } = payload;
     let element = this._elements.get(id);
-
-    // Если элемента нет — создаем его
     if (!element) {
-      if (!layerName) {
-        throw new Error(
-          `Невозможно создать элемент ${id} (${type}): не указан layerName.`,
-        );
-      }
+      if (!layerName) return;
 
       const targetLayer = this._layers.get(layerName);
-      if (!targetLayer) {
-        throw new Error(`Слой ${layerName} не найден в структуре CanvasView.`);
-      }
+      if (!targetLayer) return;
 
-      // Запрашиваем создание у фабрики
       element = this._factory.createDOM(type);
       element.setAttribute('id', id);
-
-      // Монтируем в DOM и сохраняем в плоскую карту elements
       targetLayer.appendChild(element);
       this._elements.set(id, element);
     }
 
-    // Применяем дифф (мутируем свойства элемента)
-    this._applyDiff(element, diff);
+    if (SYSTEM_IDS.has(id)) {
+      this._applySystemDiff(id, element, diff as Record<string, unknown>);
+    } else {
+      this._applyShapeDiff(element, diff as Record<string, unknown>);
+    }
   }
 
-  /**
-   * Универсальное удаление элемента по ID (фигуры или системного узла)
-   */
+  _applySystemDiff(
+    id: string,
+    element: SVGElement,
+    diff: Record<string, unknown>,
+  ): void {
+    switch (id) {
+      case 'camera': {
+        const x = typeof diff.x === 'number' ? diff.x : this._camera.x;
+        const y = typeof diff.y === 'number' ? diff.y : this._camera.y;
+        const zoom =
+          typeof diff.zoom === 'number' ? diff.zoom : this._camera.zoom;
+        const transform = `translate(${x}, ${y}) scale(${zoom})`;
+        element.setAttribute('transform', transform);
+        return;
+      }
+      case 'artboard': {
+        element.setAttribute('x', '0');
+        element.setAttribute('y', '0');
+        element.setAttribute('pointer-events', 'none');
+        const w =
+          typeof diff.widthMM === 'number'
+            ? diff.widthMM * 3.779527559055118
+            : undefined;
+        const h =
+          typeof diff.heightMM === 'number'
+            ? diff.heightMM * 3.779527559055118
+            : undefined;
+        const fill = typeof diff.fill === 'string' ? diff.fill : '#ffffff';
+        if (w !== undefined) element.setAttribute('width', String(w));
+        if (h !== undefined) element.setAttribute('height', String(h));
+        element.setAttribute('fill', fill);
+        return;
+      }
+      case 'grid':
+      case 'rulers':
+      case 'selection':
+      case 'selection-group': {
+        if ('visible' in diff) {
+          element.setAttribute(
+            'visibility',
+            diff.visible ? 'visible' : 'hidden',
+          );
+        }
+        return;
+      }
+    }
+  }
+
+  _applyShapeDiff(element: SVGElement, diff: Record<string, unknown>): void {
+    for (const [key, value] of Object.entries(diff)) {
+      if (value === null || value === undefined) {
+        element.removeAttribute(key);
+      } else {
+        element.setAttribute(key, String(value));
+      }
+    }
+  }
+
   public remove(id: string): void {
     const element = this._elements.get(id);
     if (element) {
@@ -144,38 +195,11 @@ export class CanvasView {
     }
   }
 
-  /**
-   * Геттер для дефсов (чтобы фабрика могла динамически пушить туда градиенты или паттерны сетки)
-   */
   public get defs(): SVGDefsElement {
     return this._defsNode;
   }
 
-  /**
-   * Внутренний метод наката изменений на SVG-элемент
-   */
-  private _applyDiff(element: SVGElement, diff: Record<string, unknown>): void {
-    for (const [path, value] of Object.entries(diff)) {
-      // Поддержка вложенных стилей (например, "style.stroke": "red")
-      if (path.startsWith('style.')) {
-        const styleProp = path.split('.')[1];
-        const cssProp = styleProp.replace(/([A-Z])/g, '-$1').toLowerCase();
-        element.style.setProperty(cssProp, String(value));
-        continue;
-      }
-
-      // Кастомный маппинг для камеры (если дифф пришел от нее, она меняет матрицу)
-      if (path === 'transformMatrix' && value instanceof DOMMatrix) {
-        element.setAttribute('transform', value.toString());
-        continue;
-      }
-
-      // Базовые атрибуты SVG
-      if (value === null || value === undefined) {
-        element.removeAttribute(path);
-      } else {
-        element.setAttribute(path, String(value));
-      }
-    }
+  public get cameraGroup(): SVGGElement {
+    return this._cameraGroup;
   }
 }

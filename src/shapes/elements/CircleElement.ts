@@ -3,7 +3,7 @@ import type { Point, BoundingBox } from '@/types';
 import { CircleHitArea } from '../modules/HitArea';
 
 export class CircleElement extends AbstractGraphicElement {
-  private _ha = new CircleHitArea();
+  _ha = new CircleHitArea();
 
   public geometry = { cx: 0, cy: 0, r: 0 };
 

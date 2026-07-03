@@ -1,9 +1,3 @@
-import type { Command } from './types';
+import type { CommandHandler, CommandRegistry } from '@/types';
 
-export type CommandHandler = (
-  command: Command,
-) => void | { affected: { kind: string; id: string }[] };
-
-export interface CommandRegistry {
-  [type: string]: CommandHandler;
-}
+export type { CommandHandler, CommandRegistry };

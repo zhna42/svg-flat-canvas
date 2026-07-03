@@ -2,9 +2,8 @@ import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { TimeMachine } from '@/time-machine/TimeMachine';
-import type { SpatialGrid } from '@/spatial/SpatialGrid';
+import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
 import { PathElement } from '@/shapes/elements/PathElement';
-import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export const createBooleanOperationHandler = (
   shapeManager: ShapeManager,
@@ -37,7 +36,6 @@ export const createBooleanOperationHandler = (
     resultEl.style.stroke = resultStroke;
     resultEl.style.strokeWidth = 2;
     resultEl.rebuildHitArea();
-    getRenderQueue()?.add(resultEl);
     shapeManager.addElement(resultEl);
 
     const bbox = resultEl.getTransformedBBox();

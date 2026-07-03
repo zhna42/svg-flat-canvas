@@ -1,28 +1,16 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { SpatialGrid } from '@/spatial/SpatialGrid';
-import type { Camera } from '@/camera/Camera';
 import type { DragHandler } from '@/selection/drag';
 import {
   hitTestGroupsByPoint as hitTestGroupsPoint,
   hitTestGroupsByRect as hitTestGroupsRect,
   hitTestGroupsByLasso as hitTestGroupsLasso,
-} from '@/spatial/group-hit-test';
-import type { CommandBus } from '@/commands/CommandBus';
+} from '@/math/group-hit-test';
 import {
   createSelectPickCommand,
   createSelectRectCommand,
   createSelectLassoCommand,
 } from '@/commands/factories/select-command-factory';
-
-export interface GroupSelectionHandlerOptions {
-  getElements: () => AbstractGraphicElement[];
-  grid: SpatialGrid;
-  lookupGroup: (elementId: string) => string | undefined;
-  camera: Camera;
-  bus: CommandBus;
-  dragHandler: DragHandler;
-  onGroupSelect?: (ids: string[]) => void;
-}
+import type { GroupSelectionHandlerOptions } from '@/types';
 
 export class GroupSelectionHandler {
   private readonly opts: GroupSelectionHandlerOptions;

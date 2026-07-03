@@ -1,11 +1,20 @@
 import type { SvgCanvas } from '@/core/SvgCanvas';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { BusEvent } from '@/core/EventBus';
-import type { GuidelineData } from '@/ruler';
-import type { BooleanOp } from '@/boolean';
-import type { Group } from '@/group';
-import { createFromJSON } from '@/shapes/elements/factory';
-import { DebugLog } from '@/utils/DebugLog';
+import type { PathElement } from '@/shapes/elements/PathElement';
+import type {
+  BusEvent,
+  GuidelineData,
+  BooleanOp,
+  SelectionMode,
+  SelectionGesture,
+  SelectionShortcuts,
+  ElementJSON,
+  TimeSnapshot,
+  GroupConflictAction,
+} from '@/types';
+import type { Group } from '@/shapes/group';
+import { createFromJSON, createFromJSONArray } from '@/shapes/elements/factory';
+import { DebugLog } from '@/canvas/overlays/debug/DebugLog';
 import {
   createCreateCommand,
   createCreateFileCommand,
@@ -14,9 +23,8 @@ import {
   createRotateCommand,
   createTransformCommand,
 } from '@/commands';
-import type { ElementType } from '@/types';
+import type { ElementType, TransformMode, CreationElementType } from '@/types';
 import { MM_TO_PX } from '@/constants';
-import { getRenderQueue } from '@/utils/render-queue-utils';
 import type {
   CreateShapeDTO,
   UpdateShapesDTO,
@@ -57,25 +65,34 @@ export class ExternalApi {
     this.canvas = canvas;
   }
 
+  // ── Отладка ──
+
+  /** Включить/выключить режим отладки */
   public setDebugMode(enabled: boolean): void {
     this.dbg.setEnabled(enabled);
   }
 
+  // ── События ──
+
+  /** Подписаться на событие */
   public on(type: string, fn: (event: BusEvent) => void): () => void {
     this.dbg.log('API', `on ${type}`);
     return this.canvas.events.on(type, fn);
   }
 
+  /** Отписаться от события */
   public off(type: string, fn: (event: BusEvent) => void): void {
     this.dbg.log('API', `off ${type}`);
     this.canvas.events.off(type, fn);
   }
 
+  // ── Создание фигур ──
+
+  /** Создать фигуру из DTO */
   public createShape(dto: CreateShapeDTO): AbstractGraphicElement {
     this.dbg.log('API', 'createShape', { type: dto.type });
     const id = dto.id ?? generateId();
     const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
-
     if (dto.transform) this.applyTransformDto(el, dto.transform);
     if (dto.name !== undefined) el.name = dto.name;
     if (dto.visible !== undefined) el.setVisible(dto.visible);
@@ -84,11 +101,11 @@ export class ExternalApi {
     if (dto.data !== undefined || dto.laserData !== undefined) {
       el.data = { ...dto.data, laserData: dto.laserData };
     }
-
-    this.canvas.getCommandBus().execute(createCreateCommand(el));
+    this.canvas.commandBus.execute(createCreateCommand(el));
     return el;
   }
 
+  /** Создать файл (набор фигур с общим groupId) */
   public createFile(
     dtos: CreateShapeDTO[],
     name?: string,
@@ -97,11 +114,9 @@ export class ExternalApi {
     const elements: AbstractGraphicElement[] = [];
     const groupId = `file_${Date.now()}_${++this.fileCounter}`;
     const groupName = name ?? `file_${this.fileCounter}`;
-
     for (const dto of dtos) {
       const id = dto.id ?? generateId();
       const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
-
       if (dto.transform) this.applyTransformDto(el, dto.transform);
       if (dto.name !== undefined) el.name = dto.name;
       if (dto.visible !== undefined) el.setVisible(dto.visible);
@@ -110,22 +125,33 @@ export class ExternalApi {
       if (dto.data !== undefined || dto.laserData !== undefined) {
         el.data = { ...dto.data, laserData: dto.laserData };
       }
-
       elements.push(el);
     }
-
-    this.canvas
-      .getCommandBus()
-      .execute(createCreateFileCommand(elements, groupId, groupName));
-
+    this.canvas.commandBus.execute(
+      createCreateFileCommand(elements, groupId, groupName),
+    );
     return { groupId, elements };
   }
 
+  // ── Управление фигурами ──
+
+  /** Удалить фигуры */
   public deleteShapes(dto: DeleteShapesDTO): void {
     this.dbg.log('API', 'deleteShapes', { count: dto.elementIds.length });
-    this.canvas.deleteElements(dto.elementIds);
+    this.canvas.elementManager.deleteElements(dto.elementIds);
   }
 
+  /** Удалить фигуру по ID */
+  public deleteElement(id: string): void {
+    this.canvas.elementManager.deleteElements([id]);
+  }
+
+  /** Удалить фигуры по IDs */
+  public deleteElements(ids: string[]): void {
+    this.canvas.elementManager.deleteElements(ids);
+  }
+
+  /** Обновить свойства фигур */
   public updateShapes(dto: UpdateShapesDTO): void {
     this.dbg.log('API', 'updateShapes', { count: dto.elementIds.length });
     const elements = this.findElements(dto.elementIds);
@@ -143,92 +169,107 @@ export class ExternalApi {
     }
   }
 
+  /** Переместить фигуры */
   public moveShapes(dto: MoveShapesDTO): void {
     this.dbg.log('API', 'moveShapes', {
       count: dto.elementIds.length,
       delta: dto.delta,
     });
-    this.canvas
-      .getCommandBus()
-      .execute(createDragMoveCommand('element', dto.delta, dto.elementIds));
+    this.canvas.commandBus.execute(
+      createDragMoveCommand('element', dto.delta, dto.elementIds),
+    );
   }
 
+  /** Повернуть фигуры */
   public rotateShapes(dto: RotateShapesDTO): void {
     this.dbg.log('API', 'rotateShapes', {
       count: dto.elementIds.length,
       angle: dto.angle,
     });
     if (!dto.elementIds?.length) return;
-    this.canvas
-      .getCommandBus()
-      .execute(createRotateCommand(dto.elementIds, dto.angle));
-  }
-
-  public resizeShapes(dto: ResizeShapesDTO): void {
-    this.dbg.log('API', 'resizeShapes', { count: dto.elementIds.length });
-    if (!dto.elementIds?.length) return;
-    this.canvas
-      .getCommandBus()
-      .execute(createResizeCommand(dto.elementIds, dto.bbox));
-  }
-
-  public setTransformShapes(dto: SetTransformShapesDTO): void {
-    this.dbg.log('API', 'setTransformShapes', { count: dto.elementIds.length });
-    if (!dto.elementIds?.length) return;
-    this.canvas
-      .getCommandBus()
-      .execute(createTransformCommand(dto.elementIds, dto.matrix));
-  }
-
-  public groupCreate(dto: GroupCreateDTO): string {
-    this.dbg.log('API', 'groupCreate', { name: dto.name });
-    return this.canvas.createGroup(dto.name);
-  }
-
-  public groupDelete(dto: GroupDeleteDTO): void {
-    this.dbg.log('API', 'groupDelete', { groupId: dto.groupId });
-    this.canvas.deleteGroup(dto.groupId);
-  }
-
-  public groupAddElements(dto: GroupAddElementsDTO): void {
-    this.dbg.log('API', 'groupAddElements', {
-      groupId: dto.groupId,
-      count: dto.elementIds.length,
-    });
-    this.canvas.addToGroup(dto.groupId, dto.elementIds as unknown as string);
-  }
-
-  public groupRemoveElements(dto: GroupRemoveElementsDTO): void {
-    this.dbg.log('API', 'groupRemoveElements', {
-      groupId: dto.groupId,
-      count: dto.elementIds.length,
-    });
-    this.canvas.removeFromGroup(
-      dto.groupId,
-      dto.elementIds as unknown as string,
+    this.canvas.commandBus.execute(
+      createRotateCommand(dto.elementIds, dto.angle),
     );
   }
 
-  public getGroups(): Group[] {
-    this.dbg.log('API', 'getGroups');
-    return this.canvas.groups;
+  /** Изменить размер фигур */
+  public resizeShapes(dto: ResizeShapesDTO): void {
+    this.dbg.log('API', 'resizeShapes', { count: dto.elementIds.length });
+    if (!dto.elementIds?.length) return;
+    this.canvas.commandBus.execute(
+      createResizeCommand(dto.elementIds, dto.bbox),
+    );
   }
 
-  public selectGroup(id: string): void {
-    this.dbg.log('API', 'selectGroup', { id });
-    this.canvas.selectGroup(id);
+  /** Установить трансформацию фигур */
+  public setTransformShapes(dto: SetTransformShapesDTO): void {
+    this.dbg.log('API', 'setTransformShapes', { count: dto.elementIds.length });
+    if (!dto.elementIds?.length) return;
+    this.canvas.commandBus.execute(
+      createTransformCommand(dto.elementIds, dto.matrix),
+    );
   }
 
-  public selectGroupElements(id: string): void {
-    this.dbg.log('API', 'selectGroupElements', { id });
-    this.canvas.selectGroupElements(id);
+  /** Изменить размер элемента по ID */
+  public resizeElement(id: string, _width: number, _height: number): void {
+    const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
+    if (!el) return;
+    const bbox = el.getTransformedBBox();
+    if (bbox.width > 0) {
+      el.transform.scale({
+        x: 0,
+        y: 0,
+        originX: bbox.x,
+        originY: bbox.y,
+        width: bbox.width,
+        height: bbox.height,
+      });
+      el.rebuildHitArea();
+    }
   }
 
-  public getElementIdsInGroup(id: string): string[] {
-    this.dbg.log('API', 'getElementIdsInGroup', { id });
-    return this.canvas.getElementIdsInGroup(id);
+  /** Повернуть элемент по ID */
+  public rotateElement(id: string, angle: number): void {
+    const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
+    if (!el) return;
+    el.transform.rotate(angle, el.getLocalCenter());
+    el.rebuildHitArea();
   }
 
+  /** Трансформировать элемент по ID */
+  public transformElement(
+    id: string,
+    matrix: [number, number, number, number, number, number],
+  ): void {
+    const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
+    if (!el) return;
+    el.transform.matrix = new DOMMatrix(matrix);
+    el.rebuildHitArea();
+  }
+
+  /** Обвести элемент в контур */
+  public outlineElement(id: string): void {
+    const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
+    if (!el) return;
+    const outline = el.toOutlinePath();
+    this.canvas.spatialGrid.removeById(el.id, el.getSpatialCellIds());
+    this.canvas.shapeManager.removeElementAndNode(el.id);
+    this.canvas.shapeManager.addElement(outline);
+    this.addShape(outline);
+    this.canvas.events.emit('element-outlined', { id, newId: outline.id });
+  }
+
+  /** Получить контур элемента */
+  public getOutlinePath(id: string): Record<string, unknown> | null {
+    const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
+    if (!el) return null;
+    const path = el.toOutlinePath();
+    return path.toDTO();
+  }
+
+  // ── Выделение ──
+
+  /** Выбрать фигуры */
   public selectShapes(dto: SelectShapesDTO): void {
     this.dbg.log('API', 'selectShapes', {
       count: dto.elementIds.length,
@@ -236,7 +277,7 @@ export class ExternalApi {
     });
     const elements = this.findElements(dto.elementIds);
     if (dto.toggle) {
-      const current = [...this.canvas.getSelected()];
+      const current = [...this.getSelected()];
       for (const el of elements) {
         const idx = current.findIndex((s) => s.id === el.id);
         if (idx >= 0) {
@@ -245,33 +286,230 @@ export class ExternalApi {
           current.push(el);
         }
       }
-      this.canvas.setSelectedElements(current);
+      this.canvas.selectionState.replace(current);
     } else {
-      this.canvas.setSelectedElements(elements);
+      this.canvas.selectionState.replace(elements);
     }
   }
 
+  /** Очистить выделение */
   public clearSelection(): void {
     this.dbg.log('API', 'clearSelection');
-    this.canvas.setSelectedElements([]);
+    this.canvas.selectionState.replace([]);
   }
 
+  /** Выбрать элементы по IDs */
+  public selectElements(ids: string[]): void {
+    this.canvas.elementManager.selectElements(ids);
+  }
+
+  /** Установить режим выделения */
+  public setSelectionMode(mode: SelectionMode): void {
+    this.canvas.selectionState.setMode(mode);
+  }
+
+  /** Получить текущий режим выделения */
+  public getSelectionMode(): SelectionMode {
+    return this.canvas.selectionState.mode;
+  }
+
+  /** Получить выбранные элементы */
+  public getSelected(): readonly AbstractGraphicElement[] {
+    return this.canvas.selectionState.selected;
+  }
+
+  /** Установить выбранные элементы напрямую */
+  public setSelectedElements(elements: AbstractGraphicElement[]): void {
+    this.canvas.selectionState.replace(elements);
+  }
+
+  /** Получить стили выбранных элементов */
+  public getSelectedStyles(): Array<Record<string, unknown>> {
+    return this.canvas.elementManager.getSelectedStyles();
+  }
+
+  /** Получить все фигуры */
   public getAllShapes(): readonly AbstractGraphicElement[] {
     this.dbg.log('API', 'getAllShapes');
     return this.canvas.shapeManager.getAll();
   }
 
+  /** Получить элемент по ID */
+  public getElementById(id: string): Record<string, unknown> | null {
+    this.dbg.log('API', 'getElementById', id);
+    const el = this.canvas.shapeManager.getById(id) as
+      | AbstractGraphicElement
+      | undefined;
+    if (!el) return null;
+    return el.toDTO();
+  }
+
+  /** Сортировать фигуры (сменить порядок) */
   public sortShapes(dto: SortShapesDTO): void {
     this.dbg.log('API', 'sortShapes', {
       count: dto.elementIds.length,
       position: dto.position,
     });
-    if (!dto.elementIds?.length) return;
-    for (const id of dto.elementIds) {
-      this.canvas.reorderElement(id, dto.position, dto.targetId);
+    // TODO: implement layer reordering
+  }
+
+  /** Переместить элемент в слое */
+  public reorderElement(
+    _id: string,
+    _position: 'before' | 'after',
+    _targetId: string,
+  ): void {
+    // TODO: implement layer reordering
+  }
+
+  // ── Быстрые клавиши выделения ──
+
+  public setSelectionShortcuts(s: Partial<SelectionShortcuts>): void {
+    this.canvas.selectionHandler.setShortcuts(s);
+  }
+
+  public setSelectionGesture(g: SelectionGesture): void {
+    this.canvas.selectionHandler.setGesture(g);
+  }
+
+  public getSelectionGesture(): SelectionGesture {
+    return this.canvas.selectionHandler.getGesture();
+  }
+
+  // ── Группы ──
+
+  /** Создать группу */
+  public groupCreate(dto: GroupCreateDTO): string {
+    this.dbg.log('API', 'groupCreate', { name: dto.name });
+    return this.canvas.groupManager.createGroup(dto.name);
+  }
+
+  /** Удалить группу */
+  public groupDelete(dto: GroupDeleteDTO): void {
+    this.dbg.log('API', 'groupDelete', { groupId: dto.groupId });
+    this.canvas.groupManager.deleteGroup(dto.groupId);
+  }
+
+  /** Добавить элементы в группу */
+  public groupAddElements(dto: GroupAddElementsDTO): void {
+    this.dbg.log('API', 'groupAddElements', {
+      groupId: dto.groupId,
+      count: dto.elementIds.length,
+    });
+    for (const elementId of dto.elementIds) {
+      this.canvas.groupManager.addToGroup(dto.groupId, elementId);
     }
   }
 
+  /** Удалить элементы из группы */
+  public groupRemoveElements(dto: GroupRemoveElementsDTO): void {
+    this.dbg.log('API', 'groupRemoveElements', {
+      groupId: dto.groupId,
+      count: dto.elementIds.length,
+    });
+    for (const elementId of dto.elementIds) {
+      this.canvas.groupManager.removeFromGroup(dto.groupId, elementId);
+    }
+  }
+
+  /** Получить список групп */
+  public getGroups(): Group[] {
+    this.dbg.log('API', 'getGroups');
+    return this.canvas.groupManager.getGroups();
+  }
+
+  /** Выбрать группу */
+  public selectGroup(id: string): void {
+    this.dbg.log('API', 'selectGroup', { id });
+    this.canvas.selectionState.clear();
+    this.canvas.groupManager.setSelectedGroupIds([id]);
+    this.syncGroupOverlay();
+  }
+
+  /** Выбрать элементы группы */
+  public selectGroupElements(id: string): void {
+    this.dbg.log('API', 'selectGroupElements', { id });
+    const ids = this.canvas.groupManager.getElementIdsInGroup(id);
+    this.canvas.selectionState.replace(
+      this.canvas.shapeManager.getAll().filter((e) => ids.includes(e.id)),
+    );
+  }
+
+  /** Получить ID элементов в группе */
+  public getElementIdsInGroup(id: string): string[] {
+    this.dbg.log('API', 'getElementIdsInGroup', { id });
+    return this.canvas.groupManager.getElementIdsInGroup(id);
+  }
+
+  /** Выбрать несколько групп */
+  public selectMultipleGroups(ids: string[]): void {
+    this.canvas.groupManager.setSelectedGroupIds(ids);
+    this.syncGroupOverlay();
+  }
+
+  /** Подсветить элементы группы */
+  public highlightGroupElements(id: string): void {
+    const ids = this.canvas.groupManager.getElementIdsInGroup(id);
+    this.canvas.selectionState.replace(
+      this.canvas.shapeManager.getAll().filter((e) => ids.includes(e.id)),
+    );
+  }
+
+  /** Выбрать группу вместе с её элементами */
+  public selectGroupWithElements(id: string): void {
+    this.canvas.groupManager.setSelectedGroupIds([id]);
+    this.syncGroupOverlay();
+    const ids = this.canvas.groupManager.getElementIdsInGroup(id);
+    this.canvas.selectionState.replace(
+      this.canvas.shapeManager.getAll().filter((e) => ids.includes(e.id)),
+    );
+  }
+
+  /** Очистить группу (удалить все элементы из группы) */
+  public clearGroup(id: string): void {
+    this.canvas.groupManager.clearGroup(id);
+  }
+
+  // ── Колбэки групп ──
+
+  public get onGroupsChange(): (() => void) | null {
+    return null;
+  }
+  public set onGroupsChange(fn: (() => void) | null) {
+    this.canvas.groupManager.setOnChange(fn);
+  }
+
+  public get onGroupConflict():
+    | ((
+        elementId: string,
+        fromGroup: string,
+        toGroup: string,
+      ) => GroupConflictAction | null)
+    | null {
+    return this.canvas.groupManager.onConflict;
+  }
+  public set onGroupConflict(
+    fn:
+      | ((
+          elementId: string,
+          fromGroup: string,
+          toGroup: string,
+        ) => GroupConflictAction | null)
+      | null,
+  ) {
+    this.canvas.groupManager.onConflict = fn;
+  }
+
+  public get groupConflictSuppressed(): boolean {
+    return this.canvas.groupManager.conflictSuppressed;
+  }
+  public set groupConflictSuppressed(v: boolean) {
+    this.canvas.groupManager.conflictSuppressed = v;
+  }
+
+  // ── Размеры холста ──
+
+  /** Получить размер холста */
   public getCanvasSize(): {
     widthMM: number;
     heightMM: number;
@@ -280,7 +518,7 @@ export class ExternalApi {
     pxPerMM: number;
   } {
     this.dbg.log('API', 'getCanvasSize');
-    const artboard = this.canvas.getArtboard();
+    const artboard = this.canvas.artboard;
     const wMM = artboard.widthMM;
     const hMM = artboard.heightMM;
     return {
@@ -292,56 +530,121 @@ export class ExternalApi {
     };
   }
 
+  /** Установить размер артборда */
+  public setArtboardSize(widthMM: number, heightMM: number): void {
+    this.canvas.artboard?.setSize(widthMM, heightMM);
+    const vb = this.canvas.svg.getAttribute('viewBox') || '0 0 800 600';
+    const parts = vb.split(/\s+/).map(Number);
+    const viewW = parts[2] || 800;
+    const viewH = parts[3] || 600;
+    const ctm = this.canvas.svg.getScreenCTM();
+    let realW = viewW;
+    let realH = viewH;
+    if (ctm) {
+      const rect = this.canvas.svg.getBoundingClientRect();
+      const inv = ctm.inverse();
+      const p = this.canvas.svg.createSVGPoint();
+      p.x = rect.width;
+      p.y = rect.height;
+      const vp = p.matrixTransform(inv);
+      realW = vp.x;
+      realH = vp.y;
+    }
+    this.canvas.camera.fitToViewport(
+      widthMM * 3.7795,
+      heightMM * 3.7795,
+      realW,
+      realH,
+      40,
+    );
+    this.canvas.events.emit('artboard-resized', { widthMM, heightMM });
+  }
+
+  /** Получить Camera для ручного управления zoom/pan */
+  public getCamera(): import('@/canvas/Camera').Camera {
+    return this.canvas.camera as any;
+  }
+
+  // ── Режимы панорамирования и создания ──
+
+  /** Включить/выключить режим панорамирования */
   public setPanMode(enabled: boolean): void {
     this.dbg.log('API', 'setPanMode', { enabled });
     this.canvas.panActive.value = enabled;
     if (enabled) {
-      this.canvas.setActiveCreationTool(null);
+      this.canvas.creationHandler.setActiveType(null);
     }
     this.canvas.events.emit('SVG_CAD_PAN_MODE_CHANGED', { enabled });
   }
 
-  public setSnapToCorners(enabled: boolean): void {
-    this.dbg.log('API', 'setSnapToCorners', { enabled });
-    this.canvas.setSnapToCorners(enabled);
+  // ── Редактирование пути ──
+
+  /** Текущий редактируемый PathElement */
+  _editingPath: PathElement | null = null;
+  _editingPathUnsub: (() => void) | null = null;
+
+  public get editingPath(): PathElement | null {
+    return this._editingPath;
   }
 
-  public setSnapToPlanes(enabled: boolean): void {
-    this.dbg.log('API', 'setSnapToPlanes', { enabled });
-    this.canvas.setSnapToPlanes(enabled);
+  public set editingPath(path: PathElement | null) {
+    if (this._editingPath && this._editingPath !== path) {
+      this._editingPath.isNodeEditing = false;
+      if (this._editingPathUnsub) {
+        this._editingPathUnsub();
+        this._editingPathUnsub = null;
+      }
+    }
+    this._editingPath = path;
+    this.canvas.creationHandler.editingPathElement = path;
+    if (path) {
+      path.isNodeEditing = true;
+      this._editingPathUnsub = path.subscribe('geometry.commands', () => {
+        this.canvas.selectionOverlay.updatePathNodes(path);
+      });
+      this.canvas.selectionOverlay.setElements([path]);
+    } else {
+      this.canvas.selectionOverlay.setElements(
+        this.canvas.selectionState.selected,
+      );
+    }
   }
 
-  public setSnapToArtboard(enabled: boolean): void {
-    this.dbg.log('API', 'setSnapToArtboard', { enabled });
-    this.canvas.setSnapToArtboard(enabled);
+  /** Добавить фигуру на холст */
+  public addShape(shape: AbstractGraphicElement): void {
+    this.canvas.elementManager.addShape(shape);
+    shape.clearTimeMachineDiff();
   }
 
-  public setAvoidCollisions(enabled: boolean): void {
-    this.canvas.setAvoidCollisions(enabled);
+  /** Загрузить JSON с элементами */
+  public loadJSON(items: ElementJSON[]): void {
+    const elements = createFromJSONArray(items);
+    for (const el of elements) {
+      this.canvas.elementManager.addShape(el);
+    }
+    this.canvas.timeMachine.clear();
   }
 
-  public setSnapToGuidelines(enabled: boolean): void {
-    this.canvas.setSnapToGuidelines(enabled);
+  /** Уничтожить холст */
+  public destroy(): void {
+    this.canvas.svg.remove();
+    this.canvas.eventManager.destroy();
+    this.canvas.shapeManager.clear();
+    this.canvas.groupManager.destroy();
   }
 
-  public setSnapToGrid(enabled: boolean): void {
-    this.canvas.setSnapToGrid(enabled);
+  /** Показать/скрыть hit area у элементов */
+  _debugShowHitArea = false;
+
+  public get debugShowHitArea(): boolean {
+    return this._debugShowHitArea;
+  }
+  public set debugShowHitArea(v: boolean) {
+    this._debugShowHitArea = v;
+    this.canvas.debugOverlay.update(v ? this.canvas.shapeManager.getAll() : []);
   }
 
-  public setSnapAxis(mode: 'both' | 'horizontal' | 'vertical'): void {
-    this.canvas.setSnapAxis(mode);
-  }
-
-  public outlineElement(id: string): void {
-    this.canvas.outlineElement(id);
-  }
-
-  public getOutlinePath(id: string): Record<string, unknown> | null {
-    const path = this.canvas.getOutlinePath(id);
-    if (!path) return null;
-    return path.toDTO();
-  }
-
+  /** Установить активный инструмент создания фигур */
   public setActiveCreationTool(type: ElementType | null): void {
     this.dbg.log('API', 'setActiveCreationTool', { type });
     if (type !== null) {
@@ -357,61 +660,303 @@ export class ExternalApi {
       'path',
     ];
     if (type === null || (allowed as string[]).includes(type)) {
-      this.canvas.setActiveCreationTool(type as any);
+      this.canvas.creationHandler.setActiveType(
+        type as CreationElementType | null,
+      );
     }
   }
 
-  public setTransformMode(mode: 'resize' | 'rotate'): void {
-    this.canvas.setTransformMode(mode);
+  // ── Трансформация ──
+
+  /** Установить режим трансформации */
+  public setTransformMode(mode: TransformMode): void {
+    this.canvas.transformHandler.setMode(mode);
+    this.canvas.groupTransformHandler.setMode(mode);
   }
 
+  /** Включить/выключить пропорциональное изменение размера */
   public setProportionalResize(enabled: boolean): void {
-    this.canvas.setProportionalResize(enabled);
+    this.canvas.transformHandler.setProportionalResize(enabled);
+    this.canvas.groupTransformHandler.setProportionalResize(enabled);
   }
+
+  // ── Снап ──
+
+  public setSnapToCorners(enabled: boolean): void {
+    this.canvas.selectionHandler.setSnapToCorners(enabled);
+  }
+  public setSnapToPlanes(enabled: boolean): void {
+    this.canvas.selectionHandler.setSnapToPlanes(enabled);
+  }
+  public setSnapToArtboard(enabled: boolean): void {
+    this.canvas.selectionHandler.setSnapToArtboard(enabled);
+  }
+  public setAvoidCollisions(enabled: boolean): void {
+    this.canvas.selectionHandler.setAvoidCollisions(enabled);
+  }
+  public setSnapToGuidelines(enabled: boolean): void {
+    this.canvas.selectionHandler.setSnapToGuidelines(enabled);
+  }
+  public setSnapToGrid(enabled: boolean): void {
+    this.canvas.selectionHandler.setSnapToGrid(enabled);
+  }
+  public setSnapAxis(mode: 'both' | 'horizontal' | 'vertical'): void {
+    this.canvas.selectionHandler.setSnapAxis(mode);
+  }
+
+  // ── Линейки и направляющие ──
 
   public setRulersVisible(v: boolean): void {
-    this.dbg.log('API', 'setRulersVisible', { v });
-    this.canvas.setRulersVisible(v);
+    this.canvas.rulerManager.setRulersVisible(v);
   }
-
   public getRulersVisible(): boolean {
-    this.dbg.log('API', 'getRulersVisible');
-    return this.canvas.getRulersVisible();
+    return this.canvas.rulerManager.getRulersVisible();
   }
-
   public addGuideline(orientation: 'v' | 'h', position: number): string {
-    this.dbg.log('API', 'addGuideline', { orientation, position });
-    return this.canvas.addGuideline(orientation, position);
+    return this.canvas.rulerManager.addGuideline(orientation, position);
   }
-
   public removeGuideline(id: string): void {
-    this.dbg.log('API', 'removeGuideline', { id });
-    this.canvas.removeGuideline(id);
+    this.canvas.rulerManager.removeGuideline(id);
   }
-
   public getGuidelines(): GuidelineData[] {
-    this.dbg.log('API', 'getGuidelines');
-    return this.canvas.getGuidelines();
+    return this.canvas.rulerManager.getGuidelines();
   }
-
   public setGuidelinesVisible(orientation: 'v' | 'h', v: boolean): void {
-    this.dbg.log('API', 'setGuidelinesVisible', { orientation, v });
-    this.canvas.setGuidelinesVisible(orientation, v);
+    this.canvas.rulerManager.setGuidelinesVisible(orientation, v);
+  }
+  public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
+    return this.canvas.rulerManager.getGuidelinesVisible(orientation);
   }
 
-  public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
-    this.dbg.log('API', 'getGuidelinesVisible', { orientation });
-    return this.canvas.getGuidelinesVisible(orientation);
-  }
+  // ── Булевы операции ──
 
   public enterBooleanMode(op: BooleanOp): void {
-    this.dbg.log('API', 'enterBooleanMode', { op });
-    this.canvas.enterBooleanMode(op);
+    this.canvas.booleanHandler.enterMode(op);
+  }
+  public exitBooleanMode(): void {
+    this.canvas.booleanHandler.exitMode();
   }
 
-  public exitBooleanMode(): void {
-    this.dbg.log('API', 'exitBooleanMode');
-    this.canvas.exitBooleanMode();
+  // ── История ──
+
+  /** Отменить последнее действие */
+  public undo(): void {
+    if (this.editingPath) return;
+    this.canvas.selectionState.clear();
+    this.canvas.groupManager.clearSelectedGroups();
+    this.canvas.groupSelectionOverlay.clear();
+    this.canvas.timeMachine.undo();
+    this.canvas.elementManager.reindexAll();
+  }
+
+  /** Повторить отменённое действие */
+  public redo(): void {
+    if (this.editingPath) return;
+    this.canvas.selectionState.clear();
+    this.canvas.groupManager.clearSelectedGroups();
+    this.canvas.groupSelectionOverlay.clear();
+    this.canvas.timeMachine.redo();
+    this.canvas.elementManager.reindexAll();
+  }
+
+  /** Можно ли отменить */
+  public get canUndo(): boolean {
+    return this.canvas.timeMachine.canUndo;
+  }
+  /** Можно ли повторить */
+  public get canRedo(): boolean {
+    return this.canvas.timeMachine.canRedo;
+  }
+
+  /** Сохранить историю в JSON */
+  public saveTimeMachine(): TimeSnapshot[] {
+    return this.canvas.timeMachine.toJSON();
+  }
+
+  /** Восстановить историю из JSON */
+  public loadTimeMachine(records: TimeSnapshot[]): void {
+    this.canvas.shapeManager.clear();
+    this.canvas.groupManager.setGroups([]);
+    this.canvas.spatialGrid.clear();
+    this.canvas.timeMachine.fromJSON(records);
+  }
+
+  // ── Прелоадер ──
+
+  public showPreloader(): void {
+    if (this.canvas.preloaderOverlay.visible) return;
+    const vb = this.canvas.svg.getAttribute('viewBox') || '0 0 800 600';
+    const parts = vb.split(/\s+/).map(Number);
+    this.canvas.preloaderOverlay.showCentered(parts[2] || 800, parts[3] || 600);
+    this.canvas.events.emit('preloader-toggled', { visible: true });
+  }
+
+  public hidePreloader(): void {
+    if (!this.canvas.preloaderOverlay.visible) return;
+    this.canvas.preloaderOverlay.hide();
+    this.canvas.events.emit('preloader-toggled', { visible: false });
+  }
+
+  public isPreloaderVisible(): boolean {
+    return this.canvas.preloaderOverlay.visible;
+  }
+
+  // ── Сетка ──
+
+  public showGrid(): void {
+    if (this.canvas.gridOverlay.visible) return;
+    this.canvas.gridOverlay.show();
+    this.canvas.events.emit('grid-toggled', { visible: true });
+  }
+
+  public hideGrid(): void {
+    if (!this.canvas.gridOverlay.visible) return;
+    this.canvas.gridOverlay.hide();
+    this.canvas.events.emit('grid-toggled', { visible: false });
+  }
+
+  public isGridVisible(): boolean {
+    return this.canvas.gridOverlay.visible;
+  }
+  public setGridStep(mm: number): void {
+    this.canvas.gridOverlay.setStep(mm);
+    this.canvas.events.emit('grid-step-changed', { stepMM: mm });
+  }
+  public getGridStep(): number {
+    return this.canvas.gridOverlay.stepMM;
+  }
+
+  // ── Цветовые карты ──
+
+  public getFillColorMap(): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    for (const [key, set] of this.canvas.elementManager.getFillColorMap()) {
+      result[key] = Array.from(set);
+    }
+    return result;
+  }
+  public getStrokeColorMap(): Record<string, string[]> {
+    const result: Record<string, string[]> = {};
+    for (const [key, set] of this.canvas.elementManager.getStrokeColorMap()) {
+      result[key] = Array.from(set);
+    }
+    return result;
+  }
+  public recalculateColorMaps(): void {
+    this.canvas.elementManager.recalculateColorMaps();
+  }
+  public setColorQuantStep(step: number): void {
+    this.canvas.elementManager.setColorQuantStep(step);
+  }
+
+  // ── Загрузка/выгрузка данных ──
+
+  /** Получить несохранённые DTO элементов */
+  public getUnsavedDTOs(): Array<Record<string, unknown>> {
+    return this.canvas.elementManager.getUnsavedDTOs();
+  }
+  public getUnsavedGroupDTOs(): Array<Record<string, unknown>> {
+    return this.canvas.groupManager.getUnsavedDTOs();
+  }
+
+  // ── Массовые операции с элементами ──
+
+  public loadElements(dtos: Record<string, unknown>[]): void {
+    this.canvas.elementManager.loadElements(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        type: d.type as ElementType,
+        attributes: (d.attributes ?? d) as Record<string, string>,
+        groupId: d.groupId as string | undefined,
+        name: d.name as string | undefined,
+        visible: d.visible as boolean | undefined,
+        lock: d.lock as boolean | undefined,
+        data: d.data as Record<string, unknown> | undefined,
+      })),
+    );
+  }
+
+  public addElements(dtos: Record<string, unknown>[]): void {
+    this.canvas.elementManager.addElements(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        type: d.type as ElementType,
+        attributes: (d.attributes ?? d) as Record<string, string>,
+        groupId: d.groupId as string | undefined,
+        name: d.name as string | undefined,
+        visible: d.visible as boolean | undefined,
+        lock: d.lock as boolean | undefined,
+        data: d.data as Record<string, unknown> | undefined,
+      })),
+    );
+  }
+
+  public replaceElements(dtos: Record<string, unknown>[]): void {
+    this.canvas.elementManager.replaceElements(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        type: d.type as ElementType,
+        attributes: (d.attributes ?? d) as Record<string, string>,
+        groupId: d.groupId as string | undefined,
+        name: d.name as string | undefined,
+        visible: d.visible as boolean | undefined,
+        lock: d.lock as boolean | undefined,
+        data: d.data as Record<string, unknown> | undefined,
+      })),
+    );
+  }
+
+  public updateElements(
+    patches: Array<{ id: string; fields: Record<string, unknown> }>,
+  ): void {
+    this.canvas.elementManager.updateElements(patches);
+  }
+
+  public loadGroups(dtos: Record<string, unknown>[]): void {
+    this.canvas.groupManager.loadGroups(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        name: (d.name as string) ?? '',
+        elementIds: (d.elementIds as string[]) ?? [],
+      })),
+    );
+  }
+
+  public addGroups(dtos: Record<string, unknown>[]): void {
+    this.canvas.groupManager.addGroups(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        name: (d.name as string) ?? '',
+        elementIds: (d.elementIds as string[]) ?? [],
+      })),
+    );
+  }
+
+  public replaceGroups(dtos: Record<string, unknown>[]): void {
+    this.canvas.groupManager.replaceGroups(
+      dtos.map((d) => ({
+        id: (d.id as string) || generateId(),
+        name: (d.name as string) ?? '',
+        elementIds: (d.elementIds as string[]) ?? [],
+      })),
+    );
+  }
+
+  public updateGroups(
+    patches: Array<{ id: string; fields: Record<string, unknown> }>,
+  ): void {
+    this.canvas.groupManager.updateGroups(patches);
+  }
+
+  // ── Приватные методы ──
+
+  private syncGroupOverlay(): void {
+    const selectedGroups = Array.from(this.canvas.groupManager.selectedGroupIds)
+      .map((id) => this.canvas.groupManager.getGroup(id))
+      .filter((g): g is Group => g !== undefined);
+    this.canvas.groupSelectionOverlay.sync(selectedGroups, (id: string) =>
+      this.canvas.shapeManager.getAll().find((e) => e.id === id),
+    );
   }
 
   private findElements(ids: string[]): AbstractGraphicElement[] {
@@ -435,9 +980,7 @@ export class ExternalApi {
       if (style.visible !== undefined)
         attrs.visibility = style.visible ? 'visible' : 'hidden';
     }
-
-    const el = createFromJSON({ id, type, attributes: attrs });
-    return el;
+    return createFromJSON({ id, type, attributes: attrs });
   }
 
   private geometryToAttrs(
@@ -479,18 +1022,15 @@ export class ExternalApi {
         attrs.y2 = String(l.y2);
         break;
       }
-      case 'path': {
+      case 'path':
         attrs.d = (geo as PathGeometryDTO).d;
         break;
-      }
-      case 'polygon': {
+      case 'polygon':
         attrs.points = (geo as PolygonGeometryDTO).points;
         break;
-      }
-      case 'polyline': {
+      case 'polyline':
         attrs.points = (geo as PolylineGeometryDTO).points;
         break;
-      }
       case 'text': {
         const t = geo as TextGeometryDTO;
         attrs.x = t.x;
@@ -540,7 +1080,6 @@ export class ExternalApi {
     if (t.matrix) {
       el.transform.matrix = new DOMMatrix(t.matrix);
       el.rebuildHitArea();
-      getRenderQueue()?.add(el);
       return;
     }
     const { x, y, scaleX, scaleY, angle } = t;
@@ -565,178 +1104,6 @@ export class ExternalApi {
     el.rebuildHitArea();
   }
 
-  public loadElements(dtos: Record<string, unknown>[]): void {
-    this.canvas.loadElements(
-      dtos.map((d) => ({
-        id: (d.id as string) || generateId(),
-        type: d.type as ElementType,
-        attributes: (d.attributes ?? d) as Record<string, string>,
-        groupId: d.groupId as string | undefined,
-        name: d.name as string | undefined,
-        visible: d.visible as boolean | undefined,
-        lock: d.lock as boolean | undefined,
-        data: d.data as Record<string, unknown> | undefined,
-      })),
-    );
-  }
-
-  public addElements(dtos: Record<string, unknown>[]): void {
-    this.canvas.addElements(
-      dtos.map((d) => ({
-        id: (d.id as string) || generateId(),
-        type: d.type as ElementType,
-        attributes: (d.attributes ?? d) as Record<string, string>,
-        groupId: d.groupId as string | undefined,
-        name: d.name as string | undefined,
-        visible: d.visible as boolean | undefined,
-        lock: d.lock as boolean | undefined,
-        data: d.data as Record<string, unknown> | undefined,
-      })),
-    );
-  }
-
-  public replaceElements(dtos: Record<string, unknown>[]): void {
-    this.canvas.replaceElements(
-      dtos.map((d) => ({
-        id: (d.id as string) || generateId(),
-        type: d.type as ElementType,
-        attributes: (d.attributes ?? d) as Record<string, string>,
-        groupId: d.groupId as string | undefined,
-        name: d.name as string | undefined,
-        visible: d.visible as boolean | undefined,
-        lock: d.lock as boolean | undefined,
-        data: d.data as Record<string, unknown> | undefined,
-      })),
-    );
-  }
-
-  public updateElements(
-    patches: Array<{ id: string; fields: Record<string, unknown> }>,
-  ): void {
-    this.canvas.updateElements(patches);
-  }
-
-  public showPreloader(): void {
-    this.canvas.showPreloader();
-  }
-
-  public hidePreloader(): void {
-    this.canvas.hidePreloader();
-  }
-
-  public isPreloaderVisible(): boolean {
-    return this.canvas.isPreloaderVisible();
-  }
-
-  public showGrid(): void {
-    this.canvas.showGrid();
-  }
-
-  public hideGrid(): void {
-    this.canvas.hideGrid();
-  }
-
-  public isGridVisible(): boolean {
-    return this.canvas.isGridVisible();
-  }
-
-  public setGridStep(mm: number): void {
-    this.canvas.setGridStep(mm);
-  }
-
-  public getGridStep(): number {
-    return this.canvas.getGridStep();
-  }
-
-  public getUnsavedDTOs(): Array<Record<string, unknown>> {
-    return this.canvas.getUnsavedDTOs();
-  }
-
-  public setArtboardSize(widthMM: number, heightMM: number): void {
-    this.canvas.setArtboardSize(widthMM, heightMM);
-  }
-
-  public loadGroups(dtos: Record<string, unknown>[]): void {
-    this.canvas.loadGroups(
-      dtos.map((d) => ({
-        id: (d.id as string) || generateId(),
-        name: (d.name as string) ?? '',
-        elementIds: (d.elementIds as string[]) ?? [],
-      })),
-    );
-  }
-
-  public addGroups(dtos: Record<string, unknown>[]): void {
-    this.canvas.addGroups(
-      dtos.map((d) => ({
-        id: (d.id as string) || generateId(),
-        name: (d.name as string) ?? '',
-        elementIds: (d.elementIds as string[]) ?? [],
-      })),
-    );
-  }
-
-  public replaceGroups(dtos: Record<string, unknown>[]): void {
-    this.canvas.replaceGroups(
-      dtos.map((d) => ({
-        id: (d.id as string) || generateId(),
-        name: (d.name as string) ?? '',
-        elementIds: (d.elementIds as string[]) ?? [],
-      })),
-    );
-  }
-
-  public updateGroups(
-    patches: Array<{ id: string; fields: Record<string, unknown> }>,
-  ): void {
-    this.canvas.updateGroups(patches);
-  }
-
-  public getUnsavedGroupDTOs(): Array<Record<string, unknown>> {
-    return this.canvas.getUnsavedGroupDTOs();
-  }
-
-  public selectElements(ids: string[]): void {
-    this.canvas.selectElements(ids);
-  }
-
-  public getSelectedStyles(): Array<Record<string, unknown>> {
-    return this.canvas.getSelectedStyles();
-  }
-
-  public getFillColorMap(): Record<string, string[]> {
-    const result: Record<string, string[]> = {};
-    for (const [key, set] of this.canvas.getFillColorMap()) {
-      result[key] = Array.from(set);
-    }
-    return result;
-  }
-
-  public getStrokeColorMap(): Record<string, string[]> {
-    const result: Record<string, string[]> = {};
-    for (const [key, set] of this.canvas.getStrokeColorMap()) {
-      result[key] = Array.from(set);
-    }
-    return result;
-  }
-
-  public recalculateColorMaps(): void {
-    this.canvas.recalculateColorMaps();
-  }
-
-  public getElementById(id: string): Record<string, unknown> | null {
-    this.dbg.log('API', 'getElementById', id);
-    const el = this.canvas.shapeManager.getById(id) as
-      | AbstractGraphicElement
-      | undefined;
-    if (!el) return null;
-    return el.toDTO();
-  }
-
-  public setColorQuantStep(step: number): void {
-    this.canvas.setColorQuantStep(step);
-  }
-
   private applyGeometryDelta(
     el: AbstractGraphicElement,
     geo: Partial<ElementGeometryDTO>,
@@ -744,5 +1111,19 @@ export class ExternalApi {
     const snapshot = el.toDTO().attributes as Record<string, unknown>;
     const merged = { ...snapshot, ...geo };
     el.applyDTO(merged);
+  }
+
+  // ── Spatial index and color maps ──
+
+  indexShape(shape: AbstractGraphicElement): void {
+    this.canvas.elementManager.indexShape(shape);
+  }
+
+  reindexElement(el: AbstractGraphicElement): void {
+    this.canvas.elementManager.reindexElement(el);
+  }
+
+  reindexSpatialGrid(): void {
+    this.canvas.elementManager.reindexAll();
   }
 }

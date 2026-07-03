@@ -1,17 +1,7 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { Point, PathNodeActivation } from '@/types';
 import { PathElement } from '@/shapes/elements/PathElement';
 import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
-import type { Point, PathCommand } from '@/types';
-import { getRenderQueue } from '@/utils/render-queue-utils';
-
-export interface PathNodeActivation {
-  element: PathElement;
-  cmdIdx: number;
-  ptIdx: number;
-  startMouseWorld: Point;
-  startCommands: PathCommand[];
-  lastMouseWorld: Point;
-}
 
 export class PathNodeHandler {
   private active: PathNodeActivation | null = null;
@@ -80,7 +70,6 @@ export class PathNodeHandler {
     }
 
     path.rebuildHitArea();
-    getRenderQueue()?.add(path);
   }
 
   public end(): void {
@@ -96,7 +85,6 @@ export class PathNodeHandler {
 
     path.geometry.commands = newCommands;
     path.rebuildHitArea();
-    getRenderQueue()?.add(path);
 
     this.pathTimeMachine?.capture();
 

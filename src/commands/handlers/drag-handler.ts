@@ -1,12 +1,4 @@
-import type { Command } from '../types';
-import type { CommandHandler } from '../registry';
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import { getRenderQueue } from '@/utils/render-queue-utils';
-
-export interface DragHandlerContext {
-  getElements: () => AbstractGraphicElement[];
-  onDragEnd?: (elementIds: string[]) => void;
-}
+import type { Command, CommandHandler, DragHandlerContext } from '@/types';
 
 export const createDragMoveHandler = (
   ctx: DragHandlerContext,
@@ -34,7 +26,6 @@ export const createDragEndHandler = (
       const el = all.find((e) => e.id === id);
       if (!el) continue;
       el.rebuildHitArea();
-      getRenderQueue()?.add(el);
     }
     ctx.onDragEnd?.(elementIds);
   };

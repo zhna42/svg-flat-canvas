@@ -1,9 +1,7 @@
-import type { SnapshotCommand, TimeSnapshot, EntityDiff } from './types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { ShapeManager } from '@/shapes/ShapeManager';
+import type { SnapshotCommand, TimeSnapshot, EntityDiff } from '@/types';
 import { createElementByType } from '@/shapes/elements/factory';
-
-export type { TimeSnapshot } from './types';
 
 export class TimeMachine {
   private root: TimeSnapshot | null = null;
@@ -12,6 +10,7 @@ export class TimeMachine {
   private readonly maxRecords: number;
   private readonly shapeManager: ShapeManager;
   private onUpdate: (() => void) | null = null;
+  public suppressTimeMachine = false;
 
   public constructor(shapeManager: ShapeManager, maxRecords = 100) {
     this.shapeManager = shapeManager;

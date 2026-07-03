@@ -1,7 +1,4 @@
-export interface BusEvent {
-  type: string;
-  data: unknown;
-}
+import type { BusEvent } from '@/types';
 
 export class EventBus {
   private listeners = new Map<string, Set<(event: BusEvent) => void>>();

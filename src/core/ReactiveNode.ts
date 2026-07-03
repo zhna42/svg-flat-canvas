@@ -1,15 +1,5 @@
 import { LayerName } from '@/types';
-
-export type DiffValue =
-  | string
-  | number
-  | boolean
-  | null
-  | undefined
-  | unknown[]
-  | Record<string, unknown>;
-export type DiffData = Record<string, DiffValue>;
-export type SubscriptionCallback = (newValue: unknown, path: string) => void;
+import type { DiffData, DiffValue, SubscriptionCallback } from '@/types';
 
 export abstract class ReactiveNode {
   [key: string]: any;
@@ -18,25 +8,27 @@ export abstract class ReactiveNode {
   public type = '';
   public layerName: LayerName = 'shapesGroup';
 
-  public pushDiffRendering: ((instance: this) => void) | null = null;
-  public onTimeMachineChange: ((instance: this) => void) | null = null;
-  public onSaveChange: ((instance: this) => void) | null = null;
+  public pushDiffRendering: ((instance: any) => void) | null = null;
+  public onTimeMachineChange: ((instance: any) => void) | null = null;
+  public onSaveChange: ((instance: any) => void) | null = null;
   public isAutoReRendering = true;
 
-  #diffRendering: DiffData = {};
-  #diffTimeMachineNew: DiffData = {};
-  #diffTimeMachineOld: DiffData = {};
-  #diffSave: DiffData = {};
+  _diffRendering: DiffData = {};
+  _diffTimeMachineNew: DiffData = {};
+  _diffTimeMachineOld: DiffData = {};
+  _diffSave: DiffData = {};
 
-  #isApplyingDiff = false;
-  #listeners: Map<string, Set<SubscriptionCallback>> = new Map();
-  #proxyCache = new WeakMap<object, any>();
+  _isApplyingDiff = false;
+  _listeners: Map<string, Set<SubscriptionCallback>> = new Map();
+  _proxyCache = new WeakMap<object, any>();
+  _rootProxy: this;
 
   constructor(id: string, type: string, layerName: LayerName) {
     this.id = id;
     this.type = type;
     this.layerName = layerName;
-    return this._createRootProxy();
+    this._rootProxy = this._createRootProxy();
+    return this._rootProxy;
   }
 
   private static _isWrapSafe(value: unknown): boolean {
@@ -48,9 +40,10 @@ export abstract class ReactiveNode {
     return true;
   }
 
-  private _isSystemKey(key: string): boolean {
+  private _isSystemKey(key: string | symbol): boolean {
+    if (typeof key !== 'string') return true;
     return (
-      [
+      new Set([
         'pushDiffRendering',
         'onTimeMachineChange',
         'onSaveChange',
@@ -58,7 +51,8 @@ export abstract class ReactiveNode {
         'renderingDiff',
         'timeMachineDiff',
         'saveDiff',
-      ].includes(key) || key.startsWith('#')
+      ]).has(key) ||
+      key.startsWith('_')
     );
   }
 
@@ -66,17 +60,45 @@ export abstract class ReactiveNode {
     return this._wrapWithProxy(this, '') as this;
   }
 
+  private _findGetterDescriptor(
+    obj: Record<string, unknown>,
+    prop: string,
+  ): PropertyDescriptor | undefined {
+    let proto: object | null = obj;
+    while (proto) {
+      const d = Object.getOwnPropertyDescriptor(proto, prop);
+      if (d && d.get) return d;
+      proto = Object.getPrototypeOf(proto);
+    }
+    return undefined;
+  }
+
   private _wrapWithProxy(obj: Record<string, unknown>, path: string): unknown {
-    // eslint-disable-next-line @typescript-eslint/no-this-alias
     const self = this;
 
-    if (this.#proxyCache.has(obj)) {
-      return this.#proxyCache.get(obj);
+    if (this._proxyCache.has(obj)) {
+      return this._proxyCache.get(obj);
     }
 
     const proxy = new Proxy(obj, {
-      get(target, prop: string, receiver) {
+      get(target: Record<string, unknown>, prop: string, receiver: unknown) {
+        const getterDesc = self._findGetterDescriptor(target, prop);
+        if (getterDesc?.get) {
+          const value = getterDesc.get.call(target);
+          if (!self._isSystemKey(prop) && ReactiveNode._isWrapSafe(value)) {
+            const currentPath = path ? `${path}.${prop}` : prop;
+            return self._wrapWithProxy(
+              value as Record<string, unknown>,
+              currentPath,
+            );
+          }
+          return value;
+        }
+
         const value = Reflect.get(target, prop, receiver);
+        if (typeof value === 'function' && !self._isSystemKey(prop)) {
+          return value.bind(receiver);
+        }
         if (!self._isSystemKey(prop) && ReactiveNode._isWrapSafe(value)) {
           const currentPath = path ? `${path}.${prop}` : prop;
           return self._wrapWithProxy(
@@ -96,20 +118,22 @@ export abstract class ReactiveNode {
 
         const currentPath = path ? `${path}.${prop}` : prop;
 
-        if (!self.#isApplyingDiff) {
-          self.#diffRendering[currentPath] = value as DiffValue;
-          if (!(currentPath in self.#diffTimeMachineOld)) {
-            self.#diffTimeMachineOld[currentPath] = oldValue;
+        if (!self._isApplyingDiff) {
+          self._diffRendering[currentPath] = value as DiffValue;
+          if (!(currentPath in self._diffTimeMachineOld)) {
+            self._diffTimeMachineOld[currentPath] = oldValue;
           }
-          self.#diffTimeMachineNew[currentPath] = value as DiffValue;
-          self.#diffSave[currentPath] = value as DiffValue;
+          self._diffTimeMachineNew[currentPath] = value as DiffValue;
+          self._diffSave[currentPath] = value as DiffValue;
         }
 
         const success = Reflect.set(target, prop, value, receiver);
         if (success) {
           self._notifyListeners(currentPath, value);
-          if (self.isAutoReRendering && self.pushDiffRendering)
+          if (self.isAutoReRendering && self.pushDiffRendering) {
+            console.log(`[ReactiveNode] set ${currentPath}:`, oldValue, '→', value);
             self.pushDiffRendering(receiver);
+          }
           if (self.onTimeMachineChange) self.onTimeMachineChange(receiver);
           if (self.onSaveChange) self.onSaveChange(receiver);
         }
@@ -117,33 +141,34 @@ export abstract class ReactiveNode {
       },
     });
 
-    this.#proxyCache.set(obj, proxy);
+    this._proxyCache.set(obj, proxy);
+    this._proxyCache.set(proxy, proxy);
     return proxy;
   }
 
   public get renderingDiff(): DiffData {
-    return { ...this.#diffRendering };
+    return { ...this._diffRendering };
   }
   public clearRenderingDiff(): void {
-    this.#diffRendering = {};
+    this._diffRendering = {};
   }
 
   public get timeMachineDiff(): { before: DiffData; after: DiffData } {
     return {
-      before: { ...this.#diffTimeMachineOld },
-      after: { ...this.#diffTimeMachineNew },
+      before: { ...this._diffTimeMachineOld },
+      after: { ...this._diffTimeMachineNew },
     };
   }
   public clearTimeMachineDiff(): void {
-    this.#diffTimeMachineOld = {};
-    this.#diffTimeMachineNew = {};
+    this._diffTimeMachineOld = {};
+    this._diffTimeMachineNew = {};
   }
 
   public get saveDiff(): DiffData {
-    return { ...this.#diffSave };
+    return { ...this._diffSave };
   }
   public clearSaveDiff(): void {
-    this.#diffSave = {};
+    this._diffSave = {};
   }
 
   public subscribe(
@@ -152,22 +177,22 @@ export abstract class ReactiveNode {
   ): () => void {
     const pathList = Array.isArray(paths) ? paths : [paths];
     for (const path of pathList) {
-      if (!this.#listeners.has(path)) this.#listeners.set(path, new Set());
-      this.#listeners.get(path)!.add(callback);
+      if (!this._listeners.has(path)) this._listeners.set(path, new Set());
+      this._listeners.get(path)!.add(callback);
     }
     return () => {
       for (const path of pathList) {
-        const s = this.#listeners.get(path);
+        const s = this._listeners.get(path);
         if (s) {
           s.delete(callback);
-          if (s.size === 0) this.#listeners.delete(path);
+          if (s.size === 0) this._listeners.delete(path);
         }
       }
     };
   }
 
   private _notifyListeners(path: string, newValue: unknown): void {
-    const exact = this.#listeners.get(path);
+    const exact = this._listeners.get(path);
     if (exact) for (const cb of exact) cb(newValue, path);
 
     const parts = path.split('.');
@@ -175,10 +200,9 @@ export abstract class ReactiveNode {
       let parentPath = '';
       for (let i = 0; i < parts.length - 1; i++) {
         parentPath = parentPath ? `${parentPath}.${parts[i]}` : parts[i];
-        const pl = this.#listeners.get(parentPath);
+        const pl = this._listeners.get(parentPath);
         if (pl) {
-          const rootProxy = this.#proxyCache.get(this);
-          const parentValue = this._getValueByPath(rootProxy, parentPath);
+          const parentValue = this._getValueByPath(this._rootProxy, parentPath);
           for (const cb of pl) cb(parentValue, parentPath);
         }
       }
@@ -195,13 +219,12 @@ export abstract class ReactiveNode {
   }
 
   public setDiff(diff: DiffData, writeToDiffs = false): void {
-    const wasApplying = this.#isApplyingDiff;
-    if (!writeToDiffs) this.#isApplyingDiff = true;
+    const wasApplying = this._isApplyingDiff;
+    if (!writeToDiffs) this._isApplyingDiff = true;
     try {
-      const rootProxy = this.#proxyCache.get(this) || this;
       for (const [path, value] of Object.entries(diff)) {
         const keys = path.split('.');
-        let cur = rootProxy as Record<string, unknown>;
+        let cur = this._rootProxy as unknown as Record<string, unknown>;
         for (let i = 0; i < keys.length - 1; i++) {
           const k = keys[i];
           if (!cur[k] || typeof cur[k] !== 'object') cur[k] = {};
@@ -210,13 +233,16 @@ export abstract class ReactiveNode {
         cur[keys[keys.length - 1]] = value;
       }
     } finally {
-      this.#isApplyingDiff = wasApplying;
+      this._isApplyingDiff = wasApplying;
     }
+  }
+
+  public getRenderingPayload(): Record<string, unknown> {
+    return { ...this.renderingDiff };
   }
 
   public getFullData(): Record<string, DiffValue> {
     const result: Record<string, DiffValue> = {};
-    const rootProxy = this.#proxyCache.get(this) || this;
     const ser = (obj: Record<string, unknown>, path: string) => {
       for (const key of Object.keys(obj)) {
         if (typeof obj[key] === 'function' || this._isSystemKey(key)) continue;
@@ -234,7 +260,7 @@ export abstract class ReactiveNode {
         }
       }
     };
-    ser(rootProxy as unknown as Record<string, unknown>, '');
+    ser(this._rootProxy as unknown as Record<string, unknown>, '');
     return result;
   }
 }

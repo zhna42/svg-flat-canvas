@@ -1,24 +1,15 @@
 import { AbstractGraphicElement } from './AbstractGraphicElement';
-import type { Point, BoundingBox, PathCommand } from '@/types';
+import type { Point, BoundingBox, PathCommand, NodeEditPoint } from '@/types';
 import { PathHitArea } from '../modules/HitArea';
 import {
   commandsToString,
   flattenCommands,
   parseD,
   transformCommands,
-} from '@/spatial/path-utils';
-
-export interface NodeEditPoint {
-  x: number;
-  y: number;
-  type: 'anchor' | 'control';
-  cmdIdx: number;
-  ptIdx: number;
-  parentAnchor?: { x: number; y: number };
-}
+} from '@/math/path-utils';
 
 export class PathElement extends AbstractGraphicElement {
-  private _ha = new PathHitArea();
+  _ha = new PathHitArea();
 
   public geometry = {
     commands: [] as PathCommand[],

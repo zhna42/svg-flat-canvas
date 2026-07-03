@@ -3,7 +3,7 @@ import type { Point, BoundingBox } from '@/types';
 import { RectHitAreaSimple } from '../modules/HitArea';
 
 export class ImageElement extends AbstractGraphicElement {
-  private _ha = new RectHitAreaSimple();
+  _ha = new RectHitAreaSimple();
 
   public geometry = { x: 0, y: 0, width: 0, height: 0 };
   public href = '';

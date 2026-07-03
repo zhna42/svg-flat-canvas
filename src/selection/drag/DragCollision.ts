@@ -1,24 +1,18 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { Camera } from '@/camera/Camera';
+import type { Camera } from '@/canvas/Camera';
 import type { Point } from '@/types';
-import type { SpatialGrid } from '@/spatial/SpatialGrid';
-import {
-  type CurveTarget,
-  type ScreenBezierSeg,
-} from '@/snap/AdaptiveSnapEngine';
+import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
+import type { CurveTarget, ScreenBezierSeg } from '@/types';
 import { CircleElement } from '@/shapes/elements/CircleElement';
 import { EllipseElement } from '@/shapes/elements/EllipseElement';
 import { PathElement } from '@/shapes/elements/PathElement';
-import { flattenCommands } from '@/spatial/path-utils';
+import { flattenCommands } from '@/math/path-utils';
 import {
-  offsetPolygon,
-  offsetOpenPath,
   approximateArc,
-} from '@/spatial/geometry-utils';
-import {
-  polyIntersectsPoly,
-  segmentIntersectsSegment,
-} from '@/spatial/hit-test';
+  offsetOpenPath,
+  offsetPolygon,
+} from '@/math/geometry-utils';
+import { polyIntersectsPoly, segmentIntersectsSegment } from '@/math/hit-test';
 
 export function generateCirclePoints(
   cx: number,
@@ -498,6 +492,15 @@ export function checkSceneCollisions(
     );
 
     for (const candidate of candidates) {
+      const candidateBox = candidate.hitAreaBox.getOrCompute();
+      if (
+        candidateBox.maxX < movingBBox.x ||
+        candidateBox.minX > movingBBox.x + movingBBox.width ||
+        candidateBox.maxY < movingBBox.y ||
+        candidateBox.minY > movingBBox.y + movingBBox.height
+      ) {
+        continue;
+      }
       const candidatePts = getVisualWorldPoints(candidate, camera);
       if (candidatePts.length === 0) continue;
 

@@ -1,73 +1,88 @@
-import type { Renderer } from '@/renderer/Renderer';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import { getRenderQueue } from '@/utils/render-queue-utils';
+import type { CanvasView } from '@/canvas/CanvasView';
 
 export class ShapeManager {
-  private readonly renderer: Renderer;
-  private readonly shapes: AbstractGraphicElement[] = [];
+  readonly #view: CanvasView;
+  readonly #shapes: AbstractGraphicElement[] = [];
+  #registerDirty: ((node: any) => void) | null = null;
 
-  public constructor(renderer: Renderer) {
-    this.renderer = renderer;
+  public constructor(view: CanvasView) {
+    this.#view = view;
+  }
+
+  public setRegisterDirty(fn: (node: any) => void): void {
+    this.#registerDirty = fn;
   }
 
   public add(shape: AbstractGraphicElement): void {
-    this.shapes.push(shape);
-    this.renderer.addElement(shape.id, shape.type);
+    this.#shapes.push(shape);
+    if (this.#registerDirty) {
+      shape.pushDiffRendering = this.#registerDirty;
+      this.#registerDirty(shape);
+    }
   }
 
   public addElement(el: AbstractGraphicElement): void {
-    this.shapes.push(el);
-    this.renderer.addElement(el.id, el.type);
-    getRenderQueue()?.add(el);
+    this.#shapes.push(el);
+    if (this.#registerDirty) {
+      el.pushDiffRendering = this.#registerDirty;
+      this.#registerDirty(el);
+    }
   }
 
   public addPreviewElement(el: AbstractGraphicElement): void {
-    this.shapes.push(el);
-    this.renderer.addPreviewElement(el.id, el.type);
-    getRenderQueue()?.add(el);
+    el.isPreview = true;
+    el.layerName = 'previewGroup';
+    this.#shapes.push(el);
+    if (this.#registerDirty) {
+      el.pushDiffRendering = this.#registerDirty;
+      this.#registerDirty(el);
+    }
   }
 
   public remove(id: string): void {
-    const index = this.shapes.findIndex((s) => s.id === id);
+    const index = this.#shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
-      this.shapes.splice(index, 1);
-      this.renderer.removeElement(id);
+      this.#shapes.splice(index, 1);
+      this.#view.remove(id);
     }
   }
 
   public removeElement(id: string): void {
-    const index = this.shapes.findIndex((s) => s.id === id);
+    const index = this.#shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
-      this.shapes.splice(index, 1);
+      this.#shapes.splice(index, 1);
     }
   }
 
   public removeElementAndNode(id: string): void {
-    const index = this.shapes.findIndex((s) => s.id === id);
+    const index = this.#shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
-      this.shapes.splice(index, 1);
-      this.renderer.removeElement(id);
+      this.#shapes.splice(index, 1);
+      this.#view.remove(id);
     }
   }
 
   public removePreviewElement(id: string): void {
-    const index = this.shapes.findIndex((s) => s.id === id);
+    const index = this.#shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
-      this.shapes.splice(index, 1);
-      this.renderer.removePreviewElement(id);
+      this.#shapes.splice(index, 1);
+      this.#view.remove(id);
     }
   }
 
   public clear(): void {
-    this.shapes.length = 0;
-    this.renderer.clear();
+    for (const s of this.#shapes) {
+      this.#view.remove(s.id);
+    }
+    this.#shapes.length = 0;
   }
 
   public getAll(): AbstractGraphicElement[] {
-    return [...this.shapes];
+    return [...this.#shapes];
   }
 
   public getById(id: string): AbstractGraphicElement | undefined {
-    return this.shapes.find((s) => s.id === id);
+    return this.#shapes.find((s) => s.id === id);
   }
 }

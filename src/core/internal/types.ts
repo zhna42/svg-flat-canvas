@@ -1,0 +1,44 @@
+import type { Camera } from '@/canvas/Camera';
+import type { CanvasView } from '@/canvas/CanvasView';
+import type { Artboard } from '@/canvas/system';
+import type { ShapeManager } from '@/shapes/ShapeManager';
+import type { SelectionState } from '@/selection/SelectionState';
+import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
+import type { SelectionHandler } from '@/selection/handlers/SelectionHandler';
+import type { SelectionOverlay } from '@/canvas/overlays/selection/SelectionOverlay';
+import type { GroupSelectionOverlay } from '@/canvas/overlays/selection/GroupSelectionOverlay';
+import type { TransformHandler } from '@/selection/transform/TransformHandler';
+import type { GroupTransformHandler } from '@/selection/transform/GroupTransformHandler';
+import type { GridOverlay } from '@/canvas/overlays/debug/GridOverlay';
+import type { GroupManager } from '@/shapes/group';
+import type { CommandBus } from '@/commands';
+import type { TimeMachine } from '@/time-machine';
+import type { RulerManager } from '@/canvas/system/ruler';
+import type { CreationHandler } from '@/commands/handlers/creation/CreationHandler';
+import type { ExternalApi } from '@/api/external-api';
+import type { EventBus } from '../EventBus';
+import type { ElementManager } from './ElementManager';
+
+export interface ICanvasContext {
+  readonly svg: SVGSVGElement;
+  readonly camera: Camera;
+  readonly view: CanvasView;
+  readonly artboard: Artboard;
+  readonly shapeManager: ShapeManager;
+  readonly selectionState: SelectionState;
+  readonly spatialGrid: SpatialGrid;
+  readonly commandBus: CommandBus;
+  readonly timeMachine: TimeMachine;
+  readonly events: EventBus;
+  readonly api: ExternalApi;
+  readonly selectionOverlay: SelectionOverlay;
+  readonly groupSelectionOverlay: GroupSelectionOverlay;
+  readonly transformHandler: TransformHandler;
+  readonly groupTransformHandler: GroupTransformHandler;
+  readonly gridOverlay: GridOverlay;
+  readonly groupManager: GroupManager;
+  readonly elementManager: ElementManager;
+  readonly rulerManager: RulerManager;
+  readonly selectionHandler: SelectionHandler;
+  readonly creationHandler: CreationHandler;
+}

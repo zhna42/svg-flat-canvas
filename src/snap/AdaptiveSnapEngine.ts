@@ -1,48 +1,11 @@
-export type SnapAxis = 'x' | 'y';
-
-export interface SnapResult {
-  correctionX: number;
-  correctionY: number;
-}
-
-export interface TypedSnapResult {
-  correctionX: number;
-  correctionY: number;
-  type: 'none' | 'point' | 'line' | 'curve';
-  lineStartX?: number;
-  lineStartY?: number;
-  lineEndX?: number;
-  lineEndY?: number;
-}
-
-export interface SnapLine {
-  x: number;
-  y: number;
-  x2: number;
-  y2: number;
-  isOrthogonal: boolean;
-}
-
-export interface ScreenBezierSeg {
-  p0x: number;
-  p0y: number;
-  p1x: number;
-  p1y: number;
-  p2x: number;
-  p2y: number;
-  p3x?: number;
-  p3y?: number;
-  type: 'cubic' | 'quadratic';
-}
-
-export interface CurveTarget {
-  type: 'circle' | 'ellipse' | 'bezier';
-  cx: number;
-  cy: number;
-  rx: number;
-  ry: number;
-  bezierSegs?: ScreenBezierSeg[];
-}
+import type {
+  SnapAxis,
+  AdaptiveSnapResult,
+  TypedSnapResult,
+  SnapLine,
+  ScreenBezierSeg,
+  CurveTarget,
+} from '@/types';
 
 const SLOW_ENGAGE_DIST = 10;
 const SLOW_HOLD_DIST = 12;
@@ -455,7 +418,9 @@ export class AdaptiveSnapEngine {
     return lines;
   }
 
-  computeCorrection(movingPoints: { x: number; y: number }[]): SnapResult {
+  computeCorrection(
+    movingPoints: { x: number; y: number }[],
+  ): AdaptiveSnapResult {
     const r = this.computeCorrectionWithType(movingPoints);
     return { correctionX: r.correctionX, correctionY: r.correctionY };
   }

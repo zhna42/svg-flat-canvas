@@ -1,27 +1,79 @@
+export type InputHandler = {
+  onMouseDown?(e: MouseEvent): boolean;
+  onMouseMove?(e: MouseEvent): boolean;
+  onMouseUp?(e: MouseEvent): boolean;
+  onDblClick?(e: MouseEvent): boolean;
+  onKeyDown?(e: KeyboardEvent): boolean;
+  onKeyUp?(e: KeyboardEvent): boolean;
+  onWheel?(e: WheelEvent): boolean;
+};
+
 export class EventManager {
   private readonly svg: SVGSVGElement;
-  private readonly handlers: Array<
-    [string, EventListenerOrEventListenerObject]
-  > = [];
+  private handlers: InputHandler[] = [];
+  private bound = false;
 
   public constructor(svg: SVGSVGElement) {
     this.svg = svg;
   }
 
-  public on(event: string, handler: EventListenerOrEventListenerObject): void {
-    this.svg.addEventListener(event, handler);
-    this.handlers.push([event, handler]);
+  public register(handler: InputHandler): void {
+    this.handlers.push(handler);
   }
 
-  public off(event: string, handler: EventListenerOrEventListenerObject): void {
-    this.svg.removeEventListener(event, handler);
-    this.handlers.splice(this.handlers.indexOf([event, handler]), 1);
+  public unregister(handler: InputHandler): void {
+    const idx = this.handlers.indexOf(handler);
+    if (idx >= 0) this.handlers.splice(idx, 1);
+  }
+
+  public bind(): void {
+    if (this.bound) return;
+    this.bound = true;
+
+    this.svg.addEventListener('mousedown', (e: MouseEvent) => {
+      for (let i = this.handlers.length - 1; i >= 0; i--) {
+        if (this.handlers[i].onMouseDown?.(e)) return;
+      }
+    });
+
+    window.addEventListener('mousemove', (e: MouseEvent) => {
+      for (let i = this.handlers.length - 1; i >= 0; i--) {
+        if (this.handlers[i].onMouseMove?.(e)) return;
+      }
+    });
+
+    window.addEventListener('mouseup', (e: MouseEvent) => {
+      for (let i = this.handlers.length - 1; i >= 0; i--) {
+        if (this.handlers[i].onMouseUp?.(e)) return;
+      }
+    });
+
+    this.svg.addEventListener('dblclick', (e: MouseEvent) => {
+      for (let i = this.handlers.length - 1; i >= 0; i--) {
+        if (this.handlers[i].onDblClick?.(e)) return;
+      }
+    });
+
+    window.addEventListener('keydown', (e: KeyboardEvent) => {
+      for (let i = this.handlers.length - 1; i >= 0; i--) {
+        if (this.handlers[i].onKeyDown?.(e)) return;
+      }
+    });
+
+    window.addEventListener('keyup', (e: KeyboardEvent) => {
+      for (let i = this.handlers.length - 1; i >= 0; i--) {
+        if (this.handlers[i].onKeyUp?.(e)) return;
+      }
+    });
+
+    this.svg.addEventListener('wheel', (e: WheelEvent) => {
+      for (let i = this.handlers.length - 1; i >= 0; i--) {
+        if (this.handlers[i].onWheel?.(e)) return;
+      }
+    });
   }
 
   public destroy(): void {
-    for (const [event, handler] of this.handlers) {
-      this.svg.removeEventListener(event, handler);
-    }
-    this.handlers.length = 0;
+    this.handlers = [];
   }
 }

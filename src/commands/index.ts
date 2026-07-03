@@ -24,9 +24,9 @@ export type {
   BBox,
   SelectionMode,
   SelectionGesture,
-} from './types';
+} from '@/types';
 
-export type { CommandHandler, CommandRegistry } from './registry';
+export type { CommandHandler, CommandRegistry } from '@/types';
 export { CommandBus } from './CommandBus';
 
 export {

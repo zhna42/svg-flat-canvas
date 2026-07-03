@@ -1,21 +1,14 @@
-export type { SelectionMode } from '@/commands/types';
-export type { SelectionFilter } from './selection-filter';
-export type { SelectionShortcuts } from './selection-defaults';
+export type { SelectionMode } from '@/types';
+export type { SelectionFilter } from '@/types';
+export type { SelectionShortcuts } from '@/types';
 export { DEFAULT_SELECTION_SHORTCUTS } from './selection-defaults';
-export { SpatialGrid } from '@/spatial/SpatialGrid';
 export { SelectionState } from './SelectionState';
-export { SelectionOverlay } from './overlay/SelectionOverlay';
-export type { HandlePosition } from './overlay/SelectionOverlay';
+export type { HandlePosition } from '@/types';
 export { TransformHandler } from './transform/TransformHandler';
-export type { TransformMode } from './transform/TransformHandler';
-export {
-  hitTestByPoint as hitTestPoint,
-  hitTestByRect as hitTestRect,
-  hitTestByLasso as hitTestLasso,
-} from '@/spatial/hit-test';
+export type { TransformMode } from '@/types';
 export { SelectionHandler } from './handlers/SelectionHandler';
 export { GroupSelectionHandler } from './handlers/GroupSelectionHandler';
 export { DragHandler } from './drag';
 export { PathNodeHandler } from './handlers/PathNodeHandler';
-export type { PathNodeActivation } from './handlers/PathNodeHandler';
+export type { PathNodeActivation } from '@/types';
 export { SubpathDragHandler } from './handlers/SubpathDragHandler';

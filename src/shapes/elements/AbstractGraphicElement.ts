@@ -2,17 +2,16 @@ import type { Point, BoundingBox, ElementType } from '@/types';
 import { Transform } from '../modules/Transform';
 import { Style } from '../modules/Style';
 import { LaserProps } from '../modules/LaserProps';
-import { AbstractDiff } from './AbstractDiff';
-import { getRenderQueue } from '@/utils/render-queue-utils';
+import { ReactiveNode } from '@/core/ReactiveNode';
+import { HitAreaBox } from '@/math/HitAreaBox';
 
-export type ElementSnapshot = Record<string, unknown>;
-
-export abstract class AbstractGraphicElement extends AbstractDiff {
+export abstract class AbstractGraphicElement extends ReactiveNode {
   public readonly id: string;
   public readonly type: ElementType;
   public readonly transform = new Transform();
   public readonly style = new Style();
   public readonly laserProps = new LaserProps();
+  public readonly hitAreaBox = new HitAreaBox();
 
   public groupId = '';
   public name: string;
@@ -21,8 +20,8 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
   public isPreview = false;
   public isNodeEditing = false;
   public data: Record<string, unknown> = {};
+  public spatialCellIds: number[] = [];
 
-  public _spatialCellIds: number[] = [];
   public onSpatialIndexChanged: ((el: AbstractGraphicElement) => void) | null =
     null;
   public onColorChanged:
@@ -33,29 +32,29 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
       ) => void)
     | null = null;
 
+  _fadedOriginalOpacity: number | null = null;
+
   constructor(id: string, type: ElementType) {
-    super();
+    super(id, type, 'shapesGroup');
     this.id = id;
     this.type = type;
     this.name = type;
+    this.hitAreaBox.setComputeFn(() => this.getWorldHitPoints());
     this.subscribe(['style.fill', 'style.stroke'], () => {
-      getRenderQueue()?.add(this);
       this.buildHitArea();
+      this.hitAreaBox.invalidate();
       this.onColorChanged?.(this);
     });
     this.subscribe('style.strokeWidth', () => {
-      getRenderQueue()?.add(this);
       this.buildHitArea();
+      this.hitAreaBox.invalidate();
+    });
+    this.subscribe('transform.matrix', () => {
+      this.hitAreaBox.invalidate();
     });
     this.subscribe(
-      [
-        'style.opacity',
-        'style.visible',
-        'visible',
-        'transform.matrix',
-        'isPreview',
-      ],
-      () => getRenderQueue()?.add(this),
+      ['style.opacity', 'style.visible', 'visible', 'isPreview'],
+      () => {},
     );
   }
 
@@ -66,13 +65,14 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
   public abstract toOutlinePath(): import('./PathElement').PathElement;
 
   public getSpatialCellIds(): number[] {
-    return this._spatialCellIds;
+    return this.spatialCellIds;
   }
   public setSpatialCellIds(ids: number[]): void {
-    this._spatialCellIds = ids;
+    this.spatialCellIds = ids;
   }
   public rebuildHitArea(): void {
     this.buildHitArea();
+    this.hitAreaBox.invalidate();
     this.onSpatialIndexChanged?.(this);
   }
 
@@ -83,6 +83,46 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
 
   public getRenderGeometry(): Record<string, unknown> {
     return this.getGeometryProps();
+  }
+
+  public override getRenderingPayload(): Record<string, unknown> {
+    const diff = this.renderingDiff;
+    if (Object.keys(diff).length === 0) return {};
+
+    const result: Record<string, unknown> = {};
+
+    const m = this.transform.matrix;
+    const isIdentity =
+      m.a === 1 &&
+      m.b === 0 &&
+      m.c === 0 &&
+      m.d === 1 &&
+      m.e === 0 &&
+      m.f === 0;
+    if (!isIdentity) {
+      result.transform = `matrix(${m.a},${m.b},${m.c},${m.d},${m.e},${m.f})`;
+    }
+
+    result.visibility =
+      this.style.visible !== false && this.visible !== false
+        ? 'visible'
+        : 'hidden';
+
+    const fill = this.style.fill;
+    result.fill = fill && fill !== '' ? fill : 'none';
+    const stroke = this.style.stroke;
+    if (stroke && stroke !== '') result.stroke = stroke;
+    result['stroke-width'] = String(this.style.strokeWidth);
+    result.opacity = String(this.style.opacity);
+
+    const geom = this.getRenderGeometry();
+    for (const [key, value] of Object.entries(geom)) {
+      if (value !== undefined && value !== null) {
+        result[key] = value;
+      }
+    }
+
+    return result;
   }
 
   public transformPoint(p: Point): Point {
@@ -148,7 +188,6 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
     };
   }
 
-  private _fadedOriginalOpacity: number | null = null;
   public setFaded(faded: boolean): void {
     if (faded && this._fadedOriginalOpacity === null) {
       this._fadedOriginalOpacity = this.style.opacity;
@@ -192,7 +231,7 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
   public fromSnapshot(data: Record<string, unknown>): void {
     this.setDiff(data as Record<string, any>);
     this.rebuildHitArea();
-    this.clearHistoryDiff();
+    this.clearTimeMachineDiff();
   }
 
   public applySnapshot(snapshot: Record<string, unknown>): void {
@@ -200,15 +239,15 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
   }
 
   public getDiffSnapshot(): Record<string, unknown> {
-    const d = this.getHistoryDiff();
-    this.clearHistoryDiff();
+    const d = { ...this.timeMachineDiff.after };
+    this.clearTimeMachineDiff();
     return d;
   }
 
   public getUnsavedDTO(): Record<string, unknown> | null {
-    const d = this.getBackendDiff();
+    const d = this.saveDiff;
     if (Object.keys(d).length === 0) return null;
-    this.clearBackendDiff();
+    this.clearSaveDiff();
     return d;
   }
 
@@ -251,8 +290,8 @@ export abstract class AbstractGraphicElement extends AbstractDiff {
 
   protected subscribeGeometry(...keys: string[]): void {
     this.subscribe(keys, () => {
-      getRenderQueue()?.add(this);
       this.buildHitArea();
+      this.hitAreaBox.invalidate();
     });
   }
 

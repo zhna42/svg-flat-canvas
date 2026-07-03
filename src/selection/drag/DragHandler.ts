@@ -1,11 +1,11 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { CommandBus } from '@/commands/CommandBus';
-import type { Camera } from '@/camera/Camera';
-import type { SpatialGrid } from '@/spatial/SpatialGrid';
+import type { Camera } from '@/canvas/Camera';
+import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
-import { DragSnapHelper, type SnapAxisMode } from '@/selection/drag/DragSnap';
+import { DragSnapHelper } from '@/selection/drag/DragSnap';
+import type { SnapAxisMode } from '@/types';
 import { checkSceneCollisions } from '@/selection/drag/DragCollision';
-import { getRenderQueue } from '@/utils/render-queue-utils';
 
 const HOLD_DIST_SCREEN = 40;
 
@@ -216,12 +216,13 @@ export class DragHandler {
             const dirX = lx / lineLen;
             const dirY = ly / lineLen;
 
-            const mouseAlong = (mouseDx - elemDx) * dirX + (mouseDy - elemDy) * dirY;
+            const mouseAlong =
+              (mouseDx - elemDx) * dirX + (mouseDy - elemDy) * dirY;
             elemDx = elemDx + mouseAlong * dirX;
             elemDy = elemDy + mouseAlong * dirY;
 
-            const perpX = (mouseDx - elemDx) - (mouseAlong * dirX);
-            const perpY = (mouseDy - elemDy) - (mouseAlong * dirY);
+            const perpX = mouseDx - elemDx - mouseAlong * dirX;
+            const perpY = mouseDy - elemDy - mouseAlong * dirY;
             const perpDist = Math.hypot(perpX, perpY) * this.camera.zoom;
 
             if (perpDist > HOLD_DIST_SCREEN) {
@@ -253,11 +254,17 @@ export class DragHandler {
         }
       }
 
-      if (!this.snapState && snapResult.screenDx !== 0 || snapResult.screenDy !== 0) {
+      if (
+        (!this.snapState && snapResult.screenDx !== 0) ||
+        snapResult.screenDy !== 0
+      ) {
         const newDx = mouseDx + snapResult.correctionDx;
         const newDy = mouseDy + snapResult.correctionDy;
 
-        const correctionLen = Math.hypot(snapResult.screenDx, snapResult.screenDy);
+        const correctionLen = Math.hypot(
+          snapResult.screenDx,
+          snapResult.screenDy,
+        );
         if (correctionLen > 0.1) {
           this.snapState = {
             type: snapResult.type,
@@ -380,7 +387,6 @@ export class DragHandler {
       m.e += this.currentDx;
       m.f += this.currentDy;
       el.transform.matrix = m;
-      getRenderQueue()?.add(el);
     }
 
     this.onDragMove?.(this.currentDx, this.currentDy);
@@ -398,7 +404,6 @@ export class DragHandler {
 
     for (const el of this.targets) {
       el.rebuildHitArea();
-      getRenderQueue()?.add(el);
     }
 
     const ids = this.targets.map((e) => e.id);

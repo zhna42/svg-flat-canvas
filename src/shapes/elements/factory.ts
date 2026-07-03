@@ -8,19 +8,7 @@ import { PolylineElement } from './PolylineElement';
 import { TextElement } from './TextElement';
 import { ImageElement } from './ImageElement';
 import { AbstractGraphicElement } from './AbstractGraphicElement';
-import type { ElementType } from '@/types';
-
-export interface ElementJSON {
-  id: string;
-  type: ElementType;
-  attributes: Record<string, string>;
-  groupId?: string;
-  name?: string;
-  visible?: boolean;
-  lock?: boolean;
-  data?: Record<string, unknown>;
-  textContent?: string;
-}
+import type { ElementType, ElementJSON } from '@/types';
 
 export const createElementByType = (
   type: string,
@@ -167,7 +155,7 @@ export const createFromJSON = (json: ElementJSON): AbstractGraphicElement => {
     el.setTextContent(json.textContent);
 
   el.rebuildHitArea();
-  el.clearHistoryDiff();
+  el.clearTimeMachineDiff();
   return el;
 };
 

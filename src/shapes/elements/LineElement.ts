@@ -3,7 +3,7 @@ import type { Point, BoundingBox } from '@/types';
 import { LineHitArea } from '../modules/HitArea';
 
 export class LineElement extends AbstractGraphicElement {
-  private _ha = new LineHitArea();
+  _ha = new LineHitArea();
 
   public geometry = { x1: 0, y1: 0, x2: 0, y2: 0 };
 

@@ -1,19 +1,10 @@
-import type { Point, BezierSegment, EdgeInfo } from './snap-types';
-
-export interface PointToSegmentResult {
-  distSq: number;
-  closestX: number;
-  closestY: number;
-  normalX: number;
-  normalY: number;
-  t: number;
-}
-
-export interface PointToEdgeSnapResult {
-  distSq: number;
-  snapX: number;
-  snapY: number;
-}
+import type {
+  Point,
+  PointToSegmentResult,
+  PointToEdgeSnapResult,
+  BezierSegment,
+  EdgeInfo,
+} from '@/types';
 
 export class SnapGeometry {
   public static pointToSegment(

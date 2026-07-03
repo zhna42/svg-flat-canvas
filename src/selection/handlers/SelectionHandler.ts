@@ -1,23 +1,16 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { SelectionState } from '@/selection/SelectionState';
-import type { SpatialGrid } from '@/spatial/SpatialGrid';
-import type { Camera } from '@/camera/Camera';
 import { DEFAULT_SELECTION_SHORTCUTS } from '@/selection/selection-defaults';
-import type { SelectionShortcuts } from '@/selection/selection-defaults';
+import type {
+  SelectionShortcuts,
+  SelectionGesture,
+  RectOverlay,
+  LassoOverlay,
+} from '@/types';
 import { DragHandler } from '@/selection/drag';
 import { GroupSelectionHandler } from '@/selection/handlers/GroupSelectionHandler';
-import { SelectionOverlay } from '@/selection/overlay/SelectionOverlay';
-import type { TransformHandler } from '@/selection/transform/TransformHandler';
-import type { GroupTransformHandler } from '@/selection/transform/GroupTransformHandler';
-import type { GroupSelectionOverlay } from '@/selection/overlay/GroupSelectionOverlay';
-import type { Group } from '@/group/Group';
 import { PathNodeHandler } from '@/selection/handlers/PathNodeHandler';
-import type { CommandBus } from '@/commands/CommandBus';
-import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import { PathTimeMachine as PathTimeMachineClass } from '@/shapes/path/PathTimeMachine';
-import type { SelectionGesture } from '@/commands/types';
-import { hitTestByPoint as hitTestPoint } from '@/spatial/hit-test';
-import { pointToSegmentDist } from '@/spatial/geometry-utils';
+import { hitTestByPoint as hitTestPoint } from '@/math/hit-test';
+import { pointToSegmentDist } from '@/math/geometry-utils';
 import {
   createSelectPickCommand,
   createSelectRectCommand,
@@ -29,53 +22,11 @@ import {
   createLassoOverlay,
   updateLassoOverlay,
   hideLassoOverlay,
-} from '@/utils/overlay-utils';
-import type { RectOverlay, LassoOverlay } from '@/utils/overlay-utils';
-import { getRenderQueue } from '@/utils/render-queue-utils';
-import type { EventBus } from '@/core/EventBus';
+} from '@/canvas/overlays/overlay-utils';
 import type { ImageElement } from '@/shapes/elements/ImageElement';
-import { computeGroupWorldBBox } from '@/spatial/group-bbox-utils';
-
-export interface SelectionHandlerOptions {
-  svg: SVGSVGElement;
-  camera: Camera;
-  overlayRoot: SVGGElement;
-  selectionOverlay: SelectionOverlay;
-  groupSelectionOverlay: GroupSelectionOverlay;
-  transformHandler: TransformHandler;
-  groupTransformHandler: GroupTransformHandler;
-  state: SelectionState;
-  getElements: () => AbstractGraphicElement[];
-  grid: SpatialGrid;
-  bus: CommandBus;
-  isPanning?: () => boolean;
-  isCreating?: () => boolean;
-  isGuidelineDragging?: () => boolean;
-  shortcuts?: Partial<SelectionShortcuts>;
-  getGroupIdForElement?: (elementId: string) => string | undefined;
-  getSelectedGroups?: () => Group[];
-  getArtboardRect?: () => {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  } | null;
-  onGroupSelect?: (ids: string[]) => void;
-  onDragStart?: () => void;
-  onDragMove?: (dx: number, dy: number) => void;
-  onDragEnd?: () => void;
-  onSetEditingPath?: (path: AbstractGraphicElement | null) => void;
-  getEditingPath?: () => AbstractGraphicElement | null;
-  getGuidelines?: () => Array<{
-    orientation: 'v' | 'h';
-    position: number;
-  }>;
-  getGridLines?: () => Array<{
-    orientation: 'v' | 'h';
-    position: number;
-  }>;
-  events: EventBus;
-}
+import { computeGroupWorldBBox } from '@/math/group-bbox-utils';
+import type { SelectionHandlerOptions } from '@/types';
+import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 
 export class SelectionHandler {
   private readonly opts: SelectionHandlerOptions;
@@ -98,6 +49,11 @@ export class SelectionHandler {
   private lassoWorldPoints: { x: number; y: number }[] = [];
   private lassoScreenPoints: { x: number; y: number }[] = [];
   private lassoOverlay: LassoOverlay = { element: null };
+
+  private panning = false;
+  private panStart = { x: 0, y: 0 };
+  private panAuto = false;
+  private panStartWorld: { x: number; y: number } | null = null;
 
   public constructor(opts: SelectionHandlerOptions) {
     this.opts = opts;
@@ -154,7 +110,7 @@ export class SelectionHandler {
         if (path.type === 'path') {
           this.pathTimeMachine = new PathTimeMachineClass(path as any);
           this.pathNodeHandler.pathTimeMachine = this.pathTimeMachine;
-          this.opts.bus.suppressTimeMachine = true;
+          this.opts.timeMachine!.suppressTimeMachine = true;
         }
       } else {
         this.flushPathTimeMachine();
@@ -163,6 +119,688 @@ export class SelectionHandler {
     };
 
     this.bindEvents();
+  }
+
+  public onMouseDown(e: MouseEvent): boolean {
+    if (e.button !== 0) return false;
+
+    if (this.opts.isCreating?.()) return false;
+
+    if (this.opts.isGuidelineDragging?.()) return false;
+
+    const rootSvg = this.opts.svg;
+
+    if (this.opts.isPanning?.()) {
+      this.panning = true;
+      const svgPt = this.clientToSvg(e);
+      this.panStart = { x: svgPt.x, y: svgPt.y };
+      rootSvg.style.cursor = 'grabbing';
+      e.preventDefault();
+      return true;
+    }
+
+    const svgPt = this.clientToSvg(e);
+    const worldPt = this.screenToWorld(e);
+
+    this.ctrlHeld = e.ctrlKey || e.metaKey;
+    this.shiftOverride = e.shiftKey;
+    const useRect = this.gesture === 'rect' || this.shiftOverride;
+    const isGroup = () => this.opts.state.mode === 'group';
+
+    // Path node editing — check handle hit
+    const editingPath = this.opts.getEditingPath?.();
+    if (editingPath) {
+      const handleHit = this.opts.selectionOverlay.hitTestPathNode(
+        svgPt.x,
+        svgPt.y,
+      );
+      if (handleHit) {
+        const started = this.pathNodeHandler.startFromHandle(
+          handleHit.elementId,
+          handleHit.cmdIdx,
+          handleHit.ptIdx,
+          this.opts.getElements(),
+          worldPt,
+        );
+        if (started) {
+          e.preventDefault();
+          return true;
+        }
+      }
+
+      const all = this.opts.getElements();
+      const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
+      const hitEditing = hits.some((h) => h.id === editingPath.id);
+      if (!hitEditing) {
+        this.opts.onSetEditingPath?.(null);
+      } else {
+        e.preventDefault();
+        return true;
+      }
+    }
+
+    // Handle hit test
+    if (this.tryHandleHitTest(svgPt)) {
+      e.preventDefault();
+      return true;
+    }
+
+    if (isGroup()) {
+      if (this.tryGroupHandleHitTest(svgPt)) {
+        e.preventDefault();
+        return true;
+      }
+
+      const started = this.groupHandler.onMouseDown(
+        worldPt,
+        this.ctrlHeld,
+        this.shiftOverride,
+      );
+      if (started) {
+        e.preventDefault();
+        return true;
+      } else if (useRect) {
+        this.rectActive = true;
+        this.rectStartSvg = { x: svgPt.x, y: svgPt.y };
+        this.rectStartWorld = { x: worldPt.x, y: worldPt.y };
+        this.rectOverlay = createRectOverlay(
+          this.opts.overlayRoot,
+          this.opts.camera,
+          svgPt.x,
+          svgPt.y,
+        );
+        if (!this.ctrlHeld) this.opts.state.clear();
+        return true;
+      } else if (this.gesture === 'lasso') {
+        this.lassoActive = true;
+        this.lassoWorldPoints = [{ x: worldPt.x, y: worldPt.y }];
+        this.lassoScreenPoints = [{ x: svgPt.x, y: svgPt.y }];
+        this.lassoOverlay = createLassoOverlay(
+          this.opts.overlayRoot,
+          this.opts.camera,
+        );
+        if (!this.ctrlHeld) this.opts.state.clear();
+        return true;
+      }
+      return true;
+    }
+
+    // Element hit test → drag
+    if (!this.ctrlHeld) {
+      if (this.tryElementHitTestAndDrag(worldPt)) {
+        e.preventDefault();
+        return true;
+      }
+    }
+
+    // Auto-pan on empty canvas
+    if (!useRect && this.gesture !== 'lasso' && !this.ctrlHeld) {
+      this.panAuto = true;
+      this.panning = true;
+      this.panStart = { x: svgPt.x, y: svgPt.y };
+      this.panStartWorld = { x: worldPt.x, y: worldPt.y };
+      rootSvg.style.cursor = 'grabbing';
+      e.preventDefault();
+      return true;
+    }
+
+    if (useRect) {
+      this.rectActive = true;
+      this.rectStartSvg = { x: svgPt.x, y: svgPt.y };
+      this.rectStartWorld = { x: worldPt.x, y: worldPt.y };
+      this.rectOverlay = createRectOverlay(
+        this.opts.overlayRoot,
+        this.opts.camera,
+        svgPt.x,
+        svgPt.y,
+      );
+      if (!this.ctrlHeld) this.dispatchSelectClear();
+      return true;
+    } else if (this.gesture === 'lasso') {
+      this.lassoActive = true;
+      this.lassoWorldPoints = [{ x: worldPt.x, y: worldPt.y }];
+      this.lassoScreenPoints = [{ x: svgPt.x, y: svgPt.y }];
+      this.lassoOverlay = createLassoOverlay(
+        this.opts.overlayRoot,
+        this.opts.camera,
+      );
+      if (!this.ctrlHeld) this.dispatchSelectClear();
+      return true;
+    }
+
+    const cmd = createSelectPickCommand('element', worldPt, this.ctrlHeld);
+    this.opts.bus.execute(cmd);
+    return true;
+  }
+
+  public onMouseMove(e: MouseEvent): boolean {
+    if (e.buttons === 0) return false;
+
+    if (this.panning) {
+      const svgPt = this.clientToSvg(e);
+      const dx = svgPt.x - this.panStart.x;
+      const dy = svgPt.y - this.panStart.y;
+      this.opts.camera.pan(dx, dy);
+      this.panStart = { x: svgPt.x, y: svgPt.y };
+      return true;
+    }
+
+    const svgPt = this.clientToSvg(e);
+    const worldPt = this.screenToWorld(e);
+    const isGroup = () => this.opts.state.mode === 'group';
+
+    if (this.pathNodeHandler.isActive) {
+      this.pathNodeHandler.move(worldPt);
+      return true;
+    }
+
+    if (this.opts.transformHandler.isActive) {
+      this.opts.transformHandler.move(worldPt, e.shiftKey);
+      return true;
+    }
+
+    if (isGroup()) {
+      if (this.opts.groupTransformHandler.isActive) {
+        this.opts.groupTransformHandler.move(worldPt, e.shiftKey);
+        return true;
+      }
+      if (this.dragHandler.isActive) this.dragHandler.move(worldPt);
+      if (this.rectActive) this.updateRect(svgPt);
+      if (this.lassoActive) {
+        this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
+        this.lassoScreenPoints.push({ x: svgPt.x, y: svgPt.y });
+        updateLassoOverlay(this.lassoOverlay, this.lassoScreenPoints);
+      }
+      return true;
+    }
+
+    if (this.dragHandler.isActive) {
+      this.dragHandler.move(worldPt);
+      return true;
+    }
+
+    if (this.rectActive) this.updateRect(svgPt);
+
+    if (this.lassoActive) {
+      this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
+      this.lassoScreenPoints.push({ x: svgPt.x, y: svgPt.y });
+      updateLassoOverlay(this.lassoOverlay, this.lassoScreenPoints);
+    }
+    return true;
+  }
+
+  public onMouseUp(e: MouseEvent): boolean {
+    if (e.button !== 0) return false;
+
+    const rootSvg = this.opts.svg;
+    const isGroup = () => this.opts.state.mode === 'group';
+
+    if (this.panning) {
+      this.panning = false;
+      rootSvg.style.cursor = '';
+      if (this.panAuto) {
+        this.panAuto = false;
+        const worldPt = this.screenToWorld(e);
+        const dx = worldPt.x - (this.panStartWorld?.x ?? 0);
+        const dy = worldPt.y - (this.panStartWorld?.y ?? 0);
+        if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
+          const cmd = createSelectPickCommand(
+            'element',
+            worldPt,
+            this.ctrlHeld,
+          );
+          this.opts.bus.execute(cmd);
+        }
+        this.panStartWorld = null;
+      }
+      return true;
+    }
+
+    const worldPt = this.screenToWorld(e);
+
+    if (this.pathNodeHandler.isActive) {
+      this.pathNodeHandler.end();
+      return true;
+    }
+
+    if (this.opts.transformHandler.isActive) {
+      this.opts.transformHandler.end();
+      return true;
+    }
+
+    if (isGroup()) {
+      if (this.opts.groupTransformHandler.isActive) {
+        this.opts.groupTransformHandler.end();
+        return true;
+      }
+      if (this.dragHandler.isActive) this.dragHandler.end();
+      else if (this.rectActive) {
+        this.rectActive = false;
+        hideRectOverlay(this.rectOverlay);
+        this.groupHandler.onRectEnd(
+          worldPt,
+          this.ctrlHeld,
+          this.rectStartWorld,
+        );
+      } else if (this.lassoActive) {
+        this.lassoActive = false;
+        hideLassoOverlay(this.lassoOverlay);
+        this.groupHandler.onLassoEnd(this.lassoWorldPoints, this.ctrlHeld);
+        this.lassoWorldPoints = [];
+        this.lassoScreenPoints = [];
+      }
+      return true;
+    }
+
+    if (this.dragHandler.isActive) {
+      this.dragHandler.end();
+      return true;
+    }
+
+    if (this.rectActive) {
+      this.rectActive = false;
+      hideRectOverlay(this.rectOverlay);
+      this.shiftOverride = false;
+      if (this.isDragGesture(worldPt)) {
+        this.dispatchSelectRect(worldPt);
+      } else {
+        const cmd = createSelectPickCommand('element', worldPt, this.ctrlHeld);
+        this.opts.bus.execute(cmd);
+      }
+      return true;
+    }
+
+    if (this.lassoActive) {
+      this.lassoActive = false;
+      hideLassoOverlay(this.lassoOverlay);
+      if (this.lassoWorldPoints.length >= 3) {
+        this.dispatchSelectLasso();
+      } else {
+        const cmd = createSelectPickCommand('element', worldPt, this.ctrlHeld);
+        this.opts.bus.execute(cmd);
+      }
+      this.lassoWorldPoints = [];
+      this.lassoScreenPoints = [];
+      return true;
+    }
+    return false;
+  }
+
+  public onWheel(e: WheelEvent): boolean {
+    e.preventDefault();
+    const svgPt = this.clientToSvg(e);
+    if (!svgPt.x && !svgPt.y) return false;
+    this.opts.camera.setZoom(svgPt, e.deltaY > 0 ? 0.95 : 1.05);
+    return true;
+  }
+
+  public onDblClick(e: MouseEvent): boolean {
+    if (e.button !== 0) return false;
+    if (e.defaultPrevented) return false;
+    const worldPt = this.screenToWorld(e);
+
+    const editingPath = this.opts.getEditingPath?.();
+    if (editingPath && editingPath.type === 'path') {
+      const svgPt = this.clientToSvg(e);
+      const handleHit = this.opts.selectionOverlay.hitTestPathNode(
+        svgPt.x,
+        svgPt.y,
+      );
+      if (handleHit) return false;
+
+      const pathEl =
+        editingPath as any as import('@/shapes/elements/PathElement').PathElement;
+      const cmds = pathEl.geometry.commands;
+
+      const inv = pathEl.transform.matrix.inverse();
+      const localPt = inv.transformPoint({ x: worldPt.x, y: worldPt.y });
+
+      let closestDist = Infinity;
+      let closestCmdIdx = -1;
+      let closestT = 0;
+      let closestPrevEndX = 0;
+      let closestPrevEndY = 0;
+
+      for (let i = 1; i < cmds.length; i++) {
+        const cmd = cmds[i];
+        const cc = cmd.command.toUpperCase();
+        if (cc === 'M') continue;
+
+        const prev = cmds[i - 1];
+        let ax: number, ay: number;
+        if (
+          prev.command.toUpperCase() === 'M' ||
+          prev.command.toUpperCase() === 'L' ||
+          prev.command.toUpperCase() === 'T'
+        ) {
+          ax = prev.args[0];
+          ay = prev.args[1];
+        } else if (
+          prev.command.toUpperCase() === 'C' &&
+          prev.args.length >= 6
+        ) {
+          ax = prev.args[4];
+          ay = prev.args[5];
+        } else if (
+          prev.command.toUpperCase() === 'S' &&
+          prev.args.length >= 4
+        ) {
+          ax = prev.args[2];
+          ay = prev.args[3];
+        } else if (
+          prev.command.toUpperCase() === 'Q' &&
+          prev.args.length >= 4
+        ) {
+          ax = prev.args[2];
+          ay = prev.args[3];
+        } else continue;
+
+        if (cc === 'L' || cc === 'T') {
+          const bx = cmd.args[0],
+            by = cmd.args[1];
+          const {
+            dist,
+            closestX: cx,
+            closestY: cy,
+          } = pointToSegmentDist(localPt.x, localPt.y, ax, ay, bx, by);
+          if (dist < closestDist) {
+            closestDist = dist;
+            closestCmdIdx = i - 1;
+            closestPrevEndX = ax;
+            closestPrevEndY = ay;
+            const dx = bx - ax,
+              dy = by - ay;
+            const lenSq = dx * dx + dy * dy;
+            closestT =
+              lenSq > 0 ? ((cx - ax) * dx + (cy - ay) * dy) / lenSq : 0;
+          }
+        } else if (cc === 'C' && cmd.args.length >= 6) {
+          const [c1x, c1y, c2x, c2y, ex, ey] = cmd.args;
+          let bestT = 0;
+          let bestDistC = Infinity;
+          for (let s = 0; s <= 20; s++) {
+            const t = s / 20;
+            const mt = 1 - t;
+            const px =
+              mt * mt * mt * ax +
+              3 * mt * mt * t * c1x +
+              3 * mt * t * t * c2x +
+              t * t * t * ex;
+            const py =
+              mt * mt * mt * ay +
+              3 * mt * mt * t * c1y +
+              3 * mt * t * t * c2y +
+              t * t * t * ey;
+            const d = Math.hypot(localPt.x - px, localPt.y - py);
+            if (d < bestDistC) {
+              bestDistC = d;
+              bestT = t;
+            }
+          }
+          if (bestDistC < closestDist) {
+            closestDist = bestDistC;
+            closestCmdIdx = i - 1;
+            closestT = bestT;
+            closestPrevEndX = ax;
+            closestPrevEndY = ay;
+          }
+        } else if (cc === 'Q' && cmd.args.length >= 4) {
+          const [c1x, c1y, ex, ey] = cmd.args;
+          let bestT = 0;
+          let bestDistQ = Infinity;
+          for (let s = 0; s <= 20; s++) {
+            const t = s / 20;
+            const mt = 1 - t;
+            const px = mt * mt * ax + 2 * mt * t * c1x + t * t * ex;
+            const py = mt * mt * ay + 2 * mt * t * c1y + t * t * ey;
+            const d = Math.hypot(localPt.x - px, localPt.y - py);
+            if (d < bestDistQ) {
+              bestDistQ = d;
+              bestT = t;
+            }
+          }
+          if (bestDistQ < closestDist) {
+            closestDist = bestDistQ;
+            closestCmdIdx = i - 1;
+            closestT = bestT;
+            closestPrevEndX = ax;
+            closestPrevEndY = ay;
+          }
+        } else if (cc === 'S' && cmd.args.length >= 4) {
+          const prevCmd = cmds[i - 1];
+          const pc = prevCmd?.command.toUpperCase();
+          let reflectX = ax,
+            reflectY = ay;
+          if (pc === 'C' && prevCmd.args.length >= 6) {
+            reflectX = 2 * ax - prevCmd.args[2];
+            reflectY = 2 * ay - prevCmd.args[3];
+          }
+          const [c2x, c2y, ex, ey] = cmd.args;
+          let bestT = 0;
+          let bestDistS = Infinity;
+          for (let s = 0; s <= 20; s++) {
+            const t = s / 20;
+            const mt = 1 - t;
+            const px =
+              mt * mt * mt * ax +
+              3 * mt * mt * t * reflectX +
+              3 * mt * t * t * c2x +
+              t * t * t * ex;
+            const py =
+              mt * mt * mt * ay +
+              3 * mt * mt * t * reflectY +
+              3 * mt * t * t * c2y +
+              t * t * t * ey;
+            const d = Math.hypot(localPt.x - px, localPt.y - py);
+            if (d < bestDistS) {
+              bestDistS = d;
+              bestT = t;
+            }
+          }
+          if (bestDistS < closestDist) {
+            closestDist = bestDistS;
+            closestCmdIdx = i - 1;
+            closestT = bestT;
+            closestPrevEndX = ax;
+            closestPrevEndY = ay;
+          }
+        }
+      }
+
+      if (closestCmdIdx >= 0 && closestDist < 40) {
+        const nextCmd = cmds[closestCmdIdx + 1];
+        const ncc = nextCmd.command.toUpperCase();
+        let localX = localPt.x,
+          localY = localPt.y;
+
+        if (
+          (ncc === 'C' || ncc === 'S' || ncc === 'Q') &&
+          closestT >= 0 &&
+          closestT <= 1
+        ) {
+          const Ax = closestPrevEndX,
+            Ay = closestPrevEndY;
+          if (ncc === 'C' && nextCmd.args.length >= 6) {
+            const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
+            const t = closestT,
+              mt = 1 - t;
+            localX =
+              mt * mt * mt * Ax +
+              3 * mt * mt * t * c1x +
+              3 * mt * t * t * c2x +
+              t * t * t * ex;
+            localY =
+              mt * mt * mt * Ay +
+              3 * mt * mt * t * c1y +
+              3 * mt * t * t * c2y +
+              t * t * t * ey;
+          } else if (ncc === 'Q' && nextCmd.args.length >= 4) {
+            const [c1x, c1y, ex, ey] = nextCmd.args;
+            const t = closestT,
+              mt = 1 - t;
+            localX = mt * mt * Ax + 2 * mt * t * c1x + t * t * ex;
+            localY = mt * mt * Ay + 2 * mt * t * c1y + t * t * ey;
+          } else if (ncc === 'S' && nextCmd.args.length >= 4) {
+            const [c2x, c2y, ex, ey] = nextCmd.args;
+            const t = closestT,
+              mt = 1 - t;
+            localX =
+              mt * mt * mt * Ax +
+              3 *
+                mt *
+                mt *
+                t *
+                (2 * Ax - (cmds[closestCmdIdx]?.args?.[2] ?? Ax)) +
+              3 * mt * t * t * c2x +
+              t * t * t * ex;
+            localY =
+              mt * mt * mt * Ay +
+              3 *
+                mt *
+                mt *
+                t *
+                (2 * Ay - (cmds[closestCmdIdx]?.args?.[3] ?? Ay)) +
+              3 * mt * t * t * c2y +
+              t * t * t * ey;
+          }
+        }
+
+        this.opts.bus.execute({
+          type: 'PATH_ADD_NODE',
+          options: {
+            id: editingPath.id,
+            cmdIdx: closestCmdIdx,
+            x: localX,
+            y: localY,
+            t: closestT,
+            prevEndX: closestPrevEndX,
+            prevEndY: closestPrevEndY,
+          },
+        });
+        this.pathTimeMachine?.capture();
+        e.preventDefault();
+        return true;
+      }
+    }
+
+    const all = this.opts.getElements();
+    const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
+    if (hits.length > 0) {
+      const picked = hits[hits.length - 1];
+      if (
+        picked.type === 'path' ||
+        picked.type === 'polyline' ||
+        picked.type === 'polygon'
+      ) {
+        this.opts.onSetEditingPath?.(picked);
+      } else if (picked.type === 'image') {
+        const dto = (picked as ImageElement).toDTO();
+        this.opts.events.emit('IMG_SELECT_EDIT', dto);
+      }
+    }
+    return true;
+  }
+
+  public onKeyDown(e: KeyboardEvent): boolean {
+    const key = e.key.toLowerCase();
+    if (key === this.shortcuts.selectElement) this.gesture = 'click';
+    else if (key === this.shortcuts.selectGroup) {
+      this.gesture = 'click';
+      this.opts.state.setMode('group');
+    } else if (key === 'r') this.gesture = 'rect';
+    else if (key === 'l') this.gesture = 'lasso';
+    else if (key === 'v') {
+      this.gesture = 'click';
+      this.opts.state.setMode('element');
+    } else if (e.key === 'Enter') {
+      const selected = this.opts.state.selected;
+      if (selected.length === 1 && selected[0].type === 'path') {
+        this.opts.onSetEditingPath?.(selected[0]);
+        e.preventDefault();
+        return true;
+      }
+    } else if (
+      (e.key === 'Delete' || e.key === 'Backspace') &&
+      this.pathNodeHandler.isActive
+    ) {
+      const editingPath = this.opts.getEditingPath?.();
+      if (editingPath) {
+        const act = this.pathNodeHandler.activation;
+        if (act) {
+          this.opts.bus.execute({
+            type: 'PATH_REMOVE_NODE',
+            options: { id: editingPath.id, cmdIdx: act.cmdIdx },
+          });
+          this.pathNodeHandler.abort();
+          this.pathTimeMachine?.capture();
+          e.preventDefault();
+          return true;
+        }
+      }
+    } else if (this.pathNodeHandler.isActive && key === 'c') {
+      const editingPath = this.opts.getEditingPath?.();
+      const act = this.pathNodeHandler.activation;
+      if (editingPath && act) {
+        this.opts.bus.execute({
+          type: 'PATH_CHANGE_NODE_TYPE',
+          options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'C' },
+        });
+        this.pathTimeMachine?.capture();
+        e.preventDefault();
+        return true;
+      }
+    } else if (this.pathNodeHandler.isActive && key === 'l') {
+      const editingPath = this.opts.getEditingPath?.();
+      const act = this.pathNodeHandler.activation;
+      if (editingPath && act) {
+        this.opts.bus.execute({
+          type: 'PATH_CHANGE_NODE_TYPE',
+          options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'L' },
+        });
+        this.pathTimeMachine?.capture();
+        e.preventDefault();
+        return true;
+      }
+    } else if (key === 'escape') {
+      if (this.pathTimeMachine) {
+        const editingPath = this.opts.getEditingPath?.();
+        if (editingPath) this.opts.onSetEditingPath?.(null);
+      } else {
+        this.dispatchSelectClear();
+        this.opts.onGroupSelect?.([]);
+      }
+      return true;
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+      if (this.pathTimeMachine) {
+        e.preventDefault();
+        this.pathTimeMachine.undo();
+        const editingPath = this.opts.getEditingPath?.();
+        if (editingPath)
+          this.opts.selectionOverlay.updatePathNodes(editingPath);
+        return true;
+      } else if (this.opts.getEditingPath?.()) {
+        e.preventDefault();
+        return true;
+      }
+    } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
+      if (this.pathTimeMachine) {
+        e.preventDefault();
+        this.pathTimeMachine.redo();
+        const editingPath = this.opts.getEditingPath?.();
+        if (editingPath)
+          this.opts.selectionOverlay.updatePathNodes(editingPath);
+        return true;
+      } else if (this.opts.getEditingPath?.()) {
+        e.preventDefault();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private bindEvents(): void {
+    // Event delegation now handled by EventManager.
+    // All logic moved to onMouseDown/Move/Up/DblClick/KeyDown methods.
   }
 
   private flushPathTimeMachine(): void {
@@ -176,17 +814,16 @@ export class SelectionHandler {
         args: [...c.args],
       }));
 
-      const initialSnapshot = this.pathTimeMachine.getRootCommands();
+      const initialSnapshot = this.pathTimeMachine!.getRootCommands();
       if (initialSnapshot) {
         pathEl.geometry.commands = initialSnapshot.map((c: any) => ({
           ...c,
           args: [...c.args],
         }));
         pathEl.rebuildHitArea();
-        getRenderQueue()?.add(pathEl);
       }
 
-      this.opts.bus.suppressTimeMachine = false;
+      this.opts.timeMachine!.suppressTimeMachine = false;
       this.opts.bus.execute({
         type: 'GEOMETRY_MUTATE',
         options: { id: editingPath.id, newCommands: postCommands },
@@ -195,47 +832,7 @@ export class SelectionHandler {
     this.pathTimeMachine.clear();
     this.pathTimeMachine = null;
     this.pathNodeHandler.pathTimeMachine = null;
-    this.opts.bus.suppressTimeMachine = false;
-  }
-
-  public setShortcuts(s: Partial<SelectionShortcuts>): void {
-    this.shortcuts = { ...this.shortcuts, ...s };
-  }
-
-  public setGesture(g: SelectionGesture): void {
-    this.gesture = g;
-  }
-
-  public getGesture(): SelectionGesture {
-    return this.gesture;
-  }
-
-  public setSnapToCorners(enabled: boolean): void {
-    this.dragHandler.setSnapToCorners(enabled);
-  }
-
-  public setSnapToPlanes(enabled: boolean): void {
-    this.dragHandler.setSnapToPlanes(enabled);
-  }
-
-  public setSnapToArtboard(enabled: boolean): void {
-    this.dragHandler.setSnapToArtboard(enabled);
-  }
-
-  public setSnapToGuidelines(enabled: boolean): void {
-    this.dragHandler.setSnapToGuidelines(enabled);
-  }
-
-  public setSnapToGrid(enabled: boolean): void {
-    this.dragHandler.setSnapToGrid(enabled);
-  }
-
-  public setSnapAxis(mode: string): void {
-    this.dragHandler.setSnapAxis(mode as any);
-  }
-
-  public setAvoidCollisions(enabled: boolean): void {
-    this.dragHandler.setAvoidCollisions(enabled);
+    this.opts.timeMachine!.suppressTimeMachine = false;
   }
 
   private clientToSvg(e: MouseEvent): { x: number; y: number } {
@@ -294,17 +891,19 @@ export class SelectionHandler {
   }
 
   private tryGroupHandleHitTest(svgPt: { x: number; y: number }): boolean {
-    const hit = this.opts.groupSelectionOverlay.hitTestHandle(
-      svgPt.x,
-      svgPt.y,
-    );
+    const hit = this.opts.groupSelectionOverlay.hitTestHandle(svgPt.x, svgPt.y);
     if (!hit) return false;
 
     const groups = this.opts.getSelectedGroups?.() ?? [];
     const findElement = (id: string) =>
       this.opts.getElements().find((e) => e.id === id);
 
-    let groupBBox: { x: number; y: number; width: number; height: number } | null = null;
+    let groupBBox: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } | null = null;
     for (const g of groups) {
       if (g.id === hit.groupId) {
         groupBBox = computeGroupWorldBBox(g, findElement);
@@ -321,670 +920,6 @@ export class SelectionHandler {
       groups,
       findElement,
     );
-  }
-
-  private bindEvents(): void {
-    const rootSvg = this.opts.svg;
-    const isGroup = () => this.opts.state.mode === 'group';
-    const overlayRoot = this.opts.overlayRoot;
-    const camera = this.opts.camera;
-
-    let panning = false;
-    let panStart = { x: 0, y: 0 };
-
-    let panAuto = false;
-    let panStartWorld: { x: number; y: number } | null = null;
-
-    rootSvg.addEventListener('mousedown', (e: MouseEvent) => {
-      if (e.button !== 0) return;
-
-      if (this.opts.isCreating?.()) return;
-
-      if (this.opts.isGuidelineDragging?.()) return;
-
-      if (this.opts.isPanning?.()) {
-        panning = true;
-        const svgPt = this.clientToSvg(e);
-        panStart = { x: svgPt.x, y: svgPt.y };
-        rootSvg.style.cursor = 'grabbing';
-        e.preventDefault();
-        return;
-      }
-
-      const svgPt = this.clientToSvg(e);
-      const worldPt = this.screenToWorld(e);
-
-      this.ctrlHeld = e.ctrlKey || e.metaKey;
-      this.shiftOverride = e.shiftKey;
-      const useRect = this.gesture === 'rect' || this.shiftOverride;
-
-      // Если активен режим редактирования узлов пути
-      const editingPath = this.opts.getEditingPath?.();
-      if (editingPath) {
-        // ШАГ 1: хит-тест ручек узлов пути через оверлей (как для ресайза)
-        const handleHit = this.opts.selectionOverlay.hitTestPathNode(
-          svgPt.x,
-          svgPt.y,
-        );
-        if (handleHit) {
-          const started = this.pathNodeHandler.startFromHandle(
-            handleHit.elementId,
-            handleHit.cmdIdx,
-            handleHit.ptIdx,
-            this.opts.getElements(),
-            worldPt,
-          );
-          if (started) {
-            e.preventDefault();
-            return;
-          }
-        }
-
-        // Клик не по ручке
-        // Проверяем, кликнули ли по самому редактируемому пути
-        const all = this.opts.getElements();
-        const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
-        const hitEditing = hits.some((h) => h.id === editingPath.id);
-        if (!hitEditing) {
-          this.opts.onSetEditingPath?.(null);
-        } else {
-          e.preventDefault();
-          return;
-        }
-      }
-
-      // ШАГ 2: хит-тест интерфейса (ручки ресайза)
-      if (this.tryHandleHitTest(svgPt)) {
-        e.preventDefault();
-        return;
-      }
-
-      if (isGroup()) {
-        if (this.tryGroupHandleHitTest(svgPt)) {
-          e.preventDefault();
-          return;
-        }
-
-        const started = this.groupHandler.onMouseDown(
-          worldPt,
-          this.ctrlHeld,
-          this.shiftOverride,
-        );
-        if (started) {
-          e.preventDefault();
-        } else if (useRect) {
-          this.rectActive = true;
-          this.rectStartSvg = { x: svgPt.x, y: svgPt.y };
-          this.rectStartWorld = { x: worldPt.x, y: worldPt.y };
-          this.rectOverlay = createRectOverlay(
-            overlayRoot,
-            camera,
-            svgPt.x,
-            svgPt.y,
-          );
-          if (!this.ctrlHeld) this.opts.state.clear();
-        } else if (this.gesture === 'lasso') {
-          this.lassoActive = true;
-          this.lassoWorldPoints = [{ x: worldPt.x, y: worldPt.y }];
-          this.lassoScreenPoints = [{ x: svgPt.x, y: svgPt.y }];
-          this.lassoOverlay = createLassoOverlay(overlayRoot, camera);
-          if (!this.ctrlHeld) this.opts.state.clear();
-        }
-        return;
-      }
-
-      // ШАГ 3: хит-тест элементов → попытка drag
-      if (!this.ctrlHeld) {
-        if (this.tryElementHitTestAndDrag(worldPt)) {
-          e.preventDefault();
-          return;
-        }
-      }
-
-      // Auto-pan on empty canvas in single-select mode
-      if (!useRect && this.gesture !== 'lasso' && !this.ctrlHeld) {
-        panAuto = true;
-        panning = true;
-        panStart = { x: svgPt.x, y: svgPt.y };
-        panStartWorld = { x: worldPt.x, y: worldPt.y };
-        rootSvg.style.cursor = 'grabbing';
-        e.preventDefault();
-        return;
-      }
-
-      if (useRect) {
-        this.rectActive = true;
-        this.rectStartSvg = { x: svgPt.x, y: svgPt.y };
-        this.rectStartWorld = { x: worldPt.x, y: worldPt.y };
-        this.rectOverlay = createRectOverlay(
-          overlayRoot,
-          camera,
-          svgPt.x,
-          svgPt.y,
-        );
-        if (!this.ctrlHeld) this.dispatchSelectClear();
-      } else if (this.gesture === 'lasso') {
-        this.lassoActive = true;
-        this.lassoWorldPoints = [{ x: worldPt.x, y: worldPt.y }];
-        this.lassoScreenPoints = [{ x: svgPt.x, y: svgPt.y }];
-        this.lassoOverlay = createLassoOverlay(overlayRoot, camera);
-        if (!this.ctrlHeld) this.dispatchSelectClear();
-      } else {
-        const cmd = createSelectPickCommand('element', worldPt, this.ctrlHeld);
-        this.opts.bus.execute(cmd);
-      }
-    });
-
-    window.addEventListener('mousemove', (e: MouseEvent) => {
-      if (e.buttons === 0) return;
-
-      if (panning) {
-        const svgPt = this.clientToSvg(e);
-        const dx = svgPt.x - panStart.x;
-        const dy = svgPt.y - panStart.y;
-        this.opts.camera.pan(dx, dy);
-        panStart = { x: svgPt.x, y: svgPt.y };
-        return;
-      }
-
-      const svgPt = this.clientToSvg(e);
-      const worldPt = this.screenToWorld(e);
-
-      if (this.pathNodeHandler.isActive) {
-        this.pathNodeHandler.move(worldPt);
-        return;
-      }
-
-      if (this.opts.transformHandler.isActive) {
-        this.opts.transformHandler.move(worldPt, e.shiftKey);
-        return;
-      }
-
-      if (isGroup()) {
-        if (this.opts.groupTransformHandler.isActive) {
-          this.opts.groupTransformHandler.move(worldPt, e.shiftKey);
-          return;
-        }
-        if (this.dragHandler.isActive) this.dragHandler.move(worldPt);
-        if (this.rectActive) this.updateRect(svgPt);
-        if (this.lassoActive) {
-          this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
-          this.lassoScreenPoints.push({ x: svgPt.x, y: svgPt.y });
-          updateLassoOverlay(this.lassoOverlay, this.lassoScreenPoints);
-        }
-        return;
-      }
-
-      if (this.dragHandler.isActive) {
-        this.dragHandler.move(worldPt);
-        return;
-      }
-
-      if (this.rectActive) this.updateRect(svgPt);
-
-      if (this.lassoActive) {
-        this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
-        this.lassoScreenPoints.push({ x: svgPt.x, y: svgPt.y });
-        updateLassoOverlay(this.lassoOverlay, this.lassoScreenPoints);
-      }
-    });
-
-    window.addEventListener('mouseup', (e: MouseEvent) => {
-      if (e.button !== 0) return;
-
-      if (panning) {
-        panning = false;
-        rootSvg.style.cursor = '';
-        if (panAuto) {
-          panAuto = false;
-          const worldPt = this.screenToWorld(e);
-          const dx = worldPt.x - (panStartWorld?.x ?? 0);
-          const dy = worldPt.y - (panStartWorld?.y ?? 0);
-          if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
-            const cmd = createSelectPickCommand(
-              'element',
-              worldPt,
-              this.ctrlHeld,
-            );
-            this.opts.bus.execute(cmd);
-          }
-          panStartWorld = null;
-        }
-        return;
-      }
-
-      const worldPt = this.screenToWorld(e);
-
-      if (this.pathNodeHandler.isActive) {
-        this.pathNodeHandler.end();
-        return;
-      }
-
-      if (this.opts.transformHandler.isActive) {
-        this.opts.transformHandler.end();
-        return;
-      }
-
-      if (isGroup()) {
-        if (this.opts.groupTransformHandler.isActive) {
-          this.opts.groupTransformHandler.end();
-          return;
-        }
-        if (this.dragHandler.isActive) this.dragHandler.end();
-        else if (this.rectActive) {
-          this.rectActive = false;
-          hideRectOverlay(this.rectOverlay);
-          this.groupHandler.onRectEnd(
-            worldPt,
-            this.ctrlHeld,
-            this.rectStartWorld,
-          );
-        } else if (this.lassoActive) {
-          this.lassoActive = false;
-          hideLassoOverlay(this.lassoOverlay);
-          this.groupHandler.onLassoEnd(this.lassoWorldPoints, this.ctrlHeld);
-          this.lassoWorldPoints = [];
-          this.lassoScreenPoints = [];
-        }
-        return;
-      }
-
-      if (this.dragHandler.isActive) {
-        this.dragHandler.end();
-        return;
-      }
-
-      if (this.rectActive) {
-        this.rectActive = false;
-        hideRectOverlay(this.rectOverlay);
-        this.shiftOverride = false;
-        if (this.isDragGesture(worldPt)) {
-          this.dispatchSelectRect(worldPt);
-        } else {
-          const cmd = createSelectPickCommand(
-            'element',
-            worldPt,
-            this.ctrlHeld,
-          );
-          this.opts.bus.execute(cmd);
-        }
-      }
-
-      if (this.lassoActive) {
-        this.lassoActive = false;
-        hideLassoOverlay(this.lassoOverlay);
-        if (this.lassoWorldPoints.length >= 3) {
-          this.dispatchSelectLasso();
-        } else {
-          const cmd = createSelectPickCommand(
-            'element',
-            worldPt,
-            this.ctrlHeld,
-          );
-          this.opts.bus.execute(cmd);
-        }
-        this.lassoWorldPoints = [];
-        this.lassoScreenPoints = [];
-      }
-    });
-
-    // Двойной клик — вход в режим редактирования узлов пути
-    rootSvg.addEventListener('dblclick', (e: MouseEvent) => {
-      if (e.button !== 0) return;
-      if (e.defaultPrevented) return;
-      const worldPt = this.screenToWorld(e);
-
-      // Feature 1: Добавление точки на отрезок, если режим редактирования активен
-      const editingPath = this.opts.getEditingPath?.();
-      if (editingPath && editingPath.type === 'path') {
-        const svgPt = this.clientToSvg(e);
-        const handleHit = this.opts.selectionOverlay.hitTestPathNode(
-          svgPt.x,
-          svgPt.y,
-        );
-        if (handleHit) return;
-
-        const pathEl =
-          editingPath as any as import('@/shapes/elements/PathElement').PathElement;
-        const cmds = pathEl.geometry.commands;
-
-        // Инвертируем мировые координаты в локальные через матрицу элемента
-        const inv = pathEl.transform.matrix.inverse();
-        const localPt = inv.transformPoint({ x: worldPt.x, y: worldPt.y });
-
-        let closestDist = Infinity;
-        let closestCmdIdx = -1;
-        let closestT = 0;
-        let closestPrevEndX = 0;
-        let closestPrevEndY = 0;
-
-        for (let i = 1; i < cmds.length; i++) {
-          const cmd = cmds[i];
-          const cc = cmd.command.toUpperCase();
-          if (cc === 'M') continue;
-
-          const prev = cmds[i - 1];
-          let ax: number, ay: number;
-          if (
-            prev.command.toUpperCase() === 'M' ||
-            prev.command.toUpperCase() === 'L' ||
-            prev.command.toUpperCase() === 'T'
-          ) {
-            ax = prev.args[0];
-            ay = prev.args[1];
-          } else if (
-            prev.command.toUpperCase() === 'C' &&
-            prev.args.length >= 6
-          ) {
-            ax = prev.args[4];
-            ay = prev.args[5];
-          } else if (
-            prev.command.toUpperCase() === 'S' &&
-            prev.args.length >= 4
-          ) {
-            ax = prev.args[2];
-            ay = prev.args[3];
-          } else if (
-            prev.command.toUpperCase() === 'Q' &&
-            prev.args.length >= 4
-          ) {
-            ax = prev.args[2];
-            ay = prev.args[3];
-          } else continue;
-
-          if (cc === 'L' || cc === 'T') {
-            const bx = cmd.args[0],
-              by = cmd.args[1];
-            const {
-              dist,
-              closestX: cx,
-              closestY: cy,
-            } = pointToSegmentDist(localPt.x, localPt.y, ax, ay, bx, by);
-            if (dist < closestDist) {
-              closestDist = dist;
-              closestCmdIdx = i - 1;
-              closestPrevEndX = ax;
-              closestPrevEndY = ay;
-              const dx = bx - ax,
-                dy = by - ay;
-              const lenSq = dx * dx + dy * dy;
-              closestT =
-                lenSq > 0 ? ((cx - ax) * dx + (cy - ay) * dy) / lenSq : 0;
-            }
-          } else if (cc === 'C' && cmd.args.length >= 6) {
-            const [c1x, c1y, c2x, c2y, ex, ey] = cmd.args;
-            let bestT = 0;
-            let bestDistC = Infinity;
-            for (let s = 0; s <= 20; s++) {
-              const t = s / 20;
-              const mt = 1 - t;
-              const px =
-                mt * mt * mt * ax +
-                3 * mt * mt * t * c1x +
-                3 * mt * t * t * c2x +
-                t * t * t * ex;
-              const py =
-                mt * mt * mt * ay +
-                3 * mt * mt * t * c1y +
-                3 * mt * t * t * c2y +
-                t * t * t * ey;
-              const d = Math.hypot(localPt.x - px, localPt.y - py);
-              if (d < bestDistC) {
-                bestDistC = d;
-                bestT = t;
-              }
-            }
-            if (bestDistC < closestDist) {
-              closestDist = bestDistC;
-              closestCmdIdx = i - 1;
-              closestT = bestT;
-              closestPrevEndX = ax;
-              closestPrevEndY = ay;
-            }
-          } else if (cc === 'Q' && cmd.args.length >= 4) {
-            const [c1x, c1y, ex, ey] = cmd.args;
-            let bestT = 0;
-            let bestDistQ = Infinity;
-            for (let s = 0; s <= 20; s++) {
-              const t = s / 20;
-              const mt = 1 - t;
-              const px = mt * mt * ax + 2 * mt * t * c1x + t * t * ex;
-              const py = mt * mt * ay + 2 * mt * t * c1y + t * t * ey;
-              const d = Math.hypot(localPt.x - px, localPt.y - py);
-              if (d < bestDistQ) {
-                bestDistQ = d;
-                bestT = t;
-              }
-            }
-            if (bestDistQ < closestDist) {
-              closestDist = bestDistQ;
-              closestCmdIdx = i - 1;
-              closestT = bestT;
-              closestPrevEndX = ax;
-              closestPrevEndY = ay;
-            }
-          } else if (cc === 'S' && cmd.args.length >= 4) {
-            const prevCmd = cmds[i - 1];
-            const pc = prevCmd?.command.toUpperCase();
-            let reflectX = ax,
-              reflectY = ay;
-            if (pc === 'C' && prevCmd.args.length >= 6) {
-              reflectX = 2 * ax - prevCmd.args[2];
-              reflectY = 2 * ay - prevCmd.args[3];
-            }
-            const [c2x, c2y, ex, ey] = cmd.args;
-            let bestT = 0;
-            let bestDistS = Infinity;
-            for (let s = 0; s <= 20; s++) {
-              const t = s / 20;
-              const mt = 1 - t;
-              const px =
-                mt * mt * mt * ax +
-                3 * mt * mt * t * reflectX +
-                3 * mt * t * t * c2x +
-                t * t * t * ex;
-              const py =
-                mt * mt * mt * ay +
-                3 * mt * mt * t * reflectY +
-                3 * mt * t * t * c2y +
-                t * t * t * ey;
-              const d = Math.hypot(localPt.x - px, localPt.y - py);
-              if (d < bestDistS) {
-                bestDistS = d;
-                bestT = t;
-              }
-            }
-            if (bestDistS < closestDist) {
-              closestDist = bestDistS;
-              closestCmdIdx = i - 1;
-              closestT = bestT;
-              closestPrevEndX = ax;
-              closestPrevEndY = ay;
-            }
-          }
-        }
-
-        if (closestCmdIdx >= 0 && closestDist < 40) {
-          // Вычисляем точку на кривой в локальных координатах
-          const nextCmd = cmds[closestCmdIdx + 1];
-          const ncc = nextCmd.command.toUpperCase();
-          let localX = localPt.x,
-            localY = localPt.y;
-
-          if (
-            (ncc === 'C' || ncc === 'S' || ncc === 'Q') &&
-            closestT >= 0 &&
-            closestT <= 1
-          ) {
-            const Ax = closestPrevEndX,
-              Ay = closestPrevEndY;
-            if (ncc === 'C' && nextCmd.args.length >= 6) {
-              const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
-              const t = closestT,
-                mt = 1 - t;
-              localX =
-                mt * mt * mt * Ax +
-                3 * mt * mt * t * c1x +
-                3 * mt * t * t * c2x +
-                t * t * t * ex;
-              localY =
-                mt * mt * mt * Ay +
-                3 * mt * mt * t * c1y +
-                3 * mt * t * t * c2y +
-                t * t * t * ey;
-            } else if (ncc === 'Q' && nextCmd.args.length >= 4) {
-              const [c1x, c1y, ex, ey] = nextCmd.args;
-              const t = closestT,
-                mt = 1 - t;
-              localX = mt * mt * Ax + 2 * mt * t * c1x + t * t * ex;
-              localY = mt * mt * Ay + 2 * mt * t * c1y + t * t * ey;
-            } else if (ncc === 'S' && nextCmd.args.length >= 4) {
-              const [c2x, c2y, ex, ey] = nextCmd.args;
-              const t = closestT,
-                mt = 1 - t;
-              localX =
-                mt * mt * mt * Ax +
-                3 *
-                  mt *
-                  mt *
-                  t *
-                  (2 * Ax - (cmds[closestCmdIdx]?.args?.[2] ?? Ax)) +
-                3 * mt * t * t * c2x +
-                t * t * t * ex;
-              localY =
-                mt * mt * mt * Ay +
-                3 *
-                  mt *
-                  mt *
-                  t *
-                  (2 * Ay - (cmds[closestCmdIdx]?.args?.[3] ?? Ay)) +
-                3 * mt * t * t * c2y +
-                t * t * t * ey;
-            }
-          }
-
-          this.opts.bus.execute({
-            type: 'PATH_ADD_NODE',
-            options: {
-              id: editingPath.id,
-              cmdIdx: closestCmdIdx,
-              x: localX,
-              y: localY,
-              t: closestT,
-              prevEndX: closestPrevEndX,
-              prevEndY: closestPrevEndY,
-            },
-          });
-          this.pathTimeMachine?.capture();
-          e.preventDefault();
-          return;
-        }
-      }
-
-      const all = this.opts.getElements();
-      const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
-      if (hits.length > 0) {
-        const picked = hits[hits.length - 1];
-        if (
-          picked.type === 'path' ||
-          picked.type === 'polyline' ||
-          picked.type === 'polygon'
-        ) {
-          this.opts.onSetEditingPath?.(picked);
-        } else if (picked.type === 'image') {
-          const dto = (picked as ImageElement).toDTO();
-          console.log('IMG_SELECT_EDIT', dto);
-          this.opts.events.emit('IMG_SELECT_EDIT', dto);
-        }
-      }
-    });
-
-    window.addEventListener('keydown', (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      if (key === this.shortcuts.selectElement) this.gesture = 'click';
-      else if (key === this.shortcuts.selectGroup) {
-        this.gesture = 'click';
-        this.opts.state.setMode('group');
-      } else if (key === 'r') this.gesture = 'rect';
-      else if (key === 'l') this.gesture = 'lasso';
-      else if (key === 'v') {
-        this.gesture = 'click';
-        this.opts.state.setMode('element');
-      } else if (e.key === 'Enter') {
-        const selected = this.opts.state.selected;
-        if (selected.length === 1 && selected[0].type === 'path') {
-          this.opts.onSetEditingPath?.(selected[0]);
-          e.preventDefault();
-        }
-      } else if (
-        (e.key === 'Delete' || e.key === 'Backspace') &&
-        this.pathNodeHandler.isActive
-      ) {
-        const editingPath = this.opts.getEditingPath?.();
-        if (editingPath) {
-          const act = this.pathNodeHandler.activation;
-          if (act) {
-            this.opts.bus.execute({
-              type: 'PATH_REMOVE_NODE',
-              options: { id: editingPath.id, cmdIdx: act.cmdIdx },
-            });
-            this.pathNodeHandler.abort();
-            this.pathTimeMachine?.capture();
-            e.preventDefault();
-          }
-        }
-      } else if (this.pathNodeHandler.isActive && key === 'c') {
-        const editingPath = this.opts.getEditingPath?.();
-        const act = this.pathNodeHandler.activation;
-        if (editingPath && act) {
-          this.opts.bus.execute({
-            type: 'PATH_CHANGE_NODE_TYPE',
-            options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'C' },
-          });
-          this.pathTimeMachine?.capture();
-          e.preventDefault();
-        }
-      } else if (this.pathNodeHandler.isActive && key === 'l') {
-        const editingPath = this.opts.getEditingPath?.();
-        const act = this.pathNodeHandler.activation;
-        if (editingPath && act) {
-          this.opts.bus.execute({
-            type: 'PATH_CHANGE_NODE_TYPE',
-            options: { id: editingPath.id, cmdIdx: act.cmdIdx, newType: 'L' },
-          });
-          this.pathTimeMachine?.capture();
-          e.preventDefault();
-        }
-      } else if (key === 'escape') {
-        if (this.pathTimeMachine) {
-          const editingPath = this.opts.getEditingPath?.();
-          if (editingPath) this.opts.onSetEditingPath?.(null);
-        } else {
-          this.dispatchSelectClear();
-          this.opts.onGroupSelect?.([]);
-        }
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
-        if (this.pathTimeMachine) {
-          e.preventDefault();
-          this.pathTimeMachine.undo();
-          const editingPath = this.opts.getEditingPath?.();
-          if (editingPath)
-            this.opts.selectionOverlay.updatePathNodes(editingPath);
-        } else if (this.opts.getEditingPath?.()) {
-          e.preventDefault();
-        }
-      } else if ((e.metaKey || e.ctrlKey) && e.key === 'z' && e.shiftKey) {
-        if (this.pathTimeMachine) {
-          e.preventDefault();
-          this.pathTimeMachine.redo();
-          const editingPath = this.opts.getEditingPath?.();
-          if (editingPath)
-            this.opts.selectionOverlay.updatePathNodes(editingPath);
-        } else if (this.opts.getEditingPath?.()) {
-          e.preventDefault();
-        }
-      }
-    });
   }
 
   private updateRect(svgPt: { x: number; y: number }): void {

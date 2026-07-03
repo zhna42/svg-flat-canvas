@@ -1,11 +1,7 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { HandlePosition } from '../overlay/SelectionOverlay';
-import type { Camera } from '@/camera/Camera';
-import type { CommandBus } from '@/commands/CommandBus';
-import type { Point } from '@/types';
-import { getRenderQueue } from '@/utils/render-queue-utils';
-
-export type TransformMode = 'resize' | 'rotate';
+import type { HandlePosition, Point, TransformMode } from '@/types';
+import type { Camera } from '@/canvas/Camera';
+import type { TimeMachine } from '@/time-machine/TimeMachine';
 
 const HANDLE_TO_ANCHOR: Record<HandlePosition, HandlePosition> = {
   se: 'nw',
@@ -40,14 +36,14 @@ export class TransformHandler {
   private anchorWorldPoints = new Map<string, Point>();
   private rotationCenter: Point = { x: 0, y: 0 };
   private startAngle = 0;
-  private bus: CommandBus;
+  private timeMachine: TimeMachine;
 
   public onTransformStart: ((mode: TransformMode) => void) | null = null;
   public onTransformMove: (() => void) | null = null;
   public onTransformEnd: ((mode: TransformMode) => void) | null = null;
 
-  public constructor(_camera: Camera, bus: CommandBus) {
-    this.bus = bus;
+  public constructor(_camera: Camera, timeMachine: TimeMachine) {
+    this.timeMachine = timeMachine;
   }
 
   public get isActive(): boolean {
@@ -151,7 +147,6 @@ export class TransformHandler {
       if (!startMatrix) continue;
       const localCenter = el.getLocalCenter();
       el.transform.applyRotate(deltaAngle, localCenter, startMatrix);
-      getRenderQueue()?.add(el);
     }
   }
 
@@ -160,19 +155,16 @@ export class TransformHandler {
     this._active = false;
     for (const el of this.targets) {
       el.rebuildHitArea();
-      getRenderQueue()?.add(el);
     }
 
     const ids = this.targets.map((e) => e.id);
-    this.bus
-      .getTimeMachine()
-      .push(
-        this.mode === 'rotate' ? 'ROTATE' : 'RESIZE',
-        ids,
-        'element',
-        [],
-        this.targets,
-      );
+    this.timeMachine.push(
+      this.mode === 'rotate' ? 'ROTATE' : 'RESIZE',
+      ids,
+      'element',
+      [],
+      this.targets,
+    );
 
     this.startMatrices.clear();
     this.anchorWorldPoints.clear();
@@ -248,7 +240,6 @@ export class TransformHandler {
         .translateSelf(-localAnchor.x, -localAnchor.y);
 
       el.transform.matrix = m;
-      getRenderQueue()?.add(el);
     }
   }
 

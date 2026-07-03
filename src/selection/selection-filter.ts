@@ -1,5 +1,2 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-
-export type SelectionFilter = (
-  elements: AbstractGraphicElement[],
-) => AbstractGraphicElement[];
+import type { SelectionFilter } from '@/types';
+export type { SelectionFilter };

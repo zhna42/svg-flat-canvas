@@ -1,7 +1,7 @@
 import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { ShapeManager } from '@/shapes/ShapeManager';
-import type { SpatialGrid } from '@/spatial/SpatialGrid';
+import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
 
 export const createDeleteHandler = (
   shapeManager: ShapeManager,

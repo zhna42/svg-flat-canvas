@@ -1,10 +1,10 @@
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/types';
 import { PolygonHitArea } from '../modules/HitArea';
-import { flattenPointsTransform } from '@/spatial/geometry-utils';
+import { flattenPointsTransform } from '@/math/geometry-utils';
 
 export class PolygonElement extends AbstractGraphicElement {
-  private _ha = new PolygonHitArea();
+  _ha = new PolygonHitArea();
 
   public points = '';
 

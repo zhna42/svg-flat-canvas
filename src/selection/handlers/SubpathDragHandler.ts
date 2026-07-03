@@ -2,7 +2,6 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import { PathElement } from '@/shapes/elements/PathElement';
 import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import type { Point } from '@/types';
-import { getRenderQueue } from '@/utils/render-queue-utils';
 
 export class SubpathDragHandler {
   private _active = false;
@@ -42,13 +41,11 @@ export class SubpathDragHandler {
     const frameDy = worldPoint.y - this._lastWorld.y;
     this._lastWorld = { x: worldPoint.x, y: worldPoint.y };
     this._element.translateSubpath(this._subpathIdx, frameDx, frameDy);
-    getRenderQueue()?.add(this._element);
   }
 
   public end(): void {
     if (!this._active || !this._element) return;
     this._element.rebuildHitArea();
-    getRenderQueue()?.add(this._element);
 
     this.pathTimeMachine?.capture();
 

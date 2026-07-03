@@ -4,7 +4,7 @@ import {
   approximateArc,
   offsetPolygon,
   offsetOpenPath,
-} from '@/spatial/geometry-utils';
+} from '@/math/geometry-utils';
 
 export abstract class HitArea {
   protected _points: Point[] = [];

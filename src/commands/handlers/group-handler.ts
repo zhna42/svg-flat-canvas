@@ -1,6 +1,6 @@
 import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
-import type { GroupManager } from '@/group/GroupManager';
+import type { GroupManager } from '@/shapes/group/GroupManager';
 
 export const createGroupHandler = (
   groupManager: GroupManager,

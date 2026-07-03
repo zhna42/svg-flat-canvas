@@ -2,9 +2,8 @@ import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { GroupManager } from '@/group';
-import { Group } from '@/group';
-import { getRenderQueue } from '@/utils/render-queue-utils';
+import type { GroupManager } from '@/shapes/group';
+import { Group } from '@/shapes/group';
 
 export const createCreateFileHandler = (
   shapeManager: ShapeManager,
@@ -20,7 +19,6 @@ export const createCreateFileHandler = (
       el.isPreview = false;
       shapeManager.add(el);
       indexShape(el);
-      getRenderQueue()?.add(el);
       el.groupId = groupId;
     }
 

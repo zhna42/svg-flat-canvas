@@ -1,7 +1,4 @@
-export interface SelectionShortcuts {
-  selectElement: string;
-  selectGroup: string;
-}
+import type { SelectionShortcuts } from '@/types';
 
 export const DEFAULT_SELECTION_SHORTCUTS: SelectionShortcuts = {
   selectElement: 'v',

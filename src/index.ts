@@ -26,7 +26,7 @@ export type {
   PolylineGeometryDTO,
   TextGeometryDTO,
   ImageGeometryDTO,
-} from '@/api/dto';
+} from '@/types';
 export { SvgCanvas } from '@/core';
 export type { SvgCanvasOptions } from '@/types';
 export type { Point, BoundingBox, ElementType, PathCommand } from '@/types';
@@ -43,16 +43,17 @@ export {
   createFromJSON,
   createFromJSONArray,
 } from '@/shapes';
-export type { ElementJSON } from '@/shapes';
+export type { ElementJSON } from '@/types';
 export type {
   SelectionMode,
   SelectionFilter,
   SelectionShortcuts,
   HandlePosition,
   TransformMode,
-} from '@/selection';
+} from '@/types';
 export { TransformHandler } from '@/selection';
-export type { Group, GroupData, GroupConflictAction } from '@/group';
+export { Group } from '@/shapes/group';
+export type { GroupData, GroupConflictAction } from '@/types';
 export { CommandBus } from '@/commands';
 export type {
   Command,
@@ -71,14 +72,19 @@ export type {
   TransformCommand,
   BBox,
   SelectionGesture,
-} from '@/commands';
+} from '@/types';
 export { TimeMachine } from '@/time-machine';
-export type { TimeSnapshot } from '@/time-machine';
-export type { EventBus, BusEvent } from '@/core/EventBus';
-export { svgNodesToElements } from '@/dto';
-export type { SvgNodeDto } from '@/dto';
-export { RulerManager } from '@/ruler';
-export type { GuidelineData, GuidelineEvents } from '@/ruler';
-export { BooleanEngine, BooleanHandler, booleanOperation } from '@/boolean';
-export type { BooleanOp, Pt } from '@/boolean';
-export { DebugLog } from '@/utils/DebugLog';
+export type { TimeSnapshot } from '@/types';
+export { EventBus } from '@/core/EventBus';
+export type { BusEvent } from '@/types';
+export { svgNodesToElements } from '@/api/dto/index';
+export type { SvgNodeDto } from '@/api/dto/index';
+export { RulerManager } from '@/canvas/system/ruler';
+export type { GuidelineData, GuidelineEvents } from '@/types';
+export {
+  BooleanEngine,
+  BooleanHandler,
+  booleanOperation,
+} from '@/math/boolean';
+export type { BooleanOp, Pt } from '@/types';
+export { DebugLog } from '@/canvas/overlays/debug/DebugLog';

@@ -11,4 +11,4 @@ export { TextElement } from './TextElement';
 export { ImageElement } from './ImageElement';
 export { PatternElement } from './PatternElement';
 export { createFromJSON, createFromJSONArray } from './factory';
-export type { ElementJSON } from './factory';
+export type { ElementJSON } from '@/types';

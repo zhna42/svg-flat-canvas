@@ -1,6 +1,6 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { Camera } from '@/camera/Camera';
-import type { Point } from '@/types';
+import type { Camera } from '@/canvas/Camera';
+import type { Point, SnapAxisMode, WorldSnapResult } from '@/types';
 import { AdaptiveSnapEngine } from '@/snap/AdaptiveSnapEngine';
 import { CircleElement } from '@/shapes/elements/CircleElement';
 import { EllipseElement } from '@/shapes/elements/EllipseElement';
@@ -12,20 +12,6 @@ import {
   extractBezierTargets,
   getVisualWorldPoints,
 } from '@/selection/drag/DragCollision';
-
-export type SnapAxisMode = 'both' | 'horizontal' | 'vertical';
-
-export interface WorldSnapResult {
-  correctionDx: number;
-  correctionDy: number;
-  screenDx: number;
-  screenDy: number;
-  type: 'point' | 'line' | 'curve';
-  lineStartX?: number;
-  lineStartY?: number;
-  lineEndX?: number;
-  lineEndY?: number;
-}
 
 export class DragSnapHelper {
   private engine = new AdaptiveSnapEngine();

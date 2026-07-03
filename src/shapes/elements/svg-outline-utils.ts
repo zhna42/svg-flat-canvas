@@ -1,5 +1,5 @@
 import { PathElement } from './PathElement';
-import { parseD } from '@/spatial/path-utils';
+import { parseD } from '@/math/path-utils';
 
 type OutlineFn = (
   svgData: string,

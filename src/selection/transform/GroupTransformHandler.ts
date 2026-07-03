@@ -1,21 +1,8 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { Camera } from '@/camera/Camera';
-import type { CommandBus } from '@/commands/CommandBus';
-import type { Point } from '@/types';
-import type { Group } from '@/group/Group';
-import { getRenderQueue } from '@/utils/render-queue-utils';
-
-export type GroupTransformMode = 'resize' | 'rotate';
-
-export type GroupHandlePosition =
-  | 'nw'
-  | 'n'
-  | 'ne'
-  | 'e'
-  | 'se'
-  | 's'
-  | 'sw'
-  | 'w';
+import type { Camera } from '@/canvas/Camera';
+import type { TimeMachine } from '@/time-machine/TimeMachine';
+import type { Point, GroupTransformMode, GroupHandlePosition } from '@/types';
+import type { Group } from '@/shapes/group/Group';
 
 const HANDLE_TO_ANCHOR: Record<GroupHandlePosition, GroupHandlePosition> = {
   se: 'nw',
@@ -50,16 +37,16 @@ export class GroupTransformHandler {
   private rotationCenter: Point = { x: 0, y: 0 };
   private startAngle = 0;
   private startWorldPoint: Point = { x: 0, y: 0 };
-  private bus: CommandBus;
+  private timeMachine: TimeMachine;
   private groups: Group[] = [];
 
   public onTransformStart: ((mode: GroupTransformMode) => void) | null = null;
   public onTransformMove: (() => void) | null = null;
   public onTransformEnd: ((mode: GroupTransformMode) => void) | null = null;
 
-  public constructor(camera: Camera, bus: CommandBus) {
+  public constructor(camera: Camera, timeMachine: TimeMachine) {
     void camera;
-    this.bus = bus;
+    this.timeMachine = timeMachine;
   }
 
   public get isActive(): boolean {
@@ -127,7 +114,8 @@ export class GroupTransformHandler {
         Math.atan2(
           worldPoint.y - this.rotationCenter.y,
           worldPoint.x - this.rotationCenter.x,
-        ) * (180 / Math.PI);
+        ) *
+        (180 / Math.PI);
     }
 
     this._active = true;
@@ -143,7 +131,8 @@ export class GroupTransformHandler {
         Math.atan2(
           worldPoint.y - this.rotationCenter.y,
           worldPoint.x - this.rotationCenter.x,
-        ) * (180 / Math.PI);
+        ) *
+        (180 / Math.PI);
       let delta = currentAngle - this.startAngle;
       if (shiftHeld) {
         delta = Math.round(delta / 15) * 15;
@@ -164,19 +153,16 @@ export class GroupTransformHandler {
 
     for (const el of this.elements) {
       el.rebuildHitArea();
-      getRenderQueue()?.add(el);
     }
 
     const ids = this.elements.map((e) => e.id);
-    this.bus
-      .getTimeMachine()
-      .push(
-        this.mode === 'rotate' ? 'ROTATE' : 'RESIZE',
-        ids,
-        'group',
-        [],
-        this.elements,
-      );
+    this.timeMachine.push(
+      this.mode === 'rotate' ? 'ROTATE' : 'RESIZE',
+      ids,
+      'group',
+      [],
+      this.elements,
+    );
 
     this.startMatrices.clear();
     this.elements = [];
@@ -199,7 +185,6 @@ export class GroupTransformHandler {
         y: this.rotationCenter.y,
       });
       el.transform.applyRotate(deltaAngle, localCenter, startMatrix);
-      getRenderQueue()?.add(el);
     }
 
     const cx = this.rotationCenter.x;
@@ -260,7 +245,6 @@ export class GroupTransformHandler {
       newMatrix.d *= usedScaleY / s.sy;
 
       el.transform.matrix = newMatrix;
-      getRenderQueue()?.add(el);
     }
   }
 

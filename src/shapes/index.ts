@@ -13,4 +13,4 @@ export {
   createFromJSON,
   createFromJSONArray,
 } from './elements';
-export type { ElementJSON } from './elements';
+export type { ElementJSON } from '@/types';

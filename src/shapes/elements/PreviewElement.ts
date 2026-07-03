@@ -1,7 +1,6 @@
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox, PathCommand } from '@/types';
-import { parseD, commandsToString } from '@/utils/path-utils';
-import { getRenderQueue } from '@/utils/render-queue-utils';
+import { parseD, commandsToString } from '@/math/path-utils';
 
 export class PreviewElement extends AbstractGraphicElement {
   public geometry = {
@@ -82,13 +81,8 @@ export class PreviewElement extends AbstractGraphicElement {
     return new PE(`${this.id}-outline`);
   }
 
-  public requestRender(): void {
-    getRenderQueue()?.add(this);
-  }
-
   public setVisible(v: boolean): void {
     this.visible = v;
     this.style.visible = v;
-    getRenderQueue()?.add(this);
   }
 }

@@ -3,7 +3,7 @@ import type { Point, BoundingBox } from '@/types';
 import { EllipseHitArea } from '../modules/HitArea';
 
 export class EllipseElement extends AbstractGraphicElement {
-  private _ha = new EllipseHitArea();
+  _ha = new EllipseHitArea();
 
   public geometry = { cx: 0, cy: 0, rx: 0, ry: 0 };
 

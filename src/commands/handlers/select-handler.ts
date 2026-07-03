@@ -1,25 +1,15 @@
-import type { Command } from '../types';
-import type { CommandHandler } from '../registry';
-import type { SelectionState } from '@/selection/SelectionState';
+import type { Command, CommandHandler, SelectHandlerContext } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { SpatialGrid } from '@/spatial/SpatialGrid';
 import {
   hitTestByPoint as hitTestPoint,
   hitTestByRect as hitTestRect,
   hitTestByLasso as hitTestLasso,
-} from '@/spatial/hit-test';
+} from '@/math/hit-test';
 import {
-  hitTestGroupsByPoint as hitTestGroupsPoint,
-  hitTestGroupsByRect as hitTestGroupsRect,
-  hitTestGroupsByLasso as hitTestGroupsLasso,
-} from '@/spatial/group-hit-test';
-
-export interface SelectHandlerContext {
-  state: SelectionState;
-  getElements: () => AbstractGraphicElement[];
-  grid: SpatialGrid;
-  lookupGroup: (elementId: string) => string | undefined;
-}
+  hitTestGroupsByPoint,
+  hitTestGroupsByRect,
+  hitTestGroupsByLasso,
+} from '@/math/group-hit-test';
 
 const handleElementSelect = (
   gesture: string,
@@ -97,7 +87,7 @@ const handleGroupSelect = (
     case 'click': {
       const pt = options.point as { x: number; y: number };
       if (!pt) return;
-      const gids = hitTestGroupsPoint(
+      const gids = hitTestGroupsByPoint(
         pt.x,
         pt.y,
         all,
@@ -124,7 +114,7 @@ const handleGroupSelect = (
         (options.boxDirection as 'left-to-right' | 'right-to-left') ??
         'left-to-right';
       if (!rect) return;
-      const gids = hitTestGroupsRect(
+      const gids = hitTestGroupsByRect(
         rect.x,
         rect.y,
         rect.width,
@@ -143,7 +133,7 @@ const handleGroupSelect = (
     case 'lasso': {
       const pts = options.lassoPoints as { x: number; y: number }[];
       if (!pts || pts.length < 3) return;
-      const gids = hitTestGroupsLasso(pts, all, ctx.grid, ctx.lookupGroup);
+      const gids = hitTestGroupsByLasso(pts, all, ctx.grid, ctx.lookupGroup);
       const targets = all.filter((e) =>
         gids.includes(ctx.lookupGroup(e.id) ?? ''),
       );
