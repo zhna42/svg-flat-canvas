@@ -138,7 +138,6 @@ export abstract class ReactiveNode {
         if (success) {
           self._notifyListeners(currentPath, value);
           if (self.isAutoReRendering && self.pushDiffRendering) {
-            console.log(`[ReactiveNode] set ${currentPath}:`, oldValue, '→', value);
             self.pushDiffRendering(self._rootProxy);
           }
           if (self.onTimeMachineChange) self.onTimeMachineChange(self._rootProxy);
