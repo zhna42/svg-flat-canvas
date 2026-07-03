@@ -51,6 +51,13 @@ export abstract class ReactiveNode {
         'renderingDiff',
         'timeMachineDiff',
         'saveDiff',
+        'clearRenderingDiff',
+        'clearTimeMachineDiff',
+        'clearSaveDiff',
+        'getRenderingPayload',
+        'getFullData',
+        'setDiff',
+        'subscribe',
       ]).has(key) ||
       key.startsWith('_')
     );
