@@ -23,6 +23,7 @@ export class AreaSelectionManager {
 
   private rectActive = false;
   private rectStartWorld = { x: 0, y: 0 };
+  private rectStartSvgX = 0;
   private readonly rectOverlay: RectOverlay;
 
   private lassoActive = false;
@@ -69,6 +70,7 @@ export class AreaSelectionManager {
       if (useRect) {
         this.rectActive = true;
         this.rectStartWorld = { x: worldPt.x, y: worldPt.y };
+        this.rectStartSvgX = svgPt.x;
         this.rectOverlay.show(svgPt.x, svgPt.y);
         if (!ctrlHeld) this.state.clear();
         return true;
@@ -88,6 +90,7 @@ export class AreaSelectionManager {
     if (useRect) {
       this.rectActive = true;
       this.rectStartWorld = { x: worldPt.x, y: worldPt.y };
+      this.rectStartSvgX = svgPt.x;
       this.rectOverlay.show(svgPt.x, svgPt.y);
       if (!ctrlHeld) this.state.clear();
       return true;
@@ -110,7 +113,7 @@ export class AreaSelectionManager {
   ): void {
     if (mode === 'group') {
       if (this.rectActive) {
-        this.rectOverlay.update(svgPt.x, svgPt.y, svgPt.x >= this.rectStartWorld.x);
+        this.rectOverlay.update(svgPt.x, svgPt.y, svgPt.x >= this.rectStartSvgX);
       }
       if (this.lassoActive) {
         this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
@@ -120,7 +123,7 @@ export class AreaSelectionManager {
     }
 
     if (this.rectActive) {
-      this.rectOverlay.update(svgPt.x, svgPt.y, svgPt.x >= this.rectStartWorld.x);
+      this.rectOverlay.update(svgPt.x, svgPt.y, svgPt.x >= this.rectStartSvgX);
     }
 
     if (this.lassoActive) {
@@ -190,7 +193,7 @@ export class AreaSelectionManager {
       this.bus.execute(createSelectRectCommand('group', rect, ctrl, boxDirection));
       this.onGroupSelect?.(gids);
     } else {
-      this.bus.execute(createSelectRectCommand('element', rect, ctrl, boxDirection));
+      this.bus.execute(createSelectRectCommand('element', rect, ctrl, 'right-to-left'));
     }
   }
 
@@ -205,16 +208,7 @@ export class AreaSelectionManager {
       this.bus.execute(createSelectLassoCommand('group', this.lassoWorldPoints, ctrl));
       this.onGroupSelect?.(gids);
     } else {
-      this.bus.execute(createSelectRectCommand('element', {
-        x: Math.min(...this.lassoWorldPoints.map((p) => p.x)),
-        y: Math.min(...this.lassoWorldPoints.map((p) => p.y)),
-        width:
-          Math.max(...this.lassoWorldPoints.map((p) => p.x)) -
-          Math.min(...this.lassoWorldPoints.map((p) => p.x)),
-        height:
-          Math.max(...this.lassoWorldPoints.map((p) => p.y)) -
-          Math.min(...this.lassoWorldPoints.map((p) => p.y)),
-      }, ctrl, 'left-to-right'));
+      this.bus.execute(createSelectLassoCommand('element', this.lassoWorldPoints, ctrl));
     }
   }
 }
