@@ -22,7 +22,6 @@ export class SelectionHandler {
   private pathTimeMachine: PathTimeMachine | null = null;
 
   private shortcuts: SelectionShortcuts;
-  private gesture: SelectionGesture = 'click';
   private ctrlHeld = false;
   private shiftOverride = false;
 
@@ -106,6 +105,14 @@ export class SelectionHandler {
     this.bindEvents();
   }
 
+  public setGesture(g: SelectionGesture): void {
+    this.areaSelectionManager.setGesture(g);
+  }
+
+  public getGesture(): SelectionGesture {
+    return this.areaSelectionManager.getGesture();
+  }
+
   public onMouseDown(e: MouseEvent): boolean {
     if (e.button !== 0) return false;
 
@@ -129,7 +136,7 @@ export class SelectionHandler {
 
     this.ctrlHeld = e.ctrlKey || e.metaKey;
     this.shiftOverride = e.shiftKey;
-    const useRect = this.gesture === 'rect' || this.shiftOverride;
+    const useRect = this.areaSelectionManager.getGesture() === 'rect' || this.shiftOverride;
     const isGroup = () => this.opts.state.mode === 'group';
 
     // Path node editing — check handle hit
@@ -200,7 +207,7 @@ export class SelectionHandler {
     }
 
     // Auto-pan on empty canvas
-    if (!useRect && this.gesture !== 'lasso' && !this.ctrlHeld) {
+    if (!useRect && this.areaSelectionManager.getGesture() !== 'lasso' && !this.ctrlHeld) {
       this.panAuto = true;
       this.panning = true;
       this.panStart = { x: svgPt.x, y: svgPt.y };
@@ -604,14 +611,14 @@ export class SelectionHandler {
 
   public onKeyDown(e: KeyboardEvent): boolean {
     const key = e.key.toLowerCase();
-    if (key === this.shortcuts.selectElement) this.gesture = 'click';
+    if (key === this.shortcuts.selectElement) this.areaSelectionManager.setGesture('click');
     else if (key === this.shortcuts.selectGroup) {
-      this.gesture = 'click';
+      this.areaSelectionManager.setGesture('click');
       this.opts.state.setMode('group');
-    } else if (key === 'r') this.gesture = 'rect';
-    else if (key === 'l') this.gesture = 'lasso';
+    } else if (key === 'r') this.areaSelectionManager.setGesture('rect');
+    else if (key === 'l') this.areaSelectionManager.setGesture('lasso');
     else if (key === 'v') {
-      this.gesture = 'click';
+      this.areaSelectionManager.setGesture('click');
       this.opts.state.setMode('element');
     } else if (e.key === 'Enter') {
       const selected = this.opts.state.selected;
