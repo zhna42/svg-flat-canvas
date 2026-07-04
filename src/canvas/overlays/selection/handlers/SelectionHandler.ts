@@ -275,25 +275,17 @@ export class SelectionHandler {
 
   public onMouseUp(e: MouseEvent): boolean {
     if (e.button !== 0) return false;
-    if (this.opts.isCreating?.()) return false;
-
-    const rootSvg = this.opts.svg;
-    const isGroup = () => this.opts.state.mode === 'group';
 
     if (this.panning) {
       this.panning = false;
-      rootSvg.style.cursor = '';
+      this.opts.svg.style.cursor = '';
       if (this.panAuto) {
         this.panAuto = false;
         const worldPt = this.screenToWorld(e);
         const dx = worldPt.x - (this.panStartWorld?.x ?? 0);
         const dy = worldPt.y - (this.panStartWorld?.y ?? 0);
         if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
-          const cmd = createSelectPickCommand(
-            'element',
-            worldPt,
-            this.ctrlHeld,
-          );
+          const cmd = createSelectPickCommand('element', worldPt, this.ctrlHeld);
           this.opts.bus.execute(cmd);
         }
         this.panStartWorld = null;
@@ -301,6 +293,9 @@ export class SelectionHandler {
       return true;
     }
 
+    if (this.opts.isCreating?.()) return false;
+
+    const isGroup = () => this.opts.state.mode === 'group';
     const worldPt = this.screenToWorld(e);
 
     if (this.pathNodeHandler.isActive) {
