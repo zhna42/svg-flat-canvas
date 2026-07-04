@@ -233,16 +233,14 @@ export class GroupTransformHandler {
       const newCenterY = fixedCorner.y + relY;
 
       const localCenter = el.getLocalCenter();
-      const s = this.extractScale(startMatrix);
-      if (s.sx <= 0 || s.sy <= 0) continue;
 
       const newMatrix = new DOMMatrix(startMatrix.toString());
-      newMatrix.e = newCenterX - localCenter.x * usedScaleX;
-      newMatrix.f = newCenterY - localCenter.y * usedScaleY;
-      newMatrix.a *= usedScaleX / s.sx;
-      newMatrix.b *= usedScaleX / s.sx;
-      newMatrix.c *= usedScaleY / s.sy;
-      newMatrix.d *= usedScaleY / s.sy;
+      newMatrix.a *= usedScaleX;
+      newMatrix.b *= usedScaleX;
+      newMatrix.c *= usedScaleY;
+      newMatrix.d *= usedScaleY;
+      newMatrix.e = newCenterX - localCenter.x * newMatrix.a - localCenter.y * newMatrix.c;
+      newMatrix.f = newCenterY - localCenter.x * newMatrix.b - localCenter.y * newMatrix.d;
 
       el.transform.matrix = newMatrix;
     }
@@ -263,15 +261,5 @@ export class GroupTransformHandler {
         ? bbox.y
         : bbox.y + bbox.height / 2;
     return { x: cx, y: cy };
-  }
-
-  private extractScale(matrix: DOMMatrix): { sx: number; sy: number } {
-    const sx =
-      Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b) *
-      (matrix.a < 0 ? -1 : 1);
-    const sy =
-      Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d) *
-      (matrix.d < 0 ? -1 : 1);
-    return { sx, sy };
   }
 }
