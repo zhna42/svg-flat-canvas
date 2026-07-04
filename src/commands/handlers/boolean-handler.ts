@@ -2,13 +2,13 @@ import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { TimeMachine } from '@/time-machine/TimeMachine';
-import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
+import type { HitTestEngine } from '@/core/HitTestEngine';
 import { PathElement } from '@/shapes/elements/PathElement';
 
 export const createBooleanOperationHandler = (
   shapeManager: ShapeManager,
   timeMachine: TimeMachine,
-  spatialGrid: SpatialGrid,
+  hitTestEngine: HitTestEngine,
   onIndexElement: (el: PathElement) => void,
 ): CommandHandler => {
   return (command: Command): void => {
@@ -23,8 +23,7 @@ export const createBooleanOperationHandler = (
       const el = shapeManager.getById(id);
       if (el) {
         deletedSnapshots.push({ id, diff: el.toSnapshot() });
-        const oldIds = el.getSpatialCellIds();
-        spatialGrid.removeById(id, oldIds);
+        hitTestEngine.remove(id);
         shapeManager.removeElementAndNode(id);
       }
     }
@@ -38,15 +37,7 @@ export const createBooleanOperationHandler = (
     resultEl.rebuildHitArea();
     shapeManager.addElement(resultEl);
 
-    const bbox = resultEl.getTransformedBBox();
-    const cellIds = spatialGrid.insert(
-      resultEl.id,
-      bbox.x,
-      bbox.y,
-      bbox.width,
-      bbox.height,
-    );
-    resultEl.setSpatialCellIds(cellIds);
+    hitTestEngine.insert(resultEl);
     onIndexElement(resultEl);
 
     timeMachine.push(

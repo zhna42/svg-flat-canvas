@@ -1,6 +1,4 @@
 import type { Point } from '@/types';
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
 
 export const pointInPolygon = (
   px: number,
@@ -59,6 +57,7 @@ const segmentIntersectsRect = (
   };
   let ca = code(a),
     cb = code(b);
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     if ((ca | cb) === 0) return true;
     if ((ca & cb) !== 0) return false;
@@ -121,90 +120,6 @@ export const polyInPoly = (outer: Point[], inner: Point[]): boolean => {
     if (!pointInPolygon(p.x, p.y, outer)) return false;
   }
   return true;
-};
-
-export const hitTestByPoint = (
-  px: number,
-  py: number,
-  elements: AbstractGraphicElement[],
-  grid: SpatialGrid,
-): AbstractGraphicElement[] => {
-  const size = 1;
-  const ids = grid.query(px, py, size, size);
-  const candidates = elements.filter((e) => ids.includes(e.id));
-
-  const hits: AbstractGraphicElement[] = [];
-  for (const el of candidates) {
-    const box = el.hitAreaBox.getOrCompute();
-    if (!box.containsPoint(px, py)) continue;
-    const ha = el.getWorldHitPoints();
-    if (ha.length >= 3 && pointInPolygon(px, py, ha)) {
-      hits.push(el);
-    }
-  }
-
-  return hits;
-};
-
-export const hitTestByRect = (
-  rx: number,
-  ry: number,
-  rw: number,
-  rh: number,
-  elements: AbstractGraphicElement[],
-  grid: SpatialGrid,
-  requireFullContain: boolean,
-): AbstractGraphicElement[] => {
-  const ids = grid.query(rx, ry, rw, rh);
-  const candidates = elements.filter((e) => ids.includes(e.id));
-
-  return candidates.filter((el) => {
-    const box = el.hitAreaBox.getOrCompute();
-    if (requireFullContain) {
-      if (!box.containsRect(rx, ry, rw, rh)) return false;
-    } else {
-      if (!box.intersectsRect(rx, ry, rw, rh)) return false;
-    }
-    const ha = el.getWorldHitPoints();
-    if (ha.length < 3) return false;
-    if (requireFullContain) {
-      return rectContainsPoly(rx, ry, rw, rh, ha);
-    }
-    return rectIntersectsPoly(rx, ry, rw, rh, ha);
-  });
-};
-
-export const hitTestByLasso = (
-  lassoPoints: Point[],
-  elements: AbstractGraphicElement[],
-  grid: SpatialGrid,
-): AbstractGraphicElement[] => {
-  if (lassoPoints.length < 3) return [];
-
-  let minX = Infinity,
-    minY = Infinity,
-    maxX = -Infinity,
-    maxY = -Infinity;
-  for (const p of lassoPoints) {
-    if (p.x < minX) minX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y > maxY) maxY = p.y;
-  }
-
-  const ids = grid.query(minX, minY, maxX - minX, maxY - minY);
-  const candidates = elements.filter((e) => ids.includes(e.id));
-
-  const lassoW = maxX - minX;
-  const lassoH = maxY - minY;
-
-  return candidates.filter((el) => {
-    const box = el.hitAreaBox.getOrCompute();
-    if (!box.intersectsRect(minX, minY, lassoW, lassoH)) return false;
-    const ha = el.getWorldHitPoints();
-    if (ha.length < 3) return false;
-    return polyInPoly(lassoPoints, ha);
-  });
 };
 
 export const segmentIntersectsSegment = (

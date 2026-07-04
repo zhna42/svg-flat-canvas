@@ -1,6 +1,6 @@
 import { ReactiveNode } from '@/core/ReactiveNode';
 import type { LayerName, IRenderableNode } from '@/types';
-import { pointInPolygon } from '@/math/hit-test';
+import { pointInPolygon } from '@/core/HitTestEngine';
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 

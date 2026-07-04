@@ -55,7 +55,7 @@ export interface SelectionHandlerOptions {
   groupTransformHandler: import('@/canvas/overlays/selection/transform/GroupTransformHandler').GroupTransformHandler;
   state: import('@/canvas/overlays/selection/SelectionState').SelectionState;
   getElements: () => AbstractGraphicElement[];
-  grid: import('@/math/spatial/SpatialGrid').SpatialGrid;
+  hitTestEngine: import('@/core/HitTestEngine').HitTestEngine;
   bus: import('@/commands/CommandBus').CommandBus;
   registerDirty: (node: import('@/types').IRenderableNode) => void;
   timeMachine?: import('@/time-machine/TimeMachine').TimeMachine;
@@ -90,7 +90,7 @@ export interface SelectionHandlerOptions {
 
 export interface GroupSelectionHandlerOptions {
   getElements: () => AbstractGraphicElement[];
-  grid: import('@/math/spatial/SpatialGrid').SpatialGrid;
+  hitTestEngine: import('@/core/HitTestEngine').HitTestEngine;
   lookupGroup: (elementId: string) => string | undefined;
   camera: import('@/canvas/Camera').Camera;
   bus: import('@/commands/CommandBus').CommandBus;

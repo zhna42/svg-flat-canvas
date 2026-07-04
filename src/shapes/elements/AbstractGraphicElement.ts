@@ -3,7 +3,6 @@ import { Transform } from '../modules/Transform';
 import { Style } from '../modules/Style';
 import { LaserProps } from '../modules/LaserProps';
 import { ReactiveNode } from '@/core/ReactiveNode';
-import { HitAreaBox } from '@/math/HitAreaBox';
 
 export abstract class AbstractGraphicElement extends ReactiveNode {
   public readonly id: string;
@@ -11,7 +10,6 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
   public readonly transform = new Transform();
   public readonly style = new Style();
   public readonly laserProps = new LaserProps();
-  public readonly hitAreaBox = new HitAreaBox();
 
   public groupId = '';
   public name: string;
@@ -20,10 +18,8 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
   public isPreview = false;
   public isNodeEditing = false;
   public data: Record<string, unknown> = {};
-  public spatialCellIds: number[] = [];
 
-  public onSpatialIndexChanged: ((el: AbstractGraphicElement) => void) | null =
-    null;
+  public onGeometryChanged: ((el: AbstractGraphicElement) => void) | null = null;
   public onColorChanged:
     | ((
         el: AbstractGraphicElement,
@@ -39,18 +35,15 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
     this.id = id;
     this.type = type;
     this.name = type;
-    this.hitAreaBox.setComputeFn(() => this.getWorldHitPoints());
     this.subscribe(['style.fill', 'style.stroke'], () => {
       this.buildHitArea();
-      this.hitAreaBox.invalidate();
       this.onColorChanged?.(this);
     });
     this.subscribe('style.strokeWidth', () => {
       this.buildHitArea();
-      this.hitAreaBox.invalidate();
     });
     this.subscribe('transform.matrix', () => {
-      this.hitAreaBox.invalidate();
+      this.onGeometryChanged?.(this);
     });
     this.subscribe(
       ['style.opacity', 'style.visible', 'visible', 'isPreview'],
@@ -64,16 +57,9 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
   public abstract toSegmentPolygons(): Point[][];
   public abstract toOutlinePath(): import('./PathElement').PathElement;
 
-  public getSpatialCellIds(): number[] {
-    return this.spatialCellIds;
-  }
-  public setSpatialCellIds(ids: number[]): void {
-    this.spatialCellIds = ids;
-  }
   public rebuildHitArea(): void {
     this.buildHitArea();
-    this.hitAreaBox.invalidate();
-    this.onSpatialIndexChanged?.(this);
+    this.onGeometryChanged?.(this);
   }
 
   public setVisible(v: boolean): void {
@@ -291,7 +277,7 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
   protected subscribeGeometry(...keys: string[]): void {
     this.subscribe(keys, () => {
       this.buildHitArea();
-      this.hitAreaBox.invalidate();
+      this.onGeometryChanged?.(this);
     });
   }
 

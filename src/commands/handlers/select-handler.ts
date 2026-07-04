@@ -1,33 +1,24 @@
 import type { Command, CommandHandler, SelectHandlerContext } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import {
-  hitTestByPoint as hitTestPoint,
-  hitTestByRect as hitTestRect,
-  hitTestByLasso as hitTestLasso,
-} from '@/math/hit-test';
-import {
-  hitTestGroupsByPoint,
-  hitTestGroupsByRect,
-  hitTestGroupsByLasso,
-} from '@/math/group-hit-test';
 
 const handleElementSelect = (
   gesture: string,
   options: Record<string, unknown>,
   toggle: boolean,
-  all: AbstractGraphicElement[],
+  _all: AbstractGraphicElement[],
   ctx: SelectHandlerContext,
 ): void => {
+  const engine = ctx.hitTestEngine;
   switch (gesture) {
     case 'click': {
       const pt = options.point as { x: number; y: number };
       if (!pt) return;
-      const hits = hitTestPoint(pt.x, pt.y, all, ctx.grid);
+      const { hits } = engine.queryPoint(pt.x, pt.y);
       if (hits.length === 0) {
         if (!toggle) ctx.state.clear();
         return;
       }
-      const picked = hits[hits.length - 1];
+      const picked = hits[hits.length - 1] as AbstractGraphicElement;
       if (toggle) {
         ctx.state.toggle([picked]);
       } else {
@@ -46,30 +37,30 @@ const handleElementSelect = (
         (options.boxDirection as 'left-to-right' | 'right-to-left') ??
         'left-to-right';
       if (!rect) return;
-      const hits = hitTestRect(
+      const { hits } = engine.queryRect(
         rect.x,
         rect.y,
         rect.width,
         rect.height,
-        all,
-        ctx.grid,
-        boxDirection === 'left-to-right',
+        { requireFullContain: boxDirection === 'left-to-right' },
       );
+      const typed = hits as AbstractGraphicElement[];
       if (toggle) {
-        for (const h of hits) ctx.state.toggle([h]);
+        for (const h of typed) ctx.state.toggle([h]);
       } else {
-        ctx.state.replace(hits);
+        ctx.state.replace(typed);
       }
       break;
     }
     case 'lasso': {
       const pts = options.lassoPoints as { x: number; y: number }[];
       if (!pts || pts.length < 3) return;
-      const hits = hitTestLasso(pts, all, ctx.grid);
+      const { hits } = engine.queryLasso(pts);
+      const typed = hits as AbstractGraphicElement[];
       if (toggle) {
-        for (const h of hits) ctx.state.toggle([h]);
+        for (const h of typed) ctx.state.toggle([h]);
       } else {
-        ctx.state.replace(hits);
+        ctx.state.replace(typed);
       }
       break;
     }
@@ -80,23 +71,19 @@ const handleGroupSelect = (
   gesture: string,
   options: Record<string, unknown>,
   _toggle: boolean,
-  all: AbstractGraphicElement[],
+  _all: AbstractGraphicElement[],
   ctx: SelectHandlerContext,
 ): void => {
+  const engine = ctx.hitTestEngine;
+  const lookupGroup = ctx.lookupGroup;
   switch (gesture) {
     case 'click': {
       const pt = options.point as { x: number; y: number };
       if (!pt) return;
-      const gids = hitTestGroupsByPoint(
-        pt.x,
-        pt.y,
-        all,
-        ctx.grid,
-        ctx.lookupGroup,
-      );
+      const gids = engine.queryPointGroups(pt.x, pt.y, lookupGroup);
       if (gids.length > 0) {
         ctx.state.replace(
-          all.filter((e) => gids.includes(ctx.lookupGroup(e.id) ?? '')),
+          _all.filter((e) => gids.includes(lookupGroup(e.id) ?? '')),
         );
       } else if (!_toggle) {
         ctx.state.clear();
@@ -114,18 +101,16 @@ const handleGroupSelect = (
         (options.boxDirection as 'left-to-right' | 'right-to-left') ??
         'left-to-right';
       if (!rect) return;
-      const gids = hitTestGroupsByRect(
+      const gids = engine.queryRectGroups(
         rect.x,
         rect.y,
         rect.width,
         rect.height,
-        all,
-        ctx.grid,
-        ctx.lookupGroup,
+        lookupGroup,
         boxDirection === 'left-to-right',
       );
-      const targets = all.filter((e) =>
-        gids.includes(ctx.lookupGroup(e.id) ?? ''),
+      const targets = _all.filter((e) =>
+        gids.includes(lookupGroup(e.id) ?? ''),
       );
       ctx.state.replace(targets);
       break;
@@ -133,9 +118,9 @@ const handleGroupSelect = (
     case 'lasso': {
       const pts = options.lassoPoints as { x: number; y: number }[];
       if (!pts || pts.length < 3) return;
-      const gids = hitTestGroupsByLasso(pts, all, ctx.grid, ctx.lookupGroup);
-      const targets = all.filter((e) =>
-        gids.includes(ctx.lookupGroup(e.id) ?? ''),
+      const gids = engine.queryLassoGroups(pts, lookupGroup);
+      const targets = _all.filter((e) =>
+        gids.includes(lookupGroup(e.id) ?? ''),
       );
       ctx.state.replace(targets);
       break;

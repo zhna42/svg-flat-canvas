@@ -252,7 +252,7 @@ export class ExternalApi {
     const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
     const outline = el.toOutlinePath();
-    this.canvas.spatialGrid.removeById(el.id, el.getSpatialCellIds());
+    this.canvas.hitTestEngine.remove(el.id);
     this.canvas.shapeManager.removeElementAndNode(el.id);
     this.canvas.shapeManager.addElement(outline);
     this.addShape(outline);
@@ -775,7 +775,7 @@ export class ExternalApi {
   public loadTimeMachine(records: TimeSnapshot[]): void {
     this.canvas.shapeManager.clear();
     this.canvas.groupManager.setGroups([]);
-    this.canvas.spatialGrid.clear();
+    this.canvas.hitTestEngine.reindexAll([]);
     this.canvas.timeMachine.fromJSON(records);
   }
 

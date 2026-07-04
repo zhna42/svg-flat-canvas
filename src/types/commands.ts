@@ -225,6 +225,6 @@ export interface DragHandlerContext {
 export interface SelectHandlerContext {
   state: import('@/canvas/overlays/selection/SelectionState').SelectionState;
   getElements: () => import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[];
-  grid: import('@/math/spatial/SpatialGrid').SpatialGrid;
+  hitTestEngine: import('@/core/HitTestEngine').HitTestEngine;
   lookupGroup: (elementId: string) => string | undefined;
 }

@@ -144,7 +144,7 @@ export interface SnapConfig {
   mode: 'element' | 'group';
   movingElements: CADElement[];
   groupBounds?: BoundingBox;
-  grid: import('@/math/spatial/SpatialGrid').SpatialGrid;
+  grid: import('@/core/HitTestEngine').SpatialGrid;
   getElementById: (id: string) => CADElement | undefined;
   camera: Camera;
   currentMouseWorld: Point;

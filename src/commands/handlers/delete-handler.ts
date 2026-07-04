@@ -1,20 +1,17 @@
 import type { Command } from '../types';
 import type { CommandHandler } from '../registry';
 import type { ShapeManager } from '@/shapes/ShapeManager';
-import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
+import type { HitTestEngine } from '@/core/HitTestEngine';
 
 export const createDeleteHandler = (
   shapeManager: ShapeManager,
-  spatialGrid: SpatialGrid,
+  hitTestEngine: HitTestEngine,
 ): CommandHandler => {
   return (command: Command): void => {
     if (command.type !== 'DELETE') return;
     const { elementIds } = command.options;
     for (const id of elementIds) {
-      const el = shapeManager.getById(id);
-      if (el) {
-        spatialGrid.removeById(id, el.getSpatialCellIds());
-      }
+      hitTestEngine.remove(id);
       shapeManager.remove(id);
     }
   };

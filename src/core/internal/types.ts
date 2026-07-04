@@ -3,7 +3,7 @@ import type { CanvasView } from '@/canvas/CanvasView';
 import type { Artboard } from '@/canvas/system';
 import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { SelectionState } from '@/canvas/overlays/selection/SelectionState';
-import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
+import type { HitTestEngine } from '@/core/HitTestEngine';
 import type { SelectionHandler } from '@/canvas/overlays/selection/handlers/SelectionHandler';
 import type { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import type { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
@@ -26,7 +26,7 @@ export interface ICanvasContext {
   readonly artboard: Artboard;
   readonly shapeManager: ShapeManager;
   readonly selectionState: SelectionState;
-  readonly spatialGrid: SpatialGrid;
+  readonly hitTestEngine: HitTestEngine;
   readonly commandBus: CommandBus;
   readonly timeMachine: TimeMachine;
   readonly events: EventBus;

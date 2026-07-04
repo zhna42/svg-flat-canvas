@@ -134,7 +134,7 @@ export class CommandManager {
       commandBus,
       selectionState,
       shapeManager,
-      spatialGrid,
+      hitTestEngine,
       timeMachine,
       elementManager,
     } = this.ctx;
@@ -146,7 +146,7 @@ export class CommandManager {
         createSelectHandler({
           state: selectionState,
           getElements: () => shapeManager.getAll(),
-          grid: spatialGrid,
+          hitTestEngine,
           lookupGroup: (elementId) =>
             this.ctx.groupManager.getGroupByElement(elementId)?.id,
         }),
@@ -165,7 +165,10 @@ export class CommandManager {
 
     commandBus.register(
       'DELETE',
-      this.undoable('DELETE', createDeleteHandler(shapeManager, spatialGrid)),
+      this.undoable(
+        'DELETE',
+        createDeleteHandler(shapeManager, hitTestEngine),
+      ),
     );
     commandBus.register(
       'CREATE',
@@ -183,9 +186,9 @@ export class CommandManager {
         createBooleanOperationHandler(
           shapeManager,
           timeMachine,
-          spatialGrid,
+          hitTestEngine,
           (el) => {
-            el.onSpatialIndexChanged = (element: AbstractGraphicElement) => {
+            el.onGeometryChanged = (element: AbstractGraphicElement) => {
               elementManager.reindexElement(element);
             };
           },

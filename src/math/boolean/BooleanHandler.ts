@@ -1,6 +1,6 @@
 import type { SelectionState } from '@/canvas/overlays/selection/SelectionState';
 import type { ShapeManager } from '@/shapes/ShapeManager';
-import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
+import type { HitTestEngine } from '@/core/HitTestEngine';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { BooleanOp, Pt } from '@/types';
 import { booleanOperation } from './BooleanKernel';
@@ -8,8 +8,7 @@ import { dString } from './BooleanEngine';
 import { PreviewElement } from '@/shapes/elements/PreviewElement';
 import type { EventBus } from '@/core/EventBus';
 import type { CommandBus } from '@/commands/CommandBus';
-import { hitTestByPoint } from '@/math/hit-test';
-import { polyIntersectsPoly } from '@/math/hit-test';
+import { polyIntersectsPoly } from '@/core/HitTestEngine';
 
 const PREVIEW_FILL_COLOR = '#ff0000';
 const PREVIEW_STROKE_COLOR = '#cc0000';
@@ -18,7 +17,7 @@ const PREVIEW_ID = 'boolean-preview';
 export class BooleanHandler {
   private selectionState: SelectionState;
   private shapeManager: ShapeManager;
-  private grid: SpatialGrid;
+  private hitTestEngine: HitTestEngine;
   private svg: SVGSVGElement;
   private events: EventBus;
   private commandBus: CommandBus;
@@ -40,14 +39,14 @@ export class BooleanHandler {
     svg: SVGSVGElement,
     selectionState: SelectionState,
     shapeManager: ShapeManager,
-    grid: SpatialGrid,
+    hitTestEngine: HitTestEngine,
     events: EventBus,
     commandBus: CommandBus,
   ) {
     this.svg = svg;
     this.selectionState = selectionState;
     this.shapeManager = shapeManager;
-    this.grid = grid;
+    this.hitTestEngine = hitTestEngine;
     this.events = events;
     this.commandBus = commandBus;
 
@@ -65,12 +64,7 @@ export class BooleanHandler {
     if (selected.length === 0) return false;
     const svgPt = this.clientToSvg(e);
     if (!svgPt) return false;
-    const hits = hitTestByPoint(
-      svgPt.x,
-      svgPt.y,
-      this.shapeManager.getAll(),
-      this.grid,
-    );
+    const { hits } = this.hitTestEngine.queryPoint(svgPt.x, svgPt.y);
     const hitOnSelected = hits.find((h) => selected.some((s) => s.id === h.id));
     if (!hitOnSelected) return false;
     this.subjectIds = selected.map((s) => s.id);

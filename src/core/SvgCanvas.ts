@@ -11,9 +11,9 @@ import {
   SelectionGroup,
 } from '@/canvas/system';
 import { ShapeManager } from '@/shapes/ShapeManager';
-import { EventManager } from '@/events/EventManager';
+import { EventManager } from './EventManager';
 import { SelectionState } from '@/canvas/overlays/selection/SelectionState';
-import { SpatialGrid } from '@/math/spatial/SpatialGrid';
+import { HitTestEngine } from '@/core/HitTestEngine';
 import { SelectionHandler } from '@/canvas/overlays/selection/handlers/SelectionHandler';
 import { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
@@ -34,7 +34,6 @@ import { EventBus } from './EventBus';
 import { CommandManager } from './internal/CommandManager';
 import { OverlayCoordinator } from './internal/OverlayCoordinator';
 import { ElementManager } from './internal/ElementManager';
-import { SpatialIndexer } from './internal/SpatialIndexer';
 import { ColorIndexer } from './internal/ColorIndexer';
 import type { ICanvasContext } from './internal/types';
 import { PathElement } from '@/shapes/elements/PathElement';
@@ -71,7 +70,7 @@ export class SvgCanvas implements ICanvasContext {
   selectionGroup!: SelectionGroup;
 
   shapeManager!: ShapeManager;
-  spatialGrid!: SpatialGrid;
+  hitTestEngine!: HitTestEngine;
   selectionState!: SelectionState;
   colorMap!: ColorMap;
 
@@ -140,7 +139,7 @@ export class SvgCanvas implements ICanvasContext {
 
     this.eventManager = new EventManager(svg);
     this.selectionState = new SelectionState();
-    this.spatialGrid = new SpatialGrid(100);
+    this.hitTestEngine = new HitTestEngine(100);
     this.panActive = { value: false };
     this.events = new EventBus();
     this.colorMap = new ColorMap();
@@ -186,7 +185,7 @@ export class SvgCanvas implements ICanvasContext {
       this.shapeManager,
       this.selectionState,
       this.selectionManager,
-      new SpatialIndexer(this.spatialGrid),
+      this.hitTestEngine,
       this.timeMachine,
       this.events,
       new ColorIndexer(this.colorMap),
@@ -248,7 +247,7 @@ export class SvgCanvas implements ICanvasContext {
       this.svg,
       this.selectionState,
       this.shapeManager,
-      this.spatialGrid,
+      this.hitTestEngine,
       this.events,
       this.commandBus,
     );
@@ -296,7 +295,7 @@ export class SvgCanvas implements ICanvasContext {
       groupTransformHandler: this.groupTransformHandler,
       state: this.selectionState,
       getElements: () => this.shapeManager.getAll(),
-      grid: this.spatialGrid,
+      hitTestEngine: this.hitTestEngine,
       bus: this.commandBus,
       registerDirty: this.scheduler.registerDirtyNode,
       timeMachine: this.timeMachine,

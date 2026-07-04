@@ -8,32 +8,32 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 import type { ElementJSON } from '@/types';
 import { createFromJSONArray } from '@/shapes/elements/factory';
 import { createDeleteCommand } from '@/commands/factories/delete-command-factory';
-import { SpatialIndexer } from './SpatialIndexer';
+import type { HitTestEngine } from '@/core/HitTestEngine';
 import { ColorIndexer } from './ColorIndexer';
 
 export class ElementManager {
-  private readonly spatialIndexer: SpatialIndexer;
+  private readonly hitTestEngine: HitTestEngine;
   private readonly colorIndexer: ColorIndexer;
 
   constructor(
     private readonly shapeManager: ShapeManager,
     private readonly selectionState: SelectionState,
     private readonly selectionManager: SelectionManager,
-    spatialIndexer: SpatialIndexer,
+    hitTestEngine: HitTestEngine,
     private readonly timeMachine: TimeMachine,
     private readonly events: EventBus,
     colorIndexer: ColorIndexer,
     private readonly commandBus: CommandBus,
   ) {
-    this.spatialIndexer = spatialIndexer;
+    this.hitTestEngine = hitTestEngine;
     this.colorIndexer = colorIndexer;
   }
 
   addShape(shape: AbstractGraphicElement): void {
     this.shapeManager.add(shape);
-    this.spatialIndexer.insert(shape);
+    this.hitTestEngine.insert(shape);
     this.colorIndexer.add(shape);
-    shape.onSpatialIndexChanged = (el) => this.spatialIndexer.update(el);
+    shape.onGeometryChanged = (el) => this.hitTestEngine.update(el);
     shape.onColorChanged = (el) => this.colorIndexer.update(el);
   }
 
@@ -41,10 +41,9 @@ export class ElementManager {
     this.shapeManager.clear();
     const elements = createFromJSONArray(items);
     for (const el of elements) this.shapeManager.add(el);
-    this.spatialIndexer.reindexAll(this.shapeManager.getAll());
+    this.hitTestEngine.reindexAll(this.shapeManager.getAll());
     for (const el of elements) {
-      el.onSpatialIndexChanged = (element) =>
-        this.spatialIndexer.update(element);
+      el.onGeometryChanged = (element) => this.hitTestEngine.update(element);
       el.onColorChanged = (element) => this.colorIndexer.update(element);
     }
     this.colorIndexer.recalculate(elements);
@@ -56,10 +55,9 @@ export class ElementManager {
     const elements = createFromJSONArray(items);
     for (const el of elements) {
       this.shapeManager.add(el);
-      this.spatialIndexer.insert(el);
+      this.hitTestEngine.insert(el);
       this.colorIndexer.add(el);
-      el.onSpatialIndexChanged = (element) =>
-        this.spatialIndexer.update(element);
+      el.onGeometryChanged = (element) => this.hitTestEngine.update(element);
       el.onColorChanged = (element) => this.colorIndexer.update(element);
     }
     this.events.emit('elements-added', elements);
@@ -70,15 +68,14 @@ export class ElementManager {
     for (const item of items) {
       const old = this.shapeManager.getAll().find((e) => e.id === item.id);
       if (old) {
-        this.spatialIndexer.remove(old);
+        this.hitTestEngine.remove(old.id);
         this.shapeManager.remove(old.id);
       }
       const el = createFromJSONArray([item])[0];
       this.shapeManager.add(el);
-      this.spatialIndexer.insert(el);
+      this.hitTestEngine.insert(el);
       this.colorIndexer.add(el);
-      el.onSpatialIndexChanged = (element) =>
-        this.spatialIndexer.update(element);
+      el.onGeometryChanged = (element) => this.hitTestEngine.update(element);
       el.onColorChanged = (element) => this.colorIndexer.update(element);
       elements.push(el);
     }
@@ -152,18 +149,18 @@ export class ElementManager {
   }
 
   indexShape(shape: AbstractGraphicElement): void {
-    this.spatialIndexer.insert(shape);
+    this.hitTestEngine.insert(shape);
     this.colorIndexer.add(shape);
-    shape.onSpatialIndexChanged = (el) => this.spatialIndexer.update(el);
+    shape.onGeometryChanged = (el) => this.hitTestEngine.update(el);
     shape.onColorChanged = (el) => this.colorIndexer.update(el);
   }
 
   reindexElement(el: AbstractGraphicElement): void {
-    this.spatialIndexer.update(el);
+    this.hitTestEngine.update(el);
   }
 
   reindexAll(): void {
-    this.spatialIndexer.reindexAll(this.shapeManager.getAll());
+    this.hitTestEngine.reindexAll(this.shapeManager.getAll());
   }
 
   recalculateColorMaps(): void {

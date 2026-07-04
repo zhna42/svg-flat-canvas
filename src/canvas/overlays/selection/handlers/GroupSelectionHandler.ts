@@ -1,6 +1,5 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { DragHandler } from '@/canvas/overlays/selection/drag';
-import { hitTestGroupsByPoint as hitTestGroupsPoint } from '@/math/group-hit-test';
 import { createSelectPickCommand } from '@/commands/factories/select-command-factory';
 import type { GroupSelectionHandlerOptions } from '@/types';
 
@@ -24,11 +23,9 @@ export class GroupSelectionHandler {
     _shift: boolean,
   ): boolean {
     const all = this.opts.getElements();
-    const gids = hitTestGroupsPoint(
+    const gids = this.opts.hitTestEngine.queryPointGroups(
       wp.x,
       wp.y,
-      all,
-      this.opts.grid,
       this.opts.lookupGroup,
     );
 

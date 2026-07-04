@@ -1,11 +1,18 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/canvas/Camera';
-import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
+import type { HitTestEngine } from '@/core/HitTestEngine';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
 import { DragSnapHelper } from '@/canvas/overlays/selection/drag/DragSnap';
 import type { SnapAxisMode } from '@/types';
-import { checkSceneCollisions } from '@/canvas/overlays/selection/drag/DragCollision';
+import {
+  checkSceneCollisions,
+  type CollisionContext,
+} from '@/core/HitTestEngine';
+import {
+  getVisualWorldPoints,
+} from '@/canvas/overlays/selection/drag/DragCollision';
+import { PathElement } from '@/shapes/elements/PathElement';
 
 const HOLD_DIST_SCREEN = 40;
 
@@ -35,7 +42,7 @@ export class DragHandler {
   private bus: CommandBus;
   private dragSnap: DragSnapHelper;
   private camera: Camera;
-  private grid: SpatialGrid;
+  private hitTestEngine: HitTestEngine;
   private getElements: () => AbstractGraphicElement[];
 
   private snapState: SnapState | null = null;
@@ -47,7 +54,7 @@ export class DragHandler {
   public constructor(
     bus: CommandBus,
     camera: Camera,
-    grid: SpatialGrid,
+    hitTestEngine: HitTestEngine,
     getElements: () => AbstractGraphicElement[],
     getArtboardRect: () => {
       x: number;
@@ -66,7 +73,7 @@ export class DragHandler {
   ) {
     this.bus = bus;
     this.camera = camera;
-    this.grid = grid;
+    this.hitTestEngine = hitTestEngine;
     this.getElements = getElements;
     this.dragSnap = new DragSnapHelper(
       camera,
@@ -75,6 +82,37 @@ export class DragHandler {
       getGuidelines,
       getGridLines,
     );
+  }
+
+  private getCollisionContext(): CollisionContext {
+    return {
+      grid: this.hitTestEngine.spatialStore,
+      getElements: () => this.getElements(),
+      getVisualWorldPoints: (el) =>
+        getVisualWorldPoints(
+          el as unknown as AbstractGraphicElement,
+          this.camera,
+        ),
+      isClosedShape: (el) => {
+        const typed = el as unknown as AbstractGraphicElement;
+        return (
+          typed.type !== 'polyline' &&
+          typed.type !== 'line' &&
+          !(
+            typed instanceof PathElement &&
+            typed.geometry.commands.length > 0 &&
+            !(
+              typed.geometry.commands[
+                typed.geometry.commands.length - 1
+              ].command === 'Z' ||
+              typed.geometry.commands[
+                typed.geometry.commands.length - 1
+              ].command === 'z'
+            )
+          )
+        );
+      },
+    };
   }
 
   public setMode(mode: string): void {
@@ -297,14 +335,13 @@ export class DragHandler {
       let nextDx = prevDx + currentFrameDx;
       let nextDy = prevDy + currentFrameDy;
 
+      const collisionContext = this.getCollisionContext();
       const collisionNormal = checkSceneCollisions(
         this.targets,
         this.startMatrices,
         nextDx,
         nextDy,
-        this.camera,
-        this.grid,
-        this.getElements,
+        collisionContext,
       );
 
       if (collisionNormal) {
@@ -326,9 +363,7 @@ export class DragHandler {
             this.startMatrices,
             nextDx,
             nextDy,
-            this.camera,
-            this.grid,
-            this.getElements,
+            collisionContext,
           )
         ) {
           this.currentDx = nextDx;
@@ -343,9 +378,7 @@ export class DragHandler {
               this.startMatrices,
               testXDx,
               prevDy,
-              this.camera,
-              this.grid,
-              this.getElements,
+              collisionContext,
             )
           ) {
             this.currentDx = testXDx;
@@ -355,9 +388,7 @@ export class DragHandler {
               this.startMatrices,
               prevDx,
               testYDy,
-              this.camera,
-              this.grid,
-              this.getElements,
+              collisionContext,
             )
           ) {
             this.currentDy = testYDy;

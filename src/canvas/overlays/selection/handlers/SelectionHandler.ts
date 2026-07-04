@@ -4,7 +4,6 @@ import { DragHandler } from '@/canvas/overlays/selection/drag';
 import { GroupSelectionHandler } from '@/canvas/overlays/selection/handlers/GroupSelectionHandler';
 import { PathNodeHandler } from '@/canvas/overlays/selection/handlers/PathNodeHandler';
 import { PathTimeMachine as PathTimeMachineClass } from '@/shapes/path/PathTimeMachine';
-import { hitTestByPoint as hitTestPoint } from '@/math/hit-test';
 import { pointToSegmentDist } from '@/math/geometry-utils';
 import { createSelectPickCommand } from '@/commands/factories/select-command-factory';
 import { AreaSelectionManager } from '@/canvas/overlays/selection/AreaSelectionManager';
@@ -12,6 +11,7 @@ import type { ImageElement } from '@/shapes/elements/ImageElement';
 import { computeGroupWorldBBox } from '@/math/group-bbox-utils';
 import type { SelectionHandlerOptions } from '@/types';
 import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
 export class SelectionHandler {
   private readonly opts: SelectionHandlerOptions;
@@ -36,7 +36,7 @@ export class SelectionHandler {
     this.dragHandler = new DragHandler(
       opts.bus,
       opts.camera,
-      opts.grid,
+      opts.hitTestEngine,
       opts.getElements,
       opts.getArtboardRect ?? (() => null),
       opts.getGuidelines ?? (() => []),
@@ -54,7 +54,7 @@ export class SelectionHandler {
     };
     this.groupHandler = new GroupSelectionHandler({
       getElements: opts.getElements,
-      grid: opts.grid,
+      hitTestEngine: opts.hitTestEngine,
       lookupGroup: groupLookup,
       camera: opts.camera,
       bus: opts.bus,
@@ -99,6 +99,7 @@ export class SelectionHandler {
       opts.bus,
       opts.getElements,
       opts.registerDirty,
+      opts.hitTestEngine,
       opts.getGroupIdForElement ?? (() => undefined),
       opts.onGroupSelect,
     );
@@ -161,8 +162,7 @@ export class SelectionHandler {
         }
       }
 
-      const all = this.opts.getElements();
-      const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
+      const { hits } = this.opts.hitTestEngine.queryPoint(worldPt.x, worldPt.y);
       const hitEditing = hits.some((h) => h.id === editingPath.id);
       if (!hitEditing) {
         this.opts.onSetEditingPath?.(null);
@@ -590,10 +590,9 @@ export class SelectionHandler {
       }
     }
 
-    const all = this.opts.getElements();
-    const hits = hitTestPoint(worldPt.x, worldPt.y, all, this.opts.grid);
+    const { hits } = this.opts.hitTestEngine.queryPoint(worldPt.x, worldPt.y);
     if (hits.length > 0) {
-      const picked = hits[hits.length - 1];
+      const picked = hits[hits.length - 1] as AbstractGraphicElement;
       if (
         picked.type === 'path' ||
         picked.type === 'polyline' ||
@@ -759,10 +758,10 @@ export class SelectionHandler {
 
   private tryElementHitTestAndDrag(wp: { x: number; y: number }): boolean {
     const all = this.opts.getElements();
-    const hits = hitTestPoint(wp.x, wp.y, all, this.opts.grid);
+    const { hits } = this.opts.hitTestEngine.queryPoint(wp.x, wp.y);
     if (hits.length === 0) return false;
 
-    const picked = hits[hits.length - 1];
+    const picked = hits[hits.length - 1] as AbstractGraphicElement;
     const selectedIds = new Set(this.opts.state.selected.map((s) => s.id));
 
     if (!selectedIds.has(picked.id)) {

@@ -2,10 +2,7 @@ import type { SelectionState } from '@/canvas/overlays/selection/SelectionState'
 import type { CommandBus } from '@/commands/CommandBus';
 import { RectOverlay } from './RectOverlay';
 import { LassoOverlay } from './LassoOverlay';
-import {
-  hitTestGroupsByRect as hitTestGroupsRect,
-  hitTestGroupsByLasso as hitTestGroupsLasso,
-} from '@/math/group-hit-test';
+import type { HitTestEngine } from '@/core/HitTestEngine';
 import {
   createSelectPickCommand,
   createSelectRectCommand,
@@ -17,9 +14,9 @@ export class AreaSelectionManager {
   private gesture: SelectionGesture = 'click';
   private readonly state: SelectionState;
   private readonly bus: CommandBus;
-  private readonly getElements: () => import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[];
   private readonly lookupGroup: (elementId: string) => string | undefined;
   private readonly onGroupSelect?: (ids: string[]) => void;
+  private readonly hitTestEngine: HitTestEngine;
 
   private rectActive = false;
   private rectStartWorld = { x: 0, y: 0 };
@@ -33,14 +30,15 @@ export class AreaSelectionManager {
   constructor(
     state: SelectionState,
     bus: CommandBus,
-    getElements: () => import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[],
+    _getElements: () => import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[],
     registerDirty: (node: IRenderableNode) => void,
+    hitTestEngine: HitTestEngine,
     lookupGroup?: (elementId: string) => string | undefined,
     onGroupSelect?: (ids: string[]) => void,
   ) {
     this.state = state;
     this.bus = bus;
-    this.getElements = getElements;
+    this.hitTestEngine = hitTestEngine;
     this.lookupGroup = lookupGroup ?? (() => undefined);
     this.onGroupSelect = onGroupSelect;
     this.rectOverlay = new RectOverlay(registerDirty);
@@ -185,30 +183,39 @@ export class AreaSelectionManager {
       wp.x >= this.rectStartWorld.x ? 'left-to-right' : 'right-to-left';
 
     if (mode === 'group') {
-      const gids = hitTestGroupsRect(
-        rect.x, rect.y, rect.width, rect.height,
-        this.getElements(), undefined as any, this.lookupGroup,
+      const gids = this.hitTestEngine.queryRectGroups(
+        rect.x,
+        rect.y,
+        rect.width,
+        rect.height,
+        this.lookupGroup,
         boxDirection === 'left-to-right',
       );
-      this.bus.execute(createSelectRectCommand('group', rect, ctrl, boxDirection));
+      this.bus.execute(
+        createSelectRectCommand('group', rect, ctrl, boxDirection),
+      );
       this.onGroupSelect?.(gids);
     } else {
-      this.bus.execute(createSelectRectCommand('element', rect, ctrl, 'right-to-left'));
+      this.bus.execute(
+        createSelectRectCommand('element', rect, ctrl, 'right-to-left'),
+      );
     }
   }
 
   private _dispatchSelectLasso(ctrl: boolean, mode: SelectionMode): void {
     if (mode === 'group') {
-      const gids = hitTestGroupsLasso(
+      const gids = this.hitTestEngine.queryLassoGroups(
         this.lassoWorldPoints,
-        this.getElements(),
-        undefined as any,
         this.lookupGroup,
       );
-      this.bus.execute(createSelectLassoCommand('group', this.lassoWorldPoints, ctrl));
+      this.bus.execute(
+        createSelectLassoCommand('group', this.lassoWorldPoints, ctrl),
+      );
       this.onGroupSelect?.(gids);
     } else {
-      this.bus.execute(createSelectLassoCommand('element', this.lassoWorldPoints, ctrl));
+      this.bus.execute(
+        createSelectLassoCommand('element', this.lassoWorldPoints, ctrl),
+      );
     }
   }
 }
