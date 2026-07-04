@@ -89,6 +89,7 @@ export class SelectionHandler {
         }
       } else {
         this.flushPathTimeMachine();
+        this.opts.pathNodeOverlay.clear();
       }
       origOnSetEditingPath?.(path);
     };
