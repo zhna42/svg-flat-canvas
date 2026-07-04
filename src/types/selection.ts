@@ -49,16 +49,15 @@ export interface WorldSnapResult {
 export interface SelectionHandlerOptions {
   svg: SVGSVGElement;
   camera: import('@/canvas/Camera').Camera;
-  overlayRoot: SVGGElement;
-  selectionOverlay: any;
-  groupSelectionOverlay: any;
+  selectionManager: import('@/canvas/overlays/selection/SelectionManager').SelectionManager;
   pathNodeOverlay: any;
-  transformHandler: import('@/selection/transform/TransformHandler').TransformHandler;
-  groupTransformHandler: import('@/selection/transform/GroupTransformHandler').GroupTransformHandler;
-  state: import('@/selection/SelectionState').SelectionState;
+  transformHandler: import('@/canvas/overlays/selection/transform/TransformHandler').TransformHandler;
+  groupTransformHandler: import('@/canvas/overlays/selection/transform/GroupTransformHandler').GroupTransformHandler;
+  state: import('@/canvas/overlays/selection/SelectionState').SelectionState;
   getElements: () => AbstractGraphicElement[];
   grid: import('@/math/spatial/SpatialGrid').SpatialGrid;
   bus: import('@/commands/CommandBus').CommandBus;
+  registerDirty: (node: import('@/types').IRenderableNode) => void;
   timeMachine?: import('@/time-machine/TimeMachine').TimeMachine;
   isPanning?: () => boolean;
   isCreating?: () => boolean;
@@ -95,7 +94,7 @@ export interface GroupSelectionHandlerOptions {
   lookupGroup: (elementId: string) => string | undefined;
   camera: import('@/canvas/Camera').Camera;
   bus: import('@/commands/CommandBus').CommandBus;
-  dragHandler: import('@/selection/drag').DragHandler;
+  dragHandler: import('@/canvas/overlays/selection/drag').DragHandler;
   onGroupSelect?: (ids: string[]) => void;
 }
 

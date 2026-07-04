@@ -1,28 +1,13 @@
-import { DEFAULT_SELECTION_SHORTCUTS } from '@/selection/selection-defaults';
-import type {
-  SelectionShortcuts,
-  SelectionGesture,
-  RectOverlay,
-  LassoOverlay,
-} from '@/types';
-import { DragHandler } from '@/selection/drag';
-import { GroupSelectionHandler } from '@/selection/handlers/GroupSelectionHandler';
-import { PathNodeHandler } from '@/selection/handlers/PathNodeHandler';
+import { DEFAULT_SELECTION_SHORTCUTS } from '@/canvas/overlays/selection/selection-defaults';
+import type { SelectionShortcuts, SelectionGesture } from '@/types';
+import { DragHandler } from '@/canvas/overlays/selection/drag';
+import { GroupSelectionHandler } from '@/canvas/overlays/selection/handlers/GroupSelectionHandler';
+import { PathNodeHandler } from '@/canvas/overlays/selection/handlers/PathNodeHandler';
 import { PathTimeMachine as PathTimeMachineClass } from '@/shapes/path/PathTimeMachine';
 import { hitTestByPoint as hitTestPoint } from '@/math/hit-test';
 import { pointToSegmentDist } from '@/math/geometry-utils';
-import {
-  createSelectPickCommand,
-  createSelectRectCommand,
-} from '@/commands/factories/select-command-factory';
-import {
-  createRectOverlay,
-  updateRectOverlay,
-  hideRectOverlay,
-  createLassoOverlay,
-  updateLassoOverlay,
-  hideLassoOverlay,
-} from '@/canvas/overlays/overlay-utils';
+import { createSelectPickCommand } from '@/commands/factories/select-command-factory';
+import { AreaSelectionManager } from '@/canvas/overlays/selection/AreaSelectionManager';
 import type { ImageElement } from '@/shapes/elements/ImageElement';
 import { computeGroupWorldBBox } from '@/math/group-bbox-utils';
 import type { SelectionHandlerOptions } from '@/types';
@@ -33,22 +18,13 @@ export class SelectionHandler {
   private readonly dragHandler: DragHandler;
   private readonly groupHandler: GroupSelectionHandler;
   private readonly pathNodeHandler: PathNodeHandler;
+  private readonly areaSelectionManager: AreaSelectionManager;
   private pathTimeMachine: PathTimeMachine | null = null;
 
   private shortcuts: SelectionShortcuts;
   private gesture: SelectionGesture = 'click';
   private ctrlHeld = false;
   private shiftOverride = false;
-
-  private rectActive = false;
-  private rectStartSvg = { x: 0, y: 0 };
-  private rectStartWorld = { x: 0, y: 0 };
-  private rectOverlay: RectOverlay = { element: null };
-
-  private lassoActive = false;
-  private lassoWorldPoints: { x: number; y: number }[] = [];
-  private lassoScreenPoints: { x: number; y: number }[] = [];
-  private lassoOverlay: LassoOverlay = { element: null };
 
   private panning = false;
   private panStart = { x: 0, y: 0 };
@@ -117,6 +93,15 @@ export class SelectionHandler {
       }
       origOnSetEditingPath?.(path);
     };
+
+    this.areaSelectionManager = new AreaSelectionManager(
+      opts.state,
+      opts.bus,
+      opts.getElements,
+      opts.registerDirty,
+      opts.getGroupIdForElement ?? (() => undefined),
+      opts.onGroupSelect,
+    );
 
     this.bindEvents();
   }
@@ -199,27 +184,8 @@ export class SelectionHandler {
       if (started) {
         e.preventDefault();
         return true;
-      } else if (useRect) {
-        this.rectActive = true;
-        this.rectStartSvg = { x: svgPt.x, y: svgPt.y };
-        this.rectStartWorld = { x: worldPt.x, y: worldPt.y };
-        this.rectOverlay = createRectOverlay(
-          this.opts.overlayRoot,
-          this.opts.camera,
-          svgPt.x,
-          svgPt.y,
-        );
-        if (!this.ctrlHeld) this.opts.state.clear();
-        return true;
-      } else if (this.gesture === 'lasso') {
-        this.lassoActive = true;
-        this.lassoWorldPoints = [{ x: worldPt.x, y: worldPt.y }];
-        this.lassoScreenPoints = [{ x: svgPt.x, y: svgPt.y }];
-        this.lassoOverlay = createLassoOverlay(
-          this.opts.overlayRoot,
-          this.opts.camera,
-        );
-        if (!this.ctrlHeld) this.opts.state.clear();
+      } else if (this.areaSelectionManager.onMouseDown(svgPt, worldPt, this.ctrlHeld, this.shiftOverride, 'group', false)) {
+        e.preventDefault();
         return true;
       }
       return true;
@@ -244,27 +210,8 @@ export class SelectionHandler {
       return true;
     }
 
-    if (useRect) {
-      this.rectActive = true;
-      this.rectStartSvg = { x: svgPt.x, y: svgPt.y };
-      this.rectStartWorld = { x: worldPt.x, y: worldPt.y };
-      this.rectOverlay = createRectOverlay(
-        this.opts.overlayRoot,
-        this.opts.camera,
-        svgPt.x,
-        svgPt.y,
-      );
-      if (!this.ctrlHeld) this.dispatchSelectClear();
-      return true;
-    } else if (this.gesture === 'lasso') {
-      this.lassoActive = true;
-      this.lassoWorldPoints = [{ x: worldPt.x, y: worldPt.y }];
-      this.lassoScreenPoints = [{ x: svgPt.x, y: svgPt.y }];
-      this.lassoOverlay = createLassoOverlay(
-        this.opts.overlayRoot,
-        this.opts.camera,
-      );
-      if (!this.ctrlHeld) this.dispatchSelectClear();
+    if (this.areaSelectionManager.onMouseDown(svgPt, worldPt, this.ctrlHeld, this.shiftOverride, 'element', false)) {
+      if (!this.ctrlHeld) this.opts.state.clear();
       return true;
     }
 
@@ -299,32 +246,21 @@ export class SelectionHandler {
       return true;
     }
 
+    const areaHandled = this.areaSelectionManager.onMouseMove(svgPt, worldPt, isGroup() ? 'group' : 'element');
+    void areaHandled;
+
     if (isGroup()) {
       if (this.opts.groupTransformHandler.isActive) {
         this.opts.groupTransformHandler.move(worldPt, e.shiftKey);
         return true;
       }
       if (this.dragHandler.isActive) this.dragHandler.move(worldPt);
-      if (this.rectActive) this.updateRect(svgPt);
-      if (this.lassoActive) {
-        this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
-        this.lassoScreenPoints.push({ x: svgPt.x, y: svgPt.y });
-        updateLassoOverlay(this.lassoOverlay, this.lassoScreenPoints);
-      }
       return true;
     }
 
     if (this.dragHandler.isActive) {
       this.dragHandler.move(worldPt);
       return true;
-    }
-
-    if (this.rectActive) this.updateRect(svgPt);
-
-    if (this.lassoActive) {
-      this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });
-      this.lassoScreenPoints.push({ x: svgPt.x, y: svgPt.y });
-      updateLassoOverlay(this.lassoOverlay, this.lassoScreenPoints);
     }
     return true;
   }
@@ -374,20 +310,8 @@ export class SelectionHandler {
         return true;
       }
       if (this.dragHandler.isActive) this.dragHandler.end();
-      else if (this.rectActive) {
-        this.rectActive = false;
-        hideRectOverlay(this.rectOverlay);
-        this.groupHandler.onRectEnd(
-          worldPt,
-          this.ctrlHeld,
-          this.rectStartWorld,
-        );
-      } else if (this.lassoActive) {
-        this.lassoActive = false;
-        hideLassoOverlay(this.lassoOverlay);
-        this.groupHandler.onLassoEnd(this.lassoWorldPoints, this.ctrlHeld);
-        this.lassoWorldPoints = [];
-        this.lassoScreenPoints = [];
+      else if (this.areaSelectionManager.onMouseUp(worldPt, this.ctrlHeld, 'group')) {
+        return true;
       }
       return true;
     }
@@ -397,30 +321,7 @@ export class SelectionHandler {
       return true;
     }
 
-    if (this.rectActive) {
-      this.rectActive = false;
-      hideRectOverlay(this.rectOverlay);
-      this.shiftOverride = false;
-      if (this.isDragGesture(worldPt)) {
-        this.dispatchSelectRect(worldPt);
-      } else {
-        const cmd = createSelectPickCommand('element', worldPt, this.ctrlHeld);
-        this.opts.bus.execute(cmd);
-      }
-      return true;
-    }
-
-    if (this.lassoActive) {
-      this.lassoActive = false;
-      hideLassoOverlay(this.lassoOverlay);
-      if (this.lassoWorldPoints.length >= 3) {
-        this.dispatchSelectLasso();
-      } else {
-        const cmd = createSelectPickCommand('element', worldPt, this.ctrlHeld);
-        this.opts.bus.execute(cmd);
-      }
-      this.lassoWorldPoints = [];
-      this.lassoScreenPoints = [];
+    if (this.areaSelectionManager.onMouseUp(worldPt, this.ctrlHeld, 'element')) {
       return true;
     }
     return false;
@@ -766,7 +667,7 @@ export class SelectionHandler {
         const editingPath = this.opts.getEditingPath?.();
         if (editingPath) this.opts.onSetEditingPath?.(null);
       } else {
-        this.dispatchSelectClear();
+        this.opts.state.clear();
         this.opts.onGroupSelect?.([]);
       }
       return true;
@@ -876,7 +777,7 @@ export class SelectionHandler {
 
   private tryHandleHitTest(svgPt: { x: number; y: number }): boolean {
     const worldPt = this.opts.camera.screenToWorld(svgPt);
-    const hit = this.opts.groupSelectionOverlay.hitTestHandle(worldPt.x, worldPt.y);
+    const hit = this.opts.selectionManager.hitTestHandle(worldPt.x, worldPt.y);
     if (!hit) return false;
 
     const { handle, targetId } = hit;
@@ -894,7 +795,7 @@ export class SelectionHandler {
 
   private tryGroupHandleHitTest(svgPt: { x: number; y: number }): boolean {
     const worldPt = this.opts.camera.screenToWorld(svgPt);
-    const hit = this.opts.groupSelectionOverlay.hitTestHandle(worldPt.x, worldPt.y);
+    const hit = this.opts.selectionManager.hitTestHandle(worldPt.x, worldPt.y);
     if (!hit) return false;
 
     const groups = this.opts.getSelectedGroups?.() ?? [];
@@ -924,65 +825,4 @@ export class SelectionHandler {
     );
   }
 
-  private updateRect(svgPt: { x: number; y: number }): void {
-    const screenBBox = {
-      x: Math.min(this.rectStartSvg.x, svgPt.x),
-      y: Math.min(this.rectStartSvg.y, svgPt.y),
-      w: Math.abs(svgPt.x - this.rectStartSvg.x),
-      h: Math.abs(svgPt.y - this.rectStartSvg.y),
-    };
-    updateRectOverlay(
-      this.rectOverlay,
-      screenBBox,
-      svgPt.x >= this.rectStartSvg.x,
-      this.opts.camera,
-    );
-  }
-
-  private dispatchSelectClear(): void {
-    this.opts.state.clear();
-  }
-
-  private dispatchSelectRect(wp: { x: number; y: number }): void {
-    this.opts.bus.execute(
-      createSelectRectCommand(
-        'element',
-        {
-          x: Math.min(this.rectStartWorld.x, wp.x),
-          y: Math.min(this.rectStartWorld.y, wp.y),
-          width: Math.abs(wp.x - this.rectStartWorld.x),
-          height: Math.abs(wp.y - this.rectStartWorld.y),
-        },
-        this.ctrlHeld,
-        wp.x >= this.rectStartWorld.x ? 'left-to-right' : 'right-to-left',
-      ),
-    );
-  }
-
-  private dispatchSelectLasso(): void {
-    this.opts.bus.execute(
-      createSelectRectCommand(
-        'element',
-        {
-          x: Math.min(...this.lassoWorldPoints.map((p) => p.x)),
-          y: Math.min(...this.lassoWorldPoints.map((p) => p.y)),
-          width:
-            Math.max(...this.lassoWorldPoints.map((p) => p.x)) -
-            Math.min(...this.lassoWorldPoints.map((p) => p.x)),
-          height:
-            Math.max(...this.lassoWorldPoints.map((p) => p.y)) -
-            Math.min(...this.lassoWorldPoints.map((p) => p.y)),
-        },
-        this.ctrlHeld,
-        'left-to-right',
-      ),
-    );
-  }
-
-  private isDragGesture(wp: { x: number; y: number }): boolean {
-    return (
-      Math.abs(wp.x - this.rectStartWorld.x) >= 3 ||
-      Math.abs(wp.y - this.rectStartWorld.y) >= 3
-    );
-  }
 }

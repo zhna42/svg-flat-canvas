@@ -1,4 +1,4 @@
-import type { SelectionState } from '@/selection/SelectionState';
+import type { SelectionState } from '@/canvas/overlays/selection/SelectionState';
 import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';

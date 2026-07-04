@@ -3,9 +3,9 @@ import type { CommandBus } from '@/commands/CommandBus';
 import type { Camera } from '@/canvas/Camera';
 import type { SpatialGrid } from '@/math/spatial/SpatialGrid';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
-import { DragSnapHelper } from '@/selection/drag/DragSnap';
+import { DragSnapHelper } from '@/canvas/overlays/selection/drag/DragSnap';
 import type { SnapAxisMode } from '@/types';
-import { checkSceneCollisions } from '@/selection/drag/DragCollision';
+import { checkSceneCollisions } from '@/canvas/overlays/selection/drag/DragCollision';
 
 const HOLD_DIST_SCREEN = 40;
 

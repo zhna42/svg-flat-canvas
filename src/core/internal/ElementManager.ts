@@ -1,5 +1,5 @@
 import type { ShapeManager } from '@/shapes/ShapeManager';
-import type { SelectionState } from '@/selection/SelectionState';
+import type { SelectionState } from '@/canvas/overlays/selection/SelectionState';
 import type { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import type { TimeMachine } from '@/time-machine';
 import type { EventBus } from '../EventBus';

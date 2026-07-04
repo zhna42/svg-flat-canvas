@@ -135,4 +135,4 @@ export type {
   SortShapesDTO,
 } from './api';
 
-export type { RectOverlay, LassoOverlay } from './overlay';
+

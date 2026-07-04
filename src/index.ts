@@ -51,7 +51,7 @@ export type {
   HandlePosition,
   TransformMode,
 } from '@/types';
-export { TransformHandler } from '@/selection';
+export { TransformHandler } from '@/canvas/overlays/selection';
 export { Group } from '@/shapes/group';
 export type { GroupData, GroupConflictAction } from '@/types';
 export { CommandBus } from '@/commands';

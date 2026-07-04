@@ -11,7 +11,7 @@ import {
   getScreenCurveTargets,
   extractBezierTargets,
   getVisualWorldPoints,
-} from '@/selection/drag/DragCollision';
+} from '@/canvas/overlays/selection/drag/DragCollision';
 
 export class DragSnapHelper {
   private engine = new AdaptiveSnapEngine();

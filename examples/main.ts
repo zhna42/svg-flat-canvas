@@ -148,6 +148,16 @@ function setupLeftToolbar(): void {
     btnElem.classList.remove('active');
   };
 
+  const gestureBtns = document.querySelectorAll('.gesture-btn');
+  const setGesture = (gesture: string, activeBtn: Element) => {
+    api.setSelectionGesture(gesture as any);
+    gestureBtns.forEach((b) => b.classList.remove('active'));
+    activeBtn.classList.add('active');
+  };
+  document.getElementById('btn-gesture-click')!.onclick = function () { setGesture('click', this); };
+  document.getElementById('btn-gesture-rect')!.onclick = function () { setGesture('rect', this); };
+  document.getElementById('btn-gesture-lasso')!.onclick = function () { setGesture('lasso', this); };
+
   const creationTools = document.querySelectorAll('.creation-tool[data-type]');
   const cancelBtn = document.getElementById('btn-creation-cancel')!;
 

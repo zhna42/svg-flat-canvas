@@ -12,13 +12,13 @@ import {
 } from '@/canvas/system';
 import { ShapeManager } from '@/shapes/ShapeManager';
 import { EventManager } from '@/events/EventManager';
-import { SelectionState } from '@/selection/SelectionState';
+import { SelectionState } from '@/canvas/overlays/selection/SelectionState';
 import { SpatialGrid } from '@/math/spatial/SpatialGrid';
-import { SelectionHandler } from '@/selection/handlers/SelectionHandler';
+import { SelectionHandler } from '@/canvas/overlays/selection/handlers/SelectionHandler';
 import { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
-import { TransformHandler } from '@/selection/transform/TransformHandler';
-import { GroupTransformHandler } from '@/selection/transform/GroupTransformHandler';
+import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
+import { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/canvas/overlays/debug/DebugOverlay';
 import { PreloaderOverlay } from '@/canvas/overlays/debug/PreloaderOverlay';
 import { GridOverlay } from '@/canvas/overlays/debug/GridOverlay';
@@ -287,14 +287,10 @@ export class SvgCanvas implements ICanvasContext {
     let dragOverlayDx = 0;
     let dragOverlayDy = 0;
 
-    const overlayRoot = this.svg.querySelector('g')!;
-
     this.selectionHandler = new SelectionHandler({
       svg: this.svg,
       camera: this.camera as any,
-      overlayRoot,
-      selectionOverlay: this.selectionManager as any,
-      groupSelectionOverlay: this.selectionManager as any,
+      selectionManager: this.selectionManager,
       pathNodeOverlay: this.pathNodeOverlay,
       transformHandler: this.transformHandler,
       groupTransformHandler: this.groupTransformHandler,
@@ -302,6 +298,7 @@ export class SvgCanvas implements ICanvasContext {
       getElements: () => this.shapeManager.getAll(),
       grid: this.spatialGrid,
       bus: this.commandBus,
+      registerDirty: this.scheduler.registerDirtyNode,
       timeMachine: this.timeMachine,
       isPanning: () => this.panActive.value,
       isCreating: () => creationHandler.isActive,
