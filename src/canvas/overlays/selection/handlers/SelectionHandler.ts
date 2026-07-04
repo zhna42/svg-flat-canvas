@@ -229,6 +229,7 @@ export class SelectionHandler {
 
   public onMouseMove(e: MouseEvent): boolean {
     if (e.buttons === 0) return false;
+    if (this.opts.isCreating?.()) return false;
 
     if (this.panning) {
       const svgPt = this.clientToSvg(e);
@@ -274,6 +275,7 @@ export class SelectionHandler {
 
   public onMouseUp(e: MouseEvent): boolean {
     if (e.button !== 0) return false;
+    if (this.opts.isCreating?.()) return false;
 
     const rootSvg = this.opts.svg;
     const isGroup = () => this.opts.state.mode === 'group';
@@ -345,6 +347,7 @@ export class SelectionHandler {
   public onDblClick(e: MouseEvent): boolean {
     if (e.button !== 0) return false;
     if (e.defaultPrevented) return false;
+    if (this.opts.isCreating?.()) return false;
     const worldPt = this.screenToWorld(e);
 
     const editingPath = this.opts.getEditingPath?.();
