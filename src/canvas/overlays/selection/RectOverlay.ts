@@ -11,8 +11,11 @@ export class RectOverlay extends ReactiveNode {
   public strokeWidth = 1;
   public visibility: 'visible' | 'hidden' = 'hidden';
 
+  private _startX = 0;
+  private _startY = 0;
+
   constructor(registerDirty: (node: IRenderableNode) => void) {
-    super('rect-overlay', 'rect', 'selectionOverlay' as LayerName);
+    super('rect-overlay', 'rect', 'overlayRoot' as LayerName);
     this.pushDiffRendering = registerDirty;
   }
 
@@ -31,6 +34,8 @@ export class RectOverlay extends ReactiveNode {
   }
 
   public show(svgX: number, svgY: number): void {
+    this._startX = svgX;
+    this._startY = svgY;
     this.x = svgX;
     this.y = svgY;
     this.width = 0;
@@ -39,10 +44,10 @@ export class RectOverlay extends ReactiveNode {
   }
 
   public update(svgX: number, svgY: number, leftToRight: boolean): void {
-    this.x = Math.min(svgX, svgX - (svgX > this.x ? 0 : this.x - svgX));
-    this.width = Math.abs(svgX - this.x);
-    this.y = Math.min(svgY, svgY - (svgY > this.y ? 0 : this.y - svgY));
-    this.height = Math.abs(svgY - this.y);
+    this.x = Math.min(this._startX, svgX);
+    this.y = Math.min(this._startY, svgY);
+    this.width = Math.abs(svgX - this._startX);
+    this.height = Math.abs(svgY - this._startY);
     this.fill = leftToRight
       ? 'rgba(200, 120, 0, 0.12)'
       : 'rgba(66, 133, 244, 0.12)';

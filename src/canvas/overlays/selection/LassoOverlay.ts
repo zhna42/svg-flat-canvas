@@ -10,7 +10,7 @@ export class LassoOverlay extends ReactiveNode {
   public visibility: 'visible' | 'hidden' = 'hidden';
 
   constructor(registerDirty: (node: IRenderableNode) => void) {
-    super('lasso-overlay', 'polygon', 'selectionOverlay' as LayerName);
+    super('lasso-overlay', 'polygon', 'overlayRoot' as LayerName);
     this.pushDiffRendering = registerDirty;
   }
 
