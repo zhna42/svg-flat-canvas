@@ -301,7 +301,7 @@ export class SvgCanvas implements ICanvasContext {
       registerDirty: this.scheduler.registerDirtyNode,
       timeMachine: this.timeMachine,
       isPanning: () => this.panActive.value,
-      isCreating: () => creationHandler.isActive,
+      isCreating: () => creationHandler.activeType !== null,
       isGuidelineDragging: () => this.rulerManager.isDragging,
       getGroupIdForElement: (elementId) =>
         this.groupManager.getGroupByElement(elementId)?.id,
