@@ -1,5 +1,9 @@
 export abstract class NodeDOMFactory {
   public abstract createDOM(type: string): SVGElement;
+  public abstract createSelectionBox(): {
+    uuid: string;
+    elements: Map<string, SVGElement>;
+  };
 
   protected createSvgElement<K extends keyof SVGElementTagNameMap>(
     tagName: K,

@@ -600,13 +600,11 @@ export class ExternalApi {
     if (path) {
       path.isNodeEditing = true;
       this._editingPathUnsub = path.subscribe('geometry.commands', () => {
-        this.canvas.selectionOverlay.updatePathNodes(path);
+        this.canvas.pathNodeOverlay.updatePathNodes(path);
       });
-      this.canvas.selectionOverlay.setElements([path]);
+      this.canvas.pathNodeOverlay.renderPathNodes(path);
     } else {
-      this.canvas.selectionOverlay.setElements(
-        this.canvas.selectionState.selected,
-      );
+      this.canvas.selectionManager.clear();
     }
   }
 
@@ -744,7 +742,7 @@ export class ExternalApi {
     if (this.editingPath) return;
     this.canvas.selectionState.clear();
     this.canvas.groupManager.clearSelectedGroups();
-    this.canvas.groupSelectionOverlay.clear();
+    this.canvas.selectionManager.clear();
     this.canvas.timeMachine.undo();
     this.canvas.elementManager.reindexAll();
   }
@@ -754,7 +752,7 @@ export class ExternalApi {
     if (this.editingPath) return;
     this.canvas.selectionState.clear();
     this.canvas.groupManager.clearSelectedGroups();
-    this.canvas.groupSelectionOverlay.clear();
+    this.canvas.selectionManager.clear();
     this.canvas.timeMachine.redo();
     this.canvas.elementManager.reindexAll();
   }
@@ -954,8 +952,10 @@ export class ExternalApi {
     const selectedGroups = Array.from(this.canvas.groupManager.selectedGroupIds)
       .map((id) => this.canvas.groupManager.getGroup(id))
       .filter((g): g is Group => g !== undefined);
-    this.canvas.groupSelectionOverlay.sync(selectedGroups, (id: string) =>
-      this.canvas.shapeManager.getAll().find((e) => e.id === id),
+    this.canvas.selectionManager.setGroupSelection(
+      selectedGroups.map((g) => g.id),
+      (id) => this.canvas.groupManager.getGroup(id),
+      (id) => this.canvas.shapeManager.getAll().find((e) => e.id === id),
     );
   }
 

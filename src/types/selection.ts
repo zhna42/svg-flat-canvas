@@ -50,8 +50,9 @@ export interface SelectionHandlerOptions {
   svg: SVGSVGElement;
   camera: import('@/canvas/Camera').Camera;
   overlayRoot: SVGGElement;
-  selectionOverlay: import('@/canvas/overlays/selection/SelectionOverlay').SelectionOverlay;
-  groupSelectionOverlay: import('@/canvas/overlays/selection/GroupSelectionOverlay').GroupSelectionOverlay;
+  selectionOverlay: any;
+  groupSelectionOverlay: any;
+  pathNodeOverlay: any;
   transformHandler: import('@/selection/transform/TransformHandler').TransformHandler;
   groupTransformHandler: import('@/selection/transform/GroupTransformHandler').GroupTransformHandler;
   state: import('@/selection/SelectionState').SelectionState;

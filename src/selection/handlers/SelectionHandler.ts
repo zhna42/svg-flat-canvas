@@ -71,10 +71,10 @@ export class SelectionHandler {
     const groupLookup = opts.getGroupIdForElement ?? (() => undefined);
     this.pathNodeHandler = new PathNodeHandler();
     this.pathNodeHandler.onNodeActivate = (cmdIdx) => {
-      opts.selectionOverlay.activeCmdIdx = cmdIdx;
+      opts.pathNodeOverlay.activeCmdIdx = cmdIdx;
       const editingPath = opts.getEditingPath?.();
       if (editingPath) {
-        opts.selectionOverlay.updatePathNodes(editingPath);
+        opts.pathNodeOverlay.updatePathNodes(editingPath);
       }
     };
     this.groupHandler = new GroupSelectionHandler({
@@ -150,7 +150,7 @@ export class SelectionHandler {
     // Path node editing — check handle hit
     const editingPath = this.opts.getEditingPath?.();
     if (editingPath) {
-      const handleHit = this.opts.selectionOverlay.hitTestPathNode(
+      const handleHit = this.opts.pathNodeOverlay.hitTestPathNode(
         svgPt.x,
         svgPt.y,
       );
@@ -442,7 +442,7 @@ export class SelectionHandler {
     const editingPath = this.opts.getEditingPath?.();
     if (editingPath && editingPath.type === 'path') {
       const svgPt = this.clientToSvg(e);
-      const handleHit = this.opts.selectionOverlay.hitTestPathNode(
+      const handleHit = this.opts.pathNodeOverlay.hitTestPathNode(
         svgPt.x,
         svgPt.y,
       );
@@ -776,7 +776,7 @@ export class SelectionHandler {
         this.pathTimeMachine.undo();
         const editingPath = this.opts.getEditingPath?.();
         if (editingPath)
-          this.opts.selectionOverlay.updatePathNodes(editingPath);
+          this.opts.pathNodeOverlay.updatePathNodes(editingPath);
         return true;
       } else if (this.opts.getEditingPath?.()) {
         e.preventDefault();
@@ -788,7 +788,7 @@ export class SelectionHandler {
         this.pathTimeMachine.redo();
         const editingPath = this.opts.getEditingPath?.();
         if (editingPath)
-          this.opts.selectionOverlay.updatePathNodes(editingPath);
+          this.opts.pathNodeOverlay.updatePathNodes(editingPath);
         return true;
       } else if (this.opts.getEditingPath?.()) {
         e.preventDefault();
@@ -875,11 +875,13 @@ export class SelectionHandler {
   }
 
   private tryHandleHitTest(svgPt: { x: number; y: number }): boolean {
-    const hit = this.opts.selectionOverlay.hitTestHandle(svgPt.x, svgPt.y);
+    const worldPt = this.opts.camera.screenToWorld(svgPt);
+    const hit = this.opts.groupSelectionOverlay.hitTestHandle(worldPt.x, worldPt.y);
     if (!hit) return false;
 
-    const { handle, element } = hit;
-    const worldPt = this.opts.camera.screenToWorld(svgPt);
+    const { handle, targetId } = hit;
+    const element = this.opts.getElements().find((e) => e.id === targetId);
+    if (!element) return false;
 
     return this.opts.transformHandler.tryStart(
       handle,
@@ -891,7 +893,8 @@ export class SelectionHandler {
   }
 
   private tryGroupHandleHitTest(svgPt: { x: number; y: number }): boolean {
-    const hit = this.opts.groupSelectionOverlay.hitTestHandle(svgPt.x, svgPt.y);
+    const worldPt = this.opts.camera.screenToWorld(svgPt);
+    const hit = this.opts.groupSelectionOverlay.hitTestHandle(worldPt.x, worldPt.y);
     if (!hit) return false;
 
     const groups = this.opts.getSelectedGroups?.() ?? [];
@@ -905,14 +908,13 @@ export class SelectionHandler {
       height: number;
     } | null = null;
     for (const g of groups) {
-      if (g.id === hit.groupId) {
+      if (g.id === hit.targetId) {
         groupBBox = computeGroupWorldBBox(g, findElement);
         break;
       }
     }
     if (!groupBBox) return false;
 
-    const worldPt = this.opts.camera.screenToWorld(svgPt);
     return this.opts.groupTransformHandler.tryStart(
       hit.handle,
       groupBBox,

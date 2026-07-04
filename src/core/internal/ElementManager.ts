@@ -1,6 +1,6 @@
 import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { SelectionState } from '@/selection/SelectionState';
-import type { SelectionOverlay } from '@/canvas/overlays/selection/SelectionOverlay';
+import type { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import type { TimeMachine } from '@/time-machine';
 import type { EventBus } from '../EventBus';
 import type { CommandBus } from '@/commands';
@@ -18,7 +18,7 @@ export class ElementManager {
   constructor(
     private readonly shapeManager: ShapeManager,
     private readonly selectionState: SelectionState,
-    private readonly selectionOverlay: SelectionOverlay,
+    private readonly selectionManager: SelectionManager,
     spatialIndexer: SpatialIndexer,
     private readonly timeMachine: TimeMachine,
     private readonly events: EventBus,
@@ -123,7 +123,10 @@ export class ElementManager {
       .getAll()
       .filter((e) => ids.includes(e.id));
     this.selectionState.replace(elements);
-    this.selectionOverlay.setPositions(elements);
+    this.selectionManager.setElementSelection(
+      ids,
+      (id) => this.shapeManager.getById(id),
+    );
   }
 
   getSelectedStyles(): Array<Record<string, unknown>> {

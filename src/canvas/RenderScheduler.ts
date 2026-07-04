@@ -29,13 +29,23 @@ export class RenderScheduler {
     if (!this._view) return;
 
     for (const node of this._dirtyNodes) {
-      const payload: DrawPayload = {
-        id: node.id,
-        type: node.type,
-        layerName: node.layerName,
-        ...node.getRenderingPayload(),
-      };
-      this._view.draw(payload);
+      if (node.type === 'selection-box') {
+        const diff = {
+          ...node.getRenderingPayload(),
+          _domRef: (node as any)._domRef,
+          _layerName: node.layerName,
+        };
+        const domRef = this._view.drawSelectionBox(diff);
+        (node as any)._domRef = domRef;
+      } else {
+        const payload: DrawPayload = {
+          id: node.id,
+          type: node.type,
+          layerName: node.layerName,
+          ...node.getRenderingPayload(),
+        };
+        this._view.draw(payload);
+      }
       node.clearRenderingDiff();
     }
 

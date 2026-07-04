@@ -2,6 +2,7 @@ export type LayerName =
   | 'shapesGroup'
   | 'previewGroup'
   | 'groupSelectionOverlay'
+  | 'selectionOverlay'
   | 'overlayRoot';
 
 export interface DrawPayload {

@@ -1,4 +1,6 @@
-import type { GroupData } from '@/types';
+import type { GroupData, Point } from '@/types';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import { computeGroupWorldBBox } from '@/math/group-bbox-utils';
 
 export class Group {
   public readonly id: string;
@@ -94,5 +96,49 @@ export class Group {
       this.matrix = new DOMMatrix([a, b, c, d, e, f]);
       this.markUnsaved('matrix');
     }
+  }
+
+  public getWorldBBox(
+    findElement: (id: string) => AbstractGraphicElement | undefined,
+  ): Required<ReturnType<typeof computeGroupWorldBBox>> | null {
+    return computeGroupWorldBBox(this, findElement);
+  }
+
+  public getHitAreaBox(
+    findElement: (id: string) => AbstractGraphicElement | undefined,
+  ): { minX: number; minY: number; maxX: number; maxY: number } | null {
+    const bbox = this.getWorldBBox(findElement);
+    if (!bbox) return null;
+    return {
+      minX: bbox.x,
+      minY: bbox.y,
+      maxX: bbox.x + bbox.width,
+      maxY: bbox.y + bbox.height,
+    };
+  }
+
+  public getHitArea(
+    findElement: (id: string) => AbstractGraphicElement | undefined,
+  ): Point[] {
+    const result: Point[] = [];
+    for (const elId of this.elementIds) {
+      const el = findElement(elId);
+      if (!el) continue;
+      result.push(...el.getWorldHitPoints());
+    }
+    return result;
+  }
+
+  public getWorldCorners(
+    findElement: (id: string) => AbstractGraphicElement | undefined,
+  ): Point[] {
+    const bbox = this.getWorldBBox(findElement);
+    if (!bbox) return [];
+    return [
+      { x: bbox.x, y: bbox.y },
+      { x: bbox.x + bbox.width, y: bbox.y },
+      { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
+      { x: bbox.x, y: bbox.y + bbox.height },
+    ];
   }
 }

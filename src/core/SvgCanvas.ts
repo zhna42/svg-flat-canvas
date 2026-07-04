@@ -15,8 +15,8 @@ import { EventManager } from '@/events/EventManager';
 import { SelectionState } from '@/selection/SelectionState';
 import { SpatialGrid } from '@/math/spatial/SpatialGrid';
 import { SelectionHandler } from '@/selection/handlers/SelectionHandler';
-import { SelectionOverlay } from '@/canvas/overlays/selection/SelectionOverlay';
-import { GroupSelectionOverlay } from '@/canvas/overlays/selection/GroupSelectionOverlay';
+import { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
+import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
 import { TransformHandler } from '@/selection/transform/TransformHandler';
 import { GroupTransformHandler } from '@/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/canvas/overlays/debug/DebugOverlay';
@@ -78,13 +78,14 @@ export class SvgCanvas implements ICanvasContext {
   commandBus!: CommandBus;
   timeMachine!: TimeMachine;
 
-  selectionOverlay!: SelectionOverlay;
-  groupSelectionOverlay!: GroupSelectionOverlay;
-  transformHandler!: TransformHandler;
-  groupTransformHandler!: GroupTransformHandler;
+  selectionManager!: SelectionManager;
+  pathNodeOverlay!: PathNodeOverlay;
   debugOverlay!: DebugOverlay;
   preloaderOverlay!: PreloaderOverlay;
   gridOverlay!: GridOverlay;
+
+  transformHandler!: TransformHandler;
+  groupTransformHandler!: GroupTransformHandler;
 
   groupManager!: GroupManager;
   elementManager!: ElementManager;
@@ -143,6 +144,8 @@ export class SvgCanvas implements ICanvasContext {
     this.panActive = { value: false };
     this.events = new EventBus();
     this.colorMap = new ColorMap();
+    this.selectionManager = new SelectionManager(scheduler.registerDirtyNode);
+    this.pathNodeOverlay = new PathNodeOverlay(camera);
   }
 
   private _initSystemNodes(): void {
@@ -182,7 +185,7 @@ export class SvgCanvas implements ICanvasContext {
     this.elementManager = new ElementManager(
       this.shapeManager,
       this.selectionState,
-      this.selectionOverlay,
+      this.selectionManager,
       new SpatialIndexer(this.spatialGrid),
       this.timeMachine,
       this.events,
@@ -198,14 +201,14 @@ export class SvgCanvas implements ICanvasContext {
     );
     this.svg.appendChild(overlayRoot);
 
-    this.selectionOverlay = new SelectionOverlay(this.camera as any);
-    overlayRoot.appendChild(this.selectionOverlay.getElement());
-    this.selectionState.setOnChange((selected) => {
-      this.selectionOverlay.setElements(selected);
-    });
+    overlayRoot.appendChild(this.pathNodeOverlay.getElement());
 
-    this.groupSelectionOverlay = new GroupSelectionOverlay();
-    this.view.cameraGroup.appendChild(this.groupSelectionOverlay.getElement());
+    this.selectionState.setOnChange((selected) => {
+      this.selectionManager.setElementSelection(
+        selected.map((e) => e.id),
+        (id) => this.shapeManager.getById(id),
+      );
+    });
 
     this.transformHandler = new TransformHandler(
       this.camera as any,
@@ -290,8 +293,9 @@ export class SvgCanvas implements ICanvasContext {
       svg: this.svg,
       camera: this.camera as any,
       overlayRoot,
-      selectionOverlay: this.selectionOverlay,
-      groupSelectionOverlay: this.groupSelectionOverlay,
+      selectionOverlay: this.selectionManager as any,
+      groupSelectionOverlay: this.selectionManager as any,
+      pathNodeOverlay: this.pathNodeOverlay,
       transformHandler: this.transformHandler,
       groupTransformHandler: this.groupTransformHandler,
       state: this.selectionState,
@@ -327,11 +331,7 @@ export class SvgCanvas implements ICanvasContext {
         const frameDy = dy - dragOverlayDy;
         dragOverlayDx = dx;
         dragOverlayDy = dy;
-        const zoom = this.camera.zoom;
-        for (const overlayEl of this.selectionOverlay.getOverlayElements()) {
-          overlayEl.translateBy(frameDx * zoom, frameDy * zoom);
-        }
-        this.groupSelectionOverlay.translateBy(frameDx * zoom, frameDy * zoom);
+        this.selectionManager.moveBy(frameDx, frameDy);
       },
       onDragEnd: () => {
         dragOverlayDx = 0;

@@ -1,5 +1,6 @@
 import type { ICanvasContext } from './types';
 import { invalidateGroupBBox } from '@/math/group-bbox-utils';
+import type { Group } from '@/shapes/group/Group';
 
 export class OverlayCoordinator {
   constructor(private readonly ctx: ICanvasContext) {}
@@ -12,20 +13,24 @@ export class OverlayCoordinator {
   updateOverlay(): void {
     const selected = this.ctx.selectionState.selected;
     if (selected.length > 0) {
-      this.ctx.selectionOverlay.setPositions(selected);
+      this.ctx.selectionManager.syncElementPositions(
+        (id) => this.ctx.shapeManager.getAll().find((e) => e.id === id),
+      );
     }
     if (this.ctx.groupManager.selectedGroupIds.size > 0) {
-      this.invalidateSelectedGroupBBoxes();
       this.syncGroups();
     }
   }
 
   syncGroups(): void {
+    this.invalidateSelectedGroupBBoxes();
     const selectedGroups = Array.from(this.ctx.groupManager.selectedGroupIds)
       .map((id) => this.ctx.groupManager.getGroup(id))
-      .filter((g) => g !== undefined);
-    this.ctx.groupSelectionOverlay.sync(selectedGroups, (id: string) =>
-      this.ctx.shapeManager.getAll().find((e) => e.id === id),
+      .filter((g: Group | undefined): g is Group => g !== undefined);
+    this.ctx.selectionManager.setGroupSelection(
+      selectedGroups.map((g) => g.id),
+      (id) => this.ctx.groupManager.getGroup(id),
+      (id) => this.ctx.shapeManager.getAll().find((e) => e.id === id),
     );
   }
 
@@ -43,10 +48,12 @@ export class OverlayCoordinator {
     this.ctx.camera.subscribe(['x', 'y', 'zoom'], () => {
       const selected = this.ctx.selectionState.selected;
       if (selected.length > 0) {
-        this.ctx.selectionOverlay.setPositions(selected);
+        this.ctx.selectionManager.syncElementPositions(
+          (id) => this.ctx.shapeManager.getAll().find((e) => e.id === id),
+        );
       }
       if (this.ctx.api.editingPath) {
-        this.ctx.selectionOverlay.updatePathNodes(this.ctx.api.editingPath);
+        this.ctx.pathNodeOverlay.updatePathNodes(this.ctx.api.editingPath);
       }
       if (this.ctx.groupManager.selectedGroupIds.size > 0) {
         this.syncGroups();
@@ -63,7 +70,9 @@ export class OverlayCoordinator {
     this.ctx.transformHandler.onTransformMove = () => {
       const selected = this.ctx.selectionState.selected;
       if (selected.length > 0) {
-        this.ctx.selectionOverlay.setPositions(selected);
+        this.ctx.selectionManager.syncElementPositions(
+          (id) => this.ctx.shapeManager.getAll().find((e) => e.id === id),
+        );
       }
     };
 
