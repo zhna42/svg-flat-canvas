@@ -92,14 +92,16 @@ export class BaseSelectionBox extends ReactiveNode {
   hitTestHandle(worldX: number, worldY: number): HandlePosition | null {
     if (!this.visible) return null;
 
-    const dx = worldX - this.x;
-    const dy = worldY - this.y;
+    const hw = this.width / 2;
+    const hh = this.height / 2;
+    const rx = worldX - this.x - hw;
+    const ry = worldY - this.y - hh;
 
     const angleRad = (-this.angle * Math.PI) / 180;
     const cos = Math.cos(angleRad);
     const sin = Math.sin(angleRad);
-    const localX = dx * cos - dy * sin;
-    const localY = dx * sin + dy * cos;
+    const localX = rx * cos - ry * sin + hw;
+    const localY = rx * sin + ry * cos + hh;
 
     for (const ha of computeHandleHitAreas(this.width, this.height)) {
       if (pointInPolygon(localX, localY, ha.points)) return ha.handle;

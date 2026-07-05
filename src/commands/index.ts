@@ -27,7 +27,7 @@ export type {
 } from '@/types';
 
 export type { CommandHandler, CommandRegistry } from '@/types';
-export { CommandBus } from './CommandBus';
+export { CommandBus } from '@/core/CommandBus';
 
 export {
   createSelectPickCommand,

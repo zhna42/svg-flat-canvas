@@ -24,7 +24,7 @@ import { PreloaderOverlay } from '@/canvas/overlays/debug/PreloaderOverlay';
 import { GridOverlay } from '@/canvas/overlays/debug/GridOverlay';
 import { ColorMap } from '@/color/ColorMap';
 import { GroupManager, type Group } from '@/shapes/group';
-import { CommandBus } from '@/commands';
+import { CommandBus } from './CommandBus';
 import { TimeMachine } from '@/time-machine';
 import { RulerManager } from '@/canvas/system/ruler';
 import { BooleanHandler } from '@/math/boolean';

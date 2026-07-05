@@ -1,5 +1,4 @@
-import type { Command } from './types';
-import type { CommandHandler, CommandRegistry } from './registry';
+import type { Command, CommandHandler, CommandRegistry } from '@/commands/types';
 import type { EventBus } from '@/core/EventBus';
 
 export class CommandBus {

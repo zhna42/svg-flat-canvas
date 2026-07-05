@@ -11,7 +11,7 @@ import type { TransformHandler } from '@/canvas/overlays/selection/transform/Tra
 import type { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
 import type { GridOverlay } from '@/canvas/overlays/debug/GridOverlay';
 import type { GroupManager } from '@/shapes/group';
-import type { CommandBus } from '@/commands';
+import type { CommandBus } from '../CommandBus';
 import type { TimeMachine } from '@/time-machine';
 import type { RulerManager } from '@/canvas/system/ruler';
 import type { CreationHandler } from '@/commands/handlers/creation/CreationHandler';

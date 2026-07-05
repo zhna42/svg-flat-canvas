@@ -7,7 +7,7 @@ import { LineElement } from '@/shapes/elements/LineElement';
 import { PolylineElement } from '@/shapes/elements/PolylineElement';
 import { PolygonElement } from '@/shapes/elements/PolygonElement';
 import { PathElement } from '@/shapes/elements/PathElement';
-import type { CommandBus } from '@/commands/CommandBus';
+import type { CommandBus } from '@/core/CommandBus';
 import { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import type { CreationElementType } from '@/types';
 import { Camera } from '@/canvas/Camera';

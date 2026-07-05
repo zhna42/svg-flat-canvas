@@ -25,4 +25,6 @@ export type {
   PathMoveSubpathCommand,
   BooleanOperationCommand,
   Command,
+  CommandHandler,
+  CommandRegistry,
 } from '@/types';

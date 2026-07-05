@@ -1,5 +1,5 @@
 import type { SelectionState } from '@/canvas/overlays/selection/SelectionState';
-import type { CommandBus } from '@/commands/CommandBus';
+import type { CommandBus } from '@/core/CommandBus';
 import { RectOverlay } from './RectOverlay';
 import { LassoOverlay } from './LassoOverlay';
 import type { HitTestEngine } from '@/core/HitTestEngine';

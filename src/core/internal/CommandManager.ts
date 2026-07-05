@@ -1,7 +1,6 @@
 import type { ICanvasContext } from './types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { CommandHandler } from '@/commands/registry';
-import type { Command } from '@/commands/types';
+import type { CommandHandler, Command } from '@/commands/types';
 import { createSelectHandler } from '@/commands/handlers/select-handler';
 import {
   createDragMoveHandler,

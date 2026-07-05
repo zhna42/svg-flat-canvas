@@ -54,7 +54,7 @@ export type {
 export { TransformHandler } from '@/canvas/overlays/selection';
 export { Group } from '@/shapes/group';
 export type { GroupData, GroupConflictAction } from '@/types';
-export { CommandBus } from '@/commands';
+export { CommandBus } from '@/core/CommandBus';
 export type {
   Command,
   CommandType,

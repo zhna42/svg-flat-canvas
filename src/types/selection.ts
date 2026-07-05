@@ -56,7 +56,7 @@ export interface SelectionHandlerOptions {
   state: import('@/canvas/overlays/selection/SelectionState').SelectionState;
   getElements: () => AbstractGraphicElement[];
   hitTestEngine: import('@/core/HitTestEngine').HitTestEngine;
-  bus: import('@/commands/CommandBus').CommandBus;
+  bus: import('@/core/CommandBus').CommandBus;
   registerDirty: (node: import('@/types').IRenderableNode) => void;
   timeMachine?: import('@/time-machine/TimeMachine').TimeMachine;
   isPanning?: () => boolean;
@@ -93,7 +93,7 @@ export interface GroupSelectionHandlerOptions {
   hitTestEngine: import('@/core/HitTestEngine').HitTestEngine;
   lookupGroup: (elementId: string) => string | undefined;
   camera: import('@/canvas/Camera').Camera;
-  bus: import('@/commands/CommandBus').CommandBus;
+  bus: import('@/core/CommandBus').CommandBus;
   dragHandler: import('@/canvas/overlays/selection/drag').DragHandler;
   onGroupSelect?: (ids: string[]) => void;
 }

@@ -3,7 +3,7 @@ import type { SelectionState } from '@/canvas/overlays/selection/SelectionState'
 import type { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import type { TimeMachine } from '@/time-machine';
 import type { EventBus } from '../EventBus';
-import type { CommandBus } from '@/commands';
+import type { CommandBus } from '../CommandBus';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { ElementJSON } from '@/types';
 import { createFromJSONArray } from '@/shapes/elements/factory';

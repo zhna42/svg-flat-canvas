@@ -1,5 +1,5 @@
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { CommandBus } from '@/commands/CommandBus';
+import type { CommandBus } from '@/core/CommandBus';
 import type { Camera } from '@/canvas/Camera';
 import type { HitTestEngine } from '@/core/HitTestEngine';
 import { createDragEndCommand } from '@/commands/factories/drag-command-factory';

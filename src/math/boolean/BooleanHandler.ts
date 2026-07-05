@@ -7,7 +7,7 @@ import { booleanOperation } from './BooleanKernel';
 import { dString } from './BooleanEngine';
 import { PreviewElement } from '@/shapes/elements/PreviewElement';
 import type { EventBus } from '@/core/EventBus';
-import type { CommandBus } from '@/commands/CommandBus';
+import type { CommandBus } from '@/core/CommandBus';
 import { polyIntersectsPoly } from '@/core/HitTestEngine';
 
 const PREVIEW_FILL_COLOR = '#ff0000';

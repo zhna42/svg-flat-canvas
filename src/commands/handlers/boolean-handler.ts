@@ -1,5 +1,5 @@
 import type { Command } from '../types';
-import type { CommandHandler } from '../registry';
+import type { CommandHandler } from '../types';
 import type { ShapeManager } from '@/shapes/ShapeManager';
 import type { TimeMachine } from '@/time-machine/TimeMachine';
 import type { HitTestEngine } from '@/core/HitTestEngine';

@@ -180,11 +180,9 @@ export class CanvasView {
         ? diff.height
         : parseFloat(rect.getAttribute('height') || '0');
 
-    const pad = 0;
-    g.setAttribute(
-      'transform',
-      `translate(${x}, ${y}) rotate(${angle}, ${pad}, ${pad})`,
-    );
+    const rcx = w / 2;
+    const rcy = h / 2;
+    g.setAttribute('transform', `translate(${x}, ${y}) rotate(${angle}, ${rcx}, ${rcy})`);
     g.setAttribute('data-x', String(x));
     g.setAttribute('data-y', String(y));
     g.setAttribute('data-angle', String(angle));
