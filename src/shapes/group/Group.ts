@@ -1,12 +1,25 @@
 import type { GroupData, Point } from '@/types';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import { computeGroupWorldBBox } from '@/math/group-bbox-utils';
+import {
+  computeGroupWorldBBox,
+  computeGroupOBB,
+} from '@/math/group-bbox-utils';
+
+export interface GroupOBB {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  angle: number;
+}
 
 export class Group {
   public readonly id: string;
   public name: string;
   public readonly elementIds: Set<string>;
   public matrix = new DOMMatrix();
+
+  public obbAngle = 0;
 
   public _cachedWorldBBox: {
     x: number;
@@ -15,6 +28,9 @@ export class Group {
     height: number;
   } | null = null;
   public _bboxDirty = true;
+
+  public _obbCache: GroupOBB | null = null;
+  public _obbDirty = true;
 
   protected _savedFlag = false;
   protected _unsavedKeys = new Set<string>();
@@ -58,6 +74,9 @@ export class Group {
           dto.matrix = [m.a, m.b, m.c, m.d, m.e, m.f];
           break;
         }
+        case 'obbAngle':
+          dto.obbAngle = this.obbAngle;
+          break;
       }
     }
     return dto;
@@ -75,6 +94,9 @@ export class Group {
     const d = this.toData() as unknown as Record<string, unknown>;
     const m = this.matrix;
     d.matrix = [m.a, m.b, m.c, m.d, m.e, m.f];
+    if (this.obbAngle !== 0) {
+      d.obbAngle = this.obbAngle;
+    }
     return d;
   }
 
@@ -90,11 +112,16 @@ export class Group {
       }
       this.markUnsaved('elementIds');
       this._bboxDirty = true;
+      this.invalidateOBB();
     }
     if (Array.isArray(dto.matrix) && dto.matrix.length === 6) {
       const [a, b, c, d, e, f] = dto.matrix as number[];
       this.matrix = new DOMMatrix([a, b, c, d, e, f]);
       this.markUnsaved('matrix');
+    }
+    if (typeof dto.obbAngle === 'number') {
+      this.obbAngle = dto.obbAngle;
+      this.invalidateOBB();
     }
   }
 
@@ -102,6 +129,24 @@ export class Group {
     findElement: (id: string) => AbstractGraphicElement | undefined,
   ): Required<ReturnType<typeof computeGroupWorldBBox>> | null {
     return computeGroupWorldBBox(this, findElement);
+  }
+
+  public getOrientedBBox(
+    findElement: (id: string) => AbstractGraphicElement | undefined,
+  ): GroupOBB | null {
+    if (!this._obbDirty && this._obbCache) {
+      return this._obbCache;
+    }
+    const result = computeGroupOBB(this, findElement);
+    if (!result) return null;
+    this._obbCache = result;
+    this._obbDirty = false;
+    return result;
+  }
+
+  public invalidateOBB(): void {
+    this._obbDirty = true;
+    this._obbCache = null;
   }
 
   public getHitAreaBox(

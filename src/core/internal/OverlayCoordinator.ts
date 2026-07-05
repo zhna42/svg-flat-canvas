@@ -13,8 +13,8 @@ export class OverlayCoordinator {
   updateOverlay(): void {
     const selected = this.ctx.selectionState.selected;
     if (selected.length > 0) {
-      this.ctx.selectionManager.syncElementPositions(
-        (id) => this.ctx.shapeManager.getAll().find((e) => e.id === id),
+      this.ctx.selectionManager.syncElementPositions((id) =>
+        this.ctx.shapeManager.getAll().find((e) => e.id === id),
       );
     }
     if (this.ctx.groupManager.selectedGroupIds.size > 0) {
@@ -38,8 +38,7 @@ export class OverlayCoordinator {
     for (const id of this.ctx.groupManager.selectedGroupIds) {
       const g = this.ctx.groupManager.getGroup(id);
       if (g) {
-        g._bboxDirty = true;
-        g._cachedWorldBBox = null;
+        invalidateGroupBBox(g);
       }
     }
   }
@@ -48,8 +47,8 @@ export class OverlayCoordinator {
     this.ctx.camera.subscribe(['x', 'y', 'zoom'], () => {
       const selected = this.ctx.selectionState.selected;
       if (selected.length > 0) {
-        this.ctx.selectionManager.syncElementPositions(
-          (id) => this.ctx.shapeManager.getAll().find((e) => e.id === id),
+        this.ctx.selectionManager.syncElementPositions((id) =>
+          this.ctx.shapeManager.getAll().find((e) => e.id === id),
         );
       }
       if (this.ctx.api.editingPath) {
@@ -70,15 +69,14 @@ export class OverlayCoordinator {
     this.ctx.transformHandler.onTransformMove = () => {
       const selected = this.ctx.selectionState.selected;
       if (selected.length > 0) {
-        this.ctx.selectionManager.syncElementPositions(
-          (id) => this.ctx.shapeManager.getAll().find((e) => e.id === id),
+        this.ctx.selectionManager.syncElementPositions((id) =>
+          this.ctx.shapeManager.getAll().find((e) => e.id === id),
         );
       }
     };
 
     this.ctx.groupTransformHandler.onTransformStart = () => {
       for (const g of this.ctx.groupTransformHandler.selectedGroups) {
-        g.matrix = new DOMMatrix();
         invalidateGroupBBox(g);
       }
       this.syncGroups();

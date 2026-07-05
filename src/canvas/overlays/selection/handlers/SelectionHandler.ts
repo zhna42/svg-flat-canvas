@@ -8,7 +8,7 @@ import { pointToSegmentDist } from '@/math/geometry-utils';
 import { createSelectPickCommand } from '@/commands/factories/select-command-factory';
 import { AreaSelectionManager } from '@/canvas/overlays/selection/AreaSelectionManager';
 import type { ImageElement } from '@/shapes/elements/ImageElement';
-import { computeGroupWorldBBox } from '@/math/group-bbox-utils';
+import { computeGroupOBB } from '@/math/group-bbox-utils';
 import type { SelectionHandlerOptions } from '@/types';
 import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
@@ -807,23 +807,24 @@ export class SelectionHandler {
     const findElement = (id: string) =>
       this.opts.getElements().find((e) => e.id === id);
 
-    let groupBBox: {
+    let groupOBB: {
       x: number;
       y: number;
       width: number;
       height: number;
+      angle: number;
     } | null = null;
     for (const g of groups) {
       if (g.id === hit.targetId) {
-        groupBBox = computeGroupWorldBBox(g, findElement);
+        groupOBB = computeGroupOBB(g, findElement);
         break;
       }
     }
-    if (!groupBBox) return false;
+    if (!groupOBB) return false;
 
     return this.opts.groupTransformHandler.tryStart(
       hit.handle,
-      groupBBox,
+      groupOBB,
       worldPt,
       groups,
       findElement,

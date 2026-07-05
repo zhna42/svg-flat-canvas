@@ -33,7 +33,7 @@ export class GroupTransformHandler {
   private handle: GroupHandlePosition = 'se';
   private elements: AbstractGraphicElement[] = [];
   private startMatrices = new Map<string, DOMMatrix>();
-  private groupStartBBox = { x: 0, y: 0, width: 0, height: 0 };
+  private groupStartOBB = { x: 0, y: 0, width: 0, height: 0, angle: 0 };
   private rotationCenter: Point = { x: 0, y: 0 };
   private startAngle = 0;
   private startWorldPoint: Point = { x: 0, y: 0 };
@@ -67,7 +67,13 @@ export class GroupTransformHandler {
 
   public tryStart(
     handle: GroupHandlePosition,
-    groupBBox: { x: number; y: number; width: number; height: number },
+    groupOBB: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      angle: number;
+    },
     worldPoint: { x: number; y: number },
     groups: readonly Group[],
     findElement: (id: string) => AbstractGraphicElement | undefined,
@@ -77,11 +83,12 @@ export class GroupTransformHandler {
     this.groups = Array.from(groups);
     this.handle = handle;
     this.startWorldPoint = { x: worldPoint.x, y: worldPoint.y };
-    this.groupStartBBox = {
-      x: groupBBox.x,
-      y: groupBBox.y,
-      width: groupBBox.width,
-      height: groupBBox.height,
+    this.groupStartOBB = {
+      x: groupOBB.x,
+      y: groupOBB.y,
+      width: groupOBB.width,
+      height: groupOBB.height,
+      angle: groupOBB.angle,
     };
 
     const elementSet = new Set<string>();
@@ -105,11 +112,11 @@ export class GroupTransformHandler {
 
     if (this.elements.length === 0) return false;
 
+    const obbCx = groupOBB.x + groupOBB.width / 2;
+    const obbCy = groupOBB.y + groupOBB.height / 2;
+
     if (this.mode === 'rotate') {
-      this.rotationCenter = {
-        x: groupBBox.x + groupBBox.width / 2,
-        y: groupBBox.y + groupBBox.height / 2,
-      };
+      this.rotationCenter = { x: obbCx, y: obbCy };
       this.startAngle =
         Math.atan2(
           worldPoint.y - this.rotationCenter.y,
@@ -176,90 +183,88 @@ export class GroupTransformHandler {
   }
 
   private applyRotate(deltaAngle: number): void {
+    const obb = this.groupStartOBB;
+    const cx = obb.x + obb.width / 2;
+    const cy = obb.y + obb.height / 2;
+
     for (const el of this.elements) {
       const startMatrix = this.startMatrices.get(el.id);
       if (!startMatrix) continue;
       const inv = startMatrix.inverse();
-      const localCenter = inv.transformPoint({
-        x: this.rotationCenter.x,
-        y: this.rotationCenter.y,
-      });
+      const localCenter = inv.transformPoint({ x: cx, y: cy });
       el.transform.applyRotate(deltaAngle, localCenter, startMatrix);
     }
 
-    const cx = this.rotationCenter.x;
-    const cy = this.rotationCenter.y;
+    const startAngle = obb.angle;
+    const newAngle = startAngle + deltaAngle;
+
     const m = new DOMMatrix()
       .translateSelf(cx, cy)
       .rotateSelf(deltaAngle)
       .translateSelf(-cx, -cy);
+
     for (const g of this.groups) {
       g.matrix = m;
+      g.obbAngle = newAngle;
     }
   }
 
   private applyResize(totalDx: number, totalDy: number): void {
-    const startBBox = this.groupStartBBox;
-    if (startBBox.width <= 0 || startBBox.height <= 0) return;
+    const obb = this.groupStartOBB;
+    if (obb.width <= 0 || obb.height <= 0) return;
+
+    const angleRad = (obb.angle * Math.PI) / 180;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+
+    const projX = totalDx * cos + totalDy * sin;
+    const projY = -totalDx * sin + totalDy * cos;
 
     const flip = HANDLE_FLIP[this.handle] ?? { x: 1, y: 1 };
-    const scaleX = 1 + (totalDx * flip.x) / startBBox.width;
-    const scaleY = 1 + (totalDy * flip.y) / startBBox.height;
+    let scaleX = 1 + (projX * flip.x) / obb.width;
+    let scaleY = 1 + (projY * flip.y) / obb.height;
 
-    const anchorCorner = HANDLE_TO_ANCHOR[this.handle];
-
-    const fixedCorner = this.getCornerGlobal(startBBox, anchorCorner);
-
-    let usedScaleX = scaleX;
-    let usedScaleY = scaleY;
     if (this.proportionalResize) {
       const absDX = Math.abs(scaleX - 1);
       const absDY = Math.abs(scaleY - 1);
-      usedScaleX = absDX >= absDY ? scaleX : scaleY;
-      usedScaleY = usedScaleX;
+      scaleX = absDX >= absDY ? scaleX : scaleY;
+      scaleY = scaleX;
     }
 
-    if (usedScaleX <= 0 || usedScaleY <= 0) return;
+    if (scaleX <= 0 || scaleY <= 0) return;
+
+    const anchorHandle = HANDLE_TO_ANCHOR[this.handle];
+    const anchorLocal = this.getCornerLocal(
+      anchorHandle,
+      obb.width,
+      obb.height,
+    );
+
+    const M_obb2world = new DOMMatrix()
+      .translate(obb.x, obb.y)
+      .rotate(0, 0, obb.angle);
+    const S_local = new DOMMatrix()
+      .translate(anchorLocal.x, anchorLocal.y)
+      .scale(scaleX, scaleY)
+      .translate(-anchorLocal.x, -anchorLocal.y);
+    const M_obb2world_inv = M_obb2world.inverse();
+    const M_world_scale =
+      M_obb2world.multiply(S_local).multiply(M_obb2world_inv);
 
     for (const el of this.elements) {
       const startMatrix = this.startMatrices.get(el.id);
       if (!startMatrix) continue;
-
-      const center = startMatrix.transformPoint(el.getLocalCenter());
-
-      const relX = (center.x - fixedCorner.x) * usedScaleX;
-      const relY = (center.y - fixedCorner.y) * usedScaleY;
-      const newCenterX = fixedCorner.x + relX;
-      const newCenterY = fixedCorner.y + relY;
-
-      const localCenter = el.getLocalCenter();
-
-      const newMatrix = new DOMMatrix(startMatrix.toString());
-      newMatrix.a *= usedScaleX;
-      newMatrix.b *= usedScaleX;
-      newMatrix.c *= usedScaleY;
-      newMatrix.d *= usedScaleY;
-      newMatrix.e = newCenterX - localCenter.x * newMatrix.a - localCenter.y * newMatrix.c;
-      newMatrix.f = newCenterY - localCenter.x * newMatrix.b - localCenter.y * newMatrix.d;
-
-      el.transform.matrix = newMatrix;
+      el.transform.matrix = M_world_scale.multiply(startMatrix);
     }
   }
 
-  private getCornerGlobal(
-    bbox: { x: number; y: number; width: number; height: number },
+  private getCornerLocal(
     corner: GroupHandlePosition,
+    w: number,
+    h: number,
   ): Point {
-    const cx = corner.includes('e')
-      ? bbox.x + bbox.width
-      : corner.includes('w')
-        ? bbox.x
-        : bbox.x + bbox.width / 2;
-    const cy = corner.includes('s')
-      ? bbox.y + bbox.height
-      : corner.includes('n')
-        ? bbox.y
-        : bbox.y + bbox.height / 2;
+    const cx = corner.includes('e') ? w : corner.includes('w') ? 0 : w / 2;
+    const cy = corner.includes('s') ? h : corner.includes('n') ? 0 : h / 2;
     return { x: cx, y: cy };
   }
 }

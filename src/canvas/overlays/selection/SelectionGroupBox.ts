@@ -12,18 +12,8 @@ export class SelectionGroupBox extends BaseSelectionBox {
     group: Group,
     getElement: (id: string) => AbstractGraphicElement | undefined,
   ): void {
-    const bbox = group.getWorldBBox(getElement);
-    if (!bbox) return;
-
-    let angle = 0;
-    if (!group.matrix.isIdentity) {
-      const m = group.matrix;
-      const det = m.a * m.d - m.b * m.c;
-      if (Math.abs(det) > 1e-10) {
-        angle = (Math.atan2(m.b, m.a) * 180) / Math.PI;
-      }
-    }
-
-    this.setData(bbox.x, bbox.y, bbox.width, bbox.height, angle);
+    const obb = group.getOrientedBBox(getElement);
+    if (!obb) return;
+    this.setData(obb.x, obb.y, obb.width, obb.height, obb.angle);
   }
 }
