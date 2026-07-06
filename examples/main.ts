@@ -310,12 +310,6 @@ function setupKeyboardShortcuts(): void {
 let flexSelectedElementId: string | null = null;
 
 function syncFlexPanelFromSelection(): void {
-  const sel = (
-    document as unknown as { defaultView?: { api?: { canvas?: { selectionState?: { selected: Array<{ id: string }> } } } } },
-  ).defaultView?.api?.canvas?.selectionState?.selected;
-  // Получаем выделение напрямую из api через canvas
-  const shapes = api.getAllShapes();
-  // Используем текущие выделенные в селекшн-менеджере
   flexSelectedElementId = null;
   const selectionBoxes = document.querySelectorAll('[id^="sel-"]');
   if (selectionBoxes.length === 1) {
