@@ -209,6 +209,14 @@ export class SvgCanvas implements ICanvasContext {
       );
     });
 
+    this.selectionState.setOnModeChange(() => {
+      this.selectionState.clear();
+      if (this.groupManager.selectedGroupIds.size > 0) {
+        this.groupManager.setSelectedGroupIds([]);
+      }
+      this._overlayCoordinator?.syncGroups();
+    });
+
     this.transformHandler = new TransformHandler(
       this.camera as any,
       this.timeMachine,
