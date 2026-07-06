@@ -4,6 +4,18 @@ import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicEl
 export class ColorIndexer {
   constructor(private readonly colorMap: ColorMap) {}
 
+  get fillMap(): ReadonlyMap<string, ReadonlySet<string>> {
+    return this.colorMap.fillMap;
+  }
+
+  get strokeMap(): ReadonlyMap<string, ReadonlySet<string>> {
+    return this.colorMap.strokeMap;
+  }
+
+  setStep(step: number): void {
+    this.colorMap.setStep(step);
+  }
+
   add(el: AbstractGraphicElement): void {
     if (el.style.fill && el.style.fill !== 'none') {
       const key = this.colorMap.getFillKey(el.style.fill);

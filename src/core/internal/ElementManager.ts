@@ -120,9 +120,8 @@ export class ElementManager {
       .getAll()
       .filter((e) => ids.includes(e.id));
     this.selectionState.replace(elements);
-    this.selectionManager.setElementSelection(
-      ids,
-      (id) => this.shapeManager.getById(id),
+    this.selectionManager.setElementSelection(ids, (id) =>
+      this.shapeManager.getById(id),
     );
   }
 
@@ -166,5 +165,17 @@ export class ElementManager {
   recalculateColorMaps(): void {
     this.colorIndexer.recalculate(this.shapeManager.getAll());
     this.events.emit('color-map-recalculated', {});
+  }
+
+  getFillColorMap(): ReadonlyMap<string, ReadonlySet<string>> {
+    return this.colorIndexer.fillMap;
+  }
+
+  getStrokeColorMap(): ReadonlyMap<string, ReadonlySet<string>> {
+    return this.colorIndexer.strokeMap;
+  }
+
+  setColorQuantStep(step: number): void {
+    this.colorIndexer.setStep(step);
   }
 }

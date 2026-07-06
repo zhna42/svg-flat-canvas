@@ -698,6 +698,9 @@ export class ExternalApi {
   public setSnapToGrid(enabled: boolean): void {
     this.canvas.selectionHandler.setSnapToGrid(enabled);
   }
+  public setSnapToElements(enabled: boolean): void {
+    this.canvas.selectionHandler.setSnapToElements(enabled);
+  }
   public setSnapAxis(mode: 'both' | 'horizontal' | 'vertical'): void {
     this.canvas.selectionHandler.setSnapAxis(mode);
   }

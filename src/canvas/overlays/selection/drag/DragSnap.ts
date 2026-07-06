@@ -34,6 +34,7 @@ export class DragSnapHelper {
 
   public snapToGuidelines = false;
   public snapToGrid = false;
+  public snapToElements = true;
   public snapAxis: SnapAxisMode = 'both';
 
   constructor(
@@ -74,7 +75,7 @@ export class DragSnapHelper {
     this.engine.reset();
     const selectedIds = new Set(targets.map((t) => t.id));
 
-    if (snapToCorners || snapToPlanes) {
+    if (this.snapToElements && (snapToCorners || snapToPlanes)) {
       const allElementsScreenPoints: { x: number; y: number }[][] = [];
 
       for (const el of this.getElements()) {

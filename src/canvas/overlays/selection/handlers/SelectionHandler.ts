@@ -1,5 +1,9 @@
 import { DEFAULT_SELECTION_SHORTCUTS } from '@/canvas/overlays/selection/selection-defaults';
-import type { SelectionShortcuts, SelectionGesture } from '@/types';
+import type {
+  SelectionShortcuts,
+  SelectionGesture,
+  SnapAxisMode,
+} from '@/types';
 import { DragHandler } from '@/canvas/overlays/selection/drag';
 import { GroupSelectionHandler } from '@/canvas/overlays/selection/handlers/GroupSelectionHandler';
 import { PathNodeHandler } from '@/canvas/overlays/selection/handlers/PathNodeHandler';
@@ -115,6 +119,42 @@ export class SelectionHandler {
     return this.areaSelectionManager.getGesture();
   }
 
+  public setShortcuts(s: Partial<SelectionShortcuts>): void {
+    this.shortcuts = { ...this.shortcuts, ...s };
+  }
+
+  public setSnapToCorners(enabled: boolean): void {
+    this.dragHandler.setSnapToCorners(enabled);
+  }
+
+  public setSnapToPlanes(enabled: boolean): void {
+    this.dragHandler.setSnapToPlanes(enabled);
+  }
+
+  public setSnapToArtboard(enabled: boolean): void {
+    this.dragHandler.setSnapToArtboard(enabled);
+  }
+
+  public setAvoidCollisions(enabled: boolean): void {
+    this.dragHandler.setAvoidCollisions(enabled);
+  }
+
+  public setSnapToGuidelines(enabled: boolean): void {
+    this.dragHandler.setSnapToGuidelines(enabled);
+  }
+
+  public setSnapToGrid(enabled: boolean): void {
+    this.dragHandler.setSnapToGrid(enabled);
+  }
+
+  public setSnapToElements(enabled: boolean): void {
+    this.dragHandler.setSnapToElements(enabled);
+  }
+
+  public setSnapAxis(mode: SnapAxisMode): void {
+    this.dragHandler.setSnapAxis(mode);
+  }
+
   public onMouseDown(e: MouseEvent): boolean {
     if (e.button !== 0) return false;
 
@@ -138,7 +178,8 @@ export class SelectionHandler {
 
     this.ctrlHeld = e.ctrlKey || e.metaKey;
     this.shiftOverride = e.shiftKey;
-    const useRect = this.areaSelectionManager.getGesture() === 'rect' || this.shiftOverride;
+    const useRect =
+      this.areaSelectionManager.getGesture() === 'rect' || this.shiftOverride;
     const isGroup = () => this.opts.state.mode === 'group';
 
     // Path node editing — check handle hit
@@ -192,7 +233,16 @@ export class SelectionHandler {
       if (started) {
         e.preventDefault();
         return true;
-      } else if (this.areaSelectionManager.onMouseDown(svgPt, worldPt, this.ctrlHeld, this.shiftOverride, 'group', false)) {
+      } else if (
+        this.areaSelectionManager.onMouseDown(
+          svgPt,
+          worldPt,
+          this.ctrlHeld,
+          this.shiftOverride,
+          'group',
+          false,
+        )
+      ) {
         e.preventDefault();
         return true;
       }
@@ -208,7 +258,11 @@ export class SelectionHandler {
     }
 
     // Auto-pan on empty canvas
-    if (!useRect && this.areaSelectionManager.getGesture() !== 'lasso' && !this.ctrlHeld) {
+    if (
+      !useRect &&
+      this.areaSelectionManager.getGesture() !== 'lasso' &&
+      !this.ctrlHeld
+    ) {
       this.panAuto = true;
       this.panning = true;
       this.panStart = { x: svgPt.x, y: svgPt.y };
@@ -218,7 +272,16 @@ export class SelectionHandler {
       return true;
     }
 
-    if (this.areaSelectionManager.onMouseDown(svgPt, worldPt, this.ctrlHeld, this.shiftOverride, 'element', false)) {
+    if (
+      this.areaSelectionManager.onMouseDown(
+        svgPt,
+        worldPt,
+        this.ctrlHeld,
+        this.shiftOverride,
+        'element',
+        false,
+      )
+    ) {
       if (!this.ctrlHeld) this.opts.state.clear();
       return true;
     }
@@ -255,7 +318,11 @@ export class SelectionHandler {
       return true;
     }
 
-    const areaHandled = this.areaSelectionManager.onMouseMove(svgPt, worldPt, isGroup() ? 'group' : 'element');
+    const areaHandled = this.areaSelectionManager.onMouseMove(
+      svgPt,
+      worldPt,
+      isGroup() ? 'group' : 'element',
+    );
     void areaHandled;
 
     if (isGroup()) {
@@ -286,7 +353,11 @@ export class SelectionHandler {
         const dx = worldPt.x - (this.panStartWorld?.x ?? 0);
         const dy = worldPt.y - (this.panStartWorld?.y ?? 0);
         if (Math.abs(dx) < 3 && Math.abs(dy) < 3) {
-          const cmd = createSelectPickCommand('element', worldPt, this.ctrlHeld);
+          const cmd = createSelectPickCommand(
+            'element',
+            worldPt,
+            this.ctrlHeld,
+          );
           this.opts.bus.execute(cmd);
         }
         this.panStartWorld = null;
@@ -315,7 +386,9 @@ export class SelectionHandler {
         return true;
       }
       if (this.dragHandler.isActive) this.dragHandler.end();
-      else if (this.areaSelectionManager.onMouseUp(worldPt, this.ctrlHeld, 'group')) {
+      else if (
+        this.areaSelectionManager.onMouseUp(worldPt, this.ctrlHeld, 'group')
+      ) {
         return true;
       }
       return true;
@@ -326,7 +399,9 @@ export class SelectionHandler {
       return true;
     }
 
-    if (this.areaSelectionManager.onMouseUp(worldPt, this.ctrlHeld, 'element')) {
+    if (
+      this.areaSelectionManager.onMouseUp(worldPt, this.ctrlHeld, 'element')
+    ) {
       return true;
     }
     return false;
@@ -609,7 +684,8 @@ export class SelectionHandler {
 
   public onKeyDown(e: KeyboardEvent): boolean {
     const key = e.key.toLowerCase();
-    if (key === this.shortcuts.selectElement) this.areaSelectionManager.setGesture('click');
+    if (key === this.shortcuts.selectElement)
+      this.areaSelectionManager.setGesture('click');
     else if (key === this.shortcuts.selectGroup) {
       this.areaSelectionManager.setGesture('click');
       this.opts.state.setMode('group');
@@ -681,8 +757,7 @@ export class SelectionHandler {
         e.preventDefault();
         this.pathTimeMachine.undo();
         const editingPath = this.opts.getEditingPath?.();
-        if (editingPath)
-          this.opts.pathNodeOverlay.updatePathNodes(editingPath);
+        if (editingPath) this.opts.pathNodeOverlay.updatePathNodes(editingPath);
         return true;
       } else if (this.opts.getEditingPath?.()) {
         e.preventDefault();
@@ -693,8 +768,7 @@ export class SelectionHandler {
         e.preventDefault();
         this.pathTimeMachine.redo();
         const editingPath = this.opts.getEditingPath?.();
-        if (editingPath)
-          this.opts.pathNodeOverlay.updatePathNodes(editingPath);
+        if (editingPath) this.opts.pathNodeOverlay.updatePathNodes(editingPath);
         return true;
       } else if (this.opts.getEditingPath?.()) {
         e.preventDefault();
@@ -830,5 +904,4 @@ export class SelectionHandler {
       findElement,
     );
   }
-
 }

@@ -92,6 +92,7 @@ function setupTopToolbar(): void {
   toggleButton('btn-snap-artboard', false, (v) => api.setSnapToArtboard(v));
   toggleButton('btn-snap-guidelines', false, (v) => api.setSnapToGuidelines(v));
   toggleButton('btn-snap-grid', false, (v) => api.setSnapToGrid(v));
+  toggleButton('btn-snap-elements', true, (v) => api.setSnapToElements(v));
   toggleButton('btn-avoid-collisions', false, (v) => api.setAvoidCollisions(v));
 
   const snapAxis = document.getElementById('sel-snap-axis') as HTMLSelectElement;

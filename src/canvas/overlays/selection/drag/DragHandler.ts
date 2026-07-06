@@ -143,6 +143,10 @@ export class DragHandler {
     this.dragSnap.snapToGrid = enabled;
   }
 
+  public setSnapToElements(enabled: boolean): void {
+    this.dragSnap.snapToElements = enabled;
+  }
+
   public setSnapAxis(mode: SnapAxisMode): void {
     this.dragSnap.snapAxis = mode;
   }
