@@ -408,3 +408,161 @@ input[type="text"] {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* ===== Flex Tree Panel ===== */
+.flex-tree-panel {
+  position: fixed;
+  top: 52px;
+  right: 260px;
+  width: 240px;
+  background: rgba(15, 15, 20, 0.95);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  z-index: 100;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.flex-tree-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--bg-toolbar);
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+}
+
+.flex-tree-header h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-light);
+}
+
+.flex-tree-header button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+}
+
+.flex-tree-header button:hover {
+  color: #ff4444;
+}
+
+.flex-tree-section {
+  padding: 8px 12px 4px;
+}
+
+.flex-tree-section label {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.flex-tree-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.flex-mode-btn,
+.preset-btn {
+  flex: 1;
+  padding: 5px 4px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.flex-mode-btn.active,
+.preset-btn.preset-active {
+  background: rgba(0, 150, 255, 0.2);
+  border-color: rgba(0, 150, 255, 0.5);
+  color: #3399ff;
+}
+
+.flex-mode-btn:hover,
+.preset-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.flex-tree-fields {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flex-tree-fields label {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  justify-content: space-between;
+}
+
+.flex-limits {
+  color: #555;
+  font-size: 9px;
+}
+
+.flex-tree-fields input {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-light);
+  box-sizing: border-box;
+}
+
+.flex-tree-fields input:focus {
+  border-color: #3399ff;
+  outline: none;
+}
+
+.flex-tree-actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px 12px;
+}
+
+.flex-tree-actions button {
+  flex: 1;
+  padding: 6px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#btn-flex-apply {
+  background: rgba(0, 150, 255, 0.2);
+  color: #3399ff;
+  border-color: rgba(0, 150, 255, 0.4);
+}
+
+#btn-flex-apply:hover {
+  background: rgba(0, 150, 255, 0.35);
+}
+
+#btn-flex-remove {
+  background: rgba(255, 60, 60, 0.15);
+  color: #ff4444;
+  border-color: rgba(255, 60, 60, 0.3);
+}
+
+#btn-flex-remove:hover {
+  background: rgba(255, 60, 60, 0.3);
+}
+

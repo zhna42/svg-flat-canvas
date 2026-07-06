@@ -137,6 +137,10 @@ export class SvgCanvas implements ICanvasContext {
     shapeManager.setRegisterDirty(scheduler.registerDirtyNode);
     this.shapeManager = shapeManager;
 
+    view.setFlexTreeProvider(
+      (id) => shapeManager.getById(id)?.flexTree ?? null,
+    );
+
     this.eventManager = new EventManager(svg);
     this.selectionState = new SelectionState();
     this.hitTestEngine = new HitTestEngine(100);

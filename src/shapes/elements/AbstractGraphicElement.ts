@@ -1,4 +1,5 @@
 import type { Point, BoundingBox, ElementType } from '@/types';
+import type { FlexTree } from '@/math/flex-tree';
 import { Transform } from '../modules/Transform';
 import { Style } from '../modules/Style';
 import { LaserProps } from '../modules/LaserProps';
@@ -18,6 +19,7 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
   public isPreview = false;
   public isNodeEditing = false;
   public data: Record<string, unknown> = {};
+  public flexTree?: FlexTree;
 
   public onGeometryChanged: ((el: AbstractGraphicElement) => void) | null = null;
   public onColorChanged:
@@ -47,6 +49,10 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
     });
     this.subscribe(
       ['style.opacity', 'style.visible', 'visible', 'isPreview'],
+      () => {},
+    );
+    this.subscribe(
+      ['flexTree.algorithm', 'flexTree.step', 'flexTree.link', 'flexTree.dash', 'flexTree.amplitude'],
       () => {},
     );
   }
@@ -106,6 +112,14 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
       if (value !== undefined && value !== null) {
         result[key] = value;
       }
+    }
+
+    if (this.flexTree) {
+      result['flexTree.algorithm'] = this.flexTree.algorithm;
+      result['flexTree.step'] = this.flexTree.step;
+      result['flexTree.link'] = this.flexTree.link;
+      result['flexTree.dash'] = this.flexTree.dash;
+      result['flexTree.amplitude'] = this.flexTree.amplitude;
     }
 
     return result;

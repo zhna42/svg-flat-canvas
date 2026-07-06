@@ -34,6 +34,7 @@
       <button id="btn-transform-rotate" title="Rotate Mode">🔄 Rotate</button>
       <button id="btn-proportional-resize" data-toggle title="Proportional Resize">🔒 Proportional</button>
       <button id="btn-snap-rotation" data-toggle title="Snap Rotation">🔁 Snap Rot</button>
+      <button id="btn-flex-tree" title="Flex Tree / Гибкое дерево">🔪 Flex</button>
     </div>
     <div class="toolbar-section">
       <span class="section-label">View</span>
@@ -136,6 +137,44 @@
           <label><input id="chk-log-pause" type="checkbox" /> Pause</label>
         </div>
         <div id="event-log"></div>
+      </div>
+    </div>
+
+    <!-- Flex Tree Panel -->
+    <div id="flex-tree-panel" class="flex-tree-panel" style="display:none">
+      <div class="flex-tree-header">
+        <h3>🔪 Гибкое дерево</h3>
+        <button id="btn-flex-close">✕</button>
+      </div>
+      <div class="flex-tree-section">
+        <label>Algorithm</label>
+        <div class="flex-tree-btns">
+          <button id="btn-flex-linear" class="flex-mode-btn active">Linear</button>
+          <button id="btn-flex-wave" class="flex-mode-btn">Wave</button>
+          <button id="btn-flex-cross" class="flex-mode-btn">Cross</button>
+        </div>
+      </div>
+      <div class="flex-tree-section">
+        <label>Preset</label>
+        <div class="flex-tree-btns">
+          <button id="btn-preset-thin" class="preset-btn">Thin</button>
+          <button id="btn-preset-standard" class="preset-btn preset-active">Std</button>
+          <button id="btn-preset-thick" class="preset-btn">Thick</button>
+        </div>
+      </div>
+      <div class="flex-tree-fields">
+        <label>Step (S) <span class="flex-limits">1.5–10.0 mm</span></label>
+        <input id="inp-flex-step" type="number" value="3.5" step="0.1" min="1.5" max="10" />
+        <label>Link (L) <span class="flex-limits">1.5–6.0 mm</span></label>
+        <input id="inp-flex-link" type="number" value="3.0" step="0.1" min="1.5" max="6" />
+        <label>Dash (D) <span class="flex-limits">10.0–50.0 mm</span></label>
+        <input id="inp-flex-dash" type="number" value="25.0" step="0.1" min="10" max="50" />
+        <label>Amplitude (A) <span class="flex-limits" id="label-flex-amp">&lt; S/2 mm</span></label>
+        <input id="inp-flex-amplitude" type="number" value="1.0" step="0.1" min="0" max="5" />
+      </div>
+      <div class="flex-tree-actions">
+        <button id="btn-flex-apply">Apply</button>
+        <button id="btn-flex-remove">Remove</button>
       </div>
     </div>
   </div>

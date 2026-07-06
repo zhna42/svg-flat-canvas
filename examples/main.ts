@@ -23,6 +23,7 @@ function init(): void {
   setupTopToolbar();
   setupLeftToolbar();
   setupRightPanel();
+  setupFlexTreePanel();
   setupKeyboardShortcuts();
 }
 
@@ -103,6 +104,12 @@ function setupTopToolbar(): void {
   document.getElementById('btn-transform-rotate')!.onclick = () => api.setTransformMode('rotate');
   toggleButton('btn-proportional-resize', false, (v) => api.setProportionalResize(v));
   toggleButton('btn-snap-rotation', false, (v) => api.setSnapRotation(v));
+
+  document.getElementById('btn-flex-tree')!.onclick = () => {
+    const panel = document.getElementById('flex-tree-panel')!;
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (panel.style.display === 'block') syncFlexPanelFromSelection();
+  };
 
   toggleButton('btn-pan-mode', false, (v) => api.setPanMode(v));
   toggleButton('btn-toggle-rulers', false, (v) => api.setRulersVisible(v));
@@ -296,6 +303,100 @@ function setupKeyboardShortcuts(): void {
       return;
     }
   });
+}
+
+// ─── Flex Tree Panel ──────────────────────────────────────
+
+let flexSelectedElementId: string | null = null;
+
+function syncFlexPanelFromSelection(): void {
+  const sel = (
+    document as unknown as { defaultView?: { api?: { canvas?: { selectionState?: { selected: Array<{ id: string }> } } } } },
+  ).defaultView?.api?.canvas?.selectionState?.selected;
+  // Получаем выделение напрямую из api через canvas
+  const shapes = api.getAllShapes();
+  // Используем текущие выделенные в селекшн-менеджере
+  flexSelectedElementId = null;
+  const selectionBoxes = document.querySelectorAll('[id^="sel-"]');
+  if (selectionBoxes.length === 1) {
+    flexSelectedElementId = selectionBoxes[0].id.replace('sel-', '');
+  }
+
+  if (!flexSelectedElementId) return;
+
+  const cfg = api.getFlexTreeConfig(flexSelectedElementId);
+  const stepInp = document.getElementById('inp-flex-step') as HTMLInputElement;
+  const linkInp = document.getElementById('inp-flex-link') as HTMLInputElement;
+  const dashInp = document.getElementById('inp-flex-dash') as HTMLInputElement;
+  const ampInp = document.getElementById('inp-flex-amplitude') as HTMLInputElement;
+
+  if (cfg) {
+    stepInp.value = String(cfg.step);
+    linkInp.value = String(cfg.link);
+    dashInp.value = String(cfg.dash);
+    ampInp.value = String(cfg.amplitude);
+    setFlexModeBtn(cfg.algorithm);
+  } else {
+    stepInp.value = '3.5';
+    linkInp.value = '3.0';
+    dashInp.value = '25.0';
+    ampInp.value = '1.0';
+    setFlexModeBtn('linear');
+  }
+}
+
+function setFlexModeBtn(mode: string): void {
+  document.querySelectorAll('.flex-mode-btn').forEach((b) => b.classList.remove('active'));
+  const el = document.getElementById(`btn-flex-${mode}`);
+  if (el) el.classList.add('active');
+}
+
+function setupFlexTreePanel(): void {
+  document.getElementById('btn-flex-close')!.onclick = () => {
+    document.getElementById('flex-tree-panel')!.style.display = 'none';
+  };
+
+  document.getElementById('btn-flex-linear')!.onclick = () => setFlexModeBtn('linear');
+  document.getElementById('btn-flex-wave')!.onclick = () => setFlexModeBtn('wave');
+  document.getElementById('btn-flex-cross')!.onclick = () => setFlexModeBtn('cross');
+
+  document.getElementById('btn-preset-thin')!.onclick = () => applyPreset('thin');
+  document.getElementById('btn-preset-standard')!.onclick = () => applyPreset('standard');
+  document.getElementById('btn-preset-thick')!.onclick = () => applyPreset('thick');
+
+  document.getElementById('btn-flex-apply')!.onclick = () => {
+    if (!flexSelectedElementId) return;
+    const active = document.querySelector('.flex-mode-btn.active');
+    const algo = active ? active.id.replace('btn-flex-', '') : 'linear';
+    api.setFlexTreeAlgorithm(flexSelectedElementId, algo as never);
+    api.setFlexTreeParams(flexSelectedElementId, {
+      step: Number((document.getElementById('inp-flex-step') as HTMLInputElement).value),
+      link: Number((document.getElementById('inp-flex-link') as HTMLInputElement).value),
+      dash: Number((document.getElementById('inp-flex-dash') as HTMLInputElement).value),
+      amplitude: Number((document.getElementById('inp-flex-amplitude') as HTMLInputElement).value),
+    });
+  };
+
+  document.getElementById('btn-flex-remove')!.onclick = () => {
+    if (!flexSelectedElementId) return;
+    api.removeFlexTree(flexSelectedElementId);
+  };
+}
+
+function applyPreset(preset: 'thin' | 'standard' | 'thick'): void {
+  const vals = {
+    thin: { step: '2.5', link: '2.0', dash: '20.0' },
+    standard: { step: '3.5', link: '3.0', dash: '25.0' },
+    thick: { step: '4.5', link: '4.0', dash: '30.0' },
+  };
+  const p = vals[preset];
+  (document.getElementById('inp-flex-step') as HTMLInputElement).value = p.step;
+  (document.getElementById('inp-flex-link') as HTMLInputElement).value = p.link;
+  (document.getElementById('inp-flex-dash') as HTMLInputElement).value = p.dash;
+  document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('preset-active'));
+  const btn = document.getElementById(`btn-preset-${preset}`);
+  if (btn) btn.classList.add('preset-active');
+  if (flexSelectedElementId) api.applyFlexTreePreset(flexSelectedElementId, preset);
 }
 
 // ─── Helpers ─────────────────────────────────────────────
