@@ -282,12 +282,8 @@ export class TransformHandler {
   }
 
   private extractScale(matrix: DOMMatrix): { sx: number; sy: number } {
-    const sx =
-      Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b) *
-      (matrix.a < 0 ? -1 : 1);
-    const sy =
-      Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d) *
-      (matrix.d < 0 ? -1 : 1);
+    const sx = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b);
+    const sy = Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d);
     return { sx, sy };
   }
 }
