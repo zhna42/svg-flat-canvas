@@ -436,6 +436,29 @@ export class DragHandler {
             )
           ) {
             this.currentDy = testYDy;
+          } else {
+            // iterative back-off: find the maximum safe t in [0,1]
+            const origFrameDx = currentFrameDx;
+            const origFrameDy = currentFrameDy;
+            let t = 1;
+            for (let step = 0; step < 8; step++) {
+              const testDx = prevDx + origFrameDx * t;
+              const testDy = prevDy + origFrameDy * t;
+              if (
+                !checkSceneCollisions(
+                  this.targets,
+                  this.startMatrices,
+                  testDx,
+                  testDy,
+                  collisionContext,
+                )
+              ) {
+                this.currentDx = testDx;
+                this.currentDy = testDy;
+                break;
+              }
+              t *= 0.5;
+            }
           }
         }
 
