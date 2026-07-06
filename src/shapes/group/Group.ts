@@ -149,31 +149,6 @@ export class Group {
     this._obbCache = null;
   }
 
-  public getHitAreaBox(
-    findElement: (id: string) => AbstractGraphicElement | undefined,
-  ): { minX: number; minY: number; maxX: number; maxY: number } | null {
-    const bbox = this.getWorldBBox(findElement);
-    if (!bbox) return null;
-    return {
-      minX: bbox.x,
-      minY: bbox.y,
-      maxX: bbox.x + bbox.width,
-      maxY: bbox.y + bbox.height,
-    };
-  }
-
-  public getHitArea(
-    findElement: (id: string) => AbstractGraphicElement | undefined,
-  ): Point[] {
-    const result: Point[] = [];
-    for (const elId of this.elementIds) {
-      const el = findElement(elId);
-      if (!el) continue;
-      result.push(...el.getWorldHitPoints());
-    }
-    return result;
-  }
-
   public getWorldCorners(
     findElement: (id: string) => AbstractGraphicElement | undefined,
   ): Point[] {
