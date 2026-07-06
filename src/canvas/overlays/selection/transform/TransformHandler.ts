@@ -29,6 +29,8 @@ export class TransformHandler {
   private _active = false;
   private mode: TransformMode = 'resize';
   private proportionalResize = false;
+  private snapRotation = false;
+  private rotationStep = 15;
   private handle: HandlePosition = 'se';
   private targets: AbstractGraphicElement[] = [];
   private startWorldPoint: Point = { x: 0, y: 0 };
@@ -56,6 +58,14 @@ export class TransformHandler {
 
   public setProportionalResize(enabled: boolean): void {
     this.proportionalResize = enabled;
+  }
+
+  public setSnapRotation(enabled: boolean): void {
+    this.snapRotation = enabled;
+  }
+
+  public setRotationStep(step: number): void {
+    if (step > 0) this.rotationStep = step;
   }
 
   public tryStart(
@@ -127,8 +137,8 @@ export class TransformHandler {
         ) *
         (180 / Math.PI);
       let delta = currentAngle - this.startAngle;
-      if (shiftHeld) {
-        const step = 15;
+      if (shiftHeld || this.snapRotation) {
+        const step = this.rotationStep;
         delta = Math.round(delta / step) * step;
       }
       this.applyRotate(delta);

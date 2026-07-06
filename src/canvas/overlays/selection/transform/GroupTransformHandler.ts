@@ -30,6 +30,8 @@ export class GroupTransformHandler {
   private _active = false;
   private mode: GroupTransformMode = 'resize';
   private proportionalResize = false;
+  private snapRotation = false;
+  private rotationStep = 15;
   private handle: GroupHandlePosition = 'se';
   private elements: AbstractGraphicElement[] = [];
   private startMatrices = new Map<string, DOMMatrix>();
@@ -63,6 +65,14 @@ export class GroupTransformHandler {
 
   public setProportionalResize(enabled: boolean): void {
     this.proportionalResize = enabled;
+  }
+
+  public setSnapRotation(enabled: boolean): void {
+    this.snapRotation = enabled;
+  }
+
+  public setRotationStep(step: number): void {
+    if (step > 0) this.rotationStep = step;
   }
 
   public tryStart(
@@ -141,8 +151,8 @@ export class GroupTransformHandler {
         ) *
         (180 / Math.PI);
       let delta = currentAngle - this.startAngle;
-      if (shiftHeld) {
-        delta = Math.round(delta / 15) * 15;
+      if (shiftHeld || this.snapRotation) {
+        delta = Math.round(delta / this.rotationStep) * this.rotationStep;
       }
       this.applyRotate(delta);
     } else {

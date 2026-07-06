@@ -102,6 +102,7 @@ function setupTopToolbar(): void {
   document.getElementById('btn-transform-resize')!.onclick = () => api.setTransformMode('resize');
   document.getElementById('btn-transform-rotate')!.onclick = () => api.setTransformMode('rotate');
   toggleButton('btn-proportional-resize', false, (v) => api.setProportionalResize(v));
+  toggleButton('btn-snap-rotation', false, (v) => api.setSnapRotation(v));
 
   toggleButton('btn-pan-mode', false, (v) => api.setPanMode(v));
   toggleButton('btn-toggle-rulers', false, (v) => api.setRulersVisible(v));

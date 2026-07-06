@@ -159,6 +159,16 @@ export class SelectionHandler {
     this.dragHandler.setSnapAxis(mode);
   }
 
+  public setSnapRotation(enabled: boolean): void {
+    this.opts.transformHandler.setSnapRotation(enabled);
+    this.opts.groupTransformHandler.setSnapRotation(enabled);
+  }
+
+  public setRotationStep(step: number): void {
+    this.opts.transformHandler.setRotationStep(step);
+    this.opts.groupTransformHandler.setRotationStep(step);
+  }
+
   public onMouseDown(e: MouseEvent): boolean {
     if (e.button !== 0) return false;
 

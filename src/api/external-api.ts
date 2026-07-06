@@ -679,6 +679,18 @@ export class ExternalApi {
     this.canvas.events.emit('PROPORTIONAL_RESIZE_TOGGLED', { enabled });
   }
 
+  /** Включить/выключить прилипание угла поворота к сетке */
+  public setSnapRotation(enabled: boolean): void {
+    this.canvas.selectionHandler.setSnapRotation(enabled);
+    this.canvas.events.emit('ROTATION_SNAP_TOGGLED', { enabled });
+  }
+
+  /** Установить шаг прилипания угла поворота в градусах (по умолчанию 15) */
+  public setRotationStep(step: number): void {
+    this.canvas.selectionHandler.setRotationStep(step);
+    this.canvas.events.emit('ROTATION_STEP_CHANGED', { step });
+  }
+
   // ── Снап ──
 
   public setSnapToCorners(enabled: boolean): void {
