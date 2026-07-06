@@ -676,6 +676,7 @@ export class ExternalApi {
   public setProportionalResize(enabled: boolean): void {
     this.canvas.transformHandler.setProportionalResize(enabled);
     this.canvas.groupTransformHandler.setProportionalResize(enabled);
+    this.canvas.events.emit('PROPORTIONAL_RESIZE_TOGGLED', { enabled });
   }
 
   // ── Снап ──
