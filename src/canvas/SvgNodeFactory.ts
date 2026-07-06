@@ -33,14 +33,24 @@ export class SvgNodeFactory extends NodeDOMFactory {
     const g = this.createSvgElement('g');
     elements.set('g', g);
 
-    const rect = this.createSvgElement('rect');
-    rect.setAttribute('fill', 'none');
-    rect.setAttribute('stroke', '#4285f4');
-    rect.setAttribute('stroke-width', '1.5');
-    rect.setAttribute('stroke-dasharray', '4 2');
-    rect.setAttribute('pointer-events', 'none');
-    elements.set('rect', rect);
-    g.appendChild(rect);
+    const rectBg = this.createSvgElement('rect');
+    rectBg.setAttribute('fill', 'none');
+    rectBg.setAttribute('stroke', '#ffffff');
+    rectBg.setAttribute('stroke-width', '1.5');
+    rectBg.setAttribute('pointer-events', 'none');
+    rectBg.setAttribute('shape-rendering', 'crispEdges');
+    elements.set('rect-bg', rectBg);
+    g.appendChild(rectBg);
+
+    const rectFg = this.createSvgElement('rect');
+    rectFg.setAttribute('fill', 'none');
+    rectFg.setAttribute('stroke', '#000000');
+    rectFg.setAttribute('stroke-width', '1.5');
+    rectFg.setAttribute('stroke-dasharray', '4 3');
+    rectFg.setAttribute('pointer-events', 'none');
+    rectFg.setAttribute('shape-rendering', 'crispEdges');
+    elements.set('rect-fg', rectFg);
+    g.appendChild(rectFg);
 
     const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
     for (const h of handles) {

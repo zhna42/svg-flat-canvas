@@ -160,7 +160,8 @@ export class CanvasView {
     if (!els) return domRef;
 
     const g = els.get('g')!;
-    const rect = els.get('rect')!;
+    const rectBg = els.get('rect-bg')!;
+    const rectFg = els.get('rect-fg')!;
 
     const x =
       typeof diff.x === 'number'
@@ -177,11 +178,11 @@ export class CanvasView {
     const w =
       typeof diff.width === 'number'
         ? diff.width
-        : parseFloat(rect.getAttribute('width') || '0');
+        : parseFloat(rectBg.getAttribute('data-w') || '0');
     const h =
       typeof diff.height === 'number'
         ? diff.height
-        : parseFloat(rect.getAttribute('height') || '0');
+        : parseFloat(rectBg.getAttribute('data-h') || '0');
 
     const rcx = w / 2;
     const rcy = h / 2;
@@ -194,10 +195,18 @@ export class CanvasView {
     g.setAttribute('data-angle', String(angle));
     g.setAttribute('visibility', 'visible');
 
-    rect.setAttribute('x', '0');
-    rect.setAttribute('y', '0');
-    rect.setAttribute('width', String(w));
-    rect.setAttribute('height', String(h));
+    const inset = 0.75;
+    const innerW = Math.max(w - 1.5, 0);
+    const innerH = Math.max(h - 1.5, 0);
+
+    for (const r of [rectBg, rectFg]) {
+      r.setAttribute('x', String(inset));
+      r.setAttribute('y', String(inset));
+      r.setAttribute('width', String(innerW));
+      r.setAttribute('height', String(innerH));
+    }
+    rectBg.setAttribute('data-w', String(w));
+    rectBg.setAttribute('data-h', String(h));
 
     const hw = w / 2;
     const hh = h / 2;
