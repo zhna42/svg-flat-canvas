@@ -151,6 +151,10 @@ export class SelectionHandler {
     this.dragHandler.setSnapToElements(enabled);
   }
 
+  public setLockDragAxis(enabled: boolean): void {
+    this.dragHandler.setLockDragAxis(enabled);
+  }
+
   public setSnapAxis(mode: SnapAxisMode): void {
     this.dragHandler.setSnapAxis(mode);
   }

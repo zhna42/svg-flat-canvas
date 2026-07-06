@@ -9,12 +9,11 @@ import {
   checkSceneCollisions,
   type CollisionContext,
 } from '@/core/HitTestEngine';
-import {
-  getVisualWorldPoints,
-} from '@/canvas/overlays/selection/drag/DragCollision';
+import { getVisualWorldPoints } from '@/canvas/overlays/selection/drag/DragCollision';
 import { PathElement } from '@/shapes/elements/PathElement';
 
 const HOLD_DIST_SCREEN = 40;
+const AXIS_LOCK_DEADZONE_PX = 2;
 
 interface SnapState {
   type: 'point' | 'line' | 'curve';
@@ -32,6 +31,8 @@ export class DragHandler {
   private snapToPlanes = false;
   private snapToArtboard = false;
   private avoidCollisions = false;
+  private lockDragAxis = false;
+  private lockOrigin: { dx: number; dy: number } | null = null;
   private dragStartMouse = { x: 0, y: 0 };
   private lastMouseWorld = { x: 0, y: 0 };
   private currentDx = 0;
@@ -102,12 +103,10 @@ export class DragHandler {
             typed instanceof PathElement &&
             typed.geometry.commands.length > 0 &&
             !(
-              typed.geometry.commands[
-                typed.geometry.commands.length - 1
-              ].command === 'Z' ||
-              typed.geometry.commands[
-                typed.geometry.commands.length - 1
-              ].command === 'z'
+              typed.geometry.commands[typed.geometry.commands.length - 1]
+                .command === 'Z' ||
+              typed.geometry.commands[typed.geometry.commands.length - 1]
+                .command === 'z'
             )
           )
         );
@@ -145,6 +144,17 @@ export class DragHandler {
 
   public setSnapToElements(enabled: boolean): void {
     this.dragSnap.snapToElements = enabled;
+  }
+
+  public setLockDragAxis(enabled: boolean): void {
+    this.lockDragAxis = enabled;
+    if (enabled) {
+      this.lockOrigin = this._active
+        ? { dx: this.currentDx, dy: this.currentDy }
+        : { dx: 0, dy: 0 };
+    } else {
+      this.lockOrigin = null;
+    }
   }
 
   public setSnapAxis(mode: SnapAxisMode): void {
@@ -186,6 +196,7 @@ export class DragHandler {
     this.currentDx = 0;
     this.currentDy = 0;
     this.snapState = null;
+    this.lockOrigin = this.lockDragAxis ? { dx: 0, dy: 0 } : null;
     this.targets = Array.from(currentSelected);
     this._mode = 'element';
     this.startMatrices.clear();
@@ -227,8 +238,37 @@ export class DragHandler {
     const mouseDx = worldPoint.x - this.dragStartMouse.x;
     const mouseDy = worldPoint.y - this.dragStartMouse.y;
 
-    let elemDx = mouseDx;
-    let elemDy = mouseDy;
+    let lockedDx = mouseDx;
+    let lockedDy = mouseDy;
+    let lockedAxis: 'h' | 'v' | 'none' = 'none';
+    let savedSnapAxis: SnapAxisMode | null = null;
+
+    if (this.lockDragAxis) {
+      const origin = this.lockOrigin ?? { dx: 0, dy: 0 };
+      const relX = mouseDx - origin.dx;
+      const relY = mouseDy - origin.dy;
+      const relXpx = Math.abs(relX) * this.camera.zoom;
+      const relYpx = Math.abs(relY) * this.camera.zoom;
+
+      if (relXpx < AXIS_LOCK_DEADZONE_PX && relYpx < AXIS_LOCK_DEADZONE_PX) {
+        lockedDx = origin.dx;
+        lockedDy = origin.dy;
+        lockedAxis = 'none';
+      } else if (Math.abs(relX) >= Math.abs(relY)) {
+        lockedDy = origin.dy;
+        lockedAxis = 'h';
+        savedSnapAxis = this.dragSnap.snapAxis;
+        this.dragSnap.snapAxis = 'horizontal';
+      } else {
+        lockedDx = origin.dx;
+        lockedAxis = 'v';
+        savedSnapAxis = this.dragSnap.snapAxis;
+        this.dragSnap.snapAxis = 'vertical';
+      }
+    }
+
+    let elemDx = lockedDx;
+    let elemDy = lockedDy;
     let snapEngaged = false;
 
     const snapEnabled = this.snapToCorners || this.snapToPlanes;
@@ -237,8 +277,8 @@ export class DragHandler {
       const snapResult = this.dragSnap.computeWorldSnap(
         this.targets,
         this.startMatrices,
-        mouseDx,
-        mouseDy,
+        lockedDx,
+        lockedDy,
         0,
         0,
       );
@@ -259,12 +299,12 @@ export class DragHandler {
             const dirY = ly / lineLen;
 
             const mouseAlong =
-              (mouseDx - elemDx) * dirX + (mouseDy - elemDy) * dirY;
+              (lockedDx - elemDx) * dirX + (lockedDy - elemDy) * dirY;
             elemDx = elemDx + mouseAlong * dirX;
             elemDy = elemDy + mouseAlong * dirY;
 
-            const perpX = mouseDx - elemDx - mouseAlong * dirX;
-            const perpY = mouseDy - elemDy - mouseAlong * dirY;
+            const perpX = lockedDx - elemDx - mouseAlong * dirX;
+            const perpY = lockedDy - elemDy - mouseAlong * dirY;
             const perpDist = Math.hypot(perpX, perpY) * this.camera.zoom;
 
             if (perpDist > HOLD_DIST_SCREEN) {
@@ -276,15 +316,15 @@ export class DragHandler {
             this.snapState = null;
           }
         } else {
-          const gapX = (mouseDx - elemDx) * this.camera.zoom;
-          const gapY = (mouseDy - elemDy) * this.camera.zoom;
+          const gapX = (lockedDx - elemDx) * this.camera.zoom;
+          const gapY = (lockedDy - elemDy) * this.camera.zoom;
           const gapDist = Math.hypot(gapX, gapY);
 
           if (gapDist > HOLD_DIST_SCREEN) {
             this.snapState = null;
-          } else if (mouseDx * mouseDx + mouseDy * mouseDy > 0.01) {
+          } else if (lockedDx * lockedDx + lockedDy * lockedDy > 0.01) {
             const mouseDotDrag =
-              mouseDx * (elemDx - mouseDx) + mouseDy * (elemDy - mouseDy);
+              lockedDx * (elemDx - lockedDx) + lockedDy * (elemDy - lockedDy);
             if (mouseDotDrag > 0) {
               this.snapState = null;
             } else {
@@ -300,8 +340,8 @@ export class DragHandler {
         (!this.snapState && snapResult.screenDx !== 0) ||
         snapResult.screenDy !== 0
       ) {
-        const newDx = mouseDx + snapResult.correctionDx;
-        const newDy = mouseDy + snapResult.correctionDy;
+        const newDx = lockedDx + snapResult.correctionDx;
+        const newDy = lockedDy + snapResult.correctionDy;
 
         const correctionLen = Math.hypot(
           snapResult.screenDx,
@@ -324,8 +364,8 @@ export class DragHandler {
       }
 
       if (!this.snapState && !snapEngaged) {
-        elemDx = mouseDx;
-        elemDy = mouseDy;
+        elemDx = lockedDx;
+        elemDy = lockedDy;
       }
     }
 
@@ -400,8 +440,10 @@ export class DragHandler {
         }
 
         if (snapEngaged) {
-          const newGapX = Math.abs(mouseDx - this.currentDx) * this.camera.zoom;
-          const newGapY = Math.abs(mouseDy - this.currentDy) * this.camera.zoom;
+          const newGapX =
+            Math.abs(lockedDx - this.currentDx) * this.camera.zoom;
+          const newGapY =
+            Math.abs(lockedDy - this.currentDy) * this.camera.zoom;
           if (newGapX > HOLD_DIST_SCREEN || newGapY > HOLD_DIST_SCREEN) {
             this.snapState = null;
           }
@@ -413,6 +455,21 @@ export class DragHandler {
     } else {
       this.currentDx = prevDx + currentFrameDx;
       this.currentDy = prevDy + currentFrameDy;
+    }
+
+    if (this.lockDragAxis && this.lockOrigin) {
+      if (lockedAxis === 'none') {
+        this.currentDx = this.lockOrigin.dx;
+        this.currentDy = this.lockOrigin.dy;
+      } else if (lockedAxis === 'h') {
+        this.currentDy = this.lockOrigin.dy;
+      } else {
+        this.currentDx = this.lockOrigin.dx;
+      }
+    }
+
+    if (savedSnapAxis !== null) {
+      this.dragSnap.snapAxis = savedSnapAxis;
     }
 
     for (const el of this.targets) {

@@ -701,6 +701,10 @@ export class ExternalApi {
   public setSnapToElements(enabled: boolean): void {
     this.canvas.selectionHandler.setSnapToElements(enabled);
   }
+  public setLockDragAxis(enabled: boolean): void {
+    this.canvas.selectionHandler.setLockDragAxis(enabled);
+    this.canvas.events.emit('DRAG_AXIS_LOCK_CHANGED', { enabled });
+  }
   public setSnapAxis(mode: 'both' | 'horizontal' | 'vertical'): void {
     this.canvas.selectionHandler.setSnapAxis(mode);
   }
