@@ -2,11 +2,10 @@ import { ReactiveNode } from '@/core/ReactiveNode';
 
 export class Rulers extends ReactiveNode {
   public visible = true;
-  public guidelinesVisibleV = true;
-  public guidelinesVisibleH = true;
-
-  #guidelines: Map<string, { orientation: 'v' | 'h'; position: number }> =
-    new Map();
+  public cameraX = 0;
+  public cameraY = 0;
+  public zoom = 1;
+  public viewNonce = 0;
 
   constructor(registerDirty: (instance: any) => void) {
     super('rulers', 'g', 'overlayRoot');
@@ -17,36 +16,26 @@ export class Rulers extends ReactiveNode {
     this.visible = !this.visible;
   }
 
-  public addGuideline(orientation: 'v' | 'h', position: number): string {
-    const id = `guideline-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    this.#guidelines.set(id, { orientation, position });
-    return id;
+  public setVisible(visible: boolean): void {
+    this.visible = visible;
   }
 
-  public removeGuideline(id: string): void {
-    this.#guidelines.delete(id);
+  public syncCamera(x: number, y: number, zoom: number): void {
+    this.cameraX = x;
+    this.cameraY = y;
+    this.zoom = zoom;
   }
 
-  public getGuidelines(): Array<{
-    id: string;
-    orientation: 'v' | 'h';
-    position: number;
-  }> {
-    return Array.from(this.#guidelines.entries()).map(([id, g]) => ({
-      id,
-      orientation: g.orientation,
-      position: g.position,
-    }));
+  public bumpViewport(): void {
+    this.viewNonce = (this.viewNonce + 1) % 1_000_000;
   }
 
-  public setGuidelinesVisible(orientation: 'v' | 'h', visible: boolean): void {
-    if (orientation === 'v') this.guidelinesVisibleV = visible;
-    else this.guidelinesVisibleH = visible;
-  }
-
-  public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
-    return orientation === 'v'
-      ? this.guidelinesVisibleV
-      : this.guidelinesVisibleH;
+  public override getRenderingPayload(): Record<string, unknown> {
+    return {
+      visible: this.visible,
+      cameraX: this.cameraX,
+      cameraY: this.cameraY,
+      zoom: this.zoom,
+    };
   }
 }

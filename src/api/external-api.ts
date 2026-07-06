@@ -705,25 +705,26 @@ export class ExternalApi {
   // ── Линейки и направляющие ──
 
   public setRulersVisible(v: boolean): void {
-    this.canvas.rulerManager.setRulersVisible(v);
+    this.canvas.rulers.setVisible(v);
+    this.canvas.guidelineManager.setRulersVisible(v);
   }
   public getRulersVisible(): boolean {
-    return this.canvas.rulerManager.getRulersVisible();
+    return this.canvas.rulers.visible;
   }
   public addGuideline(orientation: 'v' | 'h', position: number): string {
-    return this.canvas.rulerManager.addGuideline(orientation, position);
+    return this.canvas.guidelineManager.addGuideline(orientation, position);
   }
   public removeGuideline(id: string): void {
-    this.canvas.rulerManager.removeGuideline(id);
+    this.canvas.guidelineManager.removeGuideline(id);
   }
   public getGuidelines(): GuidelineData[] {
-    return this.canvas.rulerManager.getGuidelines();
+    return this.canvas.guidelineManager.getGuidelines();
   }
   public setGuidelinesVisible(orientation: 'v' | 'h', v: boolean): void {
-    this.canvas.rulerManager.setGuidelinesVisible(orientation, v);
+    this.canvas.guidelineManager.setGuidelinesVisible(orientation, v);
   }
   public getGuidelinesVisible(orientation: 'v' | 'h'): boolean {
-    return this.canvas.rulerManager.getGuidelinesVisible(orientation);
+    return this.canvas.guidelineManager.getGuidelinesVisible(orientation);
   }
 
   // ── Булевы операции ──

@@ -79,7 +79,11 @@ export { EventBus } from '@/core/EventBus';
 export type { BusEvent } from '@/types';
 export { svgNodesToElements } from '@/api/dto/index';
 export type { SvgNodeDto } from '@/api/dto/index';
-export { RulerManager } from '@/canvas/system/ruler';
+export {
+  GuidelineManager,
+  Guideline,
+  RulerBuilder,
+} from '@/canvas/system/ruler';
 export type { GuidelineData, GuidelineEvents } from '@/types';
 export {
   BooleanEngine,

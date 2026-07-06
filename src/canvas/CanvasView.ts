@@ -1,6 +1,7 @@
 import { NodeDOMFactory } from './NodeDOMFactory';
 import { Camera } from './Camera';
 import { DrawPayload, LayerName } from '@/types';
+import { RulerBuilder } from '@/canvas/system/ruler/RulerBuilder';
 
 const SYSTEM_IDS = new Set([
   'camera',
@@ -29,6 +30,7 @@ export class CanvasView {
   _selectionDOMs = new Map<string, Map<string, SVGElement>>();
   _defsNode!: SVGDefsElement;
   _cameraGroup!: SVGGElement;
+  _rulerBuilder: RulerBuilder;
 
   constructor(
     svgElement: SVGSVGElement,
@@ -38,6 +40,7 @@ export class CanvasView {
     this._svgRoot = svgElement;
     this._factory = factory;
     this._camera = camera;
+    this._rulerBuilder = new RulerBuilder(svgElement);
     this._buildDOMSkeleton();
     this._elements.set(camera.id, this._cameraGroup);
     camera.groupId = this._cameraGroup.getAttribute('id') || '';
@@ -182,7 +185,10 @@ export class CanvasView {
 
     const rcx = w / 2;
     const rcy = h / 2;
-    g.setAttribute('transform', `translate(${x}, ${y}) rotate(${angle}, ${rcx}, ${rcy})`);
+    g.setAttribute(
+      'transform',
+      `translate(${x}, ${y}) rotate(${angle}, ${rcx}, ${rcy})`,
+    );
     g.setAttribute('data-x', String(x));
     g.setAttribute('data-y', String(y));
     g.setAttribute('data-angle', String(angle));
@@ -260,8 +266,16 @@ export class CanvasView {
         element.setAttribute('fill', fill);
         return;
       }
+      case 'rulers': {
+        this._rulerBuilder.update(element as SVGGElement, {
+          visible: typeof diff.visible === 'boolean' ? diff.visible : true,
+          cameraX: typeof diff.cameraX === 'number' ? diff.cameraX : 0,
+          cameraY: typeof diff.cameraY === 'number' ? diff.cameraY : 0,
+          zoom: typeof diff.zoom === 'number' ? diff.zoom : 1,
+        });
+        return;
+      }
       case 'grid':
-      case 'rulers':
       case 'selection':
       case 'selection-group': {
         if ('visible' in diff) {

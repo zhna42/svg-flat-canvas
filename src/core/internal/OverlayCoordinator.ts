@@ -57,7 +57,12 @@ export class OverlayCoordinator {
       if (this.ctx.groupManager.selectedGroupIds.size > 0) {
         this.syncGroups();
       }
-      this.ctx.rulerManager.onCameraChange();
+      this.ctx.rulers.syncCamera(
+        this.ctx.camera.x,
+        this.ctx.camera.y,
+        this.ctx.camera.zoom,
+      );
+      this.ctx.guidelineManager.onCameraChange();
     });
   }
 

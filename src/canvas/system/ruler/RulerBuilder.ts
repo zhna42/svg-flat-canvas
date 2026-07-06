@@ -1,0 +1,147 @@
+export const RULER_SIZE_PX = 20;
+const RULER_BG = '#fff';
+const RULER_BORDER = '#888';
+const RULER_TEXT_COLOR = '#555';
+const RULER_TICK_COLOR = '#888';
+const PX_PER_MM = 3.779527559055118;
+
+export interface RulerParams {
+  visible: boolean;
+  cameraX: number;
+  cameraY: number;
+  zoom: number;
+}
+
+export function getSvgViewportBounds(
+  svg: SVGSVGElement,
+  fallbackW = 800,
+  fallbackH = 600,
+): { w: number; h: number } {
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return { w: fallbackW, h: fallbackH };
+  const rect = svg.getBoundingClientRect();
+  const inv = ctm.inverse();
+  const p0 = svg.createSVGPoint();
+  p0.x = rect.left;
+  p0.y = rect.top;
+  const p1 = svg.createSVGPoint();
+  p1.x = rect.left + rect.width;
+  p1.y = rect.top + rect.height;
+  const v0 = p0.matrixTransform(inv);
+  const v1 = p1.matrixTransform(inv);
+  return { w: v1.x - v0.x, h: v1.y - v0.y };
+}
+
+export class RulerBuilder {
+  constructor(private readonly svg: SVGSVGElement) {}
+
+  public update(container: SVGGElement, params: RulerParams): void {
+    container.setAttribute('pointer-events', 'none');
+    container.setAttribute('visibility', params.visible ? 'visible' : 'hidden');
+    if (!params.visible) {
+      container.innerHTML = '';
+      return;
+    }
+    container.innerHTML = this.buildMarkup(params);
+  }
+
+  private buildMarkup(params: RulerParams): string {
+    const z = params.zoom;
+    const panX = params.cameraX;
+    const panY = params.cameraY;
+
+    const targetPx = 7 / z;
+    const targetMm = targetPx / PX_PER_MM;
+    const mmStep = this.niceStep(targetMm);
+    const step = mmStep * PX_PER_MM;
+
+    const bounds = getSvgViewportBounds(this.svg);
+    const svgW = bounds.w;
+    const svgH = bounds.h;
+    const rs = RULER_SIZE_PX;
+    const lineW = 0.5;
+
+    if (svgW < rs || svgH < rs) return '';
+
+    let h = '';
+
+    h += `<rect x="0" y="0" width="${rs}" height="${rs}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
+    if (panX < rs && panY < rs) {
+      h += `<text x="${rs - 2}" y="${rs - 4}" fill="${RULER_TEXT_COLOR}" font-size="8" font-family="system-ui, sans-serif" text-anchor="end">0</text>`;
+    }
+
+    h += `<rect x="${rs}" y="0" width="${svgW - rs}" height="${rs}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
+    h += `<line x1="${rs}" y1="${rs}" x2="${svgW}" y2="${rs}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
+
+    h += `<rect x="0" y="${rs}" width="${rs}" height="${svgH - rs}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
+    h += `<line x1="${rs}" y1="${rs}" x2="${rs}" y2="${svgH}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
+
+    const stepPx = step * z;
+
+    const startIdxH = Math.floor(-panX / stepPx);
+    for (let i = startIdxH; ; i++) {
+      const w = i * step;
+      const sx = w * z + panX;
+      if (sx >= svgW) break;
+      if (sx < rs) continue;
+      const mmVal = w / PX_PER_MM;
+      const tickType = this.getTickType(mmVal, mmStep);
+      const len =
+        tickType === 'major'
+          ? rs - 3
+          : tickType === 'medium'
+            ? rs * 0.55
+            : rs * 0.3;
+      h += `<line x1="${sx}" y1="${rs - len}" x2="${sx}" y2="${rs}" stroke="${RULER_TICK_COLOR}" stroke-width="${lineW}"/>`;
+      if (tickType === 'major') {
+        h += `<text x="${sx + 2}" y="${rs - 4}" fill="${RULER_TEXT_COLOR}" font-size="9" font-family="system-ui, sans-serif">${this.formatMmLabel(mmVal, mmStep)}</text>`;
+      }
+    }
+
+    const startIdxV = Math.floor(-panY / stepPx);
+    for (let i = startIdxV; ; i++) {
+      const w = i * step;
+      const sy = w * z + panY;
+      if (sy >= svgH) break;
+      if (sy < rs) continue;
+      const mmVal = w / PX_PER_MM;
+      const tickType = this.getTickType(mmVal, mmStep);
+      const len =
+        tickType === 'major'
+          ? rs - 3
+          : tickType === 'medium'
+            ? rs * 0.55
+            : rs * 0.3;
+      h += `<line x1="${rs - len}" y1="${sy}" x2="${rs}" y2="${sy}" stroke="${RULER_TICK_COLOR}" stroke-width="${lineW}"/>`;
+      if (tickType === 'major') {
+        h += `<text x="${rs - 2}" y="${sy + 2}" fill="${RULER_TEXT_COLOR}" font-size="9" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="hanging">${this.formatMmLabel(mmVal, mmStep)}</text>`;
+      }
+    }
+
+    return h;
+  }
+
+  private getTickType(
+    mmVal: number,
+    mmStep: number,
+  ): 'minor' | 'medium' | 'major' {
+    const r10 = Math.abs(mmVal % (mmStep * 10));
+    if (r10 < 0.001 || Math.abs(r10 - mmStep * 10) < 0.001) return 'major';
+    const r5 = Math.abs(mmVal % (mmStep * 5));
+    if (r5 < 0.001 || Math.abs(r5 - mmStep * 5) < 0.001) return 'medium';
+    return 'minor';
+  }
+
+  private niceStep(target: number): number {
+    const steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100, 200, 500, 1000];
+    for (const s of steps) {
+      if (s >= target) return s;
+    }
+    return 1000;
+  }
+
+  private formatMmLabel(mmVal: number, mmStep: number): string {
+    if (mmStep >= 1) return String(Math.round(mmVal));
+    return parseFloat(mmVal.toFixed(1)).toString();
+  }
+}

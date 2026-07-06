@@ -26,7 +26,7 @@ import { ColorMap } from '@/color/ColorMap';
 import { GroupManager, type Group } from '@/shapes/group';
 import { CommandBus } from './CommandBus';
 import { TimeMachine } from '@/time-machine';
-import { RulerManager } from '@/canvas/system/ruler';
+import { GuidelineManager } from '@/canvas/system/ruler';
 import { BooleanHandler } from '@/math/boolean';
 import { CreationHandler } from '@/commands/handlers/creation/CreationHandler';
 import { ExternalApi } from '@/api/external-api';
@@ -88,7 +88,7 @@ export class SvgCanvas implements ICanvasContext {
 
   groupManager!: GroupManager;
   elementManager!: ElementManager;
-  rulerManager!: RulerManager;
+  guidelineManager!: GuidelineManager;
   booleanHandler!: BooleanHandler;
 
   selectionHandler!: SelectionHandler;
@@ -233,15 +233,14 @@ export class SvgCanvas implements ICanvasContext {
   }
 
   private _initManagers(options?: SvgCanvasOptions): void {
-    this.rulerManager = new RulerManager(
+    void options;
+    this.guidelineManager = new GuidelineManager(
       this.camera as any,
       this.events,
       this.svg,
-      options?.width ?? 800,
-      options?.height ?? 600,
+      this.scheduler.registerDirtyNode,
+      (id) => this.view.remove(id),
     );
-    const overlayRoot = this.svg.querySelector('g')!;
-    overlayRoot.appendChild(this.rulerManager.root);
 
     this.booleanHandler = new BooleanHandler(
       this.svg,
@@ -262,6 +261,18 @@ export class SvgCanvas implements ICanvasContext {
     this._overlayCoordinator = new OverlayCoordinator(this);
     this._overlayCoordinator.wire();
     this.groupManager.setOnChange(() => this._overlayCoordinator.syncGroups());
+    this._wireRulerSync();
+  }
+
+  private _wireRulerSync(): void {
+    const refresh = (): void => {
+      this.rulers.syncCamera(this.camera.x, this.camera.y, this.camera.zoom);
+      this.rulers.bumpViewport();
+      this.guidelineManager.onCameraChange();
+    };
+    const ro = new ResizeObserver(refresh);
+    ro.observe(this.svg);
+    refresh();
   }
 
   private _createHandlers(): void {
@@ -301,7 +312,7 @@ export class SvgCanvas implements ICanvasContext {
       timeMachine: this.timeMachine,
       isPanning: () => this.panActive.value,
       isCreating: () => creationHandler.activeType !== null,
-      isGuidelineDragging: () => this.rulerManager.isDragging,
+      isGuidelineDragging: () => this.guidelineManager.isDragging,
       getGroupIdForElement: (elementId) =>
         this.groupManager.getGroupByElement(elementId)?.id,
       getSelectedGroups: () =>
@@ -337,7 +348,7 @@ export class SvgCanvas implements ICanvasContext {
         this._api.editingPath = el ? (el as PathElement) : null;
       },
       getEditingPath: () => this._api.editingPath,
-      getGuidelines: () => this.rulerManager.getGuidelines(),
+      getGuidelines: () => this.guidelineManager.getGuidelines(),
       getGridLines: () => this.gridOverlay.getGridLines(),
       events: this.events,
     });

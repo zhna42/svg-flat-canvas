@@ -13,7 +13,8 @@ import type { GridOverlay } from '@/canvas/overlays/debug/GridOverlay';
 import type { GroupManager } from '@/shapes/group';
 import type { CommandBus } from '../CommandBus';
 import type { TimeMachine } from '@/time-machine';
-import type { RulerManager } from '@/canvas/system/ruler';
+import type { GuidelineManager } from '@/canvas/system/ruler';
+import type { Rulers } from '@/canvas/system';
 import type { CreationHandler } from '@/commands/handlers/creation/CreationHandler';
 import type { ExternalApi } from '@/api/external-api';
 import type { EventBus } from '../EventBus';
@@ -38,7 +39,8 @@ export interface ICanvasContext {
   readonly gridOverlay: GridOverlay;
   readonly groupManager: GroupManager;
   readonly elementManager: ElementManager;
-  readonly rulerManager: RulerManager;
+  readonly rulers: Rulers;
+  readonly guidelineManager: GuidelineManager;
   readonly selectionHandler: SelectionHandler;
   readonly creationHandler: CreationHandler;
 }
