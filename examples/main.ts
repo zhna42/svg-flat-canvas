@@ -25,6 +25,7 @@ function init(): void {
   setupRightPanel();
   setupFlexTreePanel();
   setupKeyboardShortcuts();
+  setupNodeEditToolbar();
 }
 
 // ─── Demo Data ───────────────────────────────────────────
@@ -82,7 +83,9 @@ function setupEventLog(): void {
   };
 
   const pauseChk = document.getElementById('chk-log-pause') as HTMLInputElement;
-  pauseChk.onchange = () => { logPaused = pauseChk.checked; };
+  pauseChk.onchange = () => {
+    logPaused = pauseChk.checked;
+  };
 }
 
 // ─── Top Toolbar ─────────────────────────────────────────
@@ -97,12 +100,20 @@ function setupTopToolbar(): void {
   toggleButton('btn-avoid-collisions', false, (v) => api.setAvoidCollisions(v));
   toggleButton('btn-lock-drag-axis', false, (v) => api.setLockDragAxis(v));
 
-  const snapAxis = document.getElementById('sel-snap-axis') as HTMLSelectElement;
-  snapAxis.onchange = () => { api.setSnapAxis(snapAxis.value as 'both' | 'horizontal' | 'vertical'); };
+  const snapAxis = document.getElementById(
+    'sel-snap-axis',
+  ) as HTMLSelectElement;
+  snapAxis.onchange = () => {
+    api.setSnapAxis(snapAxis.value as 'both' | 'horizontal' | 'vertical');
+  };
 
-  document.getElementById('btn-transform-resize')!.onclick = () => api.setTransformMode('resize');
-  document.getElementById('btn-transform-rotate')!.onclick = () => api.setTransformMode('rotate');
-  toggleButton('btn-proportional-resize', false, (v) => api.setProportionalResize(v));
+  document.getElementById('btn-transform-resize')!.onclick = () =>
+    api.setTransformMode('resize');
+  document.getElementById('btn-transform-rotate')!.onclick = () =>
+    api.setTransformMode('rotate');
+  toggleButton('btn-proportional-resize', false, (v) =>
+    api.setProportionalResize(v),
+  );
   toggleButton('btn-snap-rotation', false, (v) => api.setSnapRotation(v));
 
   document.getElementById('btn-flex-tree')!.onclick = () => {
@@ -113,16 +124,32 @@ function setupTopToolbar(): void {
 
   toggleButton('btn-pan-mode', false, (v) => api.setPanMode(v));
   toggleButton('btn-toggle-rulers', false, (v) => api.setRulersVisible(v));
-  toggleButton('btn-toggle-grid', false, (v) => v ? api.showGrid() : api.hideGrid());
+  toggleButton('btn-toggle-grid', false, (v) =>
+    v ? api.showGrid() : api.hideGrid(),
+  );
 
-  const gridStep = document.getElementById('input-grid-step') as HTMLInputElement;
+  const gridStep = document.getElementById(
+    'input-grid-step',
+  ) as HTMLInputElement;
   gridStep.onchange = () => api.setGridStep(Number(gridStep.value));
 
   let booleanActive = false;
-  document.getElementById('btn-bool-union')!.onclick = () => { api.enterBooleanMode('UNION'); setBooleanActive(true); };
-  document.getElementById('btn-bool-intersect')!.onclick = () => { api.enterBooleanMode('INTERSECT'); setBooleanActive(true); };
-  document.getElementById('btn-bool-diff')!.onclick = () => { api.enterBooleanMode('DIFFERENCE'); setBooleanActive(true); };
-  document.getElementById('btn-bool-exit')!.onclick = () => { api.exitBooleanMode(); setBooleanActive(false); };
+  document.getElementById('btn-bool-union')!.onclick = () => {
+    api.enterBooleanMode('UNION');
+    setBooleanActive(true);
+  };
+  document.getElementById('btn-bool-intersect')!.onclick = () => {
+    api.enterBooleanMode('INTERSECT');
+    setBooleanActive(true);
+  };
+  document.getElementById('btn-bool-diff')!.onclick = () => {
+    api.enterBooleanMode('DIFFERENCE');
+    setBooleanActive(true);
+  };
+  document.getElementById('btn-bool-exit')!.onclick = () => {
+    api.exitBooleanMode();
+    setBooleanActive(false);
+  };
 
   function setBooleanActive(v: boolean): void {
     booleanActive = v;
@@ -132,10 +159,16 @@ function setupTopToolbar(): void {
     document.getElementById('btn-bool-exit')!.style.display = v ? '' : 'none';
   }
 
-  toggleButton('btn-debug-hitarea', false, (v) => { api.debugShowHitArea = v; });
+  toggleButton('btn-debug-hitarea', false, (v) => {
+    api.debugShowHitArea = v;
+  });
 
   document.getElementById('btn-preloader')!.onclick = () => {
-    if (api.isPreloaderVisible()) { api.hidePreloader(); } else { api.showPreloader(); }
+    if (api.isPreloaderVisible()) {
+      api.hidePreloader();
+    } else {
+      api.showPreloader();
+    }
   };
 }
 
@@ -164,9 +197,15 @@ function setupLeftToolbar(): void {
     gestureBtns.forEach((b) => b.classList.remove('active'));
     activeBtn.classList.add('active');
   };
-  document.getElementById('btn-gesture-click')!.onclick = function () { setGesture('click', this); };
-  document.getElementById('btn-gesture-rect')!.onclick = function () { setGesture('rect', this); };
-  document.getElementById('btn-gesture-lasso')!.onclick = function () { setGesture('lasso', this); };
+  document.getElementById('btn-gesture-click')!.onclick = function () {
+    setGesture('click', this);
+  };
+  document.getElementById('btn-gesture-rect')!.onclick = function () {
+    setGesture('rect', this);
+  };
+  document.getElementById('btn-gesture-lasso')!.onclick = function () {
+    setGesture('lasso', this);
+  };
 
   const creationTools = document.querySelectorAll('.creation-tool[data-type]');
   const cancelBtn = document.getElementById('btn-creation-cancel')!;
@@ -216,13 +255,21 @@ function setupLeftToolbar(): void {
     const selected = api.getSelected();
     if (selected.length === 0) return;
 
-    const fill = (document.getElementById('input-fill') as HTMLInputElement).value;
-    const stroke = (document.getElementById('input-stroke') as HTMLInputElement).value;
-    const strokeWidth = Number((document.getElementById('input-stroke-width') as HTMLInputElement).value);
+    const fill = (document.getElementById('input-fill') as HTMLInputElement)
+      .value;
+    const stroke = (document.getElementById('input-stroke') as HTMLInputElement)
+      .value;
+    const strokeWidth = Number(
+      (document.getElementById('input-stroke-width') as HTMLInputElement).value,
+    );
 
     api.updateShapes({
       elementIds: selected.map((e) => e.id),
-      style: { fill, stroke, strokeWidth: isNaN(strokeWidth) ? undefined : strokeWidth },
+      style: {
+        fill,
+        stroke,
+        strokeWidth: isNaN(strokeWidth) ? undefined : strokeWidth,
+      },
     });
   };
 }
@@ -231,7 +278,9 @@ function setupLeftToolbar(): void {
 
 function setupRightPanel(): void {
   const list = document.getElementById('group-list')!;
-  const nameInput = document.getElementById('input-group-name') as HTMLInputElement;
+  const nameInput = document.getElementById(
+    'input-group-name',
+  ) as HTMLInputElement;
   let selectedGroupId: string | null = null;
 
   function renderGroups(): void {
@@ -243,13 +292,20 @@ function setupRightPanel(): void {
       li.innerHTML = `<span>${g.name}</span><span class="group-count">${g.elementIds?.size ?? 0} elem</span>`;
       if (g.id === selectedGroupId) li.classList.add('selected');
 
-      li.onclick = () => { selectedGroupId = g.id; api.selectGroup(g.id); renderGroups(); };
-      li.ondblclick = () => { api.selectGroupElements(g.id); };
+      li.onclick = () => {
+        selectedGroupId = g.id;
+        api.selectGroup(g.id);
+        renderGroups();
+      };
+      li.ondblclick = () => {
+        api.selectGroupElements(g.id);
+      };
       list.appendChild(li);
     }
 
     if (groups.length === 0) {
-      list.innerHTML = '<li style="color:var(--text-muted);cursor:default">No groups</li>';
+      list.innerHTML =
+        '<li style="color:var(--text-muted);cursor:default">No groups</li>';
     }
   }
 
@@ -261,19 +317,33 @@ function setupRightPanel(): void {
   };
 
   document.getElementById('btn-group-delete')!.onclick = () => {
-    if (selectedGroupId) { api.groupDelete({ groupId: selectedGroupId }); selectedGroupId = null; renderGroups(); }
+    if (selectedGroupId) {
+      api.groupDelete({ groupId: selectedGroupId });
+      selectedGroupId = null;
+      renderGroups();
+    }
   };
 
   document.getElementById('btn-group-add-elem')!.onclick = () => {
     if (!selectedGroupId) return;
     const selected = api.getSelected();
-    if (selected.length > 0) { api.groupAddElements({ groupId: selectedGroupId, elementIds: selected.map((e) => e.id) }); }
+    if (selected.length > 0) {
+      api.groupAddElements({
+        groupId: selectedGroupId,
+        elementIds: selected.map((e) => e.id),
+      });
+    }
   };
 
   document.getElementById('btn-group-rem-elem')!.onclick = () => {
     if (!selectedGroupId) return;
     const selected = api.getSelected();
-    if (selected.length > 0) { api.groupRemoveElements({ groupId: selectedGroupId, elementIds: selected.map((e) => e.id) }); }
+    if (selected.length > 0) {
+      api.groupRemoveElements({
+        groupId: selectedGroupId,
+        elementIds: selected.map((e) => e.id),
+      });
+    }
   };
 
   renderGroups();
@@ -283,16 +353,82 @@ function setupRightPanel(): void {
 
 function setupKeyboardShortcuts(): void {
   document.addEventListener('keydown', (e) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLSelectElement ||
+      e.target instanceof HTMLTextAreaElement
+    )
+      return;
 
     const meta = e.metaKey || e.ctrlKey;
 
-    if (meta && e.key === 'z' && !e.shiftKey) { e.preventDefault(); api.undo(); return; }
-    if (meta && e.key === 'z' && e.shiftKey) { e.preventDefault(); api.redo(); return; }
+    // ── Режим редактирования узлов (клавиатура — на стороне приложения) ──
+    if (api.isNodeEditing) {
+      if (meta && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        api.undoNodeEdit();
+        return;
+      }
+      if (meta && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        api.redoNodeEdit();
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        api.exitNodeEdit();
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        api.deleteSelectedNodes();
+        return;
+      }
+      if (meta && e.key === 'a') {
+        e.preventDefault();
+        api.selectAllNodes();
+        return;
+      }
+      const step = e.shiftKey ? 10 : 1;
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        api.nudgeSelectedNodes(-step, 0);
+        return;
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        api.nudgeSelectedNodes(step, 0);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        api.nudgeSelectedNodes(0, -step);
+        return;
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        api.nudgeSelectedNodes(0, step);
+        return;
+      }
+      return;
+    }
+
+    if (meta && e.key === 'z' && !e.shiftKey) {
+      e.preventDefault();
+      api.undo();
+      return;
+    }
+    if (meta && e.key === 'z' && e.shiftKey) {
+      e.preventDefault();
+      api.redo();
+      return;
+    }
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
       const selected = api.getSelected();
-      if (selected.length > 0) { api.deleteShapes({ elementIds: selected.map((el) => el.id) }); }
+      if (selected.length > 0) {
+        api.deleteShapes({ elementIds: selected.map((el) => el.id) });
+      }
       return;
     }
 
@@ -305,6 +441,89 @@ function setupKeyboardShortcuts(): void {
   });
 }
 
+// ─── Node Edit Panel ──────────────────────────────────────
+
+function setupNodeEditToolbar(): void {
+  const panel = document.getElementById('node-edit-panel') as HTMLElement;
+  const countEl = document.getElementById('node-sel-count') as HTMLElement;
+  const multiBtn = document.getElementById(
+    'btn-node-multi',
+  ) as HTMLButtonElement;
+
+  const show = (visible: boolean): void => {
+    panel.style.display = visible ? 'block' : 'none';
+  };
+
+  api.on('NODE_EDIT_ENTERED', () => show(true));
+  api.on('NODE_EDIT_EXITED', () => {
+    show(false);
+    multiBtn.textContent = 'Мультивыбор: off';
+    multiBtn.classList.remove('active');
+  });
+  api.on('NODE_SELECTION_CHANGED', (ev) => {
+    const count = (ev.data as { count?: number })?.count ?? 0;
+    countEl.textContent = `Выбрано: ${count}`;
+  });
+
+  const click = (id: string, fn: () => void): void => {
+    const el = document.getElementById(id);
+    if (el) (el as HTMLButtonElement).onclick = fn;
+  };
+
+  multiBtn.onclick = () => {
+    const on = !api.getNodeMultiSelect();
+    api.setNodeMultiSelect(on);
+    multiBtn.textContent = `Мультивыбор: ${on ? 'on' : 'off'}`;
+    multiBtn.classList.toggle('active', on);
+  };
+
+  click('btn-node-exit', () => api.exitNodeEdit());
+  click('btn-node-selall', () => api.selectAllNodes());
+  click('btn-node-selnone', () => api.clearNodeSelection());
+  click('btn-node-selinv', () => api.invertNodeSelection());
+  click('btn-node-corner', () => api.setSelectedNodesType('corner'));
+  click('btn-node-smooth', () => api.setSelectedNodesType('smooth'));
+  click('btn-node-symmetric', () => api.setSelectedNodesType('symmetric'));
+  click('btn-node-smooth-op', () => api.smoothSelectedNodes());
+  click('btn-node-sharpen-op', () => api.sharpenSelectedNodes());
+  click('btn-node-distribute', () => api.distributeSelectedNodesEvenly());
+  click('btn-node-delete', () => api.deleteSelectedNodes());
+  click('btn-node-undo', () => api.undoNodeEdit());
+  click('btn-node-redo', () => api.redoNodeEdit());
+
+  makeDraggable(panel, document.getElementById('node-edit-header') as HTMLElement);
+}
+
+function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
+  let dragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  handle.addEventListener('mousedown', (e) => {
+    if (e.target instanceof HTMLButtonElement) return;
+    dragging = true;
+    const rect = panel.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    panel.style.right = 'auto';
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const x = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, e.clientX - offsetX));
+    const y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, e.clientY - offsetY));
+    panel.style.left = `${x}px`;
+    panel.style.top = `${y}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    dragging = false;
+  });
+}
+
 // ─── Flex Tree Panel ──────────────────────────────────────
 
 let flexSelectedElementId: string | null = null;
@@ -312,7 +531,9 @@ let flexSelectedElementId: string | null = null;
 function syncFlexPanelFromSelection(): void {
   flexSelectedElementId = null;
   // Use the API to find currently selected element
-  const selected = (api as any).canvas?.selectionState?.selected as Array<{ id: string }> | undefined;
+  const selected = (api as any).canvas?.selectionState?.selected as
+    | Array<{ id: string }>
+    | undefined;
   if (selected && selected.length === 1) {
     flexSelectedElementId = selected[0].id;
   }
@@ -322,7 +543,9 @@ function syncFlexPanelFromSelection(): void {
   const stepInp = document.getElementById('inp-flex-step') as HTMLInputElement;
   const linkInp = document.getElementById('inp-flex-link') as HTMLInputElement;
   const dashInp = document.getElementById('inp-flex-dash') as HTMLInputElement;
-  const ampInp = document.getElementById('inp-flex-amplitude') as HTMLInputElement;
+  const ampInp = document.getElementById(
+    'inp-flex-amplitude',
+  ) as HTMLInputElement;
 
   if (cfg) {
     stepInp.value = String(cfg.step);
@@ -340,7 +563,9 @@ function syncFlexPanelFromSelection(): void {
 }
 
 function setFlexModeBtn(mode: string): void {
-  document.querySelectorAll('.flex-mode-btn').forEach((b) => b.classList.remove('active'));
+  document
+    .querySelectorAll('.flex-mode-btn')
+    .forEach((b) => b.classList.remove('active'));
   const el = document.getElementById(`btn-flex-${mode}`);
   if (el) el.classList.add('active');
 }
@@ -350,13 +575,19 @@ function setupFlexTreePanel(): void {
     document.getElementById('flex-tree-panel')!.style.display = 'none';
   };
 
-  document.getElementById('btn-flex-linear')!.onclick = () => setFlexModeBtn('linear');
-  document.getElementById('btn-flex-wave')!.onclick = () => setFlexModeBtn('wave');
-  document.getElementById('btn-flex-cross')!.onclick = () => setFlexModeBtn('cross');
+  document.getElementById('btn-flex-linear')!.onclick = () =>
+    setFlexModeBtn('linear');
+  document.getElementById('btn-flex-wave')!.onclick = () =>
+    setFlexModeBtn('wave');
+  document.getElementById('btn-flex-cross')!.onclick = () =>
+    setFlexModeBtn('cross');
 
-  document.getElementById('btn-preset-thin')!.onclick = () => applyPreset('thin');
-  document.getElementById('btn-preset-standard')!.onclick = () => applyPreset('standard');
-  document.getElementById('btn-preset-thick')!.onclick = () => applyPreset('thick');
+  document.getElementById('btn-preset-thin')!.onclick = () =>
+    applyPreset('thin');
+  document.getElementById('btn-preset-standard')!.onclick = () =>
+    applyPreset('standard');
+  document.getElementById('btn-preset-thick')!.onclick = () =>
+    applyPreset('thick');
 
   document.getElementById('btn-flex-apply')!.onclick = () => {
     if (!flexSelectedElementId) return;
@@ -364,10 +595,19 @@ function setupFlexTreePanel(): void {
     const algo = active ? active.id.replace('btn-flex-', '') : 'linear';
     api.setFlexTreeAlgorithm(flexSelectedElementId, algo as never);
     api.setFlexTreeParams(flexSelectedElementId, {
-      step: Number((document.getElementById('inp-flex-step') as HTMLInputElement).value),
-      link: Number((document.getElementById('inp-flex-link') as HTMLInputElement).value),
-      dash: Number((document.getElementById('inp-flex-dash') as HTMLInputElement).value),
-      amplitude: Number((document.getElementById('inp-flex-amplitude') as HTMLInputElement).value),
+      step: Number(
+        (document.getElementById('inp-flex-step') as HTMLInputElement).value,
+      ),
+      link: Number(
+        (document.getElementById('inp-flex-link') as HTMLInputElement).value,
+      ),
+      dash: Number(
+        (document.getElementById('inp-flex-dash') as HTMLInputElement).value,
+      ),
+      amplitude: Number(
+        (document.getElementById('inp-flex-amplitude') as HTMLInputElement)
+          .value,
+      ),
     });
   };
 
@@ -387,15 +627,22 @@ function applyPreset(preset: 'thin' | 'standard' | 'thick'): void {
   (document.getElementById('inp-flex-step') as HTMLInputElement).value = p.step;
   (document.getElementById('inp-flex-link') as HTMLInputElement).value = p.link;
   (document.getElementById('inp-flex-dash') as HTMLInputElement).value = p.dash;
-  document.querySelectorAll('.preset-btn').forEach((b) => b.classList.remove('preset-active'));
+  document
+    .querySelectorAll('.preset-btn')
+    .forEach((b) => b.classList.remove('preset-active'));
   const btn = document.getElementById(`btn-preset-${preset}`);
   if (btn) btn.classList.add('preset-active');
-  if (flexSelectedElementId) api.applyFlexTreePreset(flexSelectedElementId, preset);
+  if (flexSelectedElementId)
+    api.applyFlexTreePreset(flexSelectedElementId, preset);
 }
 
 // ─── Helpers ─────────────────────────────────────────────
 
-function toggleButton(id: string, initial: boolean, onChange: (value: boolean) => void): void {
+function toggleButton(
+  id: string,
+  initial: boolean,
+  onChange: (value: boolean) => void,
+): void {
   const btn = document.getElementById(id)!;
   let state = initial;
   if (state) btn.classList.add('on');

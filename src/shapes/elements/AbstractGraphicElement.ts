@@ -17,7 +17,7 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
   public visible = true;
   public lock = false;
   public isPreview = false;
-  public isNodeEditing = false;
+  public isEditingNodes = false;
   public data: Record<string, unknown> = {};
   public flexTree?: FlexTree;
 

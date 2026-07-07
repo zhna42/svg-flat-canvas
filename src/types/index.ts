@@ -66,6 +66,17 @@ export type {
 } from './shapes';
 
 export type {
+  NodeKind,
+  EditNode,
+  EditContour,
+  EditNodeModel,
+  NodeRef,
+  NodePart,
+  NodeHit,
+  INodeEditable,
+} from './node-edit';
+
+export type {
   BusEvent,
   SnapshotCommand,
   EntityDiff,

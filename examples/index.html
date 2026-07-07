@@ -179,6 +179,44 @@
     </div>
   </div>
 
+  <div id="node-edit-panel" class="flex-tree-panel" style="display:none; top:60px; right:16px; width:360px;">
+    <div class="flex-tree-header" id="node-edit-header" style="cursor:move;">
+      <h3>✏️ Узлы</h3>
+      <button id="btn-node-exit">✕</button>
+    </div>
+    <div class="flex-tree-section">
+      <label>Выбор</label>
+      <div class="flex-tree-btns">
+        <button id="btn-node-multi">Мультивыбор: off</button>
+        <button id="btn-node-selall">Все</button>
+        <button id="btn-node-selnone">Снять</button>
+        <button id="btn-node-selinv">Инверт.</button>
+      </div>
+      <div id="node-sel-count" class="flex-limits">Выбрано: 0</div>
+    </div>
+    <div class="flex-tree-section">
+      <label>Тип точки</label>
+      <div class="flex-tree-btns">
+        <button id="btn-node-corner">Острая</button>
+        <button id="btn-node-smooth">Гладкая</button>
+        <button id="btn-node-symmetric">Симметр.</button>
+      </div>
+    </div>
+    <div class="flex-tree-section">
+      <label>Действия</label>
+      <div class="flex-tree-btns">
+        <button id="btn-node-smooth-op">Сгладить</button>
+        <button id="btn-node-sharpen-op">Заострить</button>
+        <button id="btn-node-distribute">Распределить</button>
+        <button id="btn-node-delete">Удалить</button>
+      </div>
+    </div>
+    <div class="flex-tree-actions">
+      <button id="btn-node-undo">↩️ Undo</button>
+      <button id="btn-node-redo">↪️ Redo</button>
+    </div>
+  </div>
+
   <script type="module" src="./main.ts"></script>
 </body>
 </html>

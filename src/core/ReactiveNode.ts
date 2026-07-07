@@ -58,8 +58,7 @@ export abstract class ReactiveNode {
         'getFullData',
         'setDiff',
         'subscribe',
-      ]).has(key) ||
-      key.startsWith('_')
+      ]).has(key) || key.startsWith('_')
     );
   }
 
@@ -140,7 +139,8 @@ export abstract class ReactiveNode {
           if (self.isAutoReRendering && self.pushDiffRendering) {
             self.pushDiffRendering(self._rootProxy);
           }
-          if (self.onTimeMachineChange) self.onTimeMachineChange(self._rootProxy);
+          if (self.onTimeMachineChange)
+            self.onTimeMachineChange(self._rootProxy);
           if (self.onSaveChange) self.onSaveChange(self._rootProxy);
         }
         return success;

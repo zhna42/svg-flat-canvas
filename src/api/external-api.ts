@@ -1,6 +1,7 @@
 import type { SvgCanvas } from '@/core/SvgCanvas';
 import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 import type { PathElement } from '@/shapes/elements/PathElement';
+import { PathElement as PathElementCtor } from '@/shapes/elements/PathElement';
 import type {
   BusEvent,
   GuidelineData,
@@ -29,7 +30,12 @@ import {
   createRotateCommand,
   createTransformCommand,
 } from '@/commands';
-import type { ElementType, TransformMode, CreationElementType } from '@/types';
+import type {
+  ElementType,
+  TransformMode,
+  CreationElementType,
+  NodeKind,
+} from '@/types';
 import { MM_TO_PX } from '@/constants';
 import type {
   CreateShapeDTO,
@@ -583,35 +589,117 @@ export class ExternalApi {
     this.canvas.events.emit('SVG_CAD_PAN_MODE_CHANGED', { enabled });
   }
 
-  // ── Редактирование пути ──
+  // ── Редактирование узлов (path / polyline / polygon) ──
 
-  /** Текущий редактируемый PathElement */
-  _editingPath: PathElement | null = null;
-  _editingPathUnsub: (() => void) | null = null;
+  /** Войти в режим редактирования узлов для указанных элементов. */
+  public enterNodeEdit(ids: string[]): void {
+    const els = ids
+      .map((id) => this.canvas.shapeManager.getById(id))
+      .filter((e): e is AbstractGraphicElement => !!e);
+    if (els.length > 0) this.canvas.nodeEdit.enter(els);
+  }
 
+  /** Выйти из режима редактирования узлов. */
+  public exitNodeEdit(): void {
+    this.canvas.nodeEdit.exit();
+  }
+
+  /** Активен ли режим редактирования узлов. */
+  public get isNodeEditing(): boolean {
+    return this.canvas.nodeEdit.isActive;
+  }
+
+  /** Множественный выбор точек: клик добавляет/убирает точку. */
+  public setNodeMultiSelect(on: boolean): void {
+    this.canvas.nodeEdit.setMultiSelect(on);
+  }
+  public getNodeMultiSelect(): boolean {
+    return this.canvas.nodeEdit.getMultiSelect();
+  }
+
+  /** Изменить тип выбранных точек. */
+  public setSelectedNodesType(kind: NodeKind): void {
+    this.canvas.nodeEdit.setSelectedType(kind);
+  }
+
+  /** Сгладить выбранные точки (превратить в сглаженную кривую). */
+  public smoothSelectedNodes(): void {
+    this.canvas.nodeEdit.smoothSelected();
+  }
+
+  /** Сделать выбранные точки острыми (отрезки без сглаживания). */
+  public sharpenSelectedNodes(): void {
+    this.canvas.nodeEdit.sharpenSelected();
+  }
+
+  /** Удалить выбранные точки. */
+  public deleteSelectedNodes(): void {
+    this.canvas.nodeEdit.deleteSelected();
+  }
+
+  /** Расставить выбранные точки на равном расстоянии. */
+  public distributeSelectedNodesEvenly(): void {
+    this.canvas.nodeEdit.distributeEvenly();
+  }
+
+  /** Сдвинуть выбранные точки (для стрелок в приложении). */
+  public nudgeSelectedNodes(dx: number, dy: number): void {
+    this.canvas.nodeEdit.nudge(dx, dy);
+  }
+
+  public selectAllNodes(): void {
+    this.canvas.nodeEdit.selectAll();
+  }
+  public clearNodeSelection(): void {
+    this.canvas.nodeEdit.clearSelection();
+  }
+  public invertNodeSelection(): void {
+    this.canvas.nodeEdit.invertSelection();
+  }
+  public getSelectedNodeCount(): number {
+    return this.canvas.nodeEdit.getSelectedCount();
+  }
+
+  public undoNodeEdit(): void {
+    this.canvas.nodeEdit.undo();
+  }
+  public redoNodeEdit(): void {
+    this.canvas.nodeEdit.redo();
+  }
+
+  /** Получить путь (d) выбранного элемента; для polyline/polygon — points. */
+  public getElementPath(id: string): string | null {
+    const el = this.canvas.shapeManager.getById(id);
+    if (!el) return null;
+    const props = (
+      el as unknown as { getRenderGeometry: () => Record<string, unknown> }
+    ).getRenderGeometry();
+    return (props.d as string) ?? (props.points as string) ?? null;
+  }
+
+  /** Задать новый путь (d) элементу-пути. */
+  public setElementPath(id: string, d: string): void {
+    const el = this.canvas.shapeManager.getById(id);
+    if (el && el instanceof PathElementCtor) {
+      (el as PathElement).d = d;
+    }
+  }
+
+  // ── Редактирование пути (совместимость) ──
+
+  /** Текущий редактируемый PathElement (совместимость). */
   public get editingPath(): PathElement | null {
-    return this._editingPath;
+    const ids = this.canvas.nodeEdit.session.getTargetIds();
+    for (const id of ids) {
+      const el = this.canvas.shapeManager.getById(id);
+      if (el instanceof PathElementCtor) return el as PathElement;
+    }
+    return null;
   }
 
   public set editingPath(path: PathElement | null) {
-    if (this._editingPath && this._editingPath !== path) {
-      this._editingPath.isNodeEditing = false;
-      if (this._editingPathUnsub) {
-        this._editingPathUnsub();
-        this._editingPathUnsub = null;
-      }
-    }
-    this._editingPath = path;
-    this.canvas.creationHandler.editingPathElement = path;
-    if (path) {
-      path.isNodeEditing = true;
-      this._editingPathUnsub = path.subscribe('geometry.commands', () => {
-        this.canvas.pathNodeOverlay.updatePathNodes(path);
-      });
-      this.canvas.pathNodeOverlay.renderPathNodes(path);
-    } else {
-      this.canvas.selectionManager.clear();
-    }
+    if (path) this.canvas.nodeEdit.enter([path]);
+    else this.canvas.nodeEdit.exit();
   }
 
   /** Добавить фигуру на холст */
@@ -1182,13 +1270,25 @@ export class ExternalApi {
     const ft = this.ensureFlexTree(id);
     if (!ft) return;
     if (params.step !== undefined) {
-      ft.step = clamp(params.step, FLEX_VALIDATION.step.min, FLEX_VALIDATION.step.max);
+      ft.step = clamp(
+        params.step,
+        FLEX_VALIDATION.step.min,
+        FLEX_VALIDATION.step.max,
+      );
     }
     if (params.link !== undefined) {
-      ft.link = clamp(params.link, FLEX_VALIDATION.link.min, FLEX_VALIDATION.link.max);
+      ft.link = clamp(
+        params.link,
+        FLEX_VALIDATION.link.min,
+        FLEX_VALIDATION.link.max,
+      );
     }
     if (params.dash !== undefined) {
-      ft.dash = clamp(params.dash, FLEX_VALIDATION.dash.min, FLEX_VALIDATION.dash.max);
+      ft.dash = clamp(
+        params.dash,
+        FLEX_VALIDATION.dash.min,
+        FLEX_VALIDATION.dash.max,
+      );
     }
     if (params.amplitude !== undefined) {
       const maxA = ft.step / 2 - 0.5;

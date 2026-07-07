@@ -51,6 +51,7 @@ export interface SelectionHandlerOptions {
   camera: import('@/canvas/Camera').Camera;
   selectionManager: import('@/canvas/overlays/selection/SelectionManager').SelectionManager;
   pathNodeOverlay: any;
+  nodeEdit: import('@/canvas/overlays/nodeedit/NodeEditCoordinator').NodeEditCoordinator;
   transformHandler: import('@/canvas/overlays/selection/transform/TransformHandler').TransformHandler;
   groupTransformHandler: import('@/canvas/overlays/selection/transform/GroupTransformHandler').GroupTransformHandler;
   state: import('@/canvas/overlays/selection/SelectionState').SelectionState;

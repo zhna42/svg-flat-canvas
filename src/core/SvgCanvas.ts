@@ -17,6 +17,7 @@ import { HitTestEngine } from '@/core/HitTestEngine';
 import { SelectionHandler } from '@/canvas/overlays/selection/handlers/SelectionHandler';
 import { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
+import { NodeEditCoordinator } from '@/canvas/overlays/nodeedit/NodeEditCoordinator';
 import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
 import { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/canvas/overlays/debug/DebugOverlay';
@@ -79,6 +80,7 @@ export class SvgCanvas implements ICanvasContext {
 
   selectionManager!: SelectionManager;
   pathNodeOverlay!: PathNodeOverlay;
+  nodeEdit!: NodeEditCoordinator;
   debugOverlay!: DebugOverlay;
   preloaderOverlay!: PreloaderOverlay;
   gridOverlay!: GridOverlay;
@@ -242,6 +244,49 @@ export class SvgCanvas implements ICanvasContext {
       height: this.artboard.heightPx,
     }));
     this.view.cameraGroup.appendChild(this.gridOverlay.getElement());
+
+    this.nodeEdit = new NodeEditCoordinator({
+      camera: this.camera as any,
+      getElement: (id) => this.shapeManager.getById(id),
+      getAllElements: () => this.shapeManager.getAll(),
+      convertToPath: (id) => this._convertToPath(id),
+      onEnter: (ids) => this.events.emit('NODE_EDIT_ENTERED', { ids }),
+      onExit: () => this.events.emit('NODE_EDIT_EXITED', {}),
+      onSelectionChange: (count) =>
+        this.events.emit('NODE_SELECTION_CHANGED', { count }),
+      hideSelectionOverlay: () => this.selectionManager.clear(),
+      restoreSelectionOverlay: () =>
+        this.selectionManager.setElementSelection(
+          this.selectionState.selected.map((e) => e.id),
+          (id) => this.shapeManager.getById(id),
+        ),
+    });
+    this.view.cameraGroup.appendChild(this.nodeEdit.renderer.getElement());
+  }
+
+  private _convertToPath(id: string): PathElement | null {
+    const el = this.shapeManager.getById(id);
+    if (!el) return null;
+    if (el instanceof PathElement) return el;
+
+    const path = new PathElement(el.id);
+    path.style.fill = el.style.fill;
+    path.style.stroke = el.style.stroke;
+    path.style.strokeWidth = el.style.strokeWidth;
+    path.style.opacity = el.style.opacity;
+    path.style.visible = el.style.visible;
+    path.groupId = el.groupId;
+    path.name = el.name;
+    path.setVisible(el.visible);
+    path.lock = el.lock;
+    path.isEditingNodes = el.isEditingNodes;
+    path.transform.matrix = new DOMMatrix(el.transform.matrix.toString());
+
+    this.view.remove(el.id);
+    this.hitTestEngine.remove(el.id);
+    this.shapeManager.remove(el.id);
+    this.elementManager.addShape(path);
+    return path;
   }
 
   private _initManagers(options?: SvgCanvasOptions): void {
@@ -314,6 +359,7 @@ export class SvgCanvas implements ICanvasContext {
       camera: this.camera as any,
       selectionManager: this.selectionManager,
       pathNodeOverlay: this.pathNodeOverlay,
+      nodeEdit: this.nodeEdit,
       transformHandler: this.transformHandler,
       groupTransformHandler: this.groupTransformHandler,
       state: this.selectionState,

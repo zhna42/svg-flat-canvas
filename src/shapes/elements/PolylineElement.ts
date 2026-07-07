@@ -1,10 +1,15 @@
 import { AbstractGraphicElement } from './AbstractGraphicElement';
-import type { Point, BoundingBox } from '@/types';
+import type { Point, BoundingBox, EditNodeModel, INodeEditable } from '@/types';
 import { PolylineHitArea } from '../modules/HitArea';
 import { flattenPointsTransform } from '@/math/geometry-utils';
+import { nextNodeId } from '@/shapes/path/node-model-utils';
 
-export class PolylineElement extends AbstractGraphicElement {
+export class PolylineElement
+  extends AbstractGraphicElement
+  implements INodeEditable
+{
   _ha = new PolylineHitArea();
+  public readonly supportsCurves = false;
 
   public points = '';
 
@@ -92,5 +97,35 @@ export class PolylineElement extends AbstractGraphicElement {
 
   public toSegmentPolygons(): Point[][] {
     return [this.parsePoints(this.points)];
+  }
+
+  public toEditModel(): EditNodeModel {
+    const m = this.transform.matrix;
+    const nodes = this.parsePoints(this.points).map((p) => {
+      const tp = m.transformPoint(new DOMPoint(p.x, p.y));
+      return {
+        id: nextNodeId(),
+        anchor: { x: tp.x, y: tp.y },
+        type: 'corner' as const,
+      };
+    });
+    return {
+      elementId: this.id,
+      elementType: this.type,
+      contours: [{ nodes, closed: false }],
+    };
+  }
+
+  public applyEditModel(model: EditNodeModel): void {
+    const inv = this.transform.matrix.inverse();
+    const parts: string[] = [];
+    for (const c of model.contours) {
+      for (const n of c.nodes) {
+        const tp = inv.transformPoint(new DOMPoint(n.anchor.x, n.anchor.y));
+        parts.push(`${tp.x},${tp.y}`);
+      }
+    }
+    this.points = parts.join(' ');
+    this.rebuildHitArea();
   }
 }

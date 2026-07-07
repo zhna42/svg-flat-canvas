@@ -34,6 +34,7 @@ export interface ICanvasContext {
   readonly api: ExternalApi;
   readonly selectionManager: SelectionManager;
   readonly pathNodeOverlay: PathNodeOverlay;
+  readonly nodeEdit: import('@/canvas/overlays/nodeedit/NodeEditCoordinator').NodeEditCoordinator;
   readonly transformHandler: TransformHandler;
   readonly groupTransformHandler: GroupTransformHandler;
   readonly gridOverlay: GridOverlay;

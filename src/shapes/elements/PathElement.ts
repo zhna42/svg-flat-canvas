@@ -1,5 +1,12 @@
 import { AbstractGraphicElement } from './AbstractGraphicElement';
-import type { Point, BoundingBox, PathCommand, NodeEditPoint } from '@/types';
+import type {
+  Point,
+  BoundingBox,
+  PathCommand,
+  NodeEditPoint,
+  EditNodeModel,
+  INodeEditable,
+} from '@/types';
 import { PathHitArea } from '../modules/HitArea';
 import {
   commandsToString,
@@ -7,9 +14,18 @@ import {
   parseD,
   transformCommands,
 } from '@/math/path-utils';
+import {
+  commandsToContours,
+  contoursToCommands,
+  mapContours,
+} from '@/shapes/path/node-model-utils';
 
-export class PathElement extends AbstractGraphicElement {
+export class PathElement
+  extends AbstractGraphicElement
+  implements INodeEditable
+{
   _ha = new PathHitArea();
+  public readonly supportsCurves = true;
 
   public geometry = {
     commands: [] as PathCommand[],
@@ -466,6 +482,30 @@ export class PathElement extends AbstractGraphicElement {
       }
     }
     return result;
+  }
+
+  public toEditModel(): EditNodeModel {
+    const contours = commandsToContours(this.geometry.commands);
+    const m = this.transform.matrix;
+    mapContours(contours, (p) => {
+      const tp = m.transformPoint(new DOMPoint(p.x, p.y));
+      return { x: tp.x, y: tp.y };
+    });
+    return { elementId: this.id, elementType: this.type, contours };
+  }
+
+  public applyEditModel(model: EditNodeModel): void {
+    const inv = this.transform.matrix.inverse();
+    const contours = model.contours.map((c) => ({
+      closed: c.closed,
+      nodes: c.nodes.map((n) => ({ ...n })),
+    }));
+    mapContours(contours, (p) => {
+      const tp = inv.transformPoint(new DOMPoint(p.x, p.y));
+      return { x: tp.x, y: tp.y };
+    });
+    this.geometry.commands = contoursToCommands(contours);
+    this.rebuildHitArea();
   }
 
   public toOutlinePath(): PathElement {

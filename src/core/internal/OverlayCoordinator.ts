@@ -12,7 +12,7 @@ export class OverlayCoordinator {
 
   updateOverlay(): void {
     const selected = this.ctx.selectionState.selected;
-    if (selected.length > 0) {
+    if (selected.length > 0 && !this.ctx.nodeEdit.isActive) {
       this.ctx.selectionManager.syncElementPositions((id) =>
         this.ctx.shapeManager.getAll().find((e) => e.id === id),
       );
@@ -46,13 +46,13 @@ export class OverlayCoordinator {
   private wireCameraSubscription(): void {
     this.ctx.camera.subscribe(['x', 'y', 'zoom'], () => {
       const selected = this.ctx.selectionState.selected;
-      if (selected.length > 0) {
+      if (selected.length > 0 && !this.ctx.nodeEdit.isActive) {
         this.ctx.selectionManager.syncElementPositions((id) =>
           this.ctx.shapeManager.getAll().find((e) => e.id === id),
         );
       }
-      if (this.ctx.api.editingPath) {
-        this.ctx.pathNodeOverlay.updatePathNodes(this.ctx.api.editingPath);
+      if (this.ctx.nodeEdit.isActive) {
+        this.ctx.nodeEdit.onZoomChange();
       }
       if (this.ctx.groupManager.selectedGroupIds.size > 0) {
         this.syncGroups();
