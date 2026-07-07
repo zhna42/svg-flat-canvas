@@ -146,69 +146,41 @@ function generateCrossCuts(
   dash: number,
 ): CutSegment[] {
   const segments: CutSegment[] = [];
-  const period = dash + link;
-  if (period <= 0 || step <= 0) return segments;
+  const period = dash + link; // L + N
+  if (step <= 0 || dash <= 0 || link <= 0) return segments;
 
   const { x, y, width, height } = bbox;
   const MIN_LEN = 1.0;
-  const gap = Math.max(link / 2, 0.75);
+  const halfSpan = step / 4; // горизонталь шириной X/2 → по X/4 в каждую сторону от оси
 
-  // --- 1. Вертикальные линии реза (непрерывные) ---
-  const verticalCols: Array<{ vx: number; ranges: Array<[number, number]> }> = [];
   const cols = Math.floor(width / step);
   for (let i = 0; i <= cols; i++) {
     const vx = x + i * step;
     const yOffset = i % 2 !== 0 ? period / 2 : 0;
-    const ranges: Array<[number, number]> = [];
 
-    let currY = y + yOffset;
-    while (currY < y + height) {
-      let endY = currY + dash;
+    // старт на период раньше — ловим ведущий частичный штрих у верхней границы
+    let base = y + yOffset - period;
+    while (base < y + height) {
+      // вертикальный штрих [base .. base + dash]
+      const segStart = Math.max(base, y);
+      let endY = base + dash;
       if (endY > y + height) endY = y + height;
-      if (endY - currY > MIN_LEN) {
-        segments.push({ x1: vx, y1: currY, x2: vx, y2: endY, axis: 'V' });
-        ranges.push([currY, endY]);
+      if (endY - segStart > MIN_LEN) {
+        segments.push({ x1: vx, y1: segStart, x2: vx, y2: endY, axis: 'V' });
       }
-      currY = endY + link;
-    }
-    verticalCols.push({ vx, ranges });
-  }
 
-  // --- 2. Горизонтальные линии реза (обрезаются вокруг вертикальных) ---
-  const rows = Math.floor(height / step);
-  for (let j = 0; j <= rows; j++) {
-    const cy = y + j * step + step / 2;
-    if (cy >= y + height) break;
-    const xOffset = j % 2 !== 0 ? period / 2 : 0;
-
-    let currX = x + xOffset;
-    while (currX < x + width) {
-      let endX = currX + dash;
-      if (endX > x + width) endX = x + width;
-
-      if (endX - currX > MIN_LEN) {
-        // собрать интервалы блокировки от вертикальных пропилов на высоте cy
-        const blocked: Array<[number, number]> = [];
-        for (const col of verticalCols) {
-          if (col.vx < currX - gap || col.vx > endX + gap) continue;
-          const crosses = col.ranges.some(([ry1, ry2]) => cy >= ry1 && cy <= ry2);
-          if (crosses) blocked.push([col.vx - gap, col.vx + gap]);
-        }
-        blocked.sort((a, b) => a[0] - b[0]);
-
-        // вырезать заблокированные участки, оставить остальные
-        let cursor = currX;
-        for (const [bStart, bEnd] of blocked) {
-          if (bStart > cursor && bStart - cursor > MIN_LEN) {
-            segments.push({ x1: cursor, y1: cy, x2: bStart, y2: cy, axis: 'H' });
-          }
-          if (bEnd > cursor) cursor = bEnd;
-        }
-        if (endX - cursor > MIN_LEN) {
-          segments.push({ x1: cursor, y1: cy, x2: endX, y2: cy, axis: 'H' });
+      // горизонтальный рез по центру зазора N, центрирован на оси колонки,
+      // ширина X/2 (не пересекает вертикали, лежит в отступе)
+      const gapCenter = base + dash + link / 2;
+      if (gapCenter > y && gapCenter < y + height) {
+        const hx1 = Math.max(vx - halfSpan, x);
+        const hx2 = Math.min(vx + halfSpan, x + width);
+        if (hx2 - hx1 > MIN_LEN) {
+          segments.push({ x1: hx1, y1: gapCenter, x2: hx2, y2: gapCenter, axis: 'H' });
         }
       }
-      currX = endX + link;
+
+      base += period;
     }
   }
 
