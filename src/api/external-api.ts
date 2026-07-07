@@ -225,22 +225,47 @@ export class ExternalApi {
     );
   }
 
-  /** Изменить размер элемента по ID */
-  public resizeElement(id: string, _width: number, _height: number): void {
+  /** Изменить размер элемента по ID (ширина и высота в мм). */
+  public resizeElement(id: string, widthMm: number, heightMm: number): void {
     const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;
     const bbox = el.getTransformedBBox();
-    if (bbox.width > 0) {
-      el.transform.scale({
-        x: 0,
-        y: 0,
-        originX: bbox.x,
-        originY: bbox.y,
-        width: bbox.width,
-        height: bbox.height,
-      });
-      el.rebuildHitArea();
-    }
+    if (bbox.width <= 0 || bbox.height <= 0) return;
+    const wPx = widthMm * MM_TO_PX;
+    const hPx = heightMm * MM_TO_PX;
+    const fx = wPx / bbox.width;
+    const fy = hPx / bbox.height;
+    const ox = bbox.x;
+    const oy = bbox.y;
+    const scaled = new DOMMatrix()
+      .translateSelf(ox, oy)
+      .scaleSelf(fx, fy)
+      .translateSelf(-ox, -oy)
+      .multiply(el.transform.matrix);
+    el.transform.matrix = scaled;
+    el.rebuildHitArea();
+    void this._emitSize(el.id);
+  }
+
+  /** Эмитировать ELEMENT_SIZE с размерами в мм по bounding box. */
+  private _emitSize(id: string): void {
+    const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
+    if (!el) return;
+    this._refreshSelectionOverlay();
+    const bbox = el.getTransformedBBox();
+    this.canvas.events.emit('ELEMENT_SIZE', {
+      id,
+      widthMm: bbox.width / MM_TO_PX,
+      heightMm: bbox.height / MM_TO_PX,
+      angleDeg: el.transform.angle,
+    });
+  }
+
+  /** Пересчитать рамку выделения после программной трансформации. */
+  private _refreshSelectionOverlay(): void {
+    this.canvas.selectionManager.syncElementPositions((id) =>
+      this.canvas.shapeManager.getAll().find((e) => e.id === id),
+    );
   }
 
   /** Повернуть элемент по ID */
@@ -249,6 +274,7 @@ export class ExternalApi {
     if (!el) return;
     el.transform.rotate(angle, el.getLocalCenter());
     el.rebuildHitArea();
+    this._emitSize(id);
   }
 
   /** Трансформировать элемент по ID */

@@ -39,6 +39,7 @@ import { ElementManager } from './internal/ElementManager';
 import { ColorIndexer } from './internal/ColorIndexer';
 import type { ICanvasContext } from './internal/types';
 import { PathElement } from '@/shapes/elements/PathElement';
+import { MM_TO_PX } from '@/constants';
 import type { SvgCanvasOptions } from '@/types';
 
 function createSvgElement(options?: SvgCanvasOptions): SVGSVGElement {
@@ -215,6 +216,22 @@ export class SvgCanvas implements ICanvasContext {
         selected.map((e) => e.id),
         (id) => this.shapeManager.getById(id),
       );
+      if (selected.length === 1) {
+        const bbox = selected[0].getTransformedBBox();
+        this.events.emit('ELEMENT_SIZE', {
+          id: selected[0].id,
+          widthMm: bbox.width / MM_TO_PX,
+          heightMm: bbox.height / MM_TO_PX,
+          angleDeg: selected[0].transform.angle,
+        });
+      } else {
+        this.events.emit('ELEMENT_SIZE', {
+          id: null,
+          widthMm: 0,
+          heightMm: 0,
+          angleDeg: 0,
+        });
+      }
     });
 
     this.selectionState.setOnModeChange(() => {

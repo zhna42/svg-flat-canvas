@@ -1,230 +1,432 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SVG Canvas — Example</title>
-  <link rel="stylesheet" href="./style.css" />
-</head>
-<body>
-  <!-- Top Toolbar -->
-  <div id="top-toolbar" class="toolbar top-toolbar">
-    <div class="toolbar-section">
-      <span class="section-label">Snap</span>
-      <button id="btn-snap-corners" data-toggle title="Snap to Corners">📐 Corners</button>
-      <button id="btn-snap-planes" data-toggle title="Snap to Planes">📏 Planes</button>
-      <button id="btn-snap-artboard" data-toggle title="Snap to Artboard">🖼️ Artboard</button>
-      <button id="btn-snap-guidelines" data-toggle title="Snap to Guidelines">📌 Guidelines</button>
-      <button id="btn-snap-grid" data-toggle title="Snap to Grid">🔲 Grid</button>
-      <button id="btn-snap-elements" data-toggle title="Snap to Element">🧲 Element</button>
-      <button id="btn-avoid-collisions" data-toggle title="Avoid Collisions">🚫 Collide</button>
-      <button id="btn-lock-drag-axis" data-toggle title="Lock Drag Axis">↕️ Axis Lock</button>
-    </div>
-    <div class="toolbar-section">
-      <span class="section-label">Snap Axis</span>
-      <select id="sel-snap-axis" title="Snap Axis">
-        <option value="both">Both</option>
-        <option value="horizontal">H</option>
-        <option value="vertical">V</option>
-      </select>
-    </div>
-    <div class="toolbar-section">
-      <span class="section-label">Transform</span>
-      <button id="btn-transform-resize" title="Resize Mode">↔️ Resize</button>
-      <button id="btn-transform-rotate" title="Rotate Mode">🔄 Rotate</button>
-      <button id="btn-proportional-resize" data-toggle title="Proportional Resize">🔒 Proportional</button>
-      <button id="btn-snap-rotation" data-toggle title="Snap Rotation">🔁 Snap Rot</button>
-      <button id="btn-flex-tree" title="Flex Tree / Гибкое дерево">🔪 Flex</button>
-    </div>
-    <div class="toolbar-section">
-      <span class="section-label">View</span>
-      <button id="btn-pan-mode" data-toggle title="Pan Mode">✋ Pan</button>
-      <button id="btn-toggle-rulers" data-toggle title="Toggle Rulers">📐 Rulers</button>
-      <button id="btn-toggle-grid" data-toggle title="Toggle Grid">🔲 Grid</button>
-      <span class="grid-step-group">
-        <label>Step:</label>
-        <input id="input-grid-step" type="number" value="10" min="1" max="100" step="1" title="Grid Step (mm)" />
-      </span>
-    </div>
-    <div class="toolbar-section">
-      <span class="section-label">Boolean</span>
-      <button id="btn-bool-union" title="Boolean Union">∪ Union</button>
-      <button id="btn-bool-intersect" title="Boolean Intersect">∩ Intersect</button>
-      <button id="btn-bool-diff" title="Boolean Difference">− Diff</button>
-      <button id="btn-bool-exit" title="Exit Boolean Mode" style="display:none">✕ Exit</button>
-    </div>
-    <div class="toolbar-section">
-      <span class="section-label">Debug</span>
-      <button id="btn-debug-hitarea" data-toggle title="Show Hit Areas">🎯 HitArea</button>
-      <button id="btn-preloader" title="Show/Hide Preloader">⏳ Preloader</button>
-    </div>
-    <div class="toolbar-section">
-      <span class="section-label">Измерение</span>
-      <button id="btn-measure-ruler" title="Линейка (мм)">📏 Линейка</button>
-      <button id="btn-measure-angle" title="Транспортир (3 точки)">📐 Угол</button>
-      <button id="btn-measure-angle-obj" title="Угол между объектами">📐 Угол·об.</button>
-      <button id="btn-measure-clear" title="Очистить замеры">🧹 Очистить</button>
-      <button id="btn-measure-exit" title="Выключить" style="display:none">✕ Выкл</button>
-    </div>
-  </div>
-
-  <div id="main-layout">
-    <!-- Left Toolbar -->
-    <div id="left-toolbar" class="toolbar left-toolbar">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SVG Canvas — Example</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Top Toolbar -->
+    <div id="top-toolbar" class="toolbar top-toolbar">
       <div class="toolbar-section">
-        <span class="section-label">Tools</span>
-        <button id="btn-sel-element" class="tool-mode active" title="Select Element (V)">🖱️ Elem</button>
-        <button id="btn-sel-group" class="tool-mode" title="Select Group (G)">📦 Group</button>
-        <div class="toolbar-subsection">
-          <span class="sub-label">Gesture</span>
-          <button id="btn-gesture-click" class="gesture-btn active" title="Click to select">👆 Click</button>
-          <button id="btn-gesture-rect" class="gesture-btn" title="Rectangle selection">⬜ Rect</button>
-          <button id="btn-gesture-lasso" class="gesture-btn" title="Lasso selection">✏️ Lasso</button>
-        </div>
-        <button id="btn-creation-rect" class="creation-tool" data-type="rect" title="Rectangle">⬜ Rect</button>
-        <button id="btn-creation-circle" class="creation-tool" data-type="circle" title="Circle">⚫ Circle</button>
-        <button id="btn-creation-ellipse" class="creation-tool" data-type="ellipse" title="Ellipse">🔵 Ellipse</button>
-        <button id="btn-creation-line" class="creation-tool" data-type="line" title="Line">📏 Line</button>
-        <button id="btn-creation-path" class="creation-tool" data-type="path" title="Path">✏️ Path</button>
-        <button id="btn-creation-polygon" class="creation-tool" data-type="polygon" title="Polygon">⬠ Polygon</button>
-        <button id="btn-creation-polyline" class="creation-tool" data-type="polyline" title="Polyline">📐 Pline</button>
-        <button id="btn-creation-cancel" class="creation-tool cancel" title="Cancel Creation" style="display:none">🚫 Cancel</button>
+        <span class="section-label">Snap</span>
+        <button id="btn-snap-corners" data-toggle title="Snap to Corners">
+          📐 Corners
+        </button>
+        <button id="btn-snap-planes" data-toggle title="Snap to Planes">
+          📏 Planes
+        </button>
+        <button id="btn-snap-artboard" data-toggle title="Snap to Artboard">
+          🖼️ Artboard
+        </button>
+        <button id="btn-snap-guidelines" data-toggle title="Snap to Guidelines">
+          📌 Guidelines
+        </button>
+        <button id="btn-snap-grid" data-toggle title="Snap to Grid">
+          🔲 Grid
+        </button>
+        <button id="btn-snap-elements" data-toggle title="Snap to Element">
+          🧲 Element
+        </button>
+        <button id="btn-avoid-collisions" data-toggle title="Avoid Collisions">
+          🚫 Collide
+        </button>
+        <button id="btn-lock-drag-axis" data-toggle title="Lock Drag Axis">
+          ↕️ Axis Lock
+        </button>
       </div>
       <div class="toolbar-section">
-        <span class="section-label">Actions</span>
-        <button id="btn-undo" title="Undo (Ctrl+Z)">↩️ Undo</button>
-        <button id="btn-redo" title="Redo (Ctrl+Shift+Z)">↪️ Redo</button>
-        <button id="btn-delete" title="Delete Selected">🗑️ Delete</button>
-        <button id="btn-outline" title="Outline Element">✂️ Outline</button>
+        <span class="section-label">Snap Axis</span>
+        <select id="sel-snap-axis" title="Snap Axis">
+          <option value="both">Both</option>
+          <option value="horizontal">H</option>
+          <option value="vertical">V</option>
+        </select>
       </div>
       <div class="toolbar-section">
-        <span class="section-label">Selection</span>
-        <button id="btn-sel-all" title="Select All">✅ All</button>
-        <button id="btn-sel-none" title="Clear Selection">❎ None</button>
+        <span class="section-label">Transform</span>
+        <button id="btn-transform-resize" title="Resize Mode">↔️ Resize</button>
+        <button id="btn-transform-rotate" title="Rotate Mode">🔄 Rotate</button>
+        <button
+          id="btn-proportional-resize"
+          data-toggle
+          title="Proportional Resize"
+        >
+          🔒 Proportional
+        </button>
+        <button id="btn-snap-rotation" data-toggle title="Snap Rotation">
+          🔁 Snap Rot
+        </button>
+        <button id="btn-flex-tree" title="Flex Tree / Гибкое дерево">
+          🔪 Flex
+        </button>
       </div>
       <div class="toolbar-section">
-        <span class="section-label">Style</span>
-        <div class="style-row">
-          <label>Fill</label>
-          <input id="input-fill" type="color" value="#3498db" />
-        </div>
-        <div class="style-row">
-          <label>Stroke</label>
-          <input id="input-stroke" type="color" value="#2c3e50" />
-        </div>
-        <div class="style-row">
-          <label>Width</label>
-          <input id="input-stroke-width" type="number" value="2" min="0" max="20" step="0.5" />
-        </div>
-        <button id="btn-apply-style">🎨 Apply Style</button>
+        <span class="section-label">View</span>
+        <button id="btn-pan-mode" data-toggle title="Pan Mode">✋ Pan</button>
+        <button id="btn-toggle-rulers" data-toggle title="Toggle Rulers">
+          📐 Rulers
+        </button>
+        <button id="btn-toggle-grid" data-toggle title="Toggle Grid">
+          🔲 Grid
+        </button>
+        <span class="grid-step-group">
+          <label>Step:</label>
+          <input
+            id="input-grid-step"
+            type="number"
+            value="10"
+            min="1"
+            max="100"
+            step="1"
+            title="Grid Step (mm)"
+          />
+        </span>
       </div>
-    </div>
-
-    <!-- Canvas Area -->
-    <div id="canvas-container"></div>
-
-    <!-- Right Panel -->
-    <div id="right-panel">
-      <div id="groups-panel" class="right-block">
-        <h3>📦 Groups</h3>
-        <div class="group-actions">
-          <button id="btn-group-create">+ Create</button>
-          <button id="btn-group-delete">✕ Delete</button>
-          <input id="input-group-name" type="text" placeholder="Group name" value="New Group" />
-        </div>
-        <div class="group-actions">
-          <button id="btn-group-add-elem">+ Add Sel</button>
-          <button id="btn-group-rem-elem">− Rem Sel</button>
-        </div>
-        <ul id="group-list"></ul>
+      <div class="toolbar-section">
+        <span class="section-label">Boolean</span>
+        <button id="btn-bool-union" title="Boolean Union">∪ Union</button>
+        <button id="btn-bool-intersect" title="Boolean Intersect">
+          ∩ Intersect
+        </button>
+        <button id="btn-bool-diff" title="Boolean Difference">− Diff</button>
+        <button
+          id="btn-bool-exit"
+          title="Exit Boolean Mode"
+          style="display: none"
+        >
+          ✕ Exit
+        </button>
       </div>
-      <div id="event-log-panel" class="right-block">
-        <h3>📋 Events</h3>
-        <div class="event-controls">
-          <button id="btn-log-clear">Clear</button>
-          <label><input id="chk-log-pause" type="checkbox" /> Pause</label>
-        </div>
-        <div id="event-log"></div>
+      <div class="toolbar-section">
+        <span class="section-label">Размер (мм)</span>
+        <label
+          >W <input id="inp-size-w" type="number" step="0.1" min="0.1" disabled
+        /></label>
+        <label
+          >H <input id="inp-size-h" type="number" step="0.1" min="0.1" disabled
+        /></label>
+      </div>
+      <div class="toolbar-section">
+        <span class="section-label">Debug</span>
+        <button id="btn-debug-hitarea" data-toggle title="Show Hit Areas">
+          🎯 HitArea
+        </button>
+        <button id="btn-preloader" title="Show/Hide Preloader">
+          ⏳ Preloader
+        </button>
+      </div>
+      <div class="toolbar-section">
+        <span class="section-label">Измерение</span>
+        <button id="btn-measure-ruler" title="Линейка (мм)">📏 Линейка</button>
+        <button id="btn-measure-angle" title="Транспортир (3 точки)">
+          📐 Угол
+        </button>
+        <button id="btn-measure-angle-obj" title="Угол между объектами">
+          📐 Угол·об.
+        </button>
+        <button id="btn-measure-clear" title="Очистить замеры">
+          🧹 Очистить
+        </button>
+        <button id="btn-measure-exit" title="Выключить" style="display: none">
+          ✕ Выкл
+        </button>
       </div>
     </div>
 
-    <!-- Flex Tree Panel -->
-    <div id="flex-tree-panel" class="flex-tree-panel" style="display:none">
-      <div class="flex-tree-header">
-        <h3>🔪 Гибкое дерево</h3>
-        <button id="btn-flex-close">✕</button>
+    <div id="main-layout">
+      <!-- Left Toolbar -->
+      <div id="left-toolbar" class="toolbar left-toolbar">
+        <div class="toolbar-section">
+          <span class="section-label">Tools</span>
+          <button
+            id="btn-sel-element"
+            class="tool-mode active"
+            title="Select Element (V)"
+          >
+            🖱️ Elem
+          </button>
+          <button id="btn-sel-group" class="tool-mode" title="Select Group (G)">
+            📦 Group
+          </button>
+          <div class="toolbar-subsection">
+            <span class="sub-label">Gesture</span>
+            <button
+              id="btn-gesture-click"
+              class="gesture-btn active"
+              title="Click to select"
+            >
+              👆 Click
+            </button>
+            <button
+              id="btn-gesture-rect"
+              class="gesture-btn"
+              title="Rectangle selection"
+            >
+              ⬜ Rect
+            </button>
+            <button
+              id="btn-gesture-lasso"
+              class="gesture-btn"
+              title="Lasso selection"
+            >
+              ✏️ Lasso
+            </button>
+          </div>
+          <button
+            id="btn-creation-rect"
+            class="creation-tool"
+            data-type="rect"
+            title="Rectangle"
+          >
+            ⬜ Rect
+          </button>
+          <button
+            id="btn-creation-circle"
+            class="creation-tool"
+            data-type="circle"
+            title="Circle"
+          >
+            ⚫ Circle
+          </button>
+          <button
+            id="btn-creation-ellipse"
+            class="creation-tool"
+            data-type="ellipse"
+            title="Ellipse"
+          >
+            🔵 Ellipse
+          </button>
+          <button
+            id="btn-creation-line"
+            class="creation-tool"
+            data-type="line"
+            title="Line"
+          >
+            📏 Line
+          </button>
+          <button
+            id="btn-creation-path"
+            class="creation-tool"
+            data-type="path"
+            title="Path"
+          >
+            ✏️ Path
+          </button>
+          <button
+            id="btn-creation-polygon"
+            class="creation-tool"
+            data-type="polygon"
+            title="Polygon"
+          >
+            ⬠ Polygon
+          </button>
+          <button
+            id="btn-creation-polyline"
+            class="creation-tool"
+            data-type="polyline"
+            title="Polyline"
+          >
+            📐 Pline
+          </button>
+          <button
+            id="btn-creation-cancel"
+            class="creation-tool cancel"
+            title="Cancel Creation"
+            style="display: none"
+          >
+            🚫 Cancel
+          </button>
+        </div>
+        <div class="toolbar-section">
+          <span class="section-label">Actions</span>
+          <button id="btn-undo" title="Undo (Ctrl+Z)">↩️ Undo</button>
+          <button id="btn-redo" title="Redo (Ctrl+Shift+Z)">↪️ Redo</button>
+          <button id="btn-delete" title="Delete Selected">🗑️ Delete</button>
+          <button id="btn-outline" title="Outline Element">✂️ Outline</button>
+        </div>
+        <div class="toolbar-section">
+          <span class="section-label">Selection</span>
+          <button id="btn-sel-all" title="Select All">✅ All</button>
+          <button id="btn-sel-none" title="Clear Selection">❎ None</button>
+        </div>
+        <div class="toolbar-section">
+          <span class="section-label">Style</span>
+          <div class="style-row">
+            <label>Fill</label>
+            <input id="input-fill" type="color" value="#3498db" />
+          </div>
+          <div class="style-row">
+            <label>Stroke</label>
+            <input id="input-stroke" type="color" value="#2c3e50" />
+          </div>
+          <div class="style-row">
+            <label>Width</label>
+            <input
+              id="input-stroke-width"
+              type="number"
+              value="2"
+              min="0"
+              max="20"
+              step="0.5"
+            />
+          </div>
+          <button id="btn-apply-style">🎨 Apply Style</button>
+        </div>
+      </div>
+
+      <!-- Canvas Area -->
+      <div id="canvas-container"></div>
+
+      <!-- Right Panel -->
+      <div id="right-panel">
+        <div id="groups-panel" class="right-block">
+          <h3>📦 Groups</h3>
+          <div class="group-actions">
+            <button id="btn-group-create">+ Create</button>
+            <button id="btn-group-delete">✕ Delete</button>
+            <input
+              id="input-group-name"
+              type="text"
+              placeholder="Group name"
+              value="New Group"
+            />
+          </div>
+          <div class="group-actions">
+            <button id="btn-group-add-elem">+ Add Sel</button>
+            <button id="btn-group-rem-elem">− Rem Sel</button>
+          </div>
+          <ul id="group-list"></ul>
+        </div>
+        <div id="event-log-panel" class="right-block">
+          <h3>📋 Events</h3>
+          <div class="event-controls">
+            <button id="btn-log-clear">Clear</button>
+            <label><input id="chk-log-pause" type="checkbox" /> Pause</label>
+          </div>
+          <div id="event-log"></div>
+        </div>
+      </div>
+
+      <!-- Flex Tree Panel -->
+      <div id="flex-tree-panel" class="flex-tree-panel" style="display: none">
+        <div class="flex-tree-header">
+          <h3>🔪 Гибкое дерево</h3>
+          <button id="btn-flex-close">✕</button>
+        </div>
+        <div class="flex-tree-section">
+          <label>Algorithm</label>
+          <div class="flex-tree-btns">
+            <button id="btn-flex-linear" class="flex-mode-btn active">
+              Linear
+            </button>
+            <button id="btn-flex-wave" class="flex-mode-btn">Wave</button>
+            <button id="btn-flex-cross" class="flex-mode-btn">Cross</button>
+          </div>
+        </div>
+        <div class="flex-tree-section">
+          <label>Preset</label>
+          <div class="flex-tree-btns">
+            <button id="btn-preset-thin" class="preset-btn">Thin</button>
+            <button id="btn-preset-standard" class="preset-btn preset-active">
+              Std
+            </button>
+            <button id="btn-preset-thick" class="preset-btn">Thick</button>
+          </div>
+        </div>
+        <div class="flex-tree-fields">
+          <label>Step (S) <span class="flex-limits">1.5–10.0 mm</span></label>
+          <input
+            id="inp-flex-step"
+            type="number"
+            value="3.5"
+            step="0.1"
+            min="1.5"
+            max="10"
+          />
+          <label>Link (L) <span class="flex-limits">1.5–6.0 mm</span></label>
+          <input
+            id="inp-flex-link"
+            type="number"
+            value="3.0"
+            step="0.1"
+            min="1.5"
+            max="6"
+          />
+          <label>Dash (D) <span class="flex-limits">10.0–50.0 mm</span></label>
+          <input
+            id="inp-flex-dash"
+            type="number"
+            value="25.0"
+            step="0.1"
+            min="10"
+            max="50"
+          />
+          <label
+            >Amplitude (A)
+            <span class="flex-limits" id="label-flex-amp"
+              >&lt; S/2 mm</span
+            ></label
+          >
+          <input
+            id="inp-flex-amplitude"
+            type="number"
+            value="1.0"
+            step="0.1"
+            min="0"
+            max="5"
+          />
+        </div>
+        <div class="flex-tree-actions">
+          <button id="btn-flex-apply">Apply</button>
+          <button id="btn-flex-remove">Remove</button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="node-edit-panel"
+      class="flex-tree-panel"
+      style="display: none; top: 60px; right: 16px; width: 360px"
+    >
+      <div class="flex-tree-header" id="node-edit-header" style="cursor: move">
+        <h3>✏️ Узлы</h3>
+        <button id="btn-node-exit">✕</button>
       </div>
       <div class="flex-tree-section">
-        <label>Algorithm</label>
+        <label>Выбор</label>
         <div class="flex-tree-btns">
-          <button id="btn-flex-linear" class="flex-mode-btn active">Linear</button>
-          <button id="btn-flex-wave" class="flex-mode-btn">Wave</button>
-          <button id="btn-flex-cross" class="flex-mode-btn">Cross</button>
+          <button id="btn-node-multi">Мультивыбор: off</button>
+          <button id="btn-node-selall">Все</button>
+          <button id="btn-node-selnone">Снять</button>
+          <button id="btn-node-selinv">Инверт.</button>
+        </div>
+        <div id="node-sel-count" class="flex-limits">Выбрано: 0</div>
+      </div>
+      <div class="flex-tree-section">
+        <label>Тип точки</label>
+        <div class="flex-tree-btns">
+          <button id="btn-node-corner">Острая</button>
+          <button id="btn-node-smooth">Гладкая</button>
+          <button id="btn-node-symmetric">Симметр.</button>
         </div>
       </div>
       <div class="flex-tree-section">
-        <label>Preset</label>
+        <label>Действия</label>
         <div class="flex-tree-btns">
-          <button id="btn-preset-thin" class="preset-btn">Thin</button>
-          <button id="btn-preset-standard" class="preset-btn preset-active">Std</button>
-          <button id="btn-preset-thick" class="preset-btn">Thick</button>
+          <button id="btn-node-smooth-op">Сгладить</button>
+          <button id="btn-node-sharpen-op">Заострить</button>
+          <button id="btn-node-distribute">Распределить</button>
+          <button id="btn-node-delete">Удалить</button>
         </div>
-      </div>
-      <div class="flex-tree-fields">
-        <label>Step (S) <span class="flex-limits">1.5–10.0 mm</span></label>
-        <input id="inp-flex-step" type="number" value="3.5" step="0.1" min="1.5" max="10" />
-        <label>Link (L) <span class="flex-limits">1.5–6.0 mm</span></label>
-        <input id="inp-flex-link" type="number" value="3.0" step="0.1" min="1.5" max="6" />
-        <label>Dash (D) <span class="flex-limits">10.0–50.0 mm</span></label>
-        <input id="inp-flex-dash" type="number" value="25.0" step="0.1" min="10" max="50" />
-        <label>Amplitude (A) <span class="flex-limits" id="label-flex-amp">&lt; S/2 mm</span></label>
-        <input id="inp-flex-amplitude" type="number" value="1.0" step="0.1" min="0" max="5" />
       </div>
       <div class="flex-tree-actions">
-        <button id="btn-flex-apply">Apply</button>
-        <button id="btn-flex-remove">Remove</button>
+        <button id="btn-node-undo">↩️ Undo</button>
+        <button id="btn-node-redo">↪️ Redo</button>
       </div>
     </div>
-  </div>
 
-  <div id="node-edit-panel" class="flex-tree-panel" style="display:none; top:60px; right:16px; width:360px;">
-    <div class="flex-tree-header" id="node-edit-header" style="cursor:move;">
-      <h3>✏️ Узлы</h3>
-      <button id="btn-node-exit">✕</button>
-    </div>
-    <div class="flex-tree-section">
-      <label>Выбор</label>
-      <div class="flex-tree-btns">
-        <button id="btn-node-multi">Мультивыбор: off</button>
-        <button id="btn-node-selall">Все</button>
-        <button id="btn-node-selnone">Снять</button>
-        <button id="btn-node-selinv">Инверт.</button>
-      </div>
-      <div id="node-sel-count" class="flex-limits">Выбрано: 0</div>
-    </div>
-    <div class="flex-tree-section">
-      <label>Тип точки</label>
-      <div class="flex-tree-btns">
-        <button id="btn-node-corner">Острая</button>
-        <button id="btn-node-smooth">Гладкая</button>
-        <button id="btn-node-symmetric">Симметр.</button>
-      </div>
-    </div>
-    <div class="flex-tree-section">
-      <label>Действия</label>
-      <div class="flex-tree-btns">
-        <button id="btn-node-smooth-op">Сгладить</button>
-        <button id="btn-node-sharpen-op">Заострить</button>
-        <button id="btn-node-distribute">Распределить</button>
-        <button id="btn-node-delete">Удалить</button>
-      </div>
-    </div>
-    <div class="flex-tree-actions">
-      <button id="btn-node-undo">↩️ Undo</button>
-      <button id="btn-node-redo">↪️ Redo</button>
-    </div>
-  </div>
-
-  <script type="module" src="./main.ts"></script>
-</body>
+    <script type="module" src="./main.ts"></script>
+  </body>
 </html>

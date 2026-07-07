@@ -27,6 +27,7 @@ function init(): void {
   setupKeyboardShortcuts();
   setupNodeEditToolbar();
   setupMeasureToolbar();
+  setupSizeInputs();
 }
 
 // ─── Demo Data ───────────────────────────────────────────
@@ -555,40 +556,101 @@ function setupMeasureToolbar(): void {
   exitBtn.onclick = () => api.deactivateMeasureTool();
 }
 
-function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
-  let dragging = false;
-  let offsetX = 0;
-  let offsetY = 0;
+// ─── Size Inputs ───────────────────────────────────────────
 
-  handle.addEventListener('mousedown', (e) => {
-    if (e.target instanceof HTMLButtonElement) return;
-    dragging = true;
-    const rect = panel.getBoundingClientRect();
-    offsetX = e.clientX - rect.left;
-    offsetY = e.clientY - rect.top;
-    panel.style.right = 'auto';
-    panel.style.left = `${rect.left}px`;
-    panel.style.top = `${rect.top}px`;
-    e.preventDefault();
+function setupSizeInputs(): void {
+  const inpW = document.getElementById('inp-size-w') as HTMLInputElement;
+  const inpH = document.getElementById('inp-size-h') as HTMLInputElement;
+  const labelW = inpW.parentElement!;
+  const labelH = inpH.parentElement!;
+  let currentId: string | null = null;
+  let currentAngle = 0;
+  let mode: 'resize' | 'rotate' = 'resize';
+
+  const showSize = (): void => {
+    labelW.style.display = '';
+    inpW.type = 'number';
+    inpW.step = '0.1';
+    labelH.style.display = '';
+    inpH.type = 'number';
+    inpH.step = '0.1';
+  };
+  const showAngle = (): void => {
+    labelW.firstChild!.textContent = '∠ ';
+    labelW.style.display = '';
+    inpW.type = 'number';
+    inpW.step = '0.1';
+    labelH.style.display = 'none';
+  };
+
+  api.on('ELEMENT_SIZE', (ev) => {
+    const data = ev.data as {
+      id: string | null;
+      widthMm: number;
+      heightMm: number;
+      angleDeg: number;
+    };
+    if (!data.id) {
+      inpW.disabled = true;
+      inpH.disabled = true;
+      inpW.value = '';
+      inpH.value = '';
+      currentId = null;
+      return;
+    }
+    currentId = data.id;
+    currentAngle = data.angleDeg;
+
+    if (mode === 'rotate') {
+      showAngle();
+      inpW.value = data.angleDeg.toFixed(1);
+      inpH.disabled = true;
+    } else {
+      showSize();
+      inpW.value = data.widthMm.toFixed(1);
+      inpH.value = data.heightMm.toFixed(1);
+      inpH.disabled = false;
+    }
+    inpW.disabled = false;
   });
 
-  window.addEventListener('mousemove', (e) => {
-    if (!dragging) return;
-    const x = Math.max(
-      0,
-      Math.min(window.innerWidth - panel.offsetWidth, e.clientX - offsetX),
-    );
-    const y = Math.max(
-      0,
-      Math.min(window.innerHeight - panel.offsetHeight, e.clientY - offsetY),
-    );
-    panel.style.left = `${x}px`;
-    panel.style.top = `${y}px`;
-  });
+  const apply = (): void => {
+    if (!currentId) return;
+    if (mode === 'rotate') {
+      const target = parseFloat(inpW.value);
+      if (!isNaN(target)) {
+        const delta = target - currentAngle;
+        if (Math.abs(delta) > 0.001) api.rotateElement(currentId, delta);
+      }
+    } else {
+      const w = parseFloat(inpW.value);
+      const h = parseFloat(inpH.value);
+      if (w > 0 && h > 0) api.resizeElement(currentId, w, h);
+    }
+  };
 
-  window.addEventListener('mouseup', () => {
-    dragging = false;
-  });
+  inpW.addEventListener('change', apply);
+  inpH.addEventListener('change', apply);
+  inpW.addEventListener('keydown', (e) => e.key === 'Enter' && apply());
+  inpH.addEventListener('keydown', (e) => e.key === 'Enter' && apply());
+
+  // Отслеживаем режим — подписываемся на клики кнопок, не перезаписывая их
+  document
+    .getElementById('btn-transform-resize')!
+    .addEventListener('click', () => {
+      mode = 'resize';
+    });
+  document
+    .getElementById('btn-transform-rotate')!
+    .addEventListener('click', () => {
+      mode = 'rotate';
+      if (currentId) {
+        showAngle();
+        inpW.value = currentAngle.toFixed(1);
+        inpH.disabled = true;
+        inpW.disabled = false;
+      }
+    });
 }
 
 // ─── Flex Tree Panel ──────────────────────────────────────
@@ -721,5 +783,41 @@ function toggleButton(
 }
 
 // ─── Boot ────────────────────────────────────────────────
+
+function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
+  let dragging = false;
+  let offsetX = 0;
+  let offsetY = 0;
+
+  handle.addEventListener('mousedown', (e) => {
+    if (e.target instanceof HTMLButtonElement) return;
+    dragging = true;
+    const rect = panel.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    panel.style.right = 'auto';
+    panel.style.left = `${rect.left}px`;
+    panel.style.top = `${rect.top}px`;
+    e.preventDefault();
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const x = Math.max(
+      0,
+      Math.min(window.innerWidth - panel.offsetWidth, e.clientX - offsetX),
+    );
+    const y = Math.max(
+      0,
+      Math.min(window.innerHeight - panel.offsetHeight, e.clientY - offsetY),
+    );
+    panel.style.left = `${x}px`;
+    panel.style.top = `${y}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    dragging = false;
+  });
+}
 
 document.addEventListener('DOMContentLoaded', init);

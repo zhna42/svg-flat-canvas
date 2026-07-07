@@ -164,10 +164,7 @@ export class CommandManager {
 
     commandBus.register(
       'DELETE',
-      this.undoable(
-        'DELETE',
-        createDeleteHandler(shapeManager, hitTestEngine),
-      ),
+      this.undoable('DELETE', createDeleteHandler(shapeManager, hitTestEngine)),
     );
     commandBus.register(
       'CREATE',
@@ -297,21 +294,24 @@ export class CommandManager {
       'RESIZE',
       this.undoable('RESIZE', (command: Command) => {
         if (command.type !== 'RESIZE') return;
+        const target = command.options.bbox;
         for (const id of command.options.elementIds) {
           const el = shapeManager.getAll().find((e) => e.id === id);
           if (!el) continue;
           const bbox = el.getTransformedBBox();
-          if (bbox.width > 0) {
-            el.transform.scale({
-              x: 0,
-              y: 0,
-              originX: bbox.x,
-              originY: bbox.y,
-              width: bbox.width,
-              height: bbox.height,
-            });
-            el.rebuildHitArea();
-          }
+          if (bbox.width <= 0 || bbox.height <= 0) continue;
+          const fx = target.width / bbox.width;
+          const fy = target.height / bbox.height;
+          if (fx <= 0 || fy <= 0) continue;
+          const ox = bbox.x;
+          const oy = bbox.y;
+          const scaled = new DOMMatrix()
+            .translateSelf(ox, oy)
+            .scaleSelf(fx, fy)
+            .translateSelf(-ox, -oy)
+            .multiply(el.transform.matrix);
+          el.transform.matrix = scaled;
+          el.rebuildHitArea();
         }
       }),
     );

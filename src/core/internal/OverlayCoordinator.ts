@@ -1,6 +1,8 @@
 import type { ICanvasContext } from './types';
 import { invalidateGroupBBox } from '@/math/group-bbox-utils';
 import type { Group } from '@/shapes/group/Group';
+import { MM_TO_PX } from '@/constants';
+import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
 
 export class OverlayCoordinator {
   constructor(private readonly ctx: ICanvasContext) {}
@@ -70,6 +72,7 @@ export class OverlayCoordinator {
   private wireTransformCallbacks(): void {
     this.ctx.transformHandler.onTransformEnd = () => {
       this.updateOverlay();
+      this.emitSizeForSelected();
     };
 
     this.ctx.transformHandler.onTransformMove = () => {
@@ -79,6 +82,7 @@ export class OverlayCoordinator {
           this.ctx.shapeManager.getAll().find((e) => e.id === id),
         );
       }
+      this.emitSizeForSelected();
     };
 
     this.ctx.groupTransformHandler.onTransformStart = () => {
@@ -95,5 +99,19 @@ export class OverlayCoordinator {
     this.ctx.groupTransformHandler.onTransformEnd = () => {
       this.syncGroups();
     };
+  }
+
+  private emitSizeForSelected(): void {
+    const selected = this.ctx.selectionState.selected;
+    if (selected.length === 1) {
+      const el = selected[0] as AbstractGraphicElement;
+      const bbox = el.getTransformedBBox();
+      this.ctx.events.emit('ELEMENT_SIZE', {
+        id: el.id,
+        widthMm: bbox.width / MM_TO_PX,
+        heightMm: bbox.height / MM_TO_PX,
+        angleDeg: el.transform.angle,
+      });
+    }
   }
 }
