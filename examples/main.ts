@@ -311,11 +311,11 @@ let flexSelectedElementId: string | null = null;
 
 function syncFlexPanelFromSelection(): void {
   flexSelectedElementId = null;
-  const selectionBoxes = document.querySelectorAll('[id^="sel-"]');
-  if (selectionBoxes.length === 1) {
-    flexSelectedElementId = selectionBoxes[0].id.replace('sel-', '');
+  // Use the API to find currently selected element
+  const selected = (api as any).canvas?.selectionState?.selected as Array<{ id: string }> | undefined;
+  if (selected && selected.length === 1) {
+    flexSelectedElementId = selected[0].id;
   }
-
   if (!flexSelectedElementId) return;
 
   const cfg = api.getFlexTreeConfig(flexSelectedElementId);

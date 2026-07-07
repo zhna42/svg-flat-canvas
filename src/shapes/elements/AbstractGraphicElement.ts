@@ -79,7 +79,9 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
 
   public override getRenderingPayload(): Record<string, unknown> {
     const diff = this.renderingDiff;
-    if (Object.keys(diff).length === 0) return {};
+    const hasFlexTree = this.flexTree !== undefined;
+
+    if (Object.keys(diff).length === 0 && !hasFlexTree) return {};
 
     const result: Record<string, unknown> = {};
 
@@ -114,12 +116,12 @@ export abstract class AbstractGraphicElement extends ReactiveNode {
       }
     }
 
-    if (this.flexTree) {
-      result['flexTree.algorithm'] = this.flexTree.algorithm;
-      result['flexTree.step'] = this.flexTree.step;
-      result['flexTree.link'] = this.flexTree.link;
-      result['flexTree.dash'] = this.flexTree.dash;
-      result['flexTree.amplitude'] = this.flexTree.amplitude;
+    if (hasFlexTree) {
+      result['flexTree.algorithm'] = this.flexTree!.algorithm;
+      result['flexTree.step'] = this.flexTree!.step;
+      result['flexTree.link'] = this.flexTree!.link;
+      result['flexTree.dash'] = this.flexTree!.dash;
+      result['flexTree.amplitude'] = this.flexTree!.amplitude;
     }
 
     return result;

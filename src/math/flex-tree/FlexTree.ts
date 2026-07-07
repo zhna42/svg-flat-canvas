@@ -13,6 +13,7 @@ export interface CutSegment {
   y1: number;
   x2: number;
   y2: number;
+  axis?: 'H' | 'V';
 }
 
 export interface BBox {
@@ -144,11 +145,72 @@ function generateCrossCuts(
   link: number,
   dash: number,
 ): CutSegment[] {
-  const h = generateLinearCuts(bbox, step, link, dash);
-  const vBBox: BBox = { x: bbox.y, y: bbox.x, width: bbox.height, height: bbox.width };
-  const v = generateLinearCuts(vBBox, step, link, dash);
-  for (const s of v) {
-    h.push({ x1: s.y1, y1: s.x1, x2: s.y2, y2: s.x2 });
+  const segments: CutSegment[] = [];
+  const period = dash + link;
+  if (period <= 0 || step <= 0) return segments;
+
+  const { x, y, width, height } = bbox;
+  const MIN_LEN = 1.0;
+  const gap = Math.max(link / 2, 0.75);
+
+  // --- 1. Вертикальные линии реза (непрерывные) ---
+  const verticalCols: Array<{ vx: number; ranges: Array<[number, number]> }> = [];
+  const cols = Math.floor(width / step);
+  for (let i = 0; i <= cols; i++) {
+    const vx = x + i * step;
+    const yOffset = i % 2 !== 0 ? period / 2 : 0;
+    const ranges: Array<[number, number]> = [];
+
+    let currY = y + yOffset;
+    while (currY < y + height) {
+      let endY = currY + dash;
+      if (endY > y + height) endY = y + height;
+      if (endY - currY > MIN_LEN) {
+        segments.push({ x1: vx, y1: currY, x2: vx, y2: endY, axis: 'V' });
+        ranges.push([currY, endY]);
+      }
+      currY = endY + link;
+    }
+    verticalCols.push({ vx, ranges });
   }
-  return h;
+
+  // --- 2. Горизонтальные линии реза (обрезаются вокруг вертикальных) ---
+  const rows = Math.floor(height / step);
+  for (let j = 0; j <= rows; j++) {
+    const cy = y + j * step + step / 2;
+    if (cy >= y + height) break;
+    const xOffset = j % 2 !== 0 ? period / 2 : 0;
+
+    let currX = x + xOffset;
+    while (currX < x + width) {
+      let endX = currX + dash;
+      if (endX > x + width) endX = x + width;
+
+      if (endX - currX > MIN_LEN) {
+        // собрать интервалы блокировки от вертикальных пропилов на высоте cy
+        const blocked: Array<[number, number]> = [];
+        for (const col of verticalCols) {
+          if (col.vx < currX - gap || col.vx > endX + gap) continue;
+          const crosses = col.ranges.some(([ry1, ry2]) => cy >= ry1 && cy <= ry2);
+          if (crosses) blocked.push([col.vx - gap, col.vx + gap]);
+        }
+        blocked.sort((a, b) => a[0] - b[0]);
+
+        // вырезать заблокированные участки, оставить остальные
+        let cursor = currX;
+        for (const [bStart, bEnd] of blocked) {
+          if (bStart > cursor && bStart - cursor > MIN_LEN) {
+            segments.push({ x1: cursor, y1: cy, x2: bStart, y2: cy, axis: 'H' });
+          }
+          if (bEnd > cursor) cursor = bEnd;
+        }
+        if (endX - cursor > MIN_LEN) {
+          segments.push({ x1: cursor, y1: cy, x2: endX, y2: cy, axis: 'H' });
+        }
+      }
+      currX = endX + link;
+    }
+  }
+
+  return segments;
 }

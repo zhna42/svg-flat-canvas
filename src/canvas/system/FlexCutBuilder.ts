@@ -6,6 +6,8 @@ export class FlexCutBuilder {
     elementId: string,
     elementType: string,
     geometry: Record<string, unknown>,
+    scaleX = 1,
+    scaleY = 1,
   ): SVGClipPathElement {
     const clipId = `flexcut-${elementId}`;
     const cp = document.createElementNS(SVG_NS, 'clipPath');
@@ -49,6 +51,9 @@ export class FlexCutBuilder {
         break;
       }
     }
+    if (scaleX !== 1 || scaleY !== 1) {
+      shape.setAttribute('transform', `scale(${scaleX},${scaleY})`);
+    }
     cp.appendChild(shape);
     return cp;
   }
@@ -66,8 +71,7 @@ export class FlexCutBuilder {
     path.setAttribute('d', d);
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', '#ff0000');
-    path.setAttribute('stroke-width', '0.25');
-    path.setAttribute('vector-effect', 'non-scaling-stroke');
+    path.setAttribute('stroke-width', '0.5');
     path.setAttribute('clip-path', `url(#${clipId})`);
     return path;
   }

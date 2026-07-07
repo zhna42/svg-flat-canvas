@@ -414,7 +414,26 @@ export class CanvasView {
       bboxY = bboxY - ry;
     }
 
-    const bbox = { x: bboxX, y: bboxY, width: bboxW, height: bboxH };
+    // Извлечь масштаб из матрицы: узор генерируется в масштабированном
+    // размере (мм сохраняются), а из трансформа оверлея scale убирается.
+    const transformStr = shapeEl.getAttribute('transform');
+    let m = new DOMMatrix();
+    if (transformStr) {
+      try {
+        m = new DOMMatrix(transformStr);
+      } catch {
+        m = new DOMMatrix();
+      }
+    }
+    const sx = Math.hypot(m.a, m.b) || 1;
+    const sy = Math.hypot(m.c, m.d) || 1;
+
+    const bbox = {
+      x: bboxX * sx,
+      y: bboxY * sy,
+      width: bboxW * sx,
+      height: bboxH * sy,
+    };
 
     const clone = new FlexTree();
     clone.algorithm = algo as never;
@@ -425,6 +444,9 @@ export class CanvasView {
 
     const segments: CutSegment[] = clone.generateCutData(bbox);
     const pathD = this._flexCutBuilder.buildPathD(segments);
+
+    // Матрица оверлея без scale: M * scale(1/sx, 1/sy)
+    const descaledTransform = `matrix(${m.a / sx},${m.b / sx},${m.c / sy},${m.d / sy},${m.e},${m.f})`;
 
     const clipId = `flexcut-${id}`;
     const existingDef = this._flexCutDefs.get(clipId);
@@ -439,19 +461,17 @@ export class CanvasView {
         const v = shapeEl.getAttribute(k);
         if (v !== null) geom[k] = v;
       }
-      const cp = this._flexCutBuilder.buildClipDef(id, type, geom);
+      const cp = this._flexCutBuilder.buildClipDef(id, type, geom, sx, sy);
       this._defsNode.appendChild(cp);
       this._flexCutDefs.set(clipId, cp);
     }
 
     if (currentCut) {
       currentCut.path.setAttribute('d', pathD);
-      const t = shapeEl.getAttribute('transform');
-      if (t) currentCut.path.setAttribute('transform', t);
+      currentCut.path.setAttribute('transform', descaledTransform);
     } else {
       const path = this._flexCutBuilder.createCutPath(pathD, clipId);
-      const t = shapeEl.getAttribute('transform');
-      if (t) path.setAttribute('transform', t);
+      path.setAttribute('transform', descaledTransform);
       if (shapeEl.parentNode) {
         shapeEl.parentNode.insertBefore(path, shapeEl.nextSibling);
       }
