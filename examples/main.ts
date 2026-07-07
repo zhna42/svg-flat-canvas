@@ -26,6 +26,7 @@ function init(): void {
   setupFlexTreePanel();
   setupKeyboardShortcuts();
   setupNodeEditToolbar();
+  setupMeasureToolbar();
 }
 
 // ─── Demo Data ───────────────────────────────────────────
@@ -362,6 +363,16 @@ function setupKeyboardShortcuts(): void {
 
     const meta = e.metaKey || e.ctrlKey;
 
+    // ── Инструменты измерения ──
+    if (api.getMeasureTool()) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        api.cancelMeasure();
+        api.deactivateMeasureTool();
+        return;
+      }
+    }
+
     // ── Режим редактирования узлов (клавиатура — на стороне приложения) ──
     if (api.isNodeEditing) {
       if (meta && e.key === 'z' && !e.shiftKey) {
@@ -491,7 +502,57 @@ function setupNodeEditToolbar(): void {
   click('btn-node-undo', () => api.undoNodeEdit());
   click('btn-node-redo', () => api.redoNodeEdit());
 
-  makeDraggable(panel, document.getElementById('node-edit-header') as HTMLElement);
+  makeDraggable(
+    panel,
+    document.getElementById('node-edit-header') as HTMLElement,
+  );
+}
+
+// ─── Measure Toolbar ──────────────────────────────────────
+
+function setupMeasureToolbar(): void {
+  const exitBtn = document.getElementById(
+    'btn-measure-exit',
+  ) as HTMLButtonElement;
+  const rulerBtn = document.getElementById(
+    'btn-measure-ruler',
+  ) as HTMLButtonElement;
+  const angleBtn = document.getElementById(
+    'btn-measure-angle',
+  ) as HTMLButtonElement;
+  const angleObjBtn = document.getElementById(
+    'btn-measure-angle-obj',
+  ) as HTMLButtonElement;
+
+  const clearActive = (): void => {
+    for (const b of [rulerBtn, angleBtn, angleObjBtn])
+      b.classList.remove('active');
+  };
+
+  api.on('MEASURE_TOOL_CHANGED', (ev) => {
+    const tool = (ev.data as { tool?: string | null })?.tool ?? null;
+    exitBtn.style.display = tool ? '' : 'none';
+    if (!tool) clearActive();
+  });
+
+  rulerBtn.onclick = () => {
+    clearActive();
+    rulerBtn.classList.add('active');
+    api.activateRuler();
+  };
+  angleBtn.onclick = () => {
+    clearActive();
+    angleBtn.classList.add('active');
+    api.activateProtractor('points');
+  };
+  angleObjBtn.onclick = () => {
+    clearActive();
+    angleObjBtn.classList.add('active');
+    api.activateProtractor('objects');
+  };
+  document.getElementById('btn-measure-clear')!.onclick = () =>
+    api.clearMeasurements();
+  exitBtn.onclick = () => api.deactivateMeasureTool();
 }
 
 function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
@@ -513,8 +574,14 @@ function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
 
   window.addEventListener('mousemove', (e) => {
     if (!dragging) return;
-    const x = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, e.clientX - offsetX));
-    const y = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, e.clientY - offsetY));
+    const x = Math.max(
+      0,
+      Math.min(window.innerWidth - panel.offsetWidth, e.clientX - offsetX),
+    );
+    const y = Math.max(
+      0,
+      Math.min(window.innerHeight - panel.offsetHeight, e.clientY - offsetY),
+    );
     panel.style.left = `${x}px`;
     panel.style.top = `${y}px`;
   });

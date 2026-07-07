@@ -18,6 +18,7 @@ import { SelectionHandler } from '@/canvas/overlays/selection/handlers/Selection
 import { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
 import { NodeEditCoordinator } from '@/canvas/overlays/nodeedit/NodeEditCoordinator';
+import { MeasureCoordinator } from '@/canvas/overlays/measure/MeasureCoordinator';
 import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
 import { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/canvas/overlays/debug/DebugOverlay';
@@ -81,6 +82,7 @@ export class SvgCanvas implements ICanvasContext {
   selectionManager!: SelectionManager;
   pathNodeOverlay!: PathNodeOverlay;
   nodeEdit!: NodeEditCoordinator;
+  measure!: MeasureCoordinator;
   debugOverlay!: DebugOverlay;
   preloaderOverlay!: PreloaderOverlay;
   gridOverlay!: GridOverlay;
@@ -262,6 +264,17 @@ export class SvgCanvas implements ICanvasContext {
         ),
     });
     this.view.cameraGroup.appendChild(this.nodeEdit.renderer.getElement());
+
+    this.measure = new MeasureCoordinator({
+      camera: this.camera as any,
+      svg: this.svg,
+      getElements: () => this.shapeManager.getAll(),
+      hitTestEngine: this.hitTestEngine,
+      onToolChange: (tool) =>
+        this.events.emit('MEASURE_TOOL_CHANGED', { tool }),
+      onAdded: (result) => this.events.emit('MEASURE_ADDED', { result }),
+    });
+    overlayRoot.appendChild(this.measure.renderer.getElement());
   }
 
   private _convertToPath(id: string): PathElement | null {
@@ -417,6 +430,7 @@ export class SvgCanvas implements ICanvasContext {
     this.eventManager.register(this.creationHandler);
     this.eventManager.register(this.booleanHandler);
     this.eventManager.register(this.selectionHandler);
+    this.eventManager.register(this.measure);
     this.eventManager.bind();
     requestAnimationFrame(() => {
       this.timeMachine.captureRoot();

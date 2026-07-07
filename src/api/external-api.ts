@@ -35,6 +35,9 @@ import type {
   TransformMode,
   CreationElementType,
   NodeKind,
+  MeasureTool,
+  ProtractorMode,
+  MeasureResult,
 } from '@/types';
 import { MM_TO_PX } from '@/constants';
 import type {
@@ -700,6 +703,54 @@ export class ExternalApi {
   public set editingPath(path: PathElement | null) {
     if (path) this.canvas.nodeEdit.enter([path]);
     else this.canvas.nodeEdit.exit();
+  }
+
+  // ── Измерения (линейка / транспортир) ──
+
+  /** Включить инструмент «Линейка» (замер расстояний в мм). */
+  public activateRuler(): void {
+    this.canvas.measure.activate('ruler');
+  }
+
+  /** Включить инструмент «Транспортир» (замер углов). */
+  public activateProtractor(mode: ProtractorMode = 'points'): void {
+    this.canvas.measure.setProtractorMode(mode);
+    this.canvas.measure.activate('protractor');
+  }
+
+  /** Режим транспортира: 'points' (3 точки) или 'objects' (между объектами). */
+  public setProtractorMode(mode: ProtractorMode): void {
+    this.canvas.measure.setProtractorMode(mode);
+  }
+
+  /** Выключить инструмент измерения. */
+  public deactivateMeasureTool(): void {
+    this.canvas.measure.deactivate();
+  }
+
+  /** Текущий активный инструмент измерения. */
+  public getMeasureTool(): MeasureTool | null {
+    return this.canvas.measure.tool;
+  }
+
+  /** Отменить незавершённый замер. */
+  public cancelMeasure(): void {
+    this.canvas.measure.cancelPending();
+  }
+
+  /** Удалить все замеры с холста. */
+  public clearMeasurements(): void {
+    this.canvas.measure.clearAll();
+  }
+
+  /** Удалить один замер по id. */
+  public removeMeasurement(id: string): void {
+    this.canvas.measure.removeMeasurement(id);
+  }
+
+  /** Получить результаты всех замеров (расстояния в мм, углы в градусах). */
+  public getMeasurements(): MeasureResult[] {
+    return this.canvas.measure.getResults();
   }
 
   /** Добавить фигуру на холст */

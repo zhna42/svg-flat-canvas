@@ -77,6 +77,15 @@ export type {
 } from './node-edit';
 
 export type {
+  MeasureTool,
+  ProtractorMode,
+  DistanceMeasure,
+  AngleMeasure,
+  Measurement,
+  MeasureResult,
+} from './measure';
+
+export type {
   BusEvent,
   SnapshotCommand,
   EntityDiff,

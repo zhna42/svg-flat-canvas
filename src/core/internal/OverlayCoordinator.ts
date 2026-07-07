@@ -54,6 +54,7 @@ export class OverlayCoordinator {
       if (this.ctx.nodeEdit.isActive) {
         this.ctx.nodeEdit.onZoomChange();
       }
+      this.ctx.measure.onCameraChange();
       if (this.ctx.groupManager.selectedGroupIds.size > 0) {
         this.syncGroups();
       }
