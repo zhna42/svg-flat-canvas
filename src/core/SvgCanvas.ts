@@ -19,6 +19,7 @@ import { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
 import { NodeEditCoordinator } from '@/canvas/overlays/nodeedit/NodeEditCoordinator';
 import { MeasureCoordinator } from '@/canvas/overlays/measure/MeasureCoordinator';
+import { LaserGroupManager, LaserSettings, LaserColorResolver } from '@/laser';
 import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
 import { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/canvas/overlays/debug/DebugOverlay';
@@ -96,6 +97,10 @@ export class SvgCanvas implements ICanvasContext {
   guidelineManager!: GuidelineManager;
   booleanHandler!: BooleanHandler;
 
+  laserGroupManager!: LaserGroupManager;
+  laserSettings!: LaserSettings;
+  laserColorResolver!: LaserColorResolver;
+
   selectionHandler!: SelectionHandler;
   creationHandler!: CreationHandler;
 
@@ -107,6 +112,7 @@ export class SvgCanvas implements ICanvasContext {
     this._initSystemNodes();
     this._initCommandAndHistory();
     this._initGroupManager();
+    this._initLaserModule();
     this._initOverlayInfrastructure();
     this._initElementManager();
     this._initManagers(options);
@@ -187,6 +193,36 @@ export class SvgCanvas implements ICanvasContext {
     gm.setEvents(this.events);
     gm.setOnChange(() => this._overlayCoordinator?.syncGroups());
     this.groupManager = gm;
+  }
+
+  private _initLaserModule(): void {
+    this.laserSettings = new LaserSettings();
+    this.laserGroupManager = new LaserGroupManager(() =>
+      this.shapeManager.getAll(),
+    );
+    this.laserGroupManager.setEvents(this.events);
+    this.laserColorResolver = new LaserColorResolver(
+      this.laserGroupManager,
+      this.laserSettings,
+      (id) => this.shapeManager.getById(id),
+    );
+    this.laserGroupManager.onDeselectElements = (ids) => {
+      const keep = this.selectionState.selected.filter(
+        (e) => !ids.includes(e.id),
+      );
+      this.selectionState.replace(keep);
+    };
+    this.laserGroupManager.setOnChange(() => this._refreshLaser());
+    this.view.setLaserStyleProvider(this.laserColorResolver.resolve);
+  }
+
+  /** Пересчёт градации + переприменение стилей + отрисовка. */
+  public _refreshLaser(): void {
+    this.laserColorResolver.recompute();
+    this.view.refreshLaserStyles();
+    this.events.emit('LASER_COLOR_GRADING_CHANGED', {
+      mapping: this.laserColorResolver.getGrading(),
+    });
   }
 
   private _initElementManager(): void {
@@ -436,6 +472,8 @@ export class SvgCanvas implements ICanvasContext {
         this._api.editingPath = el ? (el as PathElement) : null;
       },
       getEditingPath: () => this._api.editingPath,
+      canInteract: (id) => this.laserGroupManager.canInteract(id),
+      canMove: (id) => this.laserGroupManager.canMove(id),
       getGuidelines: () => this.guidelineManager.getGuidelines(),
       getGridLines: () => this.gridOverlay.getGridLines(),
       events: this.events,

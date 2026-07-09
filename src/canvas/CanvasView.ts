@@ -4,6 +4,7 @@ import { DrawPayload, LayerName } from '@/types';
 import { RulerBuilder } from '@/canvas/system/ruler/RulerBuilder';
 import { FlexCutBuilder } from '@/canvas/system/FlexCutBuilder';
 import { FlexTree, type CutSegment } from '@/math/flex-tree';
+import type { LaserStyleOverride } from '@/laser/laser-types';
 
 const SYSTEM_IDS = new Set([
   'camera',
@@ -41,8 +42,19 @@ export class CanvasView {
   _flexCutDefs = new Map<string, SVGClipPathElement>();
   _flexTreeProvider: ((id: string) => FlexTree | null) | null = null;
 
+  _laserStyleProvider: ((id: string) => LaserStyleOverride | null) | null =
+    null;
+  _baseStyle = new Map<
+    string,
+    { fill?: string; stroke?: string; visibility?: string; opacity?: string }
+  >();
+
   setFlexTreeProvider(fn: (id: string) => FlexTree | null): void {
     this._flexTreeProvider = fn;
+  }
+
+  setLaserStyleProvider(fn: (id: string) => LaserStyleOverride | null): void {
+    this._laserStyleProvider = fn;
   }
 
   constructor(
@@ -144,6 +156,47 @@ export class CanvasView {
     } else {
       this._applyShapeDiff(element, diff as Record<string, unknown>);
       this._syncFlexCut(id, type, element, diff as Record<string, unknown>);
+      this._captureBaseStyle(id, diff as Record<string, unknown>);
+      this._applyLaserStyle(id, element);
+    }
+  }
+
+  private _captureBaseStyle(id: string, diff: Record<string, unknown>): void {
+    let base = this._baseStyle.get(id);
+    if (!base) {
+      base = {};
+      this._baseStyle.set(id, base);
+    }
+    if ('fill' in diff) base.fill = diff.fill as string;
+    if ('stroke' in diff) base.stroke = diff.stroke as string;
+    if ('visibility' in diff) base.visibility = diff.visibility as string;
+    if ('opacity' in diff) base.opacity = diff.opacity as string;
+  }
+
+  private _applyLaserStyle(id: string, element: SVGElement): void {
+    const base = this._baseStyle.get(id) ?? {};
+    const o = this._laserStyleProvider?.(id) ?? null;
+
+    const fill = o?.fill ?? base.fill;
+    if (fill !== undefined) element.setAttribute('fill', fill);
+
+    const stroke = o?.stroke ?? base.stroke;
+    if (stroke !== undefined) element.setAttribute('stroke', stroke);
+
+    const visibility = o?.visibility ?? base.visibility;
+    if (visibility !== undefined)
+      element.setAttribute('visibility', visibility);
+
+    const opacity = o?.opacity != null ? String(o.opacity) : base.opacity;
+    if (opacity !== undefined) element.setAttribute('opacity', opacity);
+  }
+
+  /** Переприменить лазерный стиль к элементам (при изменении групп/настроек). */
+  public refreshLaserStyles(ids?: string[]): void {
+    const targets = ids ?? Array.from(this._baseStyle.keys());
+    for (const id of targets) {
+      const el = this._elements.get(id);
+      if (el) this._applyLaserStyle(id, el);
     }
   }
 
@@ -328,6 +381,7 @@ export class CanvasView {
       element.remove();
       this._elements.delete(id);
     }
+    this._baseStyle.delete(id);
     this._removeFlexCut(id);
   }
 
@@ -350,8 +404,7 @@ export class CanvasView {
     shapeEl: SVGElement,
     diff: Record<string, unknown>,
   ): void {
-    const hasFlexTree =
-      typeof diff['flexTree.algorithm'] === 'string';
+    const hasFlexTree = typeof diff['flexTree.algorithm'] === 'string';
     const currentCut = this._flexCutEls.get(id);
     const wasActive = currentCut !== undefined;
 
@@ -372,29 +425,53 @@ export class CanvasView {
     }
 
     let geomChanged = false;
-    const geomKeys = ['x', 'y', 'width', 'height', 'cx', 'cy', 'r', 'rx', 'ry', 'points', 'd', 'transform'];
+    const geomKeys = [
+      'x',
+      'y',
+      'width',
+      'height',
+      'cx',
+      'cy',
+      'r',
+      'rx',
+      'ry',
+      'points',
+      'd',
+      'transform',
+    ];
     for (const key of Object.keys(diff)) {
-      if (geomKeys.includes(key)) { geomChanged = true; break; }
+      if (geomKeys.includes(key)) {
+        geomChanged = true;
+        break;
+      }
     }
 
     const configChanged = Object.keys(config).length > 0;
     if (!configChanged && !geomChanged && wasActive) return;
 
-    const algo = config.algorithm as string ?? 'linear';
-    const step = config.step !== undefined ? Number(config.step) : (this._flexTreeFor(id)?.step ?? 3.5);
-    const link = config.link !== undefined ? Number(config.link) : (this._flexTreeFor(id)?.link ?? 3.0);
-    const dash = config.dash !== undefined ? Number(config.dash) : (this._flexTreeFor(id)?.dash ?? 25.0);
-    const amplitude = config.amplitude !== undefined ? Number(config.amplitude) : (this._flexTreeFor(id)?.amplitude ?? 1.0);
+    const algo = (config.algorithm as string) ?? 'linear';
+    const step =
+      config.step !== undefined
+        ? Number(config.step)
+        : (this._flexTreeFor(id)?.step ?? 3.5);
+    const link =
+      config.link !== undefined
+        ? Number(config.link)
+        : (this._flexTreeFor(id)?.link ?? 3.0);
+    const dash =
+      config.dash !== undefined
+        ? Number(config.dash)
+        : (this._flexTreeFor(id)?.dash ?? 25.0);
+    const amplitude =
+      config.amplitude !== undefined
+        ? Number(config.amplitude)
+        : (this._flexTreeFor(id)?.amplitude ?? 1.0);
 
     let bboxX = parseFloat(
-      shapeEl.getAttribute('x') ||
-        shapeEl.getAttribute('cx') ||
-        '0',
+      shapeEl.getAttribute('x') || shapeEl.getAttribute('cx') || '0',
     );
     let bboxY = parseFloat(
-      shapeEl.getAttribute('y') ||
-        shapeEl.getAttribute('cy') ||
-        '0',
+      shapeEl.getAttribute('y') || shapeEl.getAttribute('cy') || '0',
     );
     let bboxW = parseFloat(shapeEl.getAttribute('width') || '0');
     let bboxH = parseFloat(shapeEl.getAttribute('height') || '0');

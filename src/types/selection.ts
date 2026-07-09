@@ -78,6 +78,8 @@ export interface SelectionHandlerOptions {
   onDragEnd?: () => void;
   onSetEditingPath?: (path: AbstractGraphicElement | null) => void;
   getEditingPath?: () => AbstractGraphicElement | null;
+  canInteract?: (elementId: string) => boolean;
+  canMove?: (elementId: string) => boolean;
   getGuidelines?: () => Array<{
     orientation: 'v' | 'h';
     position: number;

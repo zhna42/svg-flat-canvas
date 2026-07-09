@@ -28,6 +28,7 @@ function init(): void {
   setupNodeEditToolbar();
   setupMeasureToolbar();
   setupSizeInputs();
+  setupLaserPanel();
 }
 
 // ─── Demo Data ───────────────────────────────────────────
@@ -782,8 +783,143 @@ function toggleButton(
   });
 }
 
-// ─── Boot ────────────────────────────────────────────────
+// ─── Laser Panel ───────────────────────────────────────────
 
+function setupLaserPanel(): void {
+  const $ = (id: string): HTMLElement => document.getElementById(id)!;
+  const focal = $('laser-lens-focal') as HTMLSelectElement;
+  const lensDia = $('laser-lens-dia') as HTMLInputElement;
+  const beamDia = $('laser-beam-dia') as HTMLInputElement;
+  const height = $('laser-height') as HTMLInputElement;
+  const engColor = $('laser-engrave-color') as HTMLInputElement;
+  const cutColor = $('laser-cut-color') as HTMLInputElement;
+  const spotEl = $('laser-spot');
+  const dpiEl = $('laser-dpi');
+
+  const refreshReadout = (): void => {
+    const s = api.getLaserSettings();
+    spotEl.textContent = s.spotSizeMm.toFixed(3);
+    dpiEl.textContent = String(s.recommendedDpi);
+  };
+
+  focal.onchange = () => {
+    api.setLaserLensFocal(parseFloat(focal.value));
+  };
+  lensDia.onchange = () => api.setLaserLensDiameter(parseFloat(lensDia.value));
+  beamDia.onchange = () => api.setLaserBeamDiameter(parseFloat(beamDia.value));
+  height.onchange = () => api.setLaserMaterialHeight(parseFloat(height.value));
+  engColor.onchange = () => api.setLaserEngraveColor(engColor.value);
+  cutColor.onchange = () => api.setLaserCutColor(cutColor.value);
+  ($('laser-hide-nonlaser') as HTMLInputElement).onchange = (e) =>
+    api.setNonLaserElementsVisible(!(e.target as HTMLInputElement).checked);
+  ($('laser-translucent') as HTMLInputElement).onchange = (e) =>
+    api.setLaserElementsTranslucent((e.target as HTMLInputElement).checked);
+
+  $('laser-create').onclick = () => {
+    const name = ($('laser-group-name') as HTMLInputElement).value || 'Laser';
+    api.createLaserGroup({ name });
+    renderLaserGroups();
+  };
+
+  api.on('LASER_SETTINGS_CHANGED', refreshReadout);
+  api.on('LASER_GROUP_CREATED', renderLaserGroups);
+  api.on('LASER_GROUP_DELETED', renderLaserGroups);
+  api.on('LASER_GROUP_UPDATED', renderLaserGroups);
+  api.on('LASER_GROUP_ELEMENT_ADDED', renderLaserGroups);
+  api.on('LASER_GROUP_ELEMENT_REMOVED', renderLaserGroups);
+  api.on('LASER_COLOR_GRADING_CHANGED', renderLaserGroups);
+
+  refreshReadout();
+  renderLaserGroups();
+}
+
+function renderLaserGroups(): void {
+  const list = document.getElementById('laser-group-list');
+  if (!list) return;
+  const grading = api.getLaserColorGrading();
+  const groups = api.getLaserGroups();
+  list.innerHTML = '';
+
+  for (const g of groups) {
+    const item = document.createElement('div');
+    item.className = 'laser-group-item';
+    const color = grading[g.id] ?? '#888';
+    item.innerHTML = `
+      <div class="lg-head">
+        <span class="lg-swatch" style="background:${color}"></span>
+        <b>${g.name}</b>
+        <span style="color:var(--text-muted)">(${g.elementIds.length})</span>
+      </div>
+      <div class="lg-row">
+        <label>Тип
+          <select data-f="type">
+            <option value="cut"${g.type === 'cut' ? ' selected' : ''}>Резка</option>
+            <option value="engrave"${g.type === 'engrave' ? ' selected' : ''}>Гравировка</option>
+            <option value="cut_engrave"${g.type === 'cut_engrave' ? ' selected' : ''}>Резка+грав.</option>
+          </select>
+        </label>
+      </div>
+      <div class="lg-row">
+        <label>V рез <input type="number" data-f="cutSpeed" value="${g.cutSpeed}" /></label>
+        <label>P рез <input type="number" data-f="cutPower" value="${g.cutPower}" /></label>
+      </div>
+      <div class="lg-row">
+        <label>V грав <input type="number" data-f="engraveSpeed" value="${g.engraveSpeed}" /></label>
+        <label>P грав <input type="number" data-f="engravePower" value="${g.engravePower}" /></label>
+      </div>
+      <div class="lg-row">
+        <label>DPI <input type="number" data-f="engraveDpi" value="${g.engraveDpi}" /></label>
+      </div>
+      <div class="lg-flags">
+        <label><input type="checkbox" data-f="selectable"${g.selectable ? ' checked' : ''}/> Выбор</label>
+        <label><input type="checkbox" data-f="movable"${g.movable ? ' checked' : ''}/> Движ.</label>
+        <label><input type="checkbox" data-f="visible"${g.visible ? ' checked' : ''}/> Видно</label>
+      </div>
+      <div class="lg-row" style="margin-top:4px">
+        <button data-a="add">+ Выбр.</button>
+        <button data-a="rem">− Выбр.</button>
+        <button data-a="del">Удалить</button>
+      </div>
+    `;
+
+    item.querySelectorAll('[data-f]').forEach((el) => {
+      el.addEventListener('change', () => {
+        const f = (el as HTMLElement).dataset.f!;
+        const input = el as HTMLInputElement | HTMLSelectElement;
+        let value: unknown;
+        if (input instanceof HTMLInputElement && input.type === 'checkbox') {
+          value = input.checked;
+        } else if (
+          input instanceof HTMLInputElement &&
+          input.type === 'number'
+        ) {
+          value = parseFloat(input.value);
+        } else {
+          value = input.value;
+        }
+        api.updateLaserGroup(g.id, { [f]: value } as never);
+      });
+    });
+
+    const sel = (): string[] => api.getSelected().map((e) => e.id);
+    (item.querySelector('[data-a="add"]') as HTMLButtonElement).onclick =
+      () => {
+        api.laserGroupAddElements(g.id, sel());
+      };
+    (item.querySelector('[data-a="rem"]') as HTMLButtonElement).onclick =
+      () => {
+        api.laserGroupRemoveElements(g.id, sel());
+      };
+    (item.querySelector('[data-a="del"]') as HTMLButtonElement).onclick =
+      () => {
+        api.deleteLaserGroup(g.id);
+      };
+
+    list.appendChild(item);
+  }
+}
+
+// ─── Boot ────────────────────────────────────────────────
 function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
   let dragging = false;
   let offsetX = 0;

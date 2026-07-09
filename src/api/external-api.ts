@@ -39,6 +39,13 @@ import type {
   ProtractorMode,
   MeasureResult,
 } from '@/types';
+import type {
+  LaserGroupCreateDTO,
+  LaserGroupData,
+  LaserGroupFields,
+  LaserOpType,
+  LaserSettingsInfo,
+} from '@/laser';
 import { MM_TO_PX } from '@/constants';
 import type {
   CreateShapeDTO,
@@ -153,17 +160,24 @@ export class ExternalApi {
   /** Удалить фигуры */
   public deleteShapes(dto: DeleteShapesDTO): void {
     this.dbg.log('API', 'deleteShapes', { count: dto.elementIds.length });
+    this._purgeLaser(dto.elementIds);
     this.canvas.elementManager.deleteElements(dto.elementIds);
   }
 
   /** Удалить фигуру по ID */
   public deleteElement(id: string): void {
+    this._purgeLaser([id]);
     this.canvas.elementManager.deleteElements([id]);
   }
 
   /** Удалить фигуры по IDs */
   public deleteElements(ids: string[]): void {
+    this._purgeLaser(ids);
     this.canvas.elementManager.deleteElements(ids);
+  }
+
+  private _purgeLaser(ids: string[]): void {
+    for (const id of ids) this.canvas.laserGroupManager.purgeElement(id);
   }
 
   /** Обновить свойства фигур */
@@ -779,6 +793,159 @@ export class ExternalApi {
     return this.canvas.measure.getResults();
   }
 
+  // ── Лазерные группы ──
+
+  public createLaserGroup(dto?: LaserGroupCreateDTO): string {
+    const withDpi: LaserGroupCreateDTO = {
+      engraveDpi: this.canvas.laserSettings.recommendedDpi,
+      ...dto,
+    };
+    return this.canvas.laserGroupManager.createGroup(withDpi);
+  }
+  public deleteLaserGroup(id: string): void {
+    this.canvas.laserGroupManager.deleteGroup(id);
+  }
+  public laserGroupAddElements(id: string, elementIds: string[]): void {
+    for (const eid of elementIds)
+      this.canvas.laserGroupManager.addToGroup(id, eid);
+  }
+  public laserGroupRemoveElements(id: string, elementIds: string[]): void {
+    for (const eid of elementIds)
+      this.canvas.laserGroupManager.removeFromGroup(id, eid);
+  }
+  public clearLaserGroup(id: string): void {
+    this.canvas.laserGroupManager.clearGroup(id);
+  }
+  public updateLaserGroup(id: string, fields: LaserGroupFields): void {
+    this.canvas.laserGroupManager.updateGroup(id, fields);
+  }
+  public setLaserGroupType(id: string, type: LaserOpType): void {
+    this.canvas.laserGroupManager.updateGroup(id, { type });
+  }
+  public setLaserGroupSelectable(id: string, selectable: boolean): void {
+    this.canvas.laserGroupManager.updateGroup(id, { selectable });
+  }
+  public setLaserGroupMovable(id: string, movable: boolean): void {
+    this.canvas.laserGroupManager.updateGroup(id, { movable });
+  }
+  public setLaserGroupVisible(id: string, visible: boolean): void {
+    this.canvas.laserGroupManager.updateGroup(id, { visible });
+  }
+  public getLaserGroups(): LaserGroupData[] {
+    return this.canvas.laserGroupManager.getGroups().map((g) => g.toData());
+  }
+  public getLaserGroup(id: string): LaserGroupData | null {
+    return this.canvas.laserGroupManager.getGroup(id)?.toData() ?? null;
+  }
+  public getLaserGroupByElement(elementId: string): LaserGroupData | null {
+    return (
+      this.canvas.laserGroupManager.getGroupByElement(elementId)?.toData() ??
+      null
+    );
+  }
+  public getElementIdsInLaserGroup(id: string): string[] {
+    return this.canvas.laserGroupManager.getElementIdsInGroup(id);
+  }
+
+  public loadLaserGroups(data: LaserGroupData[]): void {
+    this.canvas.laserGroupManager.loadGroups(data);
+  }
+  public addLaserGroups(data: LaserGroupData[]): void {
+    this.canvas.laserGroupManager.addGroups(data);
+  }
+  public replaceLaserGroups(data: LaserGroupData[]): void {
+    this.canvas.laserGroupManager.replaceGroups(data);
+  }
+  public updateLaserGroups(
+    patches: Array<{ id: string; fields: Record<string, unknown> }>,
+  ): void {
+    this.canvas.laserGroupManager.updateGroups(patches);
+  }
+  public getUnsavedLaserGroupDTOs(): Array<Record<string, unknown>> {
+    return this.canvas.laserGroupManager.getUnsavedDTOs();
+  }
+
+  // ── Настройки лазера ──
+
+  public setLaserLensFocal(mm: number): void {
+    this.canvas.laserSettings.lensFocalMm = mm;
+    this._emitLaserSettings();
+  }
+  public setLaserLensDiameter(mm: number): void {
+    this.canvas.laserSettings.lensDiameterMm = mm;
+    this._emitLaserSettings();
+  }
+  public setLaserBeamDiameter(mm: number): void {
+    this.canvas.laserSettings.beamDiameterMm = mm;
+    this._emitLaserSettings();
+  }
+  public setLaserMaterialHeight(mm: number): void {
+    this.canvas.laserSettings.materialHeightMm = mm;
+    this._emitLaserSettings();
+  }
+  public setLaserEngraveColor(hex: string): void {
+    this.canvas.laserSettings.engraveColor = hex;
+    this.canvas._refreshLaser();
+    this._emitLaserSettings();
+  }
+  public setLaserCutColor(hex: string): void {
+    this.canvas.laserSettings.cutColor = hex;
+    this.canvas._refreshLaser();
+    this._emitLaserSettings();
+  }
+  public getLaserSpotSize(): number {
+    return this.canvas.laserSettings.spotSizeMm;
+  }
+  public getLaserRecommendedDpi(): number {
+    return this.canvas.laserSettings.recommendedDpi;
+  }
+  public getLaserSettings(): LaserSettingsInfo {
+    return this.canvas.laserSettings.toInfo();
+  }
+
+  /** Скрыть/показать элементы, не входящие в лазерные группы. */
+  public setNonLaserElementsVisible(visible: boolean): void {
+    this.canvas.laserSettings.nonLaserHidden = !visible;
+    this.canvas.view.refreshLaserStyles();
+    this.canvas.events.emit('LASER_VISIBILITY_CHANGED', {
+      nonLaserHidden: this.canvas.laserSettings.nonLaserHidden,
+      laserTranslucent: this.canvas.laserSettings.laserTranslucent,
+    });
+  }
+
+  /** Сделать элементы лазерных групп полупрозрачными. */
+  public setLaserElementsTranslucent(translucent: boolean): void {
+    this.canvas.laserSettings.laserTranslucent = translucent;
+    this.canvas.view.refreshLaserStyles();
+    this.canvas.events.emit('LASER_VISIBILITY_CHANGED', {
+      nonLaserHidden: this.canvas.laserSettings.nonLaserHidden,
+      laserTranslucent: translucent,
+    });
+  }
+
+  public getLaserColorGrading(): Record<string, string> {
+    return this.canvas.laserColorResolver.getGrading();
+  }
+
+  public getLaserGroupState(): {
+    groups: LaserGroupData[];
+    settings: LaserSettingsInfo;
+    grading: Record<string, string>;
+  } {
+    return {
+      groups: this.getLaserGroups(),
+      settings: this.getLaserSettings(),
+      grading: this.getLaserColorGrading(),
+    };
+  }
+
+  private _emitLaserSettings(): void {
+    this.canvas.events.emit(
+      'LASER_SETTINGS_CHANGED',
+      this.canvas.laserSettings.toInfo(),
+    );
+  }
+
   /** Добавить фигуру на холст */
   public addShape(shape: AbstractGraphicElement): void {
     this.canvas.elementManager.addShape(shape);
@@ -1250,8 +1417,17 @@ export class ExternalApi {
     el: AbstractGraphicElement,
     style: Partial<StyleDTO>,
   ): void {
-    if (style.fill !== undefined) el.style.fill = style.fill;
-    if (style.stroke !== undefined) el.style.stroke = style.stroke;
+    const colorLocked =
+      this.canvas.laserGroupManager.getGroupByElement(el.id) !== undefined;
+    if (style.fill !== undefined && !colorLocked) el.style.fill = style.fill;
+    if (style.stroke !== undefined && !colorLocked)
+      el.style.stroke = style.stroke;
+    if (
+      (style.fill !== undefined || style.stroke !== undefined) &&
+      colorLocked
+    ) {
+      this.canvas.events.emit('LASER_STYLE_LOCKED', { id: el.id });
+    }
     if (style.strokeWidth !== undefined)
       el.style.strokeWidth = style.strokeWidth;
     if (style.opacity !== undefined) el.style.opacity = style.opacity;

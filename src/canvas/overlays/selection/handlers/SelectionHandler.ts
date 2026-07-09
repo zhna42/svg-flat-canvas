@@ -458,9 +458,12 @@ export class SelectionHandler {
   private tryElementHitTestAndDrag(wp: { x: number; y: number }): boolean {
     const all = this.opts.getElements();
     const { hits } = this.opts.hitTestEngine.queryPoint(wp.x, wp.y);
-    if (hits.length === 0) return false;
+    const interactable = (hits as AbstractGraphicElement[]).filter(
+      (h) => this.opts.canInteract?.(h.id) ?? true,
+    );
+    if (interactable.length === 0) return false;
 
-    const picked = hits[hits.length - 1] as AbstractGraphicElement;
+    const picked = interactable[interactable.length - 1];
     const selectedIds = new Set(this.opts.state.selected.map((s) => s.id));
 
     if (!selectedIds.has(picked.id)) {
@@ -471,12 +474,13 @@ export class SelectionHandler {
     }
 
     const selected = all.filter((e) => selectedIds.has(e.id));
-    if (selected.length > 0) {
-      this.dragHandler.startWithoutCheck(wp, selected);
+    const movable = selected.filter((e) => this.opts.canMove?.(e.id) ?? true);
+    if (movable.length > 0) {
+      this.dragHandler.startWithoutCheck(wp, movable);
       return true;
     }
-
-    return false;
+    // выделили, но двигать нельзя
+    return selected.length > 0;
   }
 
   private tryHandleHitTest(svgPt: { x: number; y: number }): boolean {

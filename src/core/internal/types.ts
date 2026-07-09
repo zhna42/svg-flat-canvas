@@ -36,6 +36,9 @@ export interface ICanvasContext {
   readonly pathNodeOverlay: PathNodeOverlay;
   readonly nodeEdit: import('@/canvas/overlays/nodeedit/NodeEditCoordinator').NodeEditCoordinator;
   readonly measure: import('@/canvas/overlays/measure/MeasureCoordinator').MeasureCoordinator;
+  readonly laserGroupManager: import('@/laser').LaserGroupManager;
+  readonly laserSettings: import('@/laser').LaserSettings;
+  readonly laserColorResolver: import('@/laser').LaserColorResolver;
   readonly transformHandler: TransformHandler;
   readonly groupTransformHandler: GroupTransformHandler;
   readonly gridOverlay: GridOverlay;

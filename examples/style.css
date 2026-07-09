@@ -87,6 +87,93 @@ body {
   overflow: hidden;
 }
 
+/* ===== Laser Panel ===== */
+#laser-panel {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-y: auto;
+  background: var(--bg-toolbar);
+  padding: 8px;
+  gap: 8px;
+  font-size: 12px;
+}
+#laser-panel h3 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  color: var(--text-light);
+}
+#laser-panel .laser-block {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px;
+}
+#laser-panel label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  margin: 3px 0;
+  color: var(--text-muted);
+}
+#laser-panel input[type='number'],
+#laser-panel input[type='text'],
+#laser-panel select {
+  width: 90px;
+  background: #0f0f14;
+  color: var(--text-light);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+#laser-panel input[type='color'] {
+  width: 40px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--border);
+  background: none;
+}
+.laser-readout {
+  color: var(--text-light);
+  font-weight: 600;
+}
+.laser-group-item {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  margin-bottom: 6px;
+}
+.laser-group-item .lg-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.laser-group-item .lg-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.laser-group-item .lg-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.laser-group-item .lg-flags {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+.laser-group-item .lg-flags label {
+  justify-content: flex-start;
+  gap: 3px;
+}
+
 .right-block {
   display: flex;
   flex-direction: column;
@@ -144,7 +231,9 @@ button {
   font-size: 11px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
   font-family: inherit;
   display: flex;
   align-items: center;
@@ -241,7 +330,7 @@ select {
   font-family: inherit;
 }
 
-input[type="color"] {
+input[type='color'] {
   width: 28px;
   height: 22px;
   border: 1px solid var(--border);
@@ -251,7 +340,7 @@ input[type="color"] {
   padding: 1px;
 }
 
-input[type="number"] {
+input[type='number'] {
   background: var(--bg-panel);
   color: var(--text);
   border: 1px solid var(--border);
@@ -262,7 +351,7 @@ input[type="number"] {
   font-family: inherit;
 }
 
-input[type="text"] {
+input[type='text'] {
   background: var(--bg-panel);
   color: var(--text);
   border: 1px solid var(--border);
@@ -305,7 +394,7 @@ input[type="text"] {
   flex-wrap: wrap;
 }
 
-.group-actions input[type="text"] {
+.group-actions input[type='text'] {
   flex: 1;
   min-width: 80px;
 }
@@ -565,4 +654,3 @@ input[type="text"] {
 #btn-flex-remove:hover {
   background: rgba(255, 60, 60, 0.3);
 }
-

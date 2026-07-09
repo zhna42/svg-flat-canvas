@@ -309,6 +309,74 @@
         </div>
       </div>
 
+      <!-- Laser Panel (rightmost) -->
+      <div id="laser-panel">
+        <h3>🔥 Лазерные группы</h3>
+        <div class="laser-block">
+          <label
+            >Линза (F, мм)
+            <select id="laser-lens-focal">
+              <option value="25.4">25.4</option>
+              <option value="38.1">38.1</option>
+              <option value="50.8" selected>50.8</option>
+              <option value="63.5">63.5</option>
+              <option value="76.2">76.2</option>
+              <option value="101.6">101.6</option>
+            </select>
+          </label>
+          <label
+            >Диаметр линзы, мм
+            <input id="laser-lens-dia" type="number" step="0.1" value="20" />
+          </label>
+          <label
+            >Диаметр луча, мм
+            <input id="laser-beam-dia" type="number" step="0.1" value="5" />
+          </label>
+          <label
+            >Высота до материала, мм
+            <input id="laser-height" type="number" step="0.1" value="50.8" />
+          </label>
+          <label
+            >Цвет гравировки
+            <input id="laser-engrave-color" type="color" value="#000000" />
+          </label>
+          <label
+            >Цвет резки
+            <input id="laser-cut-color" type="color" value="#ff0000" />
+          </label>
+          <label
+            >Пятно, мм
+            <span id="laser-spot" class="laser-readout">—</span></label
+          >
+          <label
+            >Реком. DPI
+            <span id="laser-dpi" class="laser-readout">—</span></label
+          >
+        </div>
+        <div class="laser-block">
+          <label
+            ><input id="laser-hide-nonlaser" type="checkbox" /> Скрыть
+            не-лазерные</label
+          >
+          <label
+            ><input id="laser-translucent" type="checkbox" /> Полупрозрачные
+            лазерные</label
+          >
+        </div>
+        <div class="laser-block">
+          <div class="group-actions">
+            <input
+              id="laser-group-name"
+              type="text"
+              placeholder="Имя группы"
+              value="Laser"
+            />
+            <button id="laser-create">+ Группа</button>
+          </div>
+          <div id="laser-group-list"></div>
+        </div>
+      </div>
+
       <!-- Flex Tree Panel -->
       <div id="flex-tree-panel" class="flex-tree-panel" style="display: none">
         <div class="flex-tree-header">
