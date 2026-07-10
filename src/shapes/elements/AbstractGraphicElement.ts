@@ -6,7 +6,7 @@ import { LaserProps } from '../modules/LaserProps';
 import { ReactiveNode } from '@/core/ReactiveNode';
 
 export abstract class AbstractGraphicElement extends ReactiveNode {
-  public readonly id: string;
+  public id: string;
   public readonly type: ElementType;
   public readonly transform = new Transform();
   public readonly style = new Style();

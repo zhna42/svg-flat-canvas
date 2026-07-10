@@ -345,6 +345,44 @@ function setupLeftToolbar(): void {
   };
   document.getElementById('btn-sel-none')!.onclick = () => api.clearSelection();
 
+  // ── Copy / Use ──
+  document.getElementById('btn-dup-selected')!.onclick = () => {
+    api.duplicateSelected(30, 30);
+  };
+  document.getElementById('btn-use-dup')!.onclick = () => {
+    api.useDuplicateSelected(30, 30);
+  };
+  document.getElementById('btn-unbind-use')!.onclick = () => {
+    const selected = api.getSelected();
+    for (const el of selected) {
+      if (api.isUseElement(el.id)) {
+        api.unbindUseElement(el.id);
+      }
+    }
+  };
+  document.getElementById('btn-unbind-all')!.onclick = () => {
+    const selected = api.getSelected();
+    for (const el of selected) {
+      const useIds = api.getUseChildIds(el.id);
+      if (useIds.length > 0) {
+        api.unbindAllUseReferences(el.id);
+        break;
+      }
+    }
+  };
+  document.getElementById('sel-use-opacity')!.onchange = (e) => {
+    const opacity = parseFloat((e.target as HTMLSelectElement).value) as
+      | 0
+      | 0.25
+      | 1;
+    const selected = api.getSelected();
+    for (const el of selected) {
+      if (api.isUseElement(el.id)) {
+        api.setUseOpacity(el.id, opacity);
+      }
+    }
+  };
+
   document.getElementById('btn-apply-style')!.onclick = () => {
     const selected = api.getSelected();
     if (selected.length === 0) return;
@@ -577,6 +615,16 @@ function setupKeyboardShortcuts(): void {
     if (meta && e.key === 'z' && e.shiftKey) {
       e.preventDefault();
       api.redo();
+      return;
+    }
+    if (meta && e.key === 'd' && !e.shiftKey) {
+      e.preventDefault();
+      api.duplicateSelected(30, 30);
+      return;
+    }
+    if (meta && e.key === 'd' && e.shiftKey) {
+      e.preventDefault();
+      api.useDuplicateSelected(30, 30);
       return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {

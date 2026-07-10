@@ -78,6 +78,12 @@ export interface ImageGeometryDTO {
   rasterEditorOptions?: Record<string, unknown>;
 }
 
+export interface UseElementGeometryDTO {
+  refId: string;
+  x?: number;
+  y?: number;
+}
+
 export type ElementGeometryDTO =
   | RectGeometryDTO
   | CircleGeometryDTO
@@ -87,7 +93,8 @@ export type ElementGeometryDTO =
   | PolygonGeometryDTO
   | PolylineGeometryDTO
   | TextGeometryDTO
-  | ImageGeometryDTO;
+  | ImageGeometryDTO
+  | UseElementGeometryDTO;
 
 export interface CreateShapeDTO {
   id?: string;

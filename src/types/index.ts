@@ -138,6 +138,7 @@ export type {
   PolylineGeometryDTO,
   TextGeometryDTO,
   ImageGeometryDTO,
+  UseElementGeometryDTO,
   ElementGeometryDTO,
   CreateShapeDTO,
   UpdateShapesDTO,

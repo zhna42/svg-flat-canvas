@@ -8,4 +8,5 @@ export type ElementType =
   | 'polyline'
   | 'text'
   | 'image'
-  | 'pattern';
+  | 'pattern'
+  | 'use';

@@ -79,6 +79,8 @@ export class TransformHandler {
     worldPoint: { x: number; y: number },
     currentSelected: readonly AbstractGraphicElement[],
   ): boolean {
+    if (currentSelected.some((el) => el.type === 'use')) return false;
+
     this.handle = handle;
     this.targets = Array.from(currentSelected);
     this.startWorldPoint = { x: worldPoint.x, y: worldPoint.y };

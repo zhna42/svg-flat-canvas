@@ -26,6 +26,7 @@ export type {
   PolylineGeometryDTO,
   TextGeometryDTO,
   ImageGeometryDTO,
+  UseElementGeometryDTO,
 } from '@/types';
 export { SvgCanvas } from '@/core';
 export type { SvgCanvasOptions } from '@/types';
@@ -40,6 +41,7 @@ export {
   PolylineElement,
   TextElement,
   ImageElement,
+  UseElement,
   createFromJSON,
   createFromJSONArray,
 } from '@/shapes';

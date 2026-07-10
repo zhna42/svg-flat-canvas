@@ -10,5 +10,6 @@ export { PolylineElement } from './PolylineElement';
 export { TextElement } from './TextElement';
 export { ImageElement } from './ImageElement';
 export { PatternElement } from './PatternElement';
+export { UseElement } from './UseElement';
 export { createFromJSON, createFromJSONArray } from './factory';
 export type { ElementJSON } from '@/types';

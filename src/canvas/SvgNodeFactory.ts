@@ -10,6 +10,7 @@ const SVG_TAGS = new Set([
   'path',
   'text',
   'image',
+  'use',
   'g',
 ]);
 

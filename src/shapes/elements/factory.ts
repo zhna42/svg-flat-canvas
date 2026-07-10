@@ -7,6 +7,7 @@ import { PolygonElement } from './PolygonElement';
 import { PolylineElement } from './PolylineElement';
 import { TextElement } from './TextElement';
 import { ImageElement } from './ImageElement';
+import { UseElement } from './UseElement';
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { ElementType, ElementJSON } from '@/types';
 
@@ -35,6 +36,8 @@ export const createElementByType = (
       return new ImageElement(id);
     case 'pattern':
       return null;
+    case 'use':
+      return new UseElement(id);
     default:
       return null;
   }
@@ -65,6 +68,10 @@ const createElement = (
       return new ImageElement(id);
     case 'pattern':
       throw new Error('PatternElement cannot be created via factory');
+    case 'use':
+      throw new Error(
+        'UseElement cannot be created via factory — use createUseElement',
+      );
   }
 };
 

@@ -21,6 +21,7 @@ import {
   type FlexTreeAlgorithm,
 } from '@/math/flex-tree';
 import { createFromJSON, createFromJSONArray } from '@/shapes/elements/factory';
+import { UseElement } from '@/shapes/elements/UseElement';
 import { DebugLog } from '@/canvas/overlays/debug/DebugLog';
 import {
   createCreateCommand,
@@ -1415,6 +1416,195 @@ export class ExternalApi {
     patches: Array<{ id: string; fields: Record<string, unknown> }>,
   ): void {
     this.canvas.groupManager.updateGroups(patches);
+  }
+
+  // ── Копирование и Use-элементы ──
+
+  private _generateId(): string {
+    return crypto.randomUUID?.() ?? `shape_${Date.now()}_${++_idCounter}`;
+  }
+
+  /** Найти корневой элемент по ID, обходя цепочку use-элементов */
+  private _resolveRootElement(id: string): AbstractGraphicElement | undefined {
+    const el = this.canvas.shapeManager.getById(id);
+    if (!el) return undefined;
+    if (el instanceof UseElement && el._parentElement) {
+      return this._resolveRootElement(el._parentElement.id);
+    }
+    return el;
+  }
+
+  /** Глубокое копирование выбранных элементов.
+   *  Копии смещаются на dx, dy. Выделение переводится на копии. */
+  public duplicateSelected(dx = 50, dy = 50): AbstractGraphicElement[] {
+    const selected = this.getSelected();
+    if (selected.length === 0) return [];
+
+    const clones: AbstractGraphicElement[] = [];
+
+    for (const original of selected) {
+      const resolved =
+        original instanceof UseElement && original._parentElement
+          ? this._resolveRootElement(original.id)!
+          : original;
+
+      const clone = resolved.clone();
+      clone.id = this._generateId();
+      clone.name = resolved.name;
+
+      clone.transform.matrix.e += dx;
+      clone.transform.matrix.f += dy;
+
+      clone.setVisible(resolved.visible);
+      clone.lock = resolved.lock;
+      clone.rebuildHitArea();
+      clone.clearTimeMachineDiff();
+
+      this.canvas.elementManager.addShape(clone);
+      clones.push(clone);
+    }
+
+    this.canvas.selectionState.replace(clones);
+    this.canvas.selectionManager.setElementSelection(
+      clones.map((c) => c.id),
+      (id) => this.canvas.shapeManager.getById(id),
+    );
+
+    this.canvas.timeMachine.push(
+      'CREATE',
+      clones.map((c) => c.id),
+      'element',
+      [],
+      clones,
+    );
+
+    return clones;
+  }
+
+  /** Создать use-элементы из выбранных.
+   *  Use-элементы ссылаются на оригиналы, смещены на dx, dy, прозрачность 25%.
+   *  Если выбран use-элемент — ссылка идёт на корневой оригинал. */
+  public useDuplicateSelected(dx = 50, dy = 50): UseElement[] {
+    const selected = this.getSelected();
+    if (selected.length === 0) return [];
+
+    const useElements: UseElement[] = [];
+
+    for (const original of selected) {
+      const root = this._resolveRootElement(original.id);
+      if (!root) continue;
+
+      const useEl = new UseElement(this._generateId());
+      useEl.style.opacity = 0.25;
+      useEl.transform.matrix = new DOMMatrix().translateSelf(dx, dy);
+      useEl.bindToParent(root);
+      useEl.clearTimeMachineDiff();
+
+      this.canvas.elementManager.addShape(useEl);
+      useElements.push(useEl);
+    }
+
+    this.canvas.selectionState.replace(useElements);
+    this.canvas.selectionManager.setElementSelection(
+      useElements.map((u) => u.id),
+      (id) => this.canvas.shapeManager.getById(id),
+    );
+
+    this.canvas.timeMachine.push(
+      'CREATE',
+      useElements.map((u) => u.id),
+      'element',
+      [],
+      useElements,
+    );
+
+    return useElements;
+  }
+
+  /** Отвязать use-элемент от родителя: заменить глубокой копией с текущим положением. */
+  public unbindUseElement(useId: string): AbstractGraphicElement | null {
+    const el = this.canvas.shapeManager.getById(useId);
+    if (!el || !(el instanceof UseElement)) return null;
+
+    const clone = el.unobind();
+    if (!clone) return null;
+
+    this.canvas.elementManager.deleteElements([useId]);
+    this.canvas.elementManager.addShape(clone);
+
+    this.canvas.selectionState.replace([clone]);
+    this.canvas.selectionManager.setElementSelection([clone.id], (id) =>
+      this.canvas.shapeManager.getById(id),
+    );
+
+    this.canvas.timeMachine.push(
+      'CREATE',
+      [clone.id],
+      'element',
+      [el.id],
+      [clone],
+    );
+
+    return clone;
+  }
+
+  /** Установить прозрачность use-элемента.
+   *  @param opacity 0 — скрыт, 0.25 — затемнён (по умолчанию), 1 — полностью видим */
+  public setUseOpacity(useId: string, opacity: 0 | 0.25 | 1): void {
+    const el = this.canvas.shapeManager.getById(useId);
+    if (!el || !(el instanceof UseElement)) return;
+    el.setDiff({ 'style.opacity': opacity } as Record<string, number | string>);
+    const raw = el as unknown as Record<string, unknown>;
+    raw._diffRendering = {
+      ...((raw._diffRendering as Record<string, unknown>) || {}),
+      'style.opacity': opacity,
+    };
+    el.pushDiffRendering?.(el);
+  }
+
+  /** Проверить, является ли элемент use-элементом */
+  public isUseElement(id: string): boolean {
+    const el = this.canvas.shapeManager.getById(id);
+    return el instanceof UseElement;
+  }
+
+  /** Получить ID родительского элемента use-элемента */
+  public getUseParentId(id: string): string | null {
+    const el = this.canvas.shapeManager.getById(id);
+    if (!el || !(el instanceof UseElement)) return null;
+    return el.refId || null;
+  }
+
+  /** Найти все use-элементы, ссылающиеся на заданный родительский элемент */
+  public getUseChildIds(parentId: string): string[] {
+    const all = this.canvas.shapeManager.getAll();
+    return all
+      .filter((el) => el instanceof UseElement && el.refId === parentId)
+      .map((el) => el.id);
+  }
+
+  /** Отвязать все use-элементы, ссылающиеся на заданный элемент.
+   *  При выборе родителя — делает все его use-копии самостоятельными. */
+  public unbindAllUseReferences(parentId: string): AbstractGraphicElement[] {
+    const useIds = this.getUseChildIds(parentId);
+    if (useIds.length === 0) return [];
+
+    const clones: AbstractGraphicElement[] = [];
+
+    for (const useId of useIds) {
+      const clone = this.unbindUseElement(useId);
+      if (clone) clones.push(clone);
+    }
+
+    if (clones.length > 0) {
+      this.canvas.selectionState.replace(clones);
+      this.canvas.selectionManager.setElementSelection(
+        clones.map((c) => c.id),
+        (id) => this.canvas.shapeManager.getById(id),
+      );
+    }
+
+    return clones;
   }
 
   // ── Приватные методы ──
