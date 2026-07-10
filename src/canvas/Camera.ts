@@ -6,6 +6,7 @@ export class Camera extends ReactiveNode {
   public y = 0;
   public zoom = 1;
   public groupId = '';
+  public panHeld = false;
 
   constructor(registerDirty: (instance: any) => void) {
     super('camera', 'g', 'overlayRoot');

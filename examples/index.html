@@ -63,6 +63,30 @@
         </button>
       </div>
       <div class="toolbar-section">
+        <span class="section-label">Текст</span>
+        <select id="txt-font" title="Шрифт" style="width: 120px"></select>
+        <select id="txt-weight" title="Начертание" style="width: 70px"></select>
+        <input
+          id="txt-size"
+          type="number"
+          min="1"
+          value="16"
+          title="Размер"
+          style="width: 52px"
+        />
+        <input id="txt-color" type="color" value="#000000" title="Цвет" />
+        <button id="txt-italic" data-toggle title="Курсив"><i>I</i></button>
+        <button id="txt-underline" data-toggle title="Подчёркнутый">
+          <u>U</u>
+        </button>
+        <button id="txt-strike" data-toggle title="Зачёркнутый">
+          <s>S</s>
+        </button>
+        <button id="txt-align-left" title="По левому">⇤</button>
+        <button id="txt-align-center" title="По центру">⇔</button>
+        <button id="txt-align-right" title="По правому">⇥</button>
+      </div>
+      <div class="toolbar-section">
         <span class="section-label">View</span>
         <button id="btn-pan-mode" data-toggle title="Pan Mode">✋ Pan</button>
         <button id="btn-toggle-rulers" data-toggle title="Toggle Rulers">
@@ -232,11 +256,19 @@
           </button>
           <button
             id="btn-creation-cancel"
-            class="creation-tool cancel"
-            title="Cancel Creation"
+            class="creation-tool"
+            title="Cancel"
             style="display: none"
           >
-            🚫 Cancel
+            ✕ Cancel
+          </button>
+          <button
+            id="btn-creation-text"
+            class="creation-tool"
+            data-type="text"
+            title="Текст"
+          >
+            🔤 Текст
           </button>
         </div>
         <div class="toolbar-section">

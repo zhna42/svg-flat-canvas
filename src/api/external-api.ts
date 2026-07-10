@@ -46,6 +46,9 @@ import type {
   LaserOpType,
   LaserSettingsInfo,
 } from '@/laser';
+import type { TextController } from '@/text';
+import type { TextStylePatch } from '@/text';
+type TextControllerType = TextController;
 import { MM_TO_PX } from '@/constants';
 import type {
   CreateShapeDTO,
@@ -946,6 +949,102 @@ export class ExternalApi {
     );
   }
 
+  // ── Текст / шрифты ──
+
+  /** Инициализировать каталог шрифтов (Google Fonts) по apiKey. */
+  public async initTextFonts(apiKey: string): Promise<void> {
+    await this.canvas.textController.fonts.init(apiKey);
+    this.canvas.events.emit('FONTS_READY', {});
+  }
+
+  /** Поиск шрифтов по подстроке/категории. */
+  public searchFonts(
+    query = '',
+    category?: string,
+  ): ReturnType<TextControllerType['fonts']['search']> {
+    return this.canvas.textController.fonts.search(query, category);
+  }
+
+  /** Метаданные вариантов шрифта (веса, наличие italic). */
+  public getFontVariants(
+    family: string,
+  ): ReturnType<TextControllerType['fonts']['getVariants']> {
+    return this.canvas.textController.fonts.getVariants(family);
+  }
+
+  /** Активировать инструмент «Текст». */
+  public activateTextTool(): void {
+    this.setActiveCreationTool('text');
+  }
+
+  /** Войти в режим редактирования текста. */
+  public enterTextEdit(id: string): void {
+    this.canvas.textController.enterEdit(id);
+  }
+  /** Выйти из режима редактирования текста (применить). */
+  public exitTextEdit(): void {
+    this.canvas.textController.exitEdit();
+  }
+  public isTextEditing(): boolean {
+    return this.canvas.textController.isEditing;
+  }
+
+  /**
+   * Применить стиль. В режиме правки — к выделенному диапазону;
+   * в режиме селекта — ко всем выбранным текстовым элементам.
+   */
+  public async setTextStyle(patch: TextStylePatch): Promise<void> {
+    await this.canvas.textController.applyStyle(patch);
+  }
+  public setTextFontSize(px: number): void {
+    void this.canvas.textController.applyStyle({ fontSizePx: px });
+  }
+  public setTextFontFamily(family: string): void {
+    void this.canvas.textController.applyStyle({ fontFamily: family });
+  }
+  public setTextWeight(weight: string): void {
+    void this.canvas.textController.applyStyle({ fontWeight: weight });
+  }
+  public setTextItalic(italic: boolean): void {
+    void this.canvas.textController.applyStyle({ italic });
+  }
+  public setTextColor(color: string): void {
+    void this.canvas.textController.applyStyle({ color });
+  }
+  public setTextUnderline(on: boolean): void {
+    void this.canvas.textController.applyStyle({ underline: on });
+  }
+  public setTextStrike(on: boolean): void {
+    void this.canvas.textController.applyStyle({ strike: on });
+  }
+  public setTextAlign(align: 'left' | 'center' | 'right'): void {
+    void this.canvas.textController.applyStyle({ align });
+  }
+
+  public getText(id: string): string | null {
+    return this.canvas.textController.getContent(id);
+  }
+  public setText(id: string, html: string): void {
+    this.canvas.textController.setContent(id, html);
+  }
+
+  public deleteTextCharacter(direction: 'forward' | 'backward'): void {
+    this.canvas.textController.deleteCharacter(direction);
+  }
+  public undoTextEdit(): void {
+    this.canvas.textController.undo();
+  }
+  public redoTextEdit(): void {
+    this.canvas.textController.redo();
+  }
+
+  // ── Камера / пан ──
+
+  /** Принудительный пан камеры (пробел зажат). */
+  public setPanHeld(held: boolean): void {
+    this.canvas.camera.panHeld = held;
+  }
+
   /** Добавить фигуру на холст */
   public addShape(shape: AbstractGraphicElement): void {
     this.canvas.elementManager.addShape(shape);
@@ -994,6 +1093,7 @@ export class ExternalApi {
       'polyline',
       'polygon',
       'path',
+      'text',
     ];
     if (type === null || (allowed as string[]).includes(type)) {
       this.canvas.creationHandler.setActiveType(

@@ -36,6 +36,10 @@ export class TransformHandler {
   private startWorldPoint: Point = { x: 0, y: 0 };
   private startMatrices = new Map<string, DOMMatrix>();
   private anchorWorldPoints = new Map<string, Point>();
+  private startTextBoxes = new Map<
+    string,
+    { x: number; y: number; w: number; h: number }
+  >();
   private rotationCenter: Point = { x: 0, y: 0 };
   private startAngle = 0;
   private timeMachine: TimeMachine;
@@ -80,10 +84,20 @@ export class TransformHandler {
     this.startWorldPoint = { x: worldPoint.x, y: worldPoint.y };
     this.startMatrices.clear();
     this.anchorWorldPoints.clear();
+    this.startTextBoxes.clear();
 
     for (const el of currentSelected) {
       const startMatrix = new DOMMatrix(el.transform.matrix.toString());
       this.startMatrices.set(el.id, startMatrix);
+      if (el.type === 'text' && (el as { rich?: boolean }).rich) {
+        const b = el.getBBox();
+        this.startTextBoxes.set(el.id, {
+          x: b.x,
+          y: b.y,
+          w: b.width,
+          h: b.height,
+        });
+      }
     }
 
     if (this.mode === 'rotate') {
@@ -228,8 +242,9 @@ export class TransformHandler {
       const localDx = scaleDx * flip.x;
       const localDy = scaleDy * flip.y;
 
-      const factorX = 1 + localDx / effectiveW;
-      const factorY = 1 + localDy / effectiveH;
+      const textBox = this.startTextBoxes.get(el.id);
+      const factorX = 1 + localDx / (textBox ? Math.max(textBox.w, 1) : effectiveW);
+      const factorY = 1 + localDy / (textBox ? Math.max(textBox.h, 1) : effectiveH);
 
       let usedFactorX = factorX;
       let usedFactorY = factorY;
@@ -243,6 +258,24 @@ export class TransformHandler {
       }
 
       if (usedFactorX <= 0 || usedFactorY <= 0) continue;
+
+      if (textBox) {
+        // Текст: меняем размер РАМКИ, шрифт не масштабируем.
+        const newW = Math.max(textBox.w * usedFactorX, 1);
+        const newH = Math.max(textBox.h * usedFactorY, 1);
+        const newX = isRightAnchor ? textBox.x + textBox.w - newW : textBox.x;
+        const newY = isBottomAnchor ? textBox.y + textBox.h - newH : textBox.y;
+        const t = el as unknown as {
+          posX: string;
+          posY: string;
+          setBox: (w: number, h: number) => void;
+        };
+        t.posX = String(newX);
+        t.posY = String(newY);
+        t.setBox(newW, newH);
+        el.transform.matrix = new DOMMatrix(startMatrix.toString());
+        continue;
+      }
 
       const m = new DOMMatrix(startMatrix.toString())
         .translateSelf(localAnchor.x, localAnchor.y)

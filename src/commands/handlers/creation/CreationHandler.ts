@@ -7,6 +7,7 @@ import { LineElement } from '@/shapes/elements/LineElement';
 import { PolylineElement } from '@/shapes/elements/PolylineElement';
 import { PolygonElement } from '@/shapes/elements/PolygonElement';
 import { PathElement } from '@/shapes/elements/PathElement';
+import { TextElement } from '@/shapes/elements/TextElement';
 import type { CommandBus } from '@/core/CommandBus';
 import { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
 import type { CreationElementType } from '@/types';
@@ -221,10 +222,17 @@ export class CreationHandler {
     }
 
     const preview = this.createElementInstance(type);
-    preview.style.fill = DEFAULT_STYLE.fill;
-    preview.style.stroke = DEFAULT_STYLE.stroke;
-    preview.style.strokeWidth = DEFAULT_STYLE.strokeWidth;
-    preview.style.opacity = DEFAULT_STYLE.opacity;
+    if (type === 'text') {
+      preview.style.fill = 'none';
+      preview.style.stroke = 'none';
+      preview.style.strokeWidth = 0;
+      preview.style.opacity = 1;
+    } else {
+      preview.style.fill = DEFAULT_STYLE.fill;
+      preview.style.stroke = DEFAULT_STYLE.stroke;
+      preview.style.strokeWidth = DEFAULT_STYLE.strokeWidth;
+      preview.style.opacity = DEFAULT_STYLE.opacity;
+    }
 
     if (type === 'polyline' || type === 'polygon') {
       (preview as PolylineElement | PolygonElement).points = pointsToString(
@@ -511,6 +519,14 @@ export class CreationHandler {
         return new PolygonElement(id);
       case 'path':
         return new PathElement(id);
+      case 'text': {
+        const t = new TextElement(id);
+        t.rich = true;
+        t.fontFamily = 'sans-serif';
+        t.fontSize = '16';
+        t.color = '#000000';
+        return t;
+      }
     }
   }
 
@@ -581,6 +597,16 @@ export class CreationHandler {
           line.geometry.y2 = current.y;
         }
         line.rebuildHitArea();
+        break;
+      }
+
+      case 'text': {
+        const t = el as TextElement;
+        t.posX = String(Math.min(start.x, current.x));
+        t.posY = String(Math.min(start.y, current.y));
+        t.boxWidth = String(Math.max(Math.abs(current.x - start.x), 1));
+        t.boxHeight = String(Math.max(Math.abs(current.y - start.y), 1));
+        t.rebuildHitArea();
         break;
       }
     }

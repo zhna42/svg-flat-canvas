@@ -147,6 +147,7 @@ export class SelectionHandler {
     if (e.button !== 0) return false;
 
     if (this.opts.isCreating?.()) return false;
+    if (this.opts.isTextEditing?.()) return false;
 
     if (this.opts.isGuidelineDragging?.()) return false;
 
@@ -228,6 +229,7 @@ export class SelectionHandler {
 
     // Auto-pan on empty canvas
     if (
+      !this.opts.isCreating?.() &&
       !useRect &&
       this.areaSelectionManager.getGesture() !== 'lasso' &&
       !this.ctrlHeld
@@ -405,6 +407,10 @@ export class SelectionHandler {
         picked.type === 'polygon'
       ) {
         this.nodeEdit.enter([picked]);
+        e.preventDefault();
+        return true;
+      } else if (picked.type === 'text') {
+        this.opts.onTextEdit?.(picked);
         e.preventDefault();
         return true;
       } else if (picked.type === 'image') {

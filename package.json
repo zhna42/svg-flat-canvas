@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "clipper-lib": "^6.4.2",
+    "omnifont": "^0.1.0",
     "svg-path-outline": "^1.0.1"
   }
 }

@@ -29,6 +29,75 @@ function init(): void {
   setupMeasureToolbar();
   setupSizeInputs();
   setupLaserPanel();
+  setupTextPanel();
+}
+
+const GOOGLE_FONTS_KEY = 'AIzaSyBtoXXgjyOUNazwWDWAenfPkoRN7U8VlUs';
+
+function setupTextPanel(): void {
+  const fontSel = document.getElementById('txt-font') as HTMLSelectElement;
+  const weightSel = document.getElementById('txt-weight') as HTMLSelectElement;
+  const sizeInp = document.getElementById('txt-size') as HTMLInputElement;
+  const colorInp = document.getElementById('txt-color') as HTMLInputElement;
+
+  const fillWeights = (family: string): void => {
+    const meta = api.getFontVariants(family);
+    weightSel.innerHTML = '';
+    const weights = meta?.weights ?? ['400', '700'];
+    for (const w of weights) {
+      const o = document.createElement('option');
+      o.value = w;
+      o.textContent = w;
+      weightSel.appendChild(o);
+    }
+  };
+
+  api
+    .initTextFonts(GOOGLE_FONTS_KEY)
+    .then(() => {
+      const fonts = api.searchFonts('').slice(0, 100);
+      fontSel.innerHTML = '';
+      for (const f of fonts) {
+        const o = document.createElement('option');
+        o.value = f.family;
+        o.textContent = f.family;
+        fontSel.appendChild(o);
+      }
+      if (fonts[0]) fillWeights(fonts[0].family);
+    })
+    .catch((e) => console.warn('Fonts init failed', e));
+
+  fontSel.onchange = () => {
+    fillWeights(fontSel.value);
+    api.setTextFontFamily(fontSel.value);
+  };
+  weightSel.onchange = () => api.setTextWeight(weightSel.value);
+  sizeInp.onchange = () => api.setTextFontSize(parseFloat(sizeInp.value));
+  colorInp.onchange = () => api.setTextColor(colorInp.value);
+  document.getElementById('txt-italic')!.onclick = () =>
+    api.setTextItalic(toggleBtn('txt-italic'));
+  document.getElementById('txt-underline')!.onclick = () =>
+    api.setTextUnderline(toggleBtn('txt-underline'));
+  document.getElementById('txt-strike')!.onclick = () =>
+    api.setTextStrike(toggleBtn('txt-strike'));
+  document.getElementById('txt-align-left')!.onclick = () =>
+    api.setTextAlign('left');
+  document.getElementById('txt-align-center')!.onclick = () =>
+    api.setTextAlign('center');
+  document.getElementById('txt-align-right')!.onclick = () =>
+    api.setTextAlign('right');
+
+  // Кнопка «🔤 Текст» — инструмент создания
+  document.getElementById('btn-creation-text')!.onclick = () => {
+    api.setActiveCreationTool('text');
+  };
+}
+
+function toggleBtn(id: string): boolean {
+  const btn = document.getElementById(id)!;
+  const on = !btn.classList.contains('on');
+  btn.classList.toggle('on', on);
+  return on;
 }
 
 // ─── Demo Data ───────────────────────────────────────────
@@ -355,6 +424,32 @@ function setupRightPanel(): void {
 // ─── Keyboard Shortcuts ──────────────────────────────────
 
 function setupKeyboardShortcuts(): void {
+  // Пан по пробелу
+  document.addEventListener('keydown', (e) => {
+    if (
+      e.target instanceof HTMLInputElement ||
+      e.target instanceof HTMLSelectElement ||
+      e.target instanceof HTMLTextAreaElement
+    )
+      return;
+    if (
+      e.key === ' ' &&
+      !e.repeat &&
+      !api.isTextEditing() &&
+      !api.isNodeEditing &&
+      !api.getMeasureTool()
+    ) {
+      e.preventDefault();
+      api.setPanHeld(true);
+    }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.key === ' ') {
+      api.setPanHeld(false);
+    }
+  });
+
+  // Основная клавиатура
   document.addEventListener('keydown', (e) => {
     if (
       e.target instanceof HTMLInputElement ||
@@ -364,6 +459,31 @@ function setupKeyboardShortcuts(): void {
       return;
 
     const meta = e.metaKey || e.ctrlKey;
+
+    // ── Редактирование текста (дабл-клик) ──
+    if (api.isTextEditing()) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        api.exitTextEdit();
+        return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        api.deleteTextCharacter('backward');
+        return;
+      }
+      if (meta && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        api.undoTextEdit();
+        return;
+      }
+      if (meta && e.key === 'z' && e.shiftKey) {
+        e.preventDefault();
+        api.redoTextEdit();
+        return;
+      }
+      return;
+    }
 
     // ── Инструменты измерения ──
     if (api.getMeasureTool()) {
@@ -375,7 +495,7 @@ function setupKeyboardShortcuts(): void {
       }
     }
 
-    // ── Режим редактирования узлов (клавиатура — на стороне приложения) ──
+    // ── Режим редактирования узлов ──
     if (api.isNodeEditing) {
       if (meta && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
@@ -426,6 +546,7 @@ function setupKeyboardShortcuts(): void {
       return;
     }
 
+    // ── Обычный режим ──
     if (meta && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();
       api.undo();
@@ -436,7 +557,6 @@ function setupKeyboardShortcuts(): void {
       api.redo();
       return;
     }
-
     if (e.key === 'Delete' || e.key === 'Backspace') {
       const selected = api.getSelected();
       if (selected.length > 0) {
@@ -444,7 +564,6 @@ function setupKeyboardShortcuts(): void {
       }
       return;
     }
-
     if (meta && e.key === 'a') {
       e.preventDefault();
       const all = api.getAllShapes();

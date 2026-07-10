@@ -20,6 +20,7 @@ import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
 import { NodeEditCoordinator } from '@/canvas/overlays/nodeedit/NodeEditCoordinator';
 import { MeasureCoordinator } from '@/canvas/overlays/measure/MeasureCoordinator';
 import { LaserGroupManager, LaserSettings, LaserColorResolver } from '@/laser';
+import { TextController } from '@/text';
 import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
 import { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/canvas/overlays/debug/DebugOverlay';
@@ -101,6 +102,8 @@ export class SvgCanvas implements ICanvasContext {
   laserSettings!: LaserSettings;
   laserColorResolver!: LaserColorResolver;
 
+  textController!: TextController;
+
   selectionHandler!: SelectionHandler;
   creationHandler!: CreationHandler;
 
@@ -115,6 +118,7 @@ export class SvgCanvas implements ICanvasContext {
     this._initLaserModule();
     this._initOverlayInfrastructure();
     this._initElementManager();
+    this._initTextController();
     this._initManagers(options);
     this._createApi();
     this._wire();
@@ -236,6 +240,23 @@ export class SvgCanvas implements ICanvasContext {
       new ColorIndexer(this.colorMap),
       this.commandBus,
     );
+  }
+
+  private _initTextController(): void {
+    this.textController = new TextController({
+      svg: this.svg,
+      camera: this.camera as any,
+      view: this.view,
+      getElement: (id) => this.shapeManager.getById(id),
+      hitTest: (x, y) =>
+        this.hitTestEngine.queryPoint(x, y).hits.map((h) => h.id),
+      deleteElement: (id) => this._api.deleteElement(id),
+      emit: (type, data) => this.events.emit(type, data),
+    });
+    this.textController._selectedTextIds = () =>
+      this.selectionState.selected
+        .filter((e) => e.type === 'text')
+        .map((e) => e.id);
   }
 
   private _initOverlayInfrastructure(): void {
@@ -474,6 +495,8 @@ export class SvgCanvas implements ICanvasContext {
       getEditingPath: () => this._api.editingPath,
       canInteract: (id) => this.laserGroupManager.canInteract(id),
       canMove: (id) => this.laserGroupManager.canMove(id),
+      isTextEditing: () => this.textController.isEditing,
+      onTextEdit: (el) => this.textController.enterEdit(el.id),
       getGuidelines: () => this.guidelineManager.getGuidelines(),
       getGridLines: () => this.gridOverlay.getGridLines(),
       events: this.events,
@@ -486,6 +509,7 @@ export class SvgCanvas implements ICanvasContext {
     this.eventManager.register(this.booleanHandler);
     this.eventManager.register(this.selectionHandler);
     this.eventManager.register(this.measure);
+    this.eventManager.register(this.textController);
     this.eventManager.bind();
     requestAnimationFrame(() => {
       this.timeMachine.captureRoot();

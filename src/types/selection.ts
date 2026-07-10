@@ -80,6 +80,8 @@ export interface SelectionHandlerOptions {
   getEditingPath?: () => AbstractGraphicElement | null;
   canInteract?: (elementId: string) => boolean;
   canMove?: (elementId: string) => boolean;
+  isTextEditing?: () => boolean;
+  onTextEdit?: (el: AbstractGraphicElement) => void;
   getGuidelines?: () => Array<{
     orientation: 'v' | 'h';
     position: number;

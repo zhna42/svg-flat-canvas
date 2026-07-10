@@ -33,7 +33,8 @@ export type CreationElementType =
   | 'line'
   | 'polyline'
   | 'polygon'
-  | 'path';
+  | 'path'
+  | 'text';
 
 export interface BBox {
   x: number;
