@@ -1,6 +1,7 @@
 export {
   RulerBuilder,
   getSvgViewportBounds,
+  getRulerSvgSize,
   RULER_SIZE_PX,
 } from './RulerBuilder';
 export { Guideline } from './Guideline';

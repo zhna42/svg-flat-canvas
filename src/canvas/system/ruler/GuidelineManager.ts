@@ -2,7 +2,7 @@ import type { Camera } from '@/canvas/Camera';
 import type { EventBus } from '@/core/EventBus';
 import type { GuidelineData } from '@/types';
 import { Guideline } from './Guideline';
-import { RULER_SIZE_PX, getSvgViewportBounds } from './RulerBuilder';
+import { getSvgViewportBounds, getRulerSvgSize } from './RulerBuilder';
 
 const GUIDELINE_HIT_TOLERANCE = 6;
 const MIN_DRAG_DIST = 3;
@@ -171,7 +171,9 @@ export class GuidelineManager {
 
     if (!this.rulersVisible) return;
 
-    if (svgPt.x <= RULER_SIZE_PX && svgPt.y > RULER_SIZE_PX) {
+    const { rsV, rsH } = getRulerSvgSize(this.svg);
+
+    if (svgPt.x <= rsV && svgPt.y > rsH) {
       this.dragging = {
         type: 'ruler',
         orientation: 'v',
@@ -182,7 +184,7 @@ export class GuidelineManager {
       e.preventDefault();
       return;
     }
-    if (svgPt.y <= RULER_SIZE_PX && svgPt.x > RULER_SIZE_PX) {
+    if (svgPt.y <= rsH && svgPt.x > rsV) {
       this.dragging = {
         type: 'ruler',
         orientation: 'h',
