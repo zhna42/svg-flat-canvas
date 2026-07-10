@@ -609,12 +609,15 @@ export class ExternalApi {
       realH = vp.y;
     }
     this.canvas.camera.fitToViewport(
-      widthMM * 3.7795,
-      heightMM * 3.7795,
+      widthMM * MM_TO_PX,
+      heightMM * MM_TO_PX,
       realW,
       realH,
       40,
     );
+    if (this.canvas.rulers.flipY) {
+      this.canvas.rulers.setFlipY(true, heightMM * MM_TO_PX);
+    }
     this.canvas.events.emit('artboard-resized', { widthMM, heightMM });
   }
 
@@ -1168,6 +1171,15 @@ export class ExternalApi {
   }
   public getRulersVisible(): boolean {
     return this.canvas.rulers.visible;
+  }
+
+  /** Перевернуть ось Y линейки: 0 внизу артборда */
+  public setRulerFlipY(flip: boolean): void {
+    const hPx = this.canvas.artboard.heightPx;
+    this.canvas.rulers.setFlipY(flip, hPx);
+  }
+  public getRulerFlipY(): boolean {
+    return this.canvas.rulers.flipY;
   }
   public addGuideline(orientation: 'v' | 'h', position: number): string {
     return this.canvas.guidelineManager.addGuideline(orientation, position);

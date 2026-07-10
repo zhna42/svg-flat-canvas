@@ -5,6 +5,7 @@ import { RulerBuilder } from '@/canvas/system/ruler/RulerBuilder';
 import { FlexCutBuilder } from '@/canvas/system/FlexCutBuilder';
 import { FlexTree, type CutSegment } from '@/math/flex-tree';
 import type { LaserStyleOverride } from '@/laser/laser-types';
+import { MM_TO_PX } from '@/constants';
 
 const SYSTEM_IDS = new Set([
   'camera',
@@ -449,11 +450,11 @@ export class CanvasView {
         element.setAttribute('pointer-events', 'none');
         const w =
           typeof diff.widthMM === 'number'
-            ? diff.widthMM * 3.779527559055118
+            ? diff.widthMM * MM_TO_PX
             : undefined;
         const h =
           typeof diff.heightMM === 'number'
-            ? diff.heightMM * 3.779527559055118
+            ? diff.heightMM * MM_TO_PX
             : undefined;
         const fill = typeof diff.fill === 'string' ? diff.fill : '#ffffff';
         if (w !== undefined) element.setAttribute('width', String(w));
@@ -467,6 +468,8 @@ export class CanvasView {
           cameraX: typeof diff.cameraX === 'number' ? diff.cameraX : 0,
           cameraY: typeof diff.cameraY === 'number' ? diff.cameraY : 0,
           zoom: typeof diff.zoom === 'number' ? diff.zoom : 1,
+          flipY: typeof diff.flipY === 'boolean' ? diff.flipY : false,
+          worldHeightPx: typeof diff.worldHeightPx === 'number' ? diff.worldHeightPx : 0,
         });
         return;
       }

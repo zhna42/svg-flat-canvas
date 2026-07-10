@@ -1,15 +1,18 @@
+import { MM_TO_PX } from '@/constants';
+
 export const RULER_SIZE_PX = 20;
 const RULER_BG = '#fff';
 const RULER_BORDER = '#888';
 const RULER_TEXT_COLOR = '#555';
 const RULER_TICK_COLOR = '#888';
-const PX_PER_MM = 3.779527559055118;
 
 export interface RulerParams {
   visible: boolean;
   cameraX: number;
   cameraY: number;
   zoom: number;
+  flipY: boolean;
+  worldHeightPx: number;
 }
 
 export function getSvgViewportBounds(
@@ -49,11 +52,14 @@ export class RulerBuilder {
     const z = params.zoom;
     const panX = params.cameraX;
     const panY = params.cameraY;
+    const flipY = params.flipY;
+    const worldHPx = params.worldHeightPx;
+    const worldHMm = worldHPx / MM_TO_PX;
 
     const targetPx = 7 / z;
-    const targetMm = targetPx / PX_PER_MM;
+    const targetMm = targetPx / MM_TO_PX;
     const mmStep = this.niceStep(targetMm);
-    const step = mmStep * PX_PER_MM;
+    const step = mmStep * MM_TO_PX;
 
     const bounds = getSvgViewportBounds(this.svg);
     const svgW = bounds.w;
@@ -67,7 +73,8 @@ export class RulerBuilder {
 
     h += `<rect x="0" y="0" width="${rs}" height="${rs}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
     if (panX < rs && panY < rs) {
-      h += `<text x="${rs - 2}" y="${rs - 4}" fill="${RULER_TEXT_COLOR}" font-size="8" font-family="system-ui, sans-serif" text-anchor="end">0</text>`;
+      const cornerLabel = flipY ? this.formatMmLabel(worldHMm, mmStep) : '0';
+      h += `<text x="${rs - 2}" y="${rs - 4}" fill="${RULER_TEXT_COLOR}" font-size="8" font-family="system-ui, sans-serif" text-anchor="end">${cornerLabel}</text>`;
     }
 
     h += `<rect x="${rs}" y="0" width="${svgW - rs}" height="${rs}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
@@ -84,7 +91,7 @@ export class RulerBuilder {
       const sx = w * z + panX;
       if (sx >= svgW) break;
       if (sx < rs) continue;
-      const mmVal = w / PX_PER_MM;
+      const mmVal = w / MM_TO_PX;
       const tickType = this.getTickType(mmVal, mmStep);
       const len =
         tickType === 'major'
@@ -99,13 +106,17 @@ export class RulerBuilder {
     }
 
     const startIdxV = Math.floor(-panY / stepPx);
+    const iBottom = flipY ? Math.round(worldHPx / step) : 0;
+    const flipOffset = flipY ? worldHMm - iBottom * mmStep : 0;
     for (let i = startIdxV; ; i++) {
       const w = i * step;
       const sy = w * z + panY;
       if (sy >= svgH) break;
       if (sy < rs) continue;
-      const mmVal = w / PX_PER_MM;
-      const tickType = this.getTickType(mmVal, mmStep);
+      const rawMmVal = flipY ? worldHMm - w / MM_TO_PX : w / MM_TO_PX;
+      const tickType = flipY
+        ? this.flippedTickType(i, iBottom, mmStep)
+        : this.getTickType(rawMmVal, mmStep);
       const len =
         tickType === 'major'
           ? rs - 3
@@ -114,11 +125,26 @@ export class RulerBuilder {
             : rs * 0.3;
       h += `<line x1="${rs - len}" y1="${sy}" x2="${rs}" y2="${sy}" stroke="${RULER_TICK_COLOR}" stroke-width="${lineW}"/>`;
       if (tickType === 'major') {
-        h += `<text x="${rs - 2}" y="${sy + 2}" fill="${RULER_TEXT_COLOR}" font-size="9" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="hanging">${this.formatMmLabel(mmVal, mmStep)}</text>`;
+        const displayMmVal = flipY ? rawMmVal - flipOffset : rawMmVal;
+        h += `<text x="${rs - 2}" y="${sy + 2}" fill="${RULER_TEXT_COLOR}" font-size="9" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="hanging">${this.formatMmLabel(displayMmVal, mmStep)}</text>`;
       }
     }
 
     return h;
+  }
+
+  private flippedTickType(
+    i: number,
+    iBottom: number,
+    _mmStep: number,
+  ): 'minor' | 'medium' | 'major' {
+    const dist = Math.abs(i - iBottom);
+    if (dist < 0.5) return 'major';
+    const r10 = dist % 10;
+    if (r10 < 0.5 || r10 > 9.5) return 'major';
+    const r5 = dist % 5;
+    if (r5 < 0.5 || r5 > 4.5) return 'medium';
+    return 'minor';
   }
 
   private getTickType(

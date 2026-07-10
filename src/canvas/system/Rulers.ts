@@ -6,6 +6,8 @@ export class Rulers extends ReactiveNode {
   public cameraY = 0;
   public zoom = 1;
   public viewNonce = 0;
+  public flipY = false;
+  public worldHeightPx = 0;
 
   constructor(registerDirty: (instance: any) => void) {
     super('rulers', 'g', 'overlayRoot');
@@ -30,12 +32,19 @@ export class Rulers extends ReactiveNode {
     this.viewNonce = (this.viewNonce + 1) % 1_000_000;
   }
 
+  public setFlipY(flip: boolean, heightPx: number): void {
+    this.flipY = flip;
+    this.worldHeightPx = heightPx;
+  }
+
   public override getRenderingPayload(): Record<string, unknown> {
     return {
       visible: this.visible,
       cameraX: this.cameraX,
       cameraY: this.cameraY,
       zoom: this.zoom,
+      flipY: this.flipY,
+      worldHeightPx: this.worldHeightPx,
     };
   }
 }

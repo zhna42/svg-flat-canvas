@@ -30,6 +30,7 @@ function init(): void {
   setupSizeInputs();
   setupLaserPanel();
   setupTextPanel();
+  setupArtboardSize();
 }
 
 const GOOGLE_FONTS_KEY = 'AIzaSyBtoXXgjyOUNazwWDWAenfPkoRN7U8VlUs';
@@ -91,6 +92,26 @@ function setupTextPanel(): void {
   document.getElementById('btn-creation-text')!.onclick = () => {
     api.setActiveCreationTool('text');
   };
+}
+
+// ─── Artboard Size ──────────────────────────────────────
+
+function setupArtboardSize(): void {
+  const inpW = document.getElementById('inp-artboard-w') as HTMLInputElement;
+  const inpH = document.getElementById('inp-artboard-h') as HTMLInputElement;
+  const btn = document.getElementById('btn-apply-artboard')!;
+
+  const apply = (): void => {
+    const w = parseFloat(inpW.value);
+    const h = parseFloat(inpH.value);
+    if (w > 0 && h > 0) {
+      api.setArtboardSize(w, h);
+    }
+  };
+
+  btn.onclick = apply;
+  inpW.addEventListener('keydown', (e) => e.key === 'Enter' && apply());
+  inpH.addEventListener('keydown', (e) => e.key === 'Enter' && apply());
 }
 
 function toggleBtn(id: string): boolean {
@@ -196,6 +217,7 @@ function setupTopToolbar(): void {
 
   toggleButton('btn-pan-mode', false, (v) => api.setPanMode(v));
   toggleButton('btn-toggle-rulers', false, (v) => api.setRulersVisible(v));
+  toggleButton('btn-flip-ruler-y', false, (v) => api.setRulerFlipY(v));
   toggleButton('btn-toggle-grid', false, (v) =>
     v ? api.showGrid() : api.hideGrid(),
   );
