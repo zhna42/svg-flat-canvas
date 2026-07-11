@@ -7,25 +7,25 @@ export class Background {
 
     const pattern = document.createElementNS(ns, 'pattern');
     pattern.id = 'bg-checkers';
-    pattern.setAttribute('width', '16');
-    pattern.setAttribute('height', '16');
+    pattern.setAttribute('width', '16000');
+    pattern.setAttribute('height', '16000');
     pattern.setAttribute('patternUnits', 'userSpaceOnUse');
 
     const bg = document.createElementNS(ns, 'rect');
-    bg.setAttribute('width', '16');
-    bg.setAttribute('height', '16');
+    bg.setAttribute('width', '16000');
+    bg.setAttribute('height', '16000');
     bg.setAttribute('fill', '#f0f0f0');
     pattern.appendChild(bg);
 
     for (const cell of [
       { x: 0, y: 0 },
-      { x: 8, y: 8 },
+      { x: 8000, y: 8000 },
     ]) {
       const r = document.createElementNS(ns, 'rect');
       r.setAttribute('x', String(cell.x));
       r.setAttribute('y', String(cell.y));
-      r.setAttribute('width', '8');
-      r.setAttribute('height', '8');
+      r.setAttribute('width', '8000');
+      r.setAttribute('height', '8000');
       r.setAttribute('fill', '#e0e0e0');
       pattern.appendChild(r);
     }
@@ -33,10 +33,10 @@ export class Background {
     defs.appendChild(pattern);
 
     this.el = document.createElementNS(ns, 'rect');
-    this.el.setAttribute('x', '-10000');
-    this.el.setAttribute('y', '-10000');
-    this.el.setAttribute('width', '20000');
-    this.el.setAttribute('height', '20000');
+    this.el.setAttribute('x', '-10000000');
+    this.el.setAttribute('y', '-10000000');
+    this.el.setAttribute('width', '20000000');
+    this.el.setAttribute('height', '20000000');
     this.el.setAttribute('fill', 'url(#bg-checkers)');
     this.el.setAttribute('pointer-events', 'none');
 

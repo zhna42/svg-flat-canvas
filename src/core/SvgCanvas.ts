@@ -165,7 +165,7 @@ export class SvgCanvas implements ICanvasContext {
 
     this.eventManager = new EventManager(svg);
     this.selectionState = new SelectionState();
-    this.hitTestEngine = new HitTestEngine(100);
+    this.hitTestEngine = new HitTestEngine(10000);
     this.panActive = { value: false };
     this.events = new EventBus();
     this.colorMap = new ColorMap();

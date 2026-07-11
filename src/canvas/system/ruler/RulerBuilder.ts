@@ -68,8 +68,12 @@ export class RulerBuilder {
     const worldHPx = params.worldHeightPx;
     const worldHMm = worldHPx / MM_TO_PX;
 
-    const targetPx = 7 / z;
-    const targetMm = targetPx / MM_TO_PX;
+    const ctm = this.svg.getScreenCTM();
+    const svgToPx = ctm ? Math.abs(ctm.a) || 1 : 1;
+    const sy = ctm ? Math.abs(ctm.d) || 1 : 1;
+    const pxToSvg = 1 / svgToPx;
+    const targetWorldUnits = (7 * pxToSvg) / z;
+    const targetMm = targetWorldUnits / MM_TO_PX;
     const mmStep = this.niceStep(targetMm);
     const step = mmStep * MM_TO_PX;
 
@@ -77,11 +81,10 @@ export class RulerBuilder {
     const svgW = bounds.w;
     const svgH = bounds.h;
     const { rsV, rsH } = getRulerSvgSize(this.svg);
-    const ctm = this.svg.getScreenCTM();
-    const sy = ctm ? Math.abs(ctm.d) || 1 : 1;
+
     const fontSize = FONT_SIZE_BASE / sy;
     const fontSizeSmall = FONT_SIZE_SMALL / sy;
-    const lineW = 0.5;
+    const lineW = 0.5 * MM_TO_PX;
 
     if (svgW < rsV || svgH < rsH) return '';
 

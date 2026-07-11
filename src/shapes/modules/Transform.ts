@@ -33,8 +33,8 @@ export class Transform {
     const rad = (angleDeg * Math.PI) / 180;
     const cos = Math.cos(rad);
     const sin = Math.sin(rad);
-    const localX = dx * cos + dy * sin;
-    const localY = -dx * sin + dy * cos;
+    const localX = Math.round(dx * cos + dy * sin);
+    const localY = Math.round(-dx * sin + dy * cos);
     const m = new DOMMatrix().translateSelf(localX, localY);
     this.matrix = m.multiply(this.matrix);
   }

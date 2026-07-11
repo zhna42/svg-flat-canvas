@@ -2,7 +2,9 @@ import { ReactiveNode } from '@/core/ReactiveNode';
 import type { Camera } from '@/canvas/Camera';
 
 const GUIDELINE_COLOR = '#ff4444';
-const GUIDELINE_WIDTH = 1;
+import { MM_TO_PX } from '@/constants';
+
+const GUIDELINE_WIDTH = 1 * MM_TO_PX;
 
 export class Guideline extends ReactiveNode {
   public x1 = 0;

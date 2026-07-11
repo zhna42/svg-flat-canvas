@@ -70,10 +70,10 @@ export class GridOverlay {
 
     let html = '';
     for (let x = 0; x <= width; x += step) {
-      html += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="#ccc" stroke-width="1" stroke-opacity="0.3" vector-effect="non-scaling-stroke"/>`;
+      html += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="#ccc" stroke-width="${MM_TO_PX}" stroke-opacity="0.3" vector-effect="non-scaling-stroke"/>`;
     }
     for (let y = 0; y <= height; y += step) {
-      html += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="#ccc" stroke-width="1" stroke-opacity="0.3" vector-effect="non-scaling-stroke"/>`;
+      html += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="#ccc" stroke-width="${MM_TO_PX}" stroke-opacity="0.3" vector-effect="non-scaling-stroke"/>`;
     }
     this.group.innerHTML = html;
   }

@@ -71,7 +71,7 @@ export class FlexCutBuilder {
     path.setAttribute('d', d);
     path.setAttribute('fill', 'none');
     path.setAttribute('stroke', '#ff0000');
-    path.setAttribute('stroke-width', '0.5');
+    path.setAttribute('stroke-width', '500');
     path.setAttribute('clip-path', `url(#${clipId})`);
     return path;
   }

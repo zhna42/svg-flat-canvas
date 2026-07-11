@@ -8,7 +8,7 @@ export class RectOverlay extends ReactiveNode {
   public height = 0;
   public fill = 'rgba(66, 133, 244, 0.12)';
   public stroke = '#4285f4';
-  public strokeWidth = 1;
+  public strokeWidth = 1000;
   public visibility: 'visible' | 'hidden' = 'hidden';
 
   private _startX = 0;

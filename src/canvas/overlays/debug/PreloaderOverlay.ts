@@ -11,10 +11,10 @@ export class PreloaderOverlay {
   }
 
   private build(): void {
-    const cx = 50;
-    const cy = 50;
-    const r = 20;
-    const sw = 3;
+    const cx = 50000;
+    const cy = 50000;
+    const r = 20000;
+    const sw = 3000;
 
     const bg = document.createElementNS(SVG_NS, 'circle');
     bg.setAttribute('cx', String(cx));
@@ -59,7 +59,7 @@ export class PreloaderOverlay {
   }
 
   public show(x: number, y: number): void {
-    this.group.setAttribute('transform', `translate(${x - 50}, ${y - 50})`);
+    this.group.setAttribute('transform', `translate(${x - 50000}, ${y - 50000})`);
     this.group.setAttribute('display', '');
     this._visible = true;
   }

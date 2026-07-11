@@ -257,6 +257,8 @@ export class ExternalApi {
       .scaleSelf(fx, fy)
       .translateSelf(-ox, -oy)
       .multiply(el.transform.matrix);
+    scaled.e = Math.round(scaled.e);
+    scaled.f = Math.round(scaled.f);
     el.transform.matrix = scaled;
     el.rebuildHitArea();
     void this._emitSize(el.id);
@@ -586,13 +588,15 @@ export class ExternalApi {
   /** Установить размер артборда */
   public setArtboardSize(widthMM: number, heightMM: number): void {
     this.canvas.artboard?.setSize(widthMM, heightMM);
-    const vb = this.canvas.svg.getAttribute('viewBox') || '0 0 800 600';
-    const parts = vb.split(/\s+/).map(Number);
-    const viewW = parts[2] || 800;
-    const viewH = parts[3] || 600;
+    const wUnits = widthMM * MM_TO_PX;
+    const hUnits = heightMM * MM_TO_PX;
+    this.canvas.svg.setAttribute(
+      'viewBox',
+      `0 0 ${wUnits} ${hUnits}`,
+    );
     const ctm = this.canvas.svg.getScreenCTM();
-    let realW = viewW;
-    let realH = viewH;
+    let realW = wUnits;
+    let realH = hUnits;
     if (ctm) {
       const rect = this.canvas.svg.getBoundingClientRect();
       const inv = ctm.inverse();
@@ -604,14 +608,14 @@ export class ExternalApi {
       realH = vp.y;
     }
     this.canvas.camera.fitToViewport(
-      widthMM * MM_TO_PX,
-      heightMM * MM_TO_PX,
+      wUnits,
+      hUnits,
       realW,
       realH,
       40,
     );
     if (this.canvas.rulers.flipY) {
-      this.canvas.rulers.setFlipY(true, heightMM * MM_TO_PX);
+      this.canvas.rulers.setFlipY(true, hUnits);
     }
     this.canvas.events.emit('artboard-resized', { widthMM, heightMM });
   }
@@ -1721,38 +1725,39 @@ export class ExternalApi {
     geo: ElementGeometryDTO,
   ): Record<string, string> {
     const attrs: Record<string, string> = {};
+    const round = (v: number): string => String(Math.round(v));
     switch (type) {
       case 'rect': {
         const r = geo as RectGeometryDTO;
-        attrs.x = String(r.x);
-        attrs.y = String(r.y);
-        attrs.width = String(r.width);
-        attrs.height = String(r.height);
-        if (r.rx !== undefined) attrs.rx = String(r.rx);
-        if (r.ry !== undefined) attrs.ry = String(r.ry);
+        attrs.x = round(r.x);
+        attrs.y = round(r.y);
+        attrs.width = round(r.width);
+        attrs.height = round(r.height);
+        if (r.rx !== undefined) attrs.rx = round(r.rx);
+        if (r.ry !== undefined) attrs.ry = round(r.ry);
         break;
       }
       case 'circle': {
         const c = geo as CircleGeometryDTO;
-        attrs.cx = String(c.cx);
-        attrs.cy = String(c.cy);
-        attrs.r = String(c.r);
+        attrs.cx = round(c.cx);
+        attrs.cy = round(c.cy);
+        attrs.r = round(c.r);
         break;
       }
       case 'ellipse': {
         const e = geo as EllipseGeometryDTO;
-        attrs.cx = String(e.cx);
-        attrs.cy = String(e.cy);
-        attrs.rx = String(e.rx);
-        attrs.ry = String(e.ry);
+        attrs.cx = round(e.cx);
+        attrs.cy = round(e.cy);
+        attrs.rx = round(e.rx);
+        attrs.ry = round(e.ry);
         break;
       }
       case 'line': {
         const l = geo as LineGeometryDTO;
-        attrs.x1 = String(l.x1);
-        attrs.y1 = String(l.y1);
-        attrs.x2 = String(l.x2);
-        attrs.y2 = String(l.y2);
+        attrs.x1 = round(l.x1);
+        attrs.y1 = round(l.y1);
+        attrs.x2 = round(l.x2);
+        attrs.y2 = round(l.y2);
         break;
       }
       case 'path':
@@ -1776,10 +1781,10 @@ export class ExternalApi {
       }
       case 'image': {
         const img = geo as ImageGeometryDTO;
-        attrs.x = String(img.x);
-        attrs.y = String(img.y);
-        attrs.width = String(img.width);
-        attrs.height = String(img.height);
+        attrs.x = round(img.x);
+        attrs.y = round(img.y);
+        attrs.width = round(img.width);
+        attrs.height = round(img.height);
         attrs.href = img.href;
         break;
       }

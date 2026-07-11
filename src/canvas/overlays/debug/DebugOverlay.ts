@@ -33,10 +33,10 @@ export class DebugOverlay {
       poly.setAttribute('points', pointsStr);
       poly.setAttribute('fill', 'rgba(255, 0, 0, 0.15)');
       poly.setAttribute('stroke', 'rgba(255, 0, 0, 0.6)');
-      poly.setAttribute('stroke-width', String(1 / z));
+      poly.setAttribute('stroke-width', String(1000 / z));
       poly.setAttribute(
         'stroke-dasharray',
-        String(3 / z) + ' ' + String(2 / z),
+        String(3000 / z) + ' ' + String(2000 / z),
       );
       this.group.appendChild(poly);
     }

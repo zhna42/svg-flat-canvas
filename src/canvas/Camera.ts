@@ -24,7 +24,7 @@ export class Camera extends ReactiveNode {
   }
 
   public setZoom(svgPoint: Point, factor: number): void {
-    const newZoom = Math.max(0.05, Math.min(this.zoom * factor, 50));
+    const newZoom = Math.max(0.2, Math.min(this.zoom * factor, 30));
     const worldX = (svgPoint.x - this.x) / this.zoom;
     const worldY = (svgPoint.y - this.y) / this.zoom;
     this.x = svgPoint.x - worldX * newZoom;
@@ -38,7 +38,7 @@ export class Camera extends ReactiveNode {
   }
 
   public setZoomLevel(zoom: number): void {
-    this.zoom = Math.max(0.05, Math.min(zoom, 50));
+    this.zoom = Math.max(0.2, Math.min(zoom, 30));
   }
 
   public screenToWorld(screenPoint: Point): Point {

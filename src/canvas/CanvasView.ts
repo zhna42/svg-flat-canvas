@@ -397,10 +397,10 @@ export class CanvasView {
 
     const hw = w / 2;
     const hh = h / 2;
-    const offCorner = 7;
-    const offEdge = 12;
-    const cx = 12;
-    const cy = 12;
+    const offCorner = 3500;
+    const offEdge = 6000;
+    const cx = 6000;
+    const cy = 6000;
     const handleData: Array<{
       key: string;
       hx: number;

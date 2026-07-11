@@ -117,8 +117,8 @@ export class MeasureRenderer {
     el.setAttribute('x2', String(b.x));
     el.setAttribute('y2', String(b.y));
     el.setAttribute('stroke', LINE);
-    el.setAttribute('stroke-width', '1.5');
-    if (dashed) el.setAttribute('stroke-dasharray', '4 3');
+    el.setAttribute('stroke-width', '1500');
+    if (dashed) el.setAttribute('stroke-dasharray', '4000 3000');
     this.root.appendChild(el);
   }
 
@@ -129,17 +129,17 @@ export class MeasureRenderer {
     const nx = -dy / len;
     const ny = dx / len;
     const el = document.createElementNS(SVG_NS, 'line');
-    el.setAttribute('x1', String(at.x - nx * 5));
-    el.setAttribute('y1', String(at.y - ny * 5));
-    el.setAttribute('x2', String(at.x + nx * 5));
-    el.setAttribute('y2', String(at.y + ny * 5));
+    el.setAttribute('x1', String(at.x - nx * 5000));
+    el.setAttribute('y1', String(at.y - ny * 5000));
+    el.setAttribute('x2', String(at.x + nx * 5000));
+    el.setAttribute('y2', String(at.y + ny * 5000));
     el.setAttribute('stroke', LINE);
-    el.setAttribute('stroke-width', '1.5');
+    el.setAttribute('stroke-width', '1500');
     this.root.appendChild(el);
   }
 
   private arc(v: Point, p1: Point, p2: Point): void {
-    const r = 26;
+    const r = 26000;
     const a1 = Math.atan2(p1.y - v.y, p1.x - v.x);
     let a2 = Math.atan2(p2.y - v.y, p2.x - v.x);
     let delta = a2 - a1;
@@ -159,7 +159,7 @@ export class MeasureRenderer {
     );
     el.setAttribute('fill', 'none');
     el.setAttribute('stroke', LINE);
-    el.setAttribute('stroke-width', '1.5');
+    el.setAttribute('stroke-width', '1500');
     this.root.appendChild(el);
   }
 
@@ -170,7 +170,7 @@ export class MeasureRenderer {
     el.setAttribute('r', String(r));
     el.setAttribute('fill', '#fff');
     el.setAttribute('stroke', color);
-    el.setAttribute('stroke-width', '1.5');
+    el.setAttribute('stroke-width', '1500');
     this.root.appendChild(el);
   }
 

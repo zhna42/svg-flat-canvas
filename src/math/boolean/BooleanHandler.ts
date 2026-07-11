@@ -8,6 +8,7 @@ import { dString } from './BooleanEngine';
 import { PreviewElement } from '@/shapes/elements/PreviewElement';
 import type { EventBus } from '@/core/EventBus';
 import type { CommandBus } from '@/core/CommandBus';
+import { MM_TO_PX } from '@/constants';
 import { polyIntersectsPoly } from '@/core/HitTestEngine';
 
 const PREVIEW_FILL_COLOR = '#ff0000';
@@ -119,7 +120,7 @@ export class BooleanHandler {
     this.previewEl = new PreviewElement(PREVIEW_ID);
     this.previewEl.style.fill = PREVIEW_FILL_COLOR;
     this.previewEl.style.stroke = PREVIEW_STROKE_COLOR;
-    this.previewEl.style.strokeWidth = 1;
+    this.previewEl.style.strokeWidth = 1 * MM_TO_PX;
     this.previewEl.visible = false;
     this.shapeManager.addPreviewElement(this.previewEl);
   }

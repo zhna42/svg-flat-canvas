@@ -9,14 +9,14 @@ interface HandleHitArea {
   points: Array<{ x: number; y: number }>;
 }
 
-const HW = 6;
-const HH = 10;
+const HW = 3000;
+const HH = 5000;
 
 function computeHandleHitAreas(w: number, h: number): HandleHitArea[] {
   const hw = w / 2;
   const hh = h / 2;
-  const oc = 7;
-  const oe = 12;
+  const oc = 3500;
+  const oe = 6000;
 
   const positions: Array<{ handle: HandlePosition; cx: number; cy: number }> = [
     { handle: 'nw', cx: -oc,   cy: -oc   },

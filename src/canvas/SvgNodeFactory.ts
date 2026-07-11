@@ -37,7 +37,7 @@ export class SvgNodeFactory extends NodeDOMFactory {
     const rectBg = this.createSvgElement('rect');
     rectBg.setAttribute('fill', 'none');
     rectBg.setAttribute('stroke', '#ffffff');
-    rectBg.setAttribute('stroke-width', '1.5');
+    rectBg.setAttribute('stroke-width', '1500');
     rectBg.setAttribute('pointer-events', 'none');
     rectBg.setAttribute('shape-rendering', 'crispEdges');
     elements.set('rect-bg', rectBg);
@@ -46,8 +46,8 @@ export class SvgNodeFactory extends NodeDOMFactory {
     const rectFg = this.createSvgElement('rect');
     rectFg.setAttribute('fill', 'none');
     rectFg.setAttribute('stroke', '#000000');
-    rectFg.setAttribute('stroke-width', '1.5');
-    rectFg.setAttribute('stroke-dasharray', '4 3');
+    rectFg.setAttribute('stroke-width', '1500');
+    rectFg.setAttribute('stroke-dasharray', '4000 3000');
     rectFg.setAttribute('pointer-events', 'none');
     rectFg.setAttribute('shape-rendering', 'crispEdges');
     elements.set('rect-fg', rectFg);
@@ -56,10 +56,13 @@ export class SvgNodeFactory extends NodeDOMFactory {
     const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'] as const;
     for (const h of handles) {
       const path = this.createSvgElement('path');
-      path.setAttribute('d', 'M12 2L6 8H10V16H6L12 22L18 16H14V8H18L12 2Z');
+      path.setAttribute(
+        'd',
+        'M6000 1000L3000 4000H5000V6000H3000L6000 9000L9000 6000H7000V4000H9000L6000 1000Z',
+      );
       path.setAttribute('fill', '#000000');
       path.setAttribute('stroke', '#FFFFFF');
-      path.setAttribute('stroke-width', '1.5');
+      path.setAttribute('stroke-width', '1500');
       path.setAttribute('stroke-linejoin', 'round');
       path.setAttribute('data-handle', h);
       elements.set(`h-${h}`, path);
