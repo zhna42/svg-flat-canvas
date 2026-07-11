@@ -48,7 +48,7 @@ function setupTextPanel(): void {
     }
   };
 
-  api
+  api.textEdit
     .initTextFonts(GOOGLE_FONTS_KEY)
     .then(() => {
       const fonts = api.textEdit.searchFonts('').slice(0, 100);
