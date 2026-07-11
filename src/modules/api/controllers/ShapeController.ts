@@ -11,6 +11,7 @@ import {
   createTransformCommand,
 } from '@/core/commands';
 import { MM_TO_PX } from '@/constants';
+import { guardEditMode } from './helpers';
 import type {
   CreateShapeDTO,
   UpdateShapesDTO,
@@ -41,7 +42,7 @@ export class ShapeController {
   constructor(private canvas: SvgCanvas) {}
 
   createShape(dto: CreateShapeDTO): AbstractGraphicElement {
-    if (!this._guardEditMode())
+    if (!guardEditMode(this.canvas))
       return null as unknown as AbstractGraphicElement;
     const id = dto.id ?? generateId();
     const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
@@ -84,7 +85,7 @@ export class ShapeController {
   }
 
   deleteShapes(dto: DeleteShapesDTO): void {
-    if (!this._guardEditMode()) return;
+    if (!guardEditMode(this.canvas)) return;
     this._purgeLaser(dto.elementIds);
     this.canvas.elementManager.deleteElements(dto.elementIds);
   }
@@ -100,7 +101,7 @@ export class ShapeController {
   }
 
   updateShapes(dto: UpdateShapesDTO): void {
-    if (!this._guardEditMode()) return;
+    if (!guardEditMode(this.canvas)) return;
     const elements = this.findElements(dto.elementIds);
     for (const el of elements) {
       if (dto.style) this.applyStyleDto(el, dto.style);
@@ -117,14 +118,14 @@ export class ShapeController {
   }
 
   moveShapes(dto: MoveShapesDTO): void {
-    if (!this._guardEditMode()) return;
+    if (!guardEditMode(this.canvas)) return;
     this.canvas.commandBus.execute(
       createDragMoveCommand('element', dto.delta, dto.elementIds),
     );
   }
 
   rotateShapes(dto: RotateShapesDTO): void {
-    if (!this._guardEditMode()) return;
+    if (!guardEditMode(this.canvas)) return;
     if (!dto.elementIds?.length) return;
     this.canvas.commandBus.execute(
       createRotateCommand(dto.elementIds, dto.angle),
@@ -132,7 +133,7 @@ export class ShapeController {
   }
 
   resizeShapes(dto: ResizeShapesDTO): void {
-    if (!this._guardEditMode()) return;
+    if (!guardEditMode(this.canvas)) return;
     if (!dto.elementIds?.length) return;
     this.canvas.commandBus.execute(
       createResizeCommand(dto.elementIds, dto.bbox),
@@ -140,7 +141,7 @@ export class ShapeController {
   }
 
   setTransformShapes(dto: SetTransformShapesDTO): void {
-    if (!this._guardEditMode()) return;
+    if (!guardEditMode(this.canvas)) return;
     if (!dto.elementIds?.length) return;
     this.canvas.commandBus.execute(
       createTransformCommand(dto.elementIds, dto.matrix),
@@ -259,10 +260,7 @@ export class ShapeController {
     for (const id of ids) this.canvas.laserGroupManager.purgeElement(id);
   }
 
-  private _guardEditMode(): boolean {
-    return this.canvas.mode !== 'layers';
-  }
-
+  // eslint-disable-next-line @typescript-eslint/class-literal-property-style
   private _emitSize(id: string): void {
     const el = this.canvas.shapeManager.getAll().find((e) => e.id === id);
     if (!el) return;

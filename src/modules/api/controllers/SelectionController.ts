@@ -1,5 +1,6 @@
 import type { SvgCanvas } from '@/canvas/SvgCanvas';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import { guardEditMode } from './helpers';
 import type {
   SelectionMode,
   SelectionGesture,
@@ -18,7 +19,7 @@ export class SelectionController {
   }
 
   public selectShapes(dto: SelectShapesDTO): void {
-    if (!this._guardEditMode()) return;
+    if (!guardEditMode(this.canvas)) return;
     const elements = this.findElements(dto.elementIds);
     if (dto.toggle) {
       const current = [...this.getSelected()];
@@ -96,10 +97,6 @@ export class SelectionController {
   public setRotationStep(step: number): void {
     this.canvas.selectionHandler.setRotationStep(step);
     this.canvas.events.emit('ROTATION_STEP_CHANGED', { step });
-  }
-
-  private _guardEditMode(): boolean {
-    return this.canvas.mode !== 'layers';
   }
 
   private findElements(ids: string[]): AbstractGraphicElement[] {

@@ -6,7 +6,7 @@ export class TextEditController {
   constructor(private canvas: SvgCanvas) {}
 
   private get tc(): TextController {
-    return this.canvas.textController as unknown as TextController;
+    return this.canvas.textController;
   }
 
   async initTextFonts(apiKey: string): Promise<void> {

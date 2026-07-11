@@ -1,5 +1,6 @@
 import type { SvgCanvas } from '@/canvas/SvgCanvas';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import { guardEditMode } from './helpers';
 import { UseElement } from '@/core/shapes/elements/UseElement';
 import { MM_TO_PX } from '@/constants';
 
@@ -23,12 +24,8 @@ export class ClipboardController {
     return el;
   }
 
-  private _guardEditMode(): boolean {
-    return this.canvas.mode !== 'layers';
-  }
-
   duplicateSelected(dx = 50, dy = 50): AbstractGraphicElement[] {
-    if (!this._guardEditMode()) return [];
+    if (!guardEditMode(this.canvas)) return [];
     const selected = this.canvas.selectionState.selected;
     if (selected.length === 0) return [];
 
@@ -74,7 +71,7 @@ export class ClipboardController {
   }
 
   useDuplicateSelected(dx = 50, dy = 50): UseElement[] {
-    if (!this._guardEditMode()) return [];
+    if (!guardEditMode(this.canvas)) return [];
     const selected = this.canvas.selectionState.selected;
     if (selected.length === 0) return [];
 
@@ -112,7 +109,7 @@ export class ClipboardController {
   }
 
   unbindUseElement(useId: string): AbstractGraphicElement | null {
-    if (!this._guardEditMode()) return null;
+    if (!guardEditMode(this.canvas)) return null;
     const el = this.canvas.shapeManager.getById(useId);
     if (!el || !(el instanceof UseElement)) return null;
 
@@ -169,7 +166,7 @@ export class ClipboardController {
   }
 
   unbindAllUseReferences(parentId: string): AbstractGraphicElement[] {
-    if (!this._guardEditMode()) return [];
+    if (!guardEditMode(this.canvas)) return [];
     const useIds = this.getUseChildIds(parentId);
     if (useIds.length === 0) return [];
 

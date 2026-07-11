@@ -62,7 +62,7 @@ export class CanvasController {
   }
 
   public getCamera(): Camera {
-    return this.canvas.camera as any;
+    return this.canvas.camera;
   }
 
   public setPanMode(enabled: boolean): void {

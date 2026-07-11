@@ -1,5 +1,6 @@
 import type { SvgNodeDto } from './svg-node-dto';
-import { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import { createElementByType } from '@/core/shapes/factory';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import { RectElement } from '@/core/shapes/elements/RectElement';
 import { CircleElement } from '@/core/shapes/elements/CircleElement';
 import { EllipseElement } from '@/core/shapes/elements/EllipseElement';
@@ -10,30 +11,8 @@ import { PolylineElement } from '@/core/shapes/elements/PolylineElement';
 import { TextElement } from '@/core/shapes/elements/TextElement';
 import { ImageElement } from '@/core/shapes/elements/ImageElement';
 
-const createByTag = (id: string, tag: string): AbstractGraphicElement => {
-  switch (tag) {
-    case 'rect':
-      return new RectElement(id);
-    case 'circle':
-      return new CircleElement(id);
-    case 'ellipse':
-      return new EllipseElement(id);
-    case 'line':
-      return new LineElement(id);
-    case 'path':
-      return new PathElement(id);
-    case 'polygon':
-      return new PolygonElement(id);
-    case 'polyline':
-      return new PolylineElement(id);
-    case 'text':
-      return new TextElement(id);
-    case 'image':
-      return new ImageElement(id);
-    default:
-      return new RectElement(id);
-  }
-};
+const createByTag = (id: string, tag: string): AbstractGraphicElement =>
+  createElementByType(tag, id) ?? new RectElement(id);
 
 export const svgNodesToElements = (
   dtos: SvgNodeDto[],

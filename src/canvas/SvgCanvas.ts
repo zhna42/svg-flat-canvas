@@ -142,7 +142,7 @@ export class SvgCanvas implements ICanvasContext {
   private _initCore(container: HTMLElement, options?: SvgCanvasOptions): void {
     this.element = container;
     this.element.style.userSelect = 'none';
-    (this.element.style as any).webkitUserSelect = 'none';
+    (this.element.style as unknown as Record<string, unknown>).webkitUserSelect = 'none';
 
     const svg = createSvgElement(options);
     svg.setAttribute('tabindex', '0');
@@ -325,7 +325,7 @@ export class SvgCanvas implements ICanvasContext {
   private _initTextController(): void {
     this.textController = new TextController({
       svg: this.svg,
-      camera: this.camera as any,
+      camera: this.camera,
       view: this.view,
       getElement: (id) => this.shapeManager.getById(id),
       hitTest: (x, y) =>
@@ -380,29 +380,29 @@ export class SvgCanvas implements ICanvasContext {
     });
 
     this.transformHandler = new TransformHandler(
-      this.camera as any,
+      this.camera,
       this.timeMachine,
     );
     this.groupTransformHandler = new GroupTransformHandler(
-      this.camera as any,
+      this.camera,
       this.timeMachine,
     );
 
-    this.debugOverlay = new DebugOverlay(this.camera as any);
+    this.debugOverlay = new DebugOverlay(this.camera);
     overlayRoot.appendChild(this.debugOverlay.getElement());
 
     this.preloaderOverlay = new PreloaderOverlay();
     this.preloaderOverlay.hide();
     overlayRoot.appendChild(this.preloaderOverlay.getElement());
 
-    this.gridOverlay = new GridOverlay(this.camera as any, () => ({
+    this.gridOverlay = new GridOverlay(this.camera, () => ({
       width: this.artboard.widthPx,
       height: this.artboard.heightPx,
     }));
     this.view.cameraGroup.appendChild(this.gridOverlay.getElement());
 
     this.nodeEdit = new NodeEditCoordinator({
-      camera: this.camera as any,
+      camera: this.camera,
       getElement: (id) => this.shapeManager.getById(id),
       getAllElements: () => this.shapeManager.getAll(),
       convertToPath: (id) => this._convertToPath(id),
@@ -420,7 +420,7 @@ export class SvgCanvas implements ICanvasContext {
     this.view.cameraGroup.appendChild(this.nodeEdit.renderer.getElement());
 
     this.measure = new MeasureCoordinator({
-      camera: this.camera as any,
+      camera: this.camera,
       svg: this.svg,
       getElements: () => this.shapeManager.getAll(),
       hitTestEngine: this.hitTestEngine,
@@ -459,7 +459,7 @@ export class SvgCanvas implements ICanvasContext {
   private _initManagers(options?: SvgCanvasOptions): void {
     void options;
     this.guidelineManager = new GuidelineManager(
-      this.camera as any,
+      this.camera,
       this.events,
       this.svg,
       this.scheduler.registerDirtyNode,
@@ -502,7 +502,7 @@ export class SvgCanvas implements ICanvasContext {
   private _createHandlers(): void {
     const creationHandler = new CreationHandler(
       this.svg,
-      this.camera as any,
+      this.camera,
       this.commandBus,
       (el) => this.elementManager.addShape(el),
       (el) => this.shapeManager.remove(el.id),
@@ -523,7 +523,7 @@ export class SvgCanvas implements ICanvasContext {
 
     this.selectionHandler = new SelectionHandler({
       svg: this.svg,
-      camera: this.camera as any,
+      camera: this.camera,
       selectionManager: this.selectionManager,
       pathNodeOverlay: this.pathNodeOverlay,
       nodeEdit: this.nodeEdit,
