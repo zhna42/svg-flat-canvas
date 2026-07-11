@@ -64,7 +64,7 @@ export class CircleElement extends AbstractGraphicElement {
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {
-    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const { svgStringToOutlinePath } = require('./svg-outline');
     const { cx, cy, r } = this.geometry;
     const fill = this.style.hasFill
       ? `fill="${this.style.fill}"`

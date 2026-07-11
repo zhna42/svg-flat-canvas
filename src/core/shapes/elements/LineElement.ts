@@ -87,7 +87,7 @@ export class LineElement extends AbstractGraphicElement {
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {
-    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const { svgStringToOutlinePath } = require('./svg-outline');
     const { x1, y1, x2, y2 } = this.geometry;
     const svgStr = `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${this.style.stroke}" stroke-width="${this.style.strokeWidth}"/>`;
     return svgStringToOutlinePath(svgStr, `${this.id}-outline`);

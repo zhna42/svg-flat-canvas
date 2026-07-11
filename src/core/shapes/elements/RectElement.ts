@@ -94,7 +94,7 @@ export class RectElement extends AbstractGraphicElement {
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {
-    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const { svgStringToOutlinePath } = require('./svg-outline');
     const { x, y, width, height, rx, ry } = this.geometry;
     const fill = this.style.hasFill
       ? `fill="${this.style.fill}"`

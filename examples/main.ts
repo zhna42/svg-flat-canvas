@@ -1,12 +1,7 @@
-import { SvgCanvas } from '../src/core';
-import type { ExternalApi } from '../src/api/external-api';
-import type { BusEvent } from '../src/types';
-import type { GroupData } from '../src/types';
-import { svgNodesToElements } from '../src/api/dto/svg-node-factory';
-import type { SvgNodeDto } from '../src/api/dto/svg-node-dto';
+import { SvgCanvas, ExternalApi, svgNodesToElements } from '@/index';
+import type { BusEvent, GroupData, SvgNodeDto, CreateShapeDTO } from '@/index';
 import svgNodes from './svg-nodes.json';
 import groupsData from './groups.json';
-import type { CreateShapeDTO } from '../src/api/dto';
 
 let api: ExternalApi;
 
@@ -850,10 +845,8 @@ let flexSelectedElementId: string | null = null;
 function syncFlexPanelFromSelection(): void {
   flexSelectedElementId = null;
   // Use the API to find currently selected element
-  const selected = (api as any).canvas?.selectionState?.selected as
-    | Array<{ id: string }>
-    | undefined;
-  if (selected && selected.length === 1) {
+  const selected = api.getSelected();
+  if (selected.length === 1) {
     flexSelectedElementId = selected[0].id;
   }
   if (!flexSelectedElementId) return;

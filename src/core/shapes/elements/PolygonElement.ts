@@ -92,7 +92,7 @@ export class PolygonElement
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {
-    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const { svgStringToOutlinePath } = require('./svg-outline');
     const fill = this.style.hasFill
       ? `fill="${this.style.fill}"`
       : 'fill="none"';

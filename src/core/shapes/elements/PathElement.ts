@@ -509,7 +509,7 @@ export class PathElement
   }
 
   public toOutlinePath(): PathElement {
-    const { svgStringToOutlinePath } = require('./svg-outline-utils');
+    const { svgStringToOutlinePath } = require('./svg-outline');
     const d = this.toDString();
     const fill = this.style.hasFill
       ? `fill="${this.style.fill}"`
