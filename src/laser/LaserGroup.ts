@@ -1,20 +1,40 @@
-import type {
-  LaserGroupData,
-  LaserGroupFields,
-  LaserOpType,
-} from './laser-types';
+import type { LaserGroupData, LaserGroupFields, LaserOpType } from './laser-types';
 
 const DEFAULTS: Omit<LaserGroupData, 'id' | 'name' | 'elementIds'> = {
   type: 'cut',
   cutSpeed: 10,
   cutPower: 100,
-  engraveSpeed: 100,
-  engravePower: 50,
-  engraveDpi: 254,
+  rasterSpeed: 100,
+  rasterPower: 50,
+  rasterDpi: 254,
+  rasterLineInterval: 0.1,
+  vectorSpeed: 100,
+  vectorPower: 50,
+  vectorFrequency: 20,
+  vectorPasses: 1,
   selectable: true,
   movable: true,
   visible: true,
 };
+
+function migrateType(t: string): LaserOpType {
+  if (t === 'raster_engrave' || t === 'vector_engrave') return t;
+  if (t === 'cut_engrave' || t === 'engrave') return 'raster_engrave';
+  return 'cut';
+}
+
+function migrateFields(
+  data: Partial<Record<string, unknown>>,
+): Partial<Record<string, unknown>> {
+  const d = { ...data };
+  if (d.engraveSpeed !== undefined && d.rasterSpeed === undefined)
+    d.rasterSpeed = d.engraveSpeed;
+  if (d.engravePower !== undefined && d.rasterPower === undefined)
+    d.rasterPower = d.engravePower;
+  if (d.engraveDpi !== undefined && d.rasterDpi === undefined)
+    d.rasterDpi = d.engraveDpi;
+  return d;
+}
 
 export class LaserGroup {
   public readonly id: string;
@@ -23,9 +43,14 @@ export class LaserGroup {
   public readonly elementIds: Set<string>;
   public cutSpeed: number;
   public cutPower: number;
-  public engraveSpeed: number;
-  public engravePower: number;
-  public engraveDpi: number;
+  public rasterSpeed: number;
+  public rasterPower: number;
+  public rasterDpi: number;
+  public rasterLineInterval: number;
+  public vectorSpeed: number;
+  public vectorPower: number;
+  public vectorFrequency: number;
+  public vectorPasses: number;
   public selectable: boolean;
   public movable: boolean;
   public visible: boolean;
@@ -34,18 +59,32 @@ export class LaserGroup {
   private _unsavedKeys = new Set<string>();
 
   public constructor(data: Partial<LaserGroupData> & { id: string }) {
-    this.id = data.id;
-    this.name = data.name ?? data.id;
-    this.type = data.type ?? DEFAULTS.type;
-    this.elementIds = new Set(data.elementIds ?? []);
-    this.cutSpeed = data.cutSpeed ?? DEFAULTS.cutSpeed;
-    this.cutPower = data.cutPower ?? DEFAULTS.cutPower;
-    this.engraveSpeed = data.engraveSpeed ?? DEFAULTS.engraveSpeed;
-    this.engravePower = data.engravePower ?? DEFAULTS.engravePower;
-    this.engraveDpi = data.engraveDpi ?? DEFAULTS.engraveDpi;
-    this.selectable = data.selectable ?? DEFAULTS.selectable;
-    this.movable = data.movable ?? DEFAULTS.movable;
-    this.visible = data.visible ?? DEFAULTS.visible;
+    const migrated = migrateFields(data as Record<string, unknown>);
+    this.id = migrated.id as string;
+    this.name = (migrated.name as string) ?? this.id;
+    this.type = migrateType((migrated.type as string) ?? DEFAULTS.type);
+    this.elementIds = new Set((migrated.elementIds as string[]) ?? []);
+    this.cutSpeed = (migrated.cutSpeed as number) ?? DEFAULTS.cutSpeed;
+    this.cutPower = (migrated.cutPower as number) ?? DEFAULTS.cutPower;
+    this.rasterSpeed =
+      (migrated.rasterSpeed as number) ?? DEFAULTS.rasterSpeed;
+    this.rasterPower =
+      (migrated.rasterPower as number) ?? DEFAULTS.rasterPower;
+    this.rasterDpi = (migrated.rasterDpi as number) ?? DEFAULTS.rasterDpi;
+    this.rasterLineInterval =
+      (migrated.rasterLineInterval as number) ?? DEFAULTS.rasterLineInterval;
+    this.vectorSpeed =
+      (migrated.vectorSpeed as number) ?? DEFAULTS.vectorSpeed;
+    this.vectorPower =
+      (migrated.vectorPower as number) ?? DEFAULTS.vectorPower;
+    this.vectorFrequency =
+      (migrated.vectorFrequency as number) ?? DEFAULTS.vectorFrequency;
+    this.vectorPasses =
+      (migrated.vectorPasses as number) ?? DEFAULTS.vectorPasses;
+    this.selectable =
+      (migrated.selectable as boolean) ?? DEFAULTS.selectable;
+    this.movable = (migrated.movable as boolean) ?? DEFAULTS.movable;
+    this.visible = (migrated.visible as boolean) ?? DEFAULTS.visible;
   }
 
   public get isSaved(): boolean {
@@ -56,20 +95,28 @@ export class LaserGroup {
     this._unsavedKeys.add(key);
   }
 
-  /** Применить набор полей (с валидацией диапазонов). */
   public applyFields(fields: LaserGroupFields): void {
     if (fields.name !== undefined) this.name = fields.name;
     if (fields.type !== undefined) this.type = fields.type;
-    if (fields.cutSpeed !== undefined)
-      this.cutSpeed = clampPos(fields.cutSpeed);
+    if (fields.cutSpeed !== undefined) this.cutSpeed = clampPos(fields.cutSpeed);
     if (fields.cutPower !== undefined)
       this.cutPower = clamp(fields.cutPower, 0, 100);
-    if (fields.engraveSpeed !== undefined)
-      this.engraveSpeed = clampPos(fields.engraveSpeed);
-    if (fields.engravePower !== undefined)
-      this.engravePower = clamp(fields.engravePower, 0, 100);
-    if (fields.engraveDpi !== undefined)
-      this.engraveDpi = clamp(Math.round(fields.engraveDpi), 1, 5000);
+    if (fields.rasterSpeed !== undefined)
+      this.rasterSpeed = clampPos(fields.rasterSpeed);
+    if (fields.rasterPower !== undefined)
+      this.rasterPower = clamp(fields.rasterPower, 0, 100);
+    if (fields.rasterDpi !== undefined)
+      this.rasterDpi = clamp(Math.round(fields.rasterDpi), 1, 5000);
+    if (fields.rasterLineInterval !== undefined)
+      this.rasterLineInterval = clampPos(fields.rasterLineInterval);
+    if (fields.vectorSpeed !== undefined)
+      this.vectorSpeed = clampPos(fields.vectorSpeed);
+    if (fields.vectorPower !== undefined)
+      this.vectorPower = clamp(fields.vectorPower, 0, 100);
+    if (fields.vectorFrequency !== undefined)
+      this.vectorFrequency = clampPos(fields.vectorFrequency);
+    if (fields.vectorPasses !== undefined)
+      this.vectorPasses = clamp(Math.round(fields.vectorPasses), 1, 100);
     if (fields.selectable !== undefined) this.selectable = fields.selectable;
     if (fields.movable !== undefined) this.movable = fields.movable;
     if (fields.visible !== undefined) this.visible = fields.visible;
@@ -84,9 +131,14 @@ export class LaserGroup {
       elementIds: Array.from(this.elementIds),
       cutSpeed: this.cutSpeed,
       cutPower: this.cutPower,
-      engraveSpeed: this.engraveSpeed,
-      engravePower: this.engravePower,
-      engraveDpi: this.engraveDpi,
+      rasterSpeed: this.rasterSpeed,
+      rasterPower: this.rasterPower,
+      rasterDpi: this.rasterDpi,
+      rasterLineInterval: this.rasterLineInterval,
+      vectorSpeed: this.vectorSpeed,
+      vectorPower: this.vectorPower,
+      vectorFrequency: this.vectorFrequency,
+      vectorPasses: this.vectorPasses,
       selectable: this.selectable,
       movable: this.movable,
       visible: this.visible,
@@ -102,7 +154,10 @@ export class LaserGroup {
       this.elementIds.clear();
       for (const id of dto.elementIds as string[]) this.elementIds.add(id);
     }
-    this.applyFields(dto as LaserGroupFields);
+    const migrated = migrateFields(dto);
+    if (migrated.type !== undefined)
+      migrated.type = migrateType(migrated.type as string);
+    this.applyFields(migrated as LaserGroupFields);
   }
 
   public getUnsavedDTO(): Record<string, unknown> | null {

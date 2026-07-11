@@ -107,7 +107,7 @@ export class LaserGroupManager {
   public updateGroup(id: string, fields: LaserGroupFields): void {
     const g = this.groups.get(id);
     if (!g) return;
-    // Нельзя сменить тип на не-резку, если в группе есть элементы с гибким деревом.
+    // Нельзя сменить тип на не-резку, если в группе есть элементы с flexTree.
     if (fields.type !== undefined && fields.type !== 'cut') {
       for (const elId of g.elementIds) {
         if (this.findElement(elId)?.flexTree) {

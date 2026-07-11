@@ -1,4 +1,4 @@
-export type LaserOpType = 'cut' | 'engrave' | 'cut_engrave';
+export type LaserOpType = 'cut' | 'raster_engrave' | 'vector_engrave';
 
 export interface LaserGroupData {
   id: string;
@@ -7,9 +7,14 @@ export interface LaserGroupData {
   elementIds: string[];
   cutSpeed: number;
   cutPower: number;
-  engraveSpeed: number;
-  engravePower: number;
-  engraveDpi: number;
+  rasterSpeed: number;
+  rasterPower: number;
+  rasterDpi: number;
+  rasterLineInterval: number;
+  vectorSpeed: number;
+  vectorPower: number;
+  vectorFrequency: number;
+  vectorPasses: number;
   selectable: boolean;
   movable: boolean;
   visible: boolean;
@@ -24,15 +29,22 @@ export interface LaserGroupCreateDTO {
   type?: LaserOpType;
   cutSpeed?: number;
   cutPower?: number;
-  engraveSpeed?: number;
-  engravePower?: number;
-  engraveDpi?: number;
+  rasterSpeed?: number;
+  rasterPower?: number;
+  rasterDpi?: number;
+  rasterLineInterval?: number;
+  vectorSpeed?: number;
+  vectorPower?: number;
+  vectorFrequency?: number;
+  vectorPasses?: number;
   selectable?: boolean;
   movable?: boolean;
   visible?: boolean;
 }
 
-export const LASER_LENS_FOCALS = [25.4, 38.1, 50.8, 63.5, 76.2, 101.6] as const;
+export const LASER_LENS_FOCALS = [
+  25.4, 38.1, 50.8, 63.5, 76.2, 101.6,
+] as const;
 
 export interface LaserSettingsData {
   lensFocalMm: number;
@@ -50,7 +62,6 @@ export interface LaserSettingsInfo extends LaserSettingsData {
   recommendedDpi: number;
 }
 
-/** Переопределение стиля элемента для CanvasView (лазерная визуализация). */
 export interface LaserStyleOverride {
   fill?: string;
   stroke?: string;
@@ -58,5 +69,4 @@ export interface LaserStyleOverride {
   opacity?: number;
 }
 
-/** Отображение groupId → цвет заливки (градация гравировки). */
 export type LaserColorGrading = Record<string, string>;

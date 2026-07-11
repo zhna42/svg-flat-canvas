@@ -497,6 +497,13 @@ export class CanvasView {
     }
   }
 
+  public setLayerVisibility(layerName: string, visible: boolean): void {
+    const layer = this._layers.get(layerName as LayerName);
+    if (layer) {
+      layer.style.display = visible ? '' : 'none';
+    }
+  }
+
   public remove(id: string): void {
     const element = this._elements.get(id);
     if (element) {

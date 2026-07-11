@@ -23,6 +23,7 @@ import {
 import { createFromJSON, createFromJSONArray } from '@/shapes/elements/factory';
 import { UseElement } from '@/shapes/elements/UseElement';
 import { DebugLog } from '@/canvas/overlays/debug/DebugLog';
+import type { LaserLayerData } from '@/laser/layers';
 import {
   createCreateCommand,
   createCreateFileCommand,
@@ -116,6 +117,8 @@ export class ExternalApi {
 
   /** Создать фигуру из DTO */
   public createShape(dto: CreateShapeDTO): AbstractGraphicElement {
+    if (!this._guardEditMode())
+      return null as unknown as AbstractGraphicElement;
     this.dbg.log('API', 'createShape', { type: dto.type });
     const id = dto.id ?? generateId();
     const el = this.dtoToElement(id, dto.type, dto.geometry, dto.style);
@@ -163,7 +166,7 @@ export class ExternalApi {
 
   /** Удалить фигуры */
   public deleteShapes(dto: DeleteShapesDTO): void {
-    this.dbg.log('API', 'deleteShapes', { count: dto.elementIds.length });
+    if (!this._guardEditMode()) return;
     this._purgeLaser(dto.elementIds);
     this.canvas.elementManager.deleteElements(dto.elementIds);
   }
@@ -186,7 +189,7 @@ export class ExternalApi {
 
   /** Обновить свойства фигур */
   public updateShapes(dto: UpdateShapesDTO): void {
-    this.dbg.log('API', 'updateShapes', { count: dto.elementIds.length });
+    if (!this._guardEditMode()) return;
     const elements = this.findElements(dto.elementIds);
     for (const el of elements) {
       if (dto.style) this.applyStyleDto(el, dto.style);
@@ -204,10 +207,7 @@ export class ExternalApi {
 
   /** Переместить фигуры */
   public moveShapes(dto: MoveShapesDTO): void {
-    this.dbg.log('API', 'moveShapes', {
-      count: dto.elementIds.length,
-      delta: dto.delta,
-    });
+    if (!this._guardEditMode()) return;
     this.canvas.commandBus.execute(
       createDragMoveCommand('element', dto.delta, dto.elementIds),
     );
@@ -215,10 +215,7 @@ export class ExternalApi {
 
   /** Повернуть фигуры */
   public rotateShapes(dto: RotateShapesDTO): void {
-    this.dbg.log('API', 'rotateShapes', {
-      count: dto.elementIds.length,
-      angle: dto.angle,
-    });
+    if (!this._guardEditMode()) return;
     if (!dto.elementIds?.length) return;
     this.canvas.commandBus.execute(
       createRotateCommand(dto.elementIds, dto.angle),
@@ -227,7 +224,7 @@ export class ExternalApi {
 
   /** Изменить размер фигур */
   public resizeShapes(dto: ResizeShapesDTO): void {
-    this.dbg.log('API', 'resizeShapes', { count: dto.elementIds.length });
+    if (!this._guardEditMode()) return;
     if (!dto.elementIds?.length) return;
     this.canvas.commandBus.execute(
       createResizeCommand(dto.elementIds, dto.bbox),
@@ -236,7 +233,7 @@ export class ExternalApi {
 
   /** Установить трансформацию фигур */
   public setTransformShapes(dto: SetTransformShapesDTO): void {
-    this.dbg.log('API', 'setTransformShapes', { count: dto.elementIds.length });
+    if (!this._guardEditMode()) return;
     if (!dto.elementIds?.length) return;
     this.canvas.commandBus.execute(
       createTransformCommand(dto.elementIds, dto.matrix),
@@ -330,10 +327,7 @@ export class ExternalApi {
 
   /** Выбрать фигуры */
   public selectShapes(dto: SelectShapesDTO): void {
-    this.dbg.log('API', 'selectShapes', {
-      count: dto.elementIds.length,
-      toggle: dto.toggle,
-    });
+    if (!this._guardEditMode()) return;
     const elements = this.findElements(dto.elementIds);
     if (dto.toggle) {
       const current = [...this.getSelected()];
@@ -804,7 +798,7 @@ export class ExternalApi {
 
   public createLaserGroup(dto?: LaserGroupCreateDTO): string {
     const withDpi: LaserGroupCreateDTO = {
-      engraveDpi: this.canvas.laserSettings.recommendedDpi,
+      rasterDpi: this.canvas.laserSettings.recommendedDpi,
       ...dto,
     };
     return this.canvas.laserGroupManager.createGroup(withDpi);
@@ -951,6 +945,80 @@ export class ExternalApi {
       'LASER_SETTINGS_CHANGED',
       this.canvas.laserSettings.toInfo(),
     );
+  }
+
+  // ── Режимы канваса ──
+
+  public setMode(mode: 'edit' | 'layers'): void {
+    this.canvas.setMode(mode);
+  }
+
+  public getMode(): 'edit' | 'layers' {
+    return this.canvas.mode;
+  }
+
+  /** Проверка: в режиме слоёв мутирующие API-методы недоступны. Возвращает true если разрешено. */
+  private _guardEditMode(): boolean {
+    return this.canvas.mode !== 'layers';
+  }
+
+  // ── Управление слоями ──
+
+  public createLaserLayer(name?: string): string {
+    return this.canvas.laserLayerManager.createLayer(
+      name ? { name } : undefined,
+    );
+  }
+
+  public deleteLaserLayer(id: string): void {
+    this.canvas.laserLayerManager.deleteLayer(id);
+  }
+
+  public addGroupToLayer(layerId: string, groupId: string): void {
+    this.canvas.laserLayerManager.addGroupToLayer(layerId, groupId);
+  }
+
+  public removeGroupFromLayer(layerId: string, groupId: string): void {
+    this.canvas.laserLayerManager.removeGroupFromLayer(layerId, groupId);
+  }
+
+  public setLayerVisibility(layerId: string, visible: boolean): void {
+    this.canvas.laserLayerManager.setLayerVisibility(layerId, visible);
+    if (this.canvas.mode === 'layers') {
+      this.canvas._rebuildLayerOverlay();
+    }
+  }
+
+  public getLaserLayers(): LaserLayerData[] {
+    return this.canvas.laserLayerManager.getLayerData();
+  }
+
+  public loadLaserLayers(data: LaserLayerData[]): void {
+    this.canvas.laserLayerManager.loadLayers(data);
+  }
+
+  /** Показать/скрыть группы без слоя в режиме layers. */
+  public setOrphanGroupsVisible(visible: boolean): void {
+    this.canvas.orphanGroupsVisible = visible;
+    if (this.canvas.mode === 'layers') {
+      this.canvas._rebuildLayerOverlay();
+    }
+  }
+
+  public getOrphanGroupsVisible(): boolean {
+    return this.canvas.orphanGroupsVisible;
+  }
+
+  /** Изменить порядок слоя. */
+  public reorderLayer(layerId: string, newIndex: number): void {
+    const layers = this.canvas.laserLayerManager.getLayers();
+    const idx = layers.findIndex((l) => l.id === layerId);
+    if (idx < 0) return;
+    layers.splice(Math.max(0, Math.min(newIndex, layers.length - 1)), 0, ...layers.splice(idx, 1));
+    this.canvas.laserLayerManager.loadLayers(layers.map((l) => l.toData()));
+    if (this.canvas.mode === 'layers') {
+      this.canvas._rebuildLayerOverlay();
+    }
   }
 
   // ── Текст / шрифты ──
@@ -1437,6 +1505,7 @@ export class ExternalApi {
   /** Глубокое копирование выбранных элементов.
    *  Копии смещаются на dx, dy. Выделение переводится на копии. */
   public duplicateSelected(dx = 50, dy = 50): AbstractGraphicElement[] {
+    if (!this._guardEditMode()) return [];
     const selected = this.getSelected();
     if (selected.length === 0) return [];
 
@@ -1485,6 +1554,7 @@ export class ExternalApi {
    *  Use-элементы ссылаются на оригиналы, смещены на dx, dy, прозрачность 25%.
    *  Если выбран use-элемент — ссылка идёт на корневой оригинал. */
   public useDuplicateSelected(dx = 50, dy = 50): UseElement[] {
+    if (!this._guardEditMode()) return [];
     const selected = this.getSelected();
     if (selected.length === 0) return [];
 
@@ -1523,6 +1593,7 @@ export class ExternalApi {
 
   /** Отвязать use-элемент от родителя: заменить глубокой копией с текущим положением. */
   public unbindUseElement(useId: string): AbstractGraphicElement | null {
+    if (!this._guardEditMode()) return null;
     const el = this.canvas.shapeManager.getById(useId);
     if (!el || !(el instanceof UseElement)) return null;
 
@@ -1586,6 +1657,7 @@ export class ExternalApi {
   /** Отвязать все use-элементы, ссылающиеся на заданный элемент.
    *  При выборе родителя — делает все его use-копии самостоятельными. */
   public unbindAllUseReferences(parentId: string): AbstractGraphicElement[] {
+    if (!this._guardEditMode()) return [];
     const useIds = this.getUseChildIds(parentId);
     if (useIds.length === 0) return [];
 

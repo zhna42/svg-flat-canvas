@@ -374,7 +374,12 @@
 
       <!-- Laser Panel (rightmost) -->
       <div id="laser-panel">
-        <h3>🔥 Лазерные группы</h3>
+        <h3>🔥 Лазер</h3>
+        <div class="laser-block" style="margin-bottom:4px">
+          <button id="btn-mode-edit" class="mode-btn active">✏️ Edit</button>
+          <button id="btn-mode-layers" class="mode-btn">📑 Layers</button>
+        </div>
+        <div id="laser-edit-section">
         <div class="laser-block">
           <label
             >Линза (F, мм)
@@ -437,6 +442,19 @@
             <button id="laser-create">+ Группа</button>
           </div>
           <div id="laser-group-list"></div>
+          </div>
+          </div>
+        </div>
+        <div id="laser-layer-section" style="display:none">
+          <div class="laser-block">
+            <label style="margin-bottom:4px;display:flex;align-items:center;gap:4px">
+              <input type="checkbox" id="chk-orphan-groups" checked> Groups w/o layer
+            </label>
+            <button id="btn-layer-add">+ Слой</button>
+            <div id="layer-list"></div>
+          </div>
+            <div id="layer-list"></div>
+          </div>
         </div>
       </div>
 

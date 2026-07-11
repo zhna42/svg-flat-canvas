@@ -976,6 +976,136 @@ function toggleButton(
 
 function setupLaserPanel(): void {
   const $ = (id: string): HTMLElement => document.getElementById(id)!;
+
+  // Mode switching
+  const btnEdit = $('btn-mode-edit') as HTMLButtonElement;
+  const btnLayers = $('btn-mode-layers') as HTMLButtonElement;
+  const editSection = $('laser-edit-section') as HTMLElement;
+  const layerSection = $('laser-layer-section') as HTMLElement;
+
+  btnEdit.onclick = () => {
+    api.setMode('edit');
+    btnEdit.classList.add('active');
+    btnLayers.classList.remove('active');
+    editSection.style.display = '';
+    layerSection.style.display = 'none';
+  };
+  btnLayers.onclick = () => {
+    api.setMode('layers');
+    btnLayers.classList.add('active');
+    btnEdit.classList.remove('active');
+    editSection.style.display = 'none';
+    layerSection.style.display = '';
+    renderLayerList();
+  };
+
+  // Layer management
+  $('btn-layer-add').onclick = () => {
+    api.createLaserLayer(`Layer ${api.getLaserLayers().length + 1}`);
+    updateLayerGroupSelects();
+    renderLayerList();
+  };
+
+  ($('chk-orphan-groups') as HTMLInputElement).onchange = (e) => {
+    api.setOrphanGroupsVisible((e.target as HTMLInputElement).checked);
+  };
+
+  api.on('LASER_LAYER_CREATED', () => renderLayerList());
+  api.on('LASER_LAYER_DELETED', () => renderLayerList());
+  api.on('LASER_LAYER_UPDATED', () => renderLayerList());
+  api.on('LASER_LAYER_GROUP_ADDED', () => renderLayerList());
+  api.on('LASER_LAYER_GROUP_REMOVED', () => renderLayerList());
+  api.on('MODE_CHANGED', (ev) => {
+    const mode = (ev.data as { mode: string }).mode;
+    if (mode === 'layers') {
+      editSection.style.display = 'none';
+      layerSection.style.display = '';
+      renderLayerList();
+    } else {
+      editSection.style.display = '';
+      layerSection.style.display = 'none';
+    }
+  });
+
+  function updateLayerGroupSelects(): void {
+    document.querySelectorAll('.layer-group-sel').forEach((sel) => {
+      const layerId = (sel as HTMLElement).dataset.layerId!;
+      populateGroupSelect(sel as HTMLSelectElement, layerId);
+    });
+  }
+
+  function populateGroupSelect(sel: HTMLSelectElement, layerId: string): void {
+    const current = sel.value;
+    sel.innerHTML = '<option value="">- Add group -</option>';
+    const groups = api.getLaserGroups();
+    for (const g of groups) {
+      const opt = document.createElement('option');
+      opt.value = g.id;
+      opt.textContent = `${g.name} (${g.type})`;
+      sel.appendChild(opt);
+    }
+    if (current) sel.value = current;
+  }
+
+  function renderLayerList(): void {
+    const list = $('layer-list');
+    list.innerHTML = '';
+    const layers = api.getLaserLayers();
+
+    for (let i = 0; i < layers.length; i++) {
+      const layer = layers[i];
+      const item = document.createElement('div');
+      item.className = 'laser-group-item';
+      const isFirst = i === 0;
+      const isLast = i === layers.length - 1;
+      item.innerHTML = `
+        <div class="lg-head">
+          <span>${layer.visible ? '👁' : '🚫'}</span>
+          <b>${layer.name}</b>
+          <span style="color:var(--text-muted)">(${layer.groupIds.length} grp)</span>
+        </div>
+        <div class="lg-row">
+          <button class="layer-up-btn" data-id="${layer.id}" ${isFirst ? 'disabled' : ''}>▲</button>
+          <button class="layer-down-btn" data-id="${layer.id}" ${isLast ? 'disabled' : ''}>▼</button>
+          <label><input type="checkbox" class="layer-visible" data-id="${layer.id}" ${layer.visible ? 'checked' : ''}> Vis</label>
+          <button class="layer-del-btn" data-id="${layer.id}">✕</button>
+        </div>
+        <div class="lg-row">
+          <select class="layer-group-sel" data-layer-id="${layer.id}">
+            <option value="">- Add group -</option>
+          </select>
+        </div>
+      `;
+
+      item.querySelector('.layer-up-btn')!.addEventListener('click', () => {
+        api.reorderLayer(layer.id, i - 1);
+      });
+      item.querySelector('.layer-down-btn')!.addEventListener('click', () => {
+        api.reorderLayer(layer.id, i + 1);
+      });
+      item.querySelector('.layer-visible')!.addEventListener('change', (e) => {
+        api.setLayerVisibility(
+          layer.id,
+          (e.target as HTMLInputElement).checked,
+        );
+      });
+      item.querySelector('.layer-del-btn')!.addEventListener('click', () => {
+        api.deleteLaserLayer(layer.id);
+      });
+      item.querySelector('.layer-group-sel')!.addEventListener('change', (e) => {
+        const gid = (e.target as HTMLSelectElement).value;
+        if (gid) {
+          api.addGroupToLayer(layer.id, gid);
+          (e.target as HTMLSelectElement).value = '';
+        }
+      });
+
+      list.appendChild(item);
+    }
+
+    updateLayerGroupSelects();
+  }
+
   const focal = $('laser-lens-focal') as HTMLSelectElement;
   const lensDia = $('laser-lens-dia') as HTMLInputElement;
   const beamDia = $('laser-beam-dia') as HTMLInputElement;
@@ -1039,26 +1169,30 @@ function renderLaserGroups(): void {
         <b>${g.name}</b>
         <span style="color:var(--text-muted)">(${g.elementIds.length})</span>
       </div>
-      <div class="lg-row">
-        <label>Тип
-          <select data-f="type">
-            <option value="cut"${g.type === 'cut' ? ' selected' : ''}>Резка</option>
-            <option value="engrave"${g.type === 'engrave' ? ' selected' : ''}>Гравировка</option>
-            <option value="cut_engrave"${g.type === 'cut_engrave' ? ' selected' : ''}>Резка+грав.</option>
-          </select>
-        </label>
-      </div>
-      <div class="lg-row">
-        <label>V рез <input type="number" data-f="cutSpeed" value="${g.cutSpeed}" /></label>
-        <label>P рез <input type="number" data-f="cutPower" value="${g.cutPower}" /></label>
-      </div>
-      <div class="lg-row">
-        <label>V грав <input type="number" data-f="engraveSpeed" value="${g.engraveSpeed}" /></label>
-        <label>P грав <input type="number" data-f="engravePower" value="${g.engravePower}" /></label>
-      </div>
-      <div class="lg-row">
-        <label>DPI <input type="number" data-f="engraveDpi" value="${g.engraveDpi}" /></label>
-      </div>
+       <div class="lg-row">
+         <label>Тип
+           <select data-f="type">
+             <option value="cut"${g.type === 'cut' ? ' selected' : ''}>Резка</option>
+             <option value="raster_engrave"${g.type === 'raster_engrave' ? ' selected' : ''}>Грав. раст</option>
+             <option value="vector_engrave"${g.type === 'vector_engrave' ? ' selected' : ''}>Грав. вект</option>
+           </select>
+         </label>
+       </div>
+       <div class="lg-row">
+         <label>V рез <input type="number" data-f="cutSpeed" value="${g.cutSpeed}" /></label>
+         <label>P рез <input type="number" data-f="cutPower" value="${g.cutPower}" /></label>
+       </div>
+       <div class="lg-row">
+         <label>V раст <input type="number" data-f="rasterSpeed" value="${g.rasterSpeed}" /></label>
+         <label>P раст <input type="number" data-f="rasterPower" value="${g.rasterPower}" /></label>
+       </div>
+       <div class="lg-row">
+         <label>DPI <input type="number" data-f="rasterDpi" value="${g.rasterDpi}" /></label>
+       </div>
+       <div class="lg-row">
+         <label>V вект <input type="number" data-f="vectorSpeed" value="${g.vectorSpeed}" /></label>
+         <label>P вект <input type="number" data-f="vectorPower" value="${g.vectorPower}" /></label>
+       </div>
       <div class="lg-flags">
         <label><input type="checkbox" data-f="selectable"${g.selectable ? ' checked' : ''}/> Выбор</label>
         <label><input type="checkbox" data-f="movable"${g.movable ? ' checked' : ''}/> Движ.</label>

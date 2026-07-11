@@ -20,6 +20,8 @@ import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
 import { NodeEditCoordinator } from '@/canvas/overlays/nodeedit/NodeEditCoordinator';
 import { MeasureCoordinator } from '@/canvas/overlays/measure/MeasureCoordinator';
 import { LaserGroupManager, LaserSettings, LaserColorResolver } from '@/laser';
+import { LaserLayerManager, LaserLayerRenderer } from '@/laser/layers';
+import type { LaserLayerGroupInfo } from '@/laser/layers';
 import { TextController } from '@/text';
 import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
 import { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
@@ -101,11 +103,16 @@ export class SvgCanvas implements ICanvasContext {
   laserGroupManager!: LaserGroupManager;
   laserSettings!: LaserSettings;
   laserColorResolver!: LaserColorResolver;
+  laserLayerManager!: LaserLayerManager;
+  laserLayerRenderer!: LaserLayerRenderer;
 
   textController!: TextController;
 
   selectionHandler!: SelectionHandler;
   creationHandler!: CreationHandler;
+
+  public mode: 'edit' | 'layers' = 'edit';
+  public orphanGroupsVisible = true;
 
   private _api!: ExternalApi;
   private _overlayCoordinator!: OverlayCoordinator;
@@ -218,6 +225,13 @@ export class SvgCanvas implements ICanvasContext {
     };
     this.laserGroupManager.setOnChange(() => this._refreshLaser());
     this.view.setLaserStyleProvider(this.laserColorResolver.resolve);
+
+    this.laserLayerManager = new LaserLayerManager(this.laserGroupManager, () =>
+      this.shapeManager.getAll(),
+    );
+    this.laserLayerManager.setEvents(this.events);
+    this.laserLayerRenderer = new LaserLayerRenderer();
+    this.laserLayerRenderer.init(this.svg, this.camera);
   }
 
   /** Пересчёт градации + переприменение стилей + отрисовка. */
@@ -227,6 +241,70 @@ export class SvgCanvas implements ICanvasContext {
     this.events.emit('LASER_COLOR_GRADING_CHANGED', {
       mapping: this.laserColorResolver.getGrading(),
     });
+  }
+
+  /** Переключение режима редактирования / слоёв лазера. */
+  public setMode(mode: 'edit' | 'layers'): void {
+    if (this.mode === mode) return;
+    this.mode = mode;
+
+    if (mode === 'layers') {
+      this.view.setLayerVisibility('shapesGroup', false);
+      this.view.setLayerVisibility('previewGroup', false);
+      this._rebuildLayerOverlay();
+      this.selectionState.clear();
+      this.selectionManager.clear();
+    } else {
+      this.view.setLayerVisibility('shapesGroup', true);
+      this.view.setLayerVisibility('previewGroup', true);
+      this.laserLayerRenderer.clear();
+      this._refreshLaser();
+    }
+
+    this.events.emit('MODE_CHANGED', { mode: this.mode });
+  }
+
+  public _rebuildLayerOverlay(): void {
+    const layers = this.laserLayerManager.getLayers();
+    const elements = this.shapeManager.getAll().filter((e) => !e.isPreview);
+
+    const layerInfos = layers.map((l) => ({
+      layerId: l.id,
+      groups: this.laserLayerManager.getLayerGroupInfo(l.id),
+    }));
+
+    let orphanGroups: LaserLayerGroupInfo[] = [];
+    if (this.orphanGroupsVisible) {
+      const allGroupIds = this.laserGroupManager
+        .getGroups()
+        .map((g) => g.id);
+      const layerGroupIds = new Set(
+        layers.flatMap((l) => Array.from(l.groupIds)),
+      );
+      const orphanIds = allGroupIds.filter((gid) => !layerGroupIds.has(gid));
+      orphanGroups = orphanIds.flatMap((gid) => {
+        const group = this.laserGroupManager.getGroup(gid);
+        if (!group) return [];
+        const elementIds = Array.from(group.elementIds);
+        const resolved = this.laserLayerManager.resolveElements(elementIds);
+        return [
+          {
+            groupId: group.id,
+            groupName: group.name,
+            type: group.type,
+            elementIds,
+            resolvedElementIds: resolved,
+          },
+        ];
+      });
+    }
+
+    this.laserLayerRenderer.build(
+      elements,
+      layerInfos,
+      orphanGroups,
+      this.orphanGroupsVisible,
+    );
   }
 
   private _initElementManager(): void {
