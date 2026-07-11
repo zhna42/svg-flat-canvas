@@ -8,7 +8,7 @@ export type InputHandler = {
   onWheel?(e: WheelEvent): boolean;
 };
 
-export class EventManager {
+export class DOMEventCoordinator {
   private readonly svg: SVGSVGElement;
   private handlers: InputHandler[] = [];
   private bound = false;

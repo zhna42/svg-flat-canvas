@@ -85,8 +85,8 @@ export { GuidelineManager, Guideline, RulerBuilder } from '@/modules/ruler';
 export type { GuidelineData, GuidelineEvents } from '@/core/type';
 export {
   BooleanEngine,
-  BooleanHandler,
   booleanOperation,
 } from '@/core/math/boolean';
+export { BooleanHandler } from '@/core/commands/handlers/BooleanHandler';
 export type { BooleanOp, Pt } from '@/core/type';
 export { DebugLog } from '@/canvas/overlays/debug/DebugLog';

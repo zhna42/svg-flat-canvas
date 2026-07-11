@@ -11,7 +11,7 @@ import {
   SelectionGroup,
 } from '@/canvas/nodes';
 import { ShapeManager } from '@/manager/ShapeManager';
-import { EventManager } from '@/core/event-bus/EventManager';
+import { DOMEventCoordinator } from '@/core/event-bus/DOMEventCoordinator';
 import { SelectionState } from '@/canvas/overlays/selection/SelectionState';
 import { HitTestEngine } from '@/core/hit-test';
 import { SelectionHandler } from '@/canvas/overlays/selection/handlers/SelectionHandler';
@@ -37,7 +37,7 @@ import { GroupManager, type Group } from '@/core/shapes/group';
 import { CommandBus } from '@/core/commands/CommandBus';
 import { TimeMachine } from '@/core/time-machine';
 import { GuidelineManager } from '@/modules/ruler';
-import { BooleanHandler } from '@/core/math/boolean';
+import { BooleanHandler } from '@/core/commands/handlers/BooleanHandler';
 import { CreationHandler } from '@/core/commands/handlers/creation/CreationHandler';
 import { ExternalApi } from '@/modules/api/ExternalApi';
 import { EventBus } from '@/core/event-bus/EventBus';
@@ -70,7 +70,7 @@ export class SvgCanvas implements ICanvasContext {
   view!: CanvasView;
   scheduler!: RenderScheduler;
   events!: EventBus;
-  eventManager!: EventManager;
+  eventManager!: DOMEventCoordinator;
   panActive!: { value: boolean };
 
   artboard!: Artboard;
@@ -167,7 +167,7 @@ export class SvgCanvas implements ICanvasContext {
       (id) => shapeManager.getById(id)?.flexTree ?? null,
     );
 
-    this.eventManager = new EventManager(svg);
+    this.eventManager = new DOMEventCoordinator(svg);
     this.selectionState = new SelectionState();
     this.hitTestEngine = new HitTestEngine(10000);
     this.panActive = { value: false };

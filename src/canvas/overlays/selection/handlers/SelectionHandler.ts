@@ -442,7 +442,7 @@ export class SelectionHandler {
   }
 
   private bindEvents(): void {
-    // Event delegation now handled by EventManager.
+    // Event delegation now handled by DOMEventCoordinator.
     // All logic moved to onMouseDown/Move/Up/DblClick/KeyDown methods.
   }
 
