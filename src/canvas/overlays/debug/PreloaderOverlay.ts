@@ -59,7 +59,10 @@ export class PreloaderOverlay {
   }
 
   public show(x: number, y: number): void {
-    this.group.setAttribute('transform', `translate(${x - 50000}, ${y - 50000})`);
+    this.group.setAttribute(
+      'transform',
+      `translate(${x - 50000}, ${y - 50000})`,
+    );
     this.group.setAttribute('display', '');
     this._visible = true;
   }

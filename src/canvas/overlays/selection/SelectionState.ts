@@ -1,4 +1,4 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { SelectionMode } from './SelectionMode';
 import type { SelectionFilter } from './selection-filter';
 

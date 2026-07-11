@@ -1,4 +1,4 @@
-import type { Point, Measurement } from '@/types';
+import type { Point, Measurement } from '@/core/type';
 import type { Camera } from '@/canvas/Camera';
 import { distanceMm, angleDeg } from './MeasureSession';
 

@@ -1,8 +1,12 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { Camera } from '@/canvas/Camera';
-import type { TimeMachine } from '@/time-machine/TimeMachine';
-import type { Point, GroupTransformMode, GroupHandlePosition } from '@/types';
-import type { Group } from '@/shapes/group/Group';
+import type { TimeMachine } from '@/core/time-machine/TimeMachine';
+import type {
+  Point,
+  GroupTransformMode,
+  GroupHandlePosition,
+} from '@/core/type';
+import type { Group } from '@/core/shapes/group/Group';
 
 const HANDLE_TO_ANCHOR: Record<GroupHandlePosition, GroupHandlePosition> = {
   se: 'nw',

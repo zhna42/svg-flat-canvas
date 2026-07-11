@@ -7,8 +7,8 @@ import type {
   NodeKind,
   NodeRef,
   NodeHit,
-} from '@/types';
-import { classifyNode, nextNodeId } from '@/shapes/path/node-model-utils';
+} from '@/core/type';
+import { classifyNode, nextNodeId } from '@/core/shapes/path/node-model';
 
 export interface EditTarget {
   elementId: string;

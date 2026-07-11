@@ -1,5 +1,5 @@
 import { ReactiveNode } from '@/core/ReactiveNode';
-import type { IRenderableNode, LayerName } from '@/types';
+import type { IRenderableNode, LayerName } from '@/core/type';
 
 export class RectOverlay extends ReactiveNode {
   public x = 0;

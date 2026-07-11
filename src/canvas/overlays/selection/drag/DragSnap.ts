@@ -1,10 +1,10 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { Camera } from '@/canvas/Camera';
-import type { Point, SnapAxisMode, WorldSnapResult } from '@/types';
-import { AdaptiveSnapEngine } from '@/snap/AdaptiveSnapEngine';
-import { CircleElement } from '@/shapes/elements/CircleElement';
-import { EllipseElement } from '@/shapes/elements/EllipseElement';
-import { PathElement } from '@/shapes/elements/PathElement';
+import type { Point, SnapAxisMode, WorldSnapResult } from '@/core/type';
+import { AdaptiveSnapEngine } from '@/core/math/snap/AdaptiveSnapEngine';
+import { CircleElement } from '@/core/shapes/elements/CircleElement';
+import { EllipseElement } from '@/core/shapes/elements/EllipseElement';
+import { PathElement } from '@/core/shapes/elements/PathElement';
 import {
   getCenterlinePoints,
   offsetScreenPoints,

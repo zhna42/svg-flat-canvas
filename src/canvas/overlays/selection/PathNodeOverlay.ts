@@ -1,5 +1,5 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import { PathElement } from '@/shapes/elements/PathElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import { PathElement } from '@/core/shapes/elements/PathElement';
 import type { Camera } from '@/canvas/Camera';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -32,7 +32,10 @@ export class PathNodeOverlay {
     return this.root;
   }
 
-  hitTestPathNode(svgX: number, svgY: number): {
+  hitTestPathNode(
+    svgX: number,
+    svgY: number,
+  ): {
     elementId: string;
     cmdIdx: number;
     ptIdx: number;

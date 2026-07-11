@@ -1,7 +1,7 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { DragHandler } from '@/canvas/overlays/selection/drag';
-import { createSelectPickCommand } from '@/commands/factories/select-command-factory';
-import type { GroupSelectionHandlerOptions } from '@/types';
+import { createSelectPickCommand } from '@/core/commands/factories/select-command-factory';
+import type { GroupSelectionHandlerOptions } from '@/core/type';
 
 export class GroupSelectionHandler {
   private readonly opts: GroupSelectionHandlerOptions;

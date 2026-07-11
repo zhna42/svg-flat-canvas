@@ -1,9 +1,9 @@
 import { BaseSelectionBox, type HandlePosition } from './BaseSelectionBox';
 import { SelectionElementBox } from './SelectionElementBox';
 import { SelectionGroupBox } from './SelectionGroupBox';
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { Group } from '@/shapes/group/Group';
-import type { IRenderableNode } from '@/types';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import type { Group } from '@/core/shapes/group/Group';
+import type { IRenderableNode } from '@/core/type';
 
 export class SelectionManager {
   private boxes = new Map<string, BaseSelectionBox>();
@@ -61,7 +61,10 @@ export class SelectionManager {
 
       const key = `sel-grp-${gid}`;
       if (this.boxes.has(key)) {
-        (this.boxes.get(key) as SelectionGroupBox).syncFromGroup(group, getElement);
+        (this.boxes.get(key) as SelectionGroupBox).syncFromGroup(
+          group,
+          getElement,
+        );
       } else {
         const box = new SelectionGroupBox(gid, this.registerDirty);
         this.boxes.set(key, box);
@@ -98,14 +101,18 @@ export class SelectionManager {
     }
   }
 
-  hitTestHandle(svgX: number, svgY: number): {
+  hitTestHandle(
+    svgX: number,
+    svgY: number,
+  ): {
     handle: HandlePosition;
     targetId: string;
     isGroup: boolean;
   } | null {
     for (const box of this.boxes.values()) {
       const handle = box.hitTestHandle(svgX, svgY);
-      if (handle) return { handle, targetId: box.targetId, isGroup: box.isGroup };
+      if (handle)
+        return { handle, targetId: box.targetId, isGroup: box.isGroup };
     }
     return null;
   }

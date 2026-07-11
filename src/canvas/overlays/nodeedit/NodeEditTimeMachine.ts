@@ -1,4 +1,4 @@
-import type { EditContour } from '@/types';
+import type { EditContour } from '@/core/type';
 import type { NodeEditSession } from './NodeEditSession';
 
 interface TargetSnapshot {

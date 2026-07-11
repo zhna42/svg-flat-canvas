@@ -1,7 +1,7 @@
 import type { Camera } from '@/canvas/Camera';
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { Point, NodeKind, NodeHit, INodeEditable } from '@/types';
-import { PathElement } from '@/shapes/elements/PathElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import type { Point, NodeKind, NodeHit, INodeEditable } from '@/core/type';
+import { PathElement } from '@/core/shapes/elements/PathElement';
 import { NodeEditSession } from './NodeEditSession';
 import { NodeEditRenderer } from './NodeEditRenderer';
 import { NodeEditTimeMachine } from './NodeEditTimeMachine';
@@ -181,7 +181,13 @@ export class NodeEditCoordinator {
       }
     } else {
       const snapped = this.snap.snapPoint(worldPt, frameDx, frameDy);
-      this.session.moveHandle(hit.elementId, hit.nodeId, hit.part, snapped.x, snapped.y);
+      this.session.moveHandle(
+        hit.elementId,
+        hit.nodeId,
+        hit.part,
+        snapped.x,
+        snapped.y,
+      );
     }
   }
 

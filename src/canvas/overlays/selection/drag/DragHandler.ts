@@ -1,16 +1,13 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { CommandBus } from '@/core/CommandBus';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import type { CommandBus } from '@/core/commands/CommandBus';
 import type { Camera } from '@/canvas/Camera';
-import type { HitTestEngine } from '@/core/HitTestEngine';
-import { createDragEndCommand } from '@/commands/factories/drag-command-factory';
+import type { HitTestEngine } from '@/core/hit-test';
+import { createDragEndCommand } from '@/core/commands/factories/drag-command-factory';
 import { DragSnapHelper } from '@/canvas/overlays/selection/drag/DragSnap';
-import type { SnapAxisMode } from '@/types';
-import {
-  checkSceneCollisions,
-  type CollisionContext,
-} from '@/core/HitTestEngine';
+import type { SnapAxisMode } from '@/core/type';
+import { checkSceneCollisions, type CollisionContext } from '@/core/hit-test';
 import { getVisualWorldPoints } from '@/canvas/overlays/selection/drag/DragCollision';
-import { PathElement } from '@/shapes/elements/PathElement';
+import { PathElement } from '@/core/shapes/elements/PathElement';
 
 const HOLD_DIST_SCREEN = 40;
 const AXIS_LOCK_DEADZONE_PX = 2;

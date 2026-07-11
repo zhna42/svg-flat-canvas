@@ -1,5 +1,5 @@
 import { ReactiveNode } from '@/core/ReactiveNode';
-import type { Point, IRenderableNode, LayerName } from '@/types';
+import type { Point, IRenderableNode, LayerName } from '@/core/type';
 
 export class LassoOverlay extends ReactiveNode {
   public points = '';

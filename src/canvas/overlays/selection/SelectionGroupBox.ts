@@ -1,7 +1,7 @@
 import { BaseSelectionBox } from './BaseSelectionBox';
-import type { Group } from '@/shapes/group/Group';
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { IRenderableNode } from '@/types';
+import type { Group } from '@/core/shapes/group/Group';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import type { IRenderableNode } from '@/core/type';
 
 export class SelectionGroupBox extends BaseSelectionBox {
   constructor(groupId: string, registerDirty: (node: IRenderableNode) => void) {

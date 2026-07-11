@@ -1,5 +1,5 @@
 import type { EditTarget } from './NodeEditSession';
-import type { Point } from '@/types';
+import type { Point } from '@/core/type';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const ACCENT = '#4285f4';

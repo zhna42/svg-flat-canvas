@@ -1,5 +1,5 @@
-import { LayerName } from '@/types';
-import type { DiffData, DiffValue, SubscriptionCallback } from '@/types';
+import { LayerName } from '@/core/type';
+import type { DiffData, DiffValue, SubscriptionCallback } from '@/core/type';
 
 export abstract class ReactiveNode {
   [key: string]: any;

@@ -1,7 +1,7 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { HandlePosition, Point, TransformMode } from '@/types';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import type { HandlePosition, Point, TransformMode } from '@/core/type';
 import type { Camera } from '@/canvas/Camera';
-import type { TimeMachine } from '@/time-machine/TimeMachine';
+import type { TimeMachine } from '@/core/time-machine/TimeMachine';
 
 const HANDLE_TO_ANCHOR: Record<HandlePosition, HandlePosition> = {
   se: 'nw',
@@ -245,8 +245,10 @@ export class TransformHandler {
       const localDy = scaleDy * flip.y;
 
       const textBox = this.startTextBoxes.get(el.id);
-      const factorX = 1 + localDx / (textBox ? Math.max(textBox.w, 1) : effectiveW);
-      const factorY = 1 + localDy / (textBox ? Math.max(textBox.h, 1) : effectiveH);
+      const factorX =
+        1 + localDx / (textBox ? Math.max(textBox.w, 1) : effectiveW);
+      const factorY =
+        1 + localDy / (textBox ? Math.max(textBox.h, 1) : effectiveH);
 
       let usedFactorX = factorX;
       let usedFactorY = factorY;

@@ -1,4 +1,4 @@
-import { Point } from '@/types';
+import { Point } from '@/core/type';
 import { ReactiveNode } from '@/core/ReactiveNode';
 
 export class Camera extends ReactiveNode {

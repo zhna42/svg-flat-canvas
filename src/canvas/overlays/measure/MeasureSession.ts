@@ -6,7 +6,7 @@ import type {
   DistanceMeasure,
   AngleMeasure,
   MeasureResult,
-} from '@/types';
+} from '@/core/type';
 import { MM_TO_PX } from '@/constants';
 
 let _measureIdSeq = 0;

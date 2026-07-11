@@ -1,16 +1,16 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { Camera } from '@/canvas/Camera';
-import type { Point } from '@/types';
-import type { CurveTarget, ScreenBezierSeg } from '@/types';
-import { CircleElement } from '@/shapes/elements/CircleElement';
-import { EllipseElement } from '@/shapes/elements/EllipseElement';
-import { PathElement } from '@/shapes/elements/PathElement';
-import { flattenCommands } from '@/math/path-utils';
+import type { Point } from '@/core/type';
+import type { CurveTarget, ScreenBezierSeg } from '@/core/type';
+import { CircleElement } from '@/core/shapes/elements/CircleElement';
+import { EllipseElement } from '@/core/shapes/elements/EllipseElement';
+import { PathElement } from '@/core/shapes/elements/PathElement';
+import { flattenCommands } from '@/core/math/path';
 import {
   approximateArc,
   offsetOpenPath,
   offsetPolygon,
-} from '@/math/geometry-utils';
+} from '@/core/math/geometry';
 
 export function generateCirclePoints(
   cx: number,

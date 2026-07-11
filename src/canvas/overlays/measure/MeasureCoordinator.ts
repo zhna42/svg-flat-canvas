@@ -1,5 +1,5 @@
 import type { Camera } from '@/canvas/Camera';
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type {
   Point,
   MeasureTool,
@@ -7,12 +7,12 @@ import type {
   Measurement,
   MeasureResult,
   INodeEditable,
-} from '@/types';
-import type { HitTestEngine } from '@/core/HitTestEngine';
+} from '@/core/type';
+import type { HitTestEngine } from '@/core/hit-test';
 import { MeasureSession } from './MeasureSession';
 import { MeasureRenderer } from './MeasureRenderer';
 import { NodeSnapHelper } from '@/canvas/overlays/nodeedit/NodeSnapHelper';
-import { pointToSegmentDist } from '@/math/geometry-utils';
+import { pointToSegmentDist } from '@/core/math/geometry';
 
 const REF_SNAP_PX = 10;
 const HOVER_PAD_PX = 20;

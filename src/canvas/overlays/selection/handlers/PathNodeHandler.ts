@@ -1,7 +1,7 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import type { Point, PathNodeActivation } from '@/types';
-import { PathElement } from '@/shapes/elements/PathElement';
-import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import type { Point, PathNodeActivation } from '@/core/type';
+import { PathElement } from '@/core/shapes/elements/PathElement';
+import type { PathTimeMachine } from '@/core/shapes/path/PathTimeMachine';
 
 export class PathNodeHandler {
   private active: PathNodeActivation | null = null;

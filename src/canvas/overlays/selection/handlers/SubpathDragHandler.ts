@@ -1,7 +1,7 @@
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
-import { PathElement } from '@/shapes/elements/PathElement';
-import type { PathTimeMachine } from '@/shapes/path/PathTimeMachine';
-import type { Point } from '@/types';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import { PathElement } from '@/core/shapes/elements/PathElement';
+import type { PathTimeMachine } from '@/core/shapes/path/PathTimeMachine';
+import type { Point } from '@/core/type';
 
 export class SubpathDragHandler {
   private _active = false;

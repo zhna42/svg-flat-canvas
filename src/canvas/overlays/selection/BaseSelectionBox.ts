@@ -1,6 +1,6 @@
 import { ReactiveNode } from '@/core/ReactiveNode';
-import type { LayerName, IRenderableNode } from '@/types';
-import { pointInPolygon } from '@/core/HitTestEngine';
+import type { LayerName, IRenderableNode } from '@/core/type';
+import { pointInPolygon } from '@/core/hit-test';
 
 export type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w';
 
@@ -19,14 +19,14 @@ function computeHandleHitAreas(w: number, h: number): HandleHitArea[] {
   const oe = 6000;
 
   const positions: Array<{ handle: HandlePosition; cx: number; cy: number }> = [
-    { handle: 'nw', cx: -oc,   cy: -oc   },
-    { handle: 'n',  cx: hw,    cy: -oe   },
-    { handle: 'ne', cx: w + oc, cy: -oc   },
-    { handle: 'e',  cx: w + oe, cy: hh    },
+    { handle: 'nw', cx: -oc, cy: -oc },
+    { handle: 'n', cx: hw, cy: -oe },
+    { handle: 'ne', cx: w + oc, cy: -oc },
+    { handle: 'e', cx: w + oe, cy: hh },
     { handle: 'se', cx: w + oc, cy: h + oc },
-    { handle: 's',  cx: hw,    cy: h + oe },
-    { handle: 'sw', cx: -oc,   cy: h + oc },
-    { handle: 'w',  cx: -oe,   cy: hh    },
+    { handle: 's', cx: hw, cy: h + oe },
+    { handle: 'sw', cx: -oc, cy: h + oc },
+    { handle: 'w', cx: -oe, cy: hh },
   ];
 
   return positions.map((p) => ({

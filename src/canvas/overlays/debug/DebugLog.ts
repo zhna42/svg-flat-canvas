@@ -9,9 +9,7 @@ export class DebugLog {
     this._enabled = v;
   }
 
-  public log(_category: string, _message: string, _data?: unknown): void {
-  }
+  public log(_category: string, _message: string, _data?: unknown): void {}
 
-  public warn(_category: string, _message: string, _data?: unknown): void {
-  }
+  public warn(_category: string, _message: string, _data?: unknown): void {}
 }

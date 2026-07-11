@@ -3,16 +3,16 @@ import type {
   SelectionShortcuts,
   SelectionGesture,
   SnapAxisMode,
-} from '@/types';
+} from '@/core/type';
 import { DragHandler } from '@/canvas/overlays/selection/drag';
 import { GroupSelectionHandler } from '@/canvas/overlays/selection/handlers/GroupSelectionHandler';
-import { createSelectPickCommand } from '@/commands/factories/select-command-factory';
+import { createSelectPickCommand } from '@/core/commands/factories/select-command-factory';
 import { AreaSelectionManager } from '@/canvas/overlays/selection/AreaSelectionManager';
-import type { ImageElement } from '@/shapes/elements/ImageElement';
-import { computeGroupOBB } from '@/math/group-bbox-utils';
-import type { SelectionHandlerOptions } from '@/types';
+import type { ImageElement } from '@/core/shapes/elements/ImageElement';
+import { computeGroupOBB } from '@/core/math/group-bbox';
+import type { SelectionHandlerOptions } from '@/core/type';
 import type { NodeEditCoordinator } from '@/canvas/overlays/nodeedit/NodeEditCoordinator';
-import type { AbstractGraphicElement } from '@/shapes/elements/AbstractGraphicElement';
+import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 
 export class SelectionHandler {
   private readonly opts: SelectionHandlerOptions;

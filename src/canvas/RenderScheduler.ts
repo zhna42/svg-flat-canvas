@@ -1,6 +1,6 @@
 import { CanvasView } from './CanvasView';
-import { DrawPayload } from '@/types';
-import type { IRenderableNode } from '@/types';
+import { DrawPayload } from '@/core/type';
+import type { IRenderableNode } from '@/core/type';
 
 export class RenderScheduler {
   _view: CanvasView | null = null;

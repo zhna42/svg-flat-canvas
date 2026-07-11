@@ -1,14 +1,18 @@
 import type { SelectionState } from '@/canvas/overlays/selection/SelectionState';
-import type { CommandBus } from '@/core/CommandBus';
+import type { CommandBus } from '@/core/commands/CommandBus';
 import { RectOverlay } from './RectOverlay';
 import { LassoOverlay } from './LassoOverlay';
-import type { HitTestEngine } from '@/core/HitTestEngine';
+import type { HitTestEngine } from '@/core/hit-test';
 import {
   createSelectPickCommand,
   createSelectRectCommand,
   createSelectLassoCommand,
-} from '@/commands/factories/select-command-factory';
-import type { SelectionGesture, SelectionMode, IRenderableNode } from '@/types';
+} from '@/core/commands/factories/select-command-factory';
+import type {
+  SelectionGesture,
+  SelectionMode,
+  IRenderableNode,
+} from '@/core/type';
 
 export class AreaSelectionManager {
   private gesture: SelectionGesture = 'click';
@@ -30,7 +34,7 @@ export class AreaSelectionManager {
   constructor(
     state: SelectionState,
     bus: CommandBus,
-    _getElements: () => import('@/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[],
+    _getElements: () => import('@/core/shapes/elements/AbstractGraphicElement').AbstractGraphicElement[],
     registerDirty: (node: IRenderableNode) => void,
     hitTestEngine: HitTestEngine,
     lookupGroup?: (elementId: string) => string | undefined,
@@ -111,7 +115,11 @@ export class AreaSelectionManager {
   ): void {
     if (mode === 'group') {
       if (this.rectActive) {
-        this.rectOverlay.update(svgPt.x, svgPt.y, svgPt.x >= this.rectStartSvgX);
+        this.rectOverlay.update(
+          svgPt.x,
+          svgPt.y,
+          svgPt.x >= this.rectStartSvgX,
+        );
       }
       if (this.lassoActive) {
         this.lassoWorldPoints.push({ x: worldPt.x, y: worldPt.y });

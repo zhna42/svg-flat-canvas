@@ -1,10 +1,10 @@
 import { NodeDOMFactory } from './NodeDOMFactory';
 import { Camera } from './Camera';
-import { DrawPayload, LayerName } from '@/types';
-import { RulerBuilder } from '@/canvas/system/ruler/RulerBuilder';
-import { FlexCutBuilder } from '@/canvas/system/FlexCutBuilder';
-import { FlexTree, type CutSegment } from '@/math/flex-tree';
-import type { LaserStyleOverride } from '@/laser/laser-types';
+import { DrawPayload, LayerName } from '@/core/type';
+import { RulerBuilder } from '@/modules/ruler/RulerBuilder';
+import { FlexCutBuilder } from '@/canvas/nodes/FlexCutBuilder';
+import { FlexTree, type CutSegment } from '@/core/math/flex-tree';
+import type { LaserStyleOverride } from '@/modules/laser/laser-types';
 import { MM_TO_PX } from '@/constants';
 
 const SYSTEM_IDS = new Set([
@@ -469,7 +469,8 @@ export class CanvasView {
           cameraY: typeof diff.cameraY === 'number' ? diff.cameraY : 0,
           zoom: typeof diff.zoom === 'number' ? diff.zoom : 1,
           flipY: typeof diff.flipY === 'boolean' ? diff.flipY : false,
-          worldHeightPx: typeof diff.worldHeightPx === 'number' ? diff.worldHeightPx : 0,
+          worldHeightPx:
+            typeof diff.worldHeightPx === 'number' ? diff.worldHeightPx : 0,
         });
         return;
       }
