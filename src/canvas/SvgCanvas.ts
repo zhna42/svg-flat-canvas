@@ -330,7 +330,7 @@ export class SvgCanvas implements ICanvasContext {
       getElement: (id) => this.shapeManager.getById(id),
       hitTest: (x, y) =>
         this.hitTestEngine.queryPoint(x, y).hits.map((h) => h.id),
-      deleteElement: (id) => this._api.deleteElement(id),
+      deleteElement: (id) => this._api.shapes.deleteElement(id),
       emit: (type, data) => this.events.emit(type, data),
     });
     this.textController._selectedTextIds = () =>
@@ -570,9 +570,9 @@ export class SvgCanvas implements ICanvasContext {
         dragOverlayDy = 0;
       },
       onSetEditingPath: (el) => {
-        this._api.editingPath = el ? (el as PathElement) : null;
+        this._api.nodeEdit.editingPath = el ? (el as PathElement) : null;
       },
-      getEditingPath: () => this._api.editingPath,
+      getEditingPath: () => this._api.nodeEdit.editingPath,
       canInteract: (id) => this.laserGroupManager.canInteract(id),
       canMove: (id) => this.laserGroupManager.canMove(id),
       isTextEditing: () => this.textController.isEditing,

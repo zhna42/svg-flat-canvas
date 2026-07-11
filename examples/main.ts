@@ -11,7 +11,7 @@ function init(): void {
   const container = document.getElementById('canvas-container')!;
   const canvas = new SvgCanvas(container, { width: 800, height: 600 });
   api = canvas.api;
-  api.setArtboardSize(210, 297);
+  api.canvas.setArtboardSize(210, 297);
 
   loadDemoData();
   setupEventLog();
@@ -37,7 +37,7 @@ function setupTextPanel(): void {
   const colorInp = document.getElementById('txt-color') as HTMLInputElement;
 
   const fillWeights = (family: string): void => {
-    const meta = api.getFontVariants(family);
+    const meta = api.textEdit.getFontVariants(family);
     weightSel.innerHTML = '';
     const weights = meta?.weights ?? ['400', '700'];
     for (const w of weights) {
@@ -51,7 +51,7 @@ function setupTextPanel(): void {
   api
     .initTextFonts(GOOGLE_FONTS_KEY)
     .then(() => {
-      const fonts = api.searchFonts('').slice(0, 100);
+      const fonts = api.textEdit.searchFonts('').slice(0, 100);
       fontSel.innerHTML = '';
       for (const f of fonts) {
         const o = document.createElement('option');
@@ -65,27 +65,27 @@ function setupTextPanel(): void {
 
   fontSel.onchange = () => {
     fillWeights(fontSel.value);
-    api.setTextFontFamily(fontSel.value);
+    api.textEdit.setTextFontFamily(fontSel.value);
   };
-  weightSel.onchange = () => api.setTextWeight(weightSel.value);
-  sizeInp.onchange = () => api.setTextFontSize(parseFloat(sizeInp.value));
-  colorInp.onchange = () => api.setTextColor(colorInp.value);
+  weightSel.onchange = () => api.textEdit.setTextWeight(weightSel.value);
+  sizeInp.onchange = () => api.textEdit.setTextFontSize(parseFloat(sizeInp.value));
+  colorInp.onchange = () => api.textEdit.setTextColor(colorInp.value);
   document.getElementById('txt-italic')!.onclick = () =>
-    api.setTextItalic(toggleBtn('txt-italic'));
+    api.textEdit.setTextItalic(toggleBtn('txt-italic'));
   document.getElementById('txt-underline')!.onclick = () =>
-    api.setTextUnderline(toggleBtn('txt-underline'));
+    api.textEdit.setTextUnderline(toggleBtn('txt-underline'));
   document.getElementById('txt-strike')!.onclick = () =>
-    api.setTextStrike(toggleBtn('txt-strike'));
+    api.textEdit.setTextStrike(toggleBtn('txt-strike'));
   document.getElementById('txt-align-left')!.onclick = () =>
-    api.setTextAlign('left');
+    api.textEdit.setTextAlign('left');
   document.getElementById('txt-align-center')!.onclick = () =>
-    api.setTextAlign('center');
+    api.textEdit.setTextAlign('center');
   document.getElementById('txt-align-right')!.onclick = () =>
-    api.setTextAlign('right');
+    api.textEdit.setTextAlign('right');
 
   // Кнопка «🔤 Текст» — инструмент создания
   document.getElementById('btn-creation-text')!.onclick = () => {
-    api.setActiveCreationTool('text');
+    api.canvas.setActiveCreationTool('text');
   };
 }
 
@@ -100,7 +100,7 @@ function setupArtboardSize(): void {
     const w = parseFloat(inpW.value);
     const h = parseFloat(inpH.value);
     if (w > 0 && h > 0) {
-      api.setArtboardSize(w, h);
+      api.canvas.setArtboardSize(w, h);
     }
   };
 
@@ -121,14 +121,14 @@ function toggleBtn(id: string): boolean {
 function loadDemoData(): void {
   const elements = svgNodesToElements(svgNodes as SvgNodeDto[]);
   for (const el of elements) {
-    api.addShape(el);
+    api.shapes.addShape(el);
   }
 
-  api.loadGroups(groupsData as Record<string, unknown>[]);
+  api.data.loadGroups(groupsData as Record<string, unknown>[]);
 
   for (const el of elements) {
     if (el.groupId) {
-      api.groupAddElements({ groupId: el.groupId, elementIds: [el.id] });
+      api.groups.groupAddElements({ groupId: el.groupId, elementIds: [el.id] });
     }
   }
 }
@@ -179,30 +179,30 @@ function setupEventLog(): void {
 // ─── Top Toolbar ─────────────────────────────────────────
 
 function setupTopToolbar(): void {
-  toggleButton('btn-snap-corners', false, (v) => api.setSnapToCorners(v));
-  toggleButton('btn-snap-planes', false, (v) => api.setSnapToPlanes(v));
-  toggleButton('btn-snap-artboard', false, (v) => api.setSnapToArtboard(v));
-  toggleButton('btn-snap-guidelines', false, (v) => api.setSnapToGuidelines(v));
-  toggleButton('btn-snap-grid', false, (v) => api.setSnapToGrid(v));
-  toggleButton('btn-snap-elements', true, (v) => api.setSnapToElements(v));
-  toggleButton('btn-avoid-collisions', false, (v) => api.setAvoidCollisions(v));
-  toggleButton('btn-lock-drag-axis', false, (v) => api.setLockDragAxis(v));
+  toggleButton('btn-snap-corners', false, (v) => api.snap.setSnapToCorners(v));
+  toggleButton('btn-snap-planes', false, (v) => api.snap.setSnapToPlanes(v));
+  toggleButton('btn-snap-artboard', false, (v) => api.snap.setSnapToArtboard(v));
+  toggleButton('btn-snap-guidelines', false, (v) => api.snap.setSnapToGuidelines(v));
+  toggleButton('btn-snap-grid', false, (v) => api.snap.setSnapToGrid(v));
+  toggleButton('btn-snap-elements', true, (v) => api.snap.setSnapToElements(v));
+  toggleButton('btn-avoid-collisions', false, (v) => api.snap.setAvoidCollisions(v));
+  toggleButton('btn-lock-drag-axis', false, (v) => api.snap.setLockDragAxis(v));
 
   const snapAxis = document.getElementById(
     'sel-snap-axis',
   ) as HTMLSelectElement;
   snapAxis.onchange = () => {
-    api.setSnapAxis(snapAxis.value as 'both' | 'horizontal' | 'vertical');
+    api.snap.setSnapAxis(snapAxis.value as 'both' | 'horizontal' | 'vertical');
   };
 
   document.getElementById('btn-transform-resize')!.onclick = () =>
-    api.setTransformMode('resize');
+    api.selection.setTransformMode('resize');
   document.getElementById('btn-transform-rotate')!.onclick = () =>
-    api.setTransformMode('rotate');
+    api.selection.setTransformMode('rotate');
   toggleButton('btn-proportional-resize', false, (v) =>
-    api.setProportionalResize(v),
+    api.selection.setProportionalResize(v),
   );
-  toggleButton('btn-snap-rotation', false, (v) => api.setSnapRotation(v));
+  toggleButton('btn-snap-rotation', false, (v) => api.selection.setSnapRotation(v));
 
   document.getElementById('btn-flex-tree')!.onclick = () => {
     const panel = document.getElementById('flex-tree-panel')!;
@@ -210,33 +210,33 @@ function setupTopToolbar(): void {
     if (panel.style.display === 'block') syncFlexPanelFromSelection();
   };
 
-  toggleButton('btn-pan-mode', false, (v) => api.setPanMode(v));
-  toggleButton('btn-toggle-rulers', false, (v) => api.setRulersVisible(v));
-  toggleButton('btn-flip-ruler-y', false, (v) => api.setRulerFlipY(v));
+  toggleButton('btn-pan-mode', false, (v) => api.canvas.setPanMode(v));
+  toggleButton('btn-toggle-rulers', false, (v) => api.canvas.setRulersVisible(v));
+  toggleButton('btn-flip-ruler-y', false, (v) => api.canvas.setRulerFlipY(v));
   toggleButton('btn-toggle-grid', false, (v) =>
-    v ? api.showGrid() : api.hideGrid(),
+    v ? api.canvas.showGrid() : api.canvas.hideGrid(),
   );
 
   const gridStep = document.getElementById(
     'input-grid-step',
   ) as HTMLInputElement;
-  gridStep.onchange = () => api.setGridStep(Number(gridStep.value));
+  gridStep.onchange = () => api.canvas.setGridStep(Number(gridStep.value));
 
   let booleanActive = false;
   document.getElementById('btn-bool-union')!.onclick = () => {
-    api.enterBooleanMode('UNION');
+    api.shapes.enterBooleanMode('UNION');
     setBooleanActive(true);
   };
   document.getElementById('btn-bool-intersect')!.onclick = () => {
-    api.enterBooleanMode('INTERSECT');
+    api.shapes.enterBooleanMode('INTERSECT');
     setBooleanActive(true);
   };
   document.getElementById('btn-bool-diff')!.onclick = () => {
-    api.enterBooleanMode('DIFFERENCE');
+    api.shapes.enterBooleanMode('DIFFERENCE');
     setBooleanActive(true);
   };
   document.getElementById('btn-bool-exit')!.onclick = () => {
-    api.exitBooleanMode();
+    api.shapes.exitBooleanMode();
     setBooleanActive(false);
   };
 
@@ -249,14 +249,14 @@ function setupTopToolbar(): void {
   }
 
   toggleButton('btn-debug-hitarea', false, (v) => {
-    api.debugShowHitArea = v;
+    api.canvas.debugShowHitArea = v;
   });
 
   document.getElementById('btn-preloader')!.onclick = () => {
-    if (api.isPreloaderVisible()) {
-      api.hidePreloader();
+    if (api.canvas.isPreloaderVisible()) {
+      api.canvas.hidePreloader();
     } else {
-      api.showPreloader();
+      api.canvas.showPreloader();
     }
   };
 }
@@ -270,19 +270,19 @@ function setupLeftToolbar(): void {
   const btnGroup = document.getElementById('btn-sel-group')!;
 
   btnElem.onclick = () => {
-    api.setSelectionMode('element');
+    api.selection.setSelectionMode('element');
     btnElem.classList.add('active');
     btnGroup.classList.remove('active');
   };
   btnGroup.onclick = () => {
-    api.setSelectionMode('group');
+    api.selection.setSelectionMode('group');
     btnGroup.classList.add('active');
     btnElem.classList.remove('active');
   };
 
   const gestureBtns = document.querySelectorAll('.gesture-btn');
   const setGesture = (gesture: string, activeBtn: Element) => {
-    api.setSelectionGesture(gesture as any);
+    api.selection.setSelectionGesture(gesture as any);
     gestureBtns.forEach((b) => b.classList.remove('active'));
     activeBtn.classList.add('active');
   };
@@ -303,7 +303,7 @@ function setupLeftToolbar(): void {
     const type = (btn as HTMLElement).dataset.type!;
     btn.addEventListener('click', () => {
       currentCreationType = type;
-      api.setActiveCreationTool(type as any);
+      api.canvas.setActiveCreationTool(type as any);
       creationTools.forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       cancelBtn.style.display = '';
@@ -312,55 +312,55 @@ function setupLeftToolbar(): void {
 
   cancelBtn.onclick = () => {
     currentCreationType = null;
-    api.setActiveCreationTool(null);
+    api.canvas.setActiveCreationTool(null);
     creationTools.forEach((b) => b.classList.remove('active'));
     cancelBtn.style.display = 'none';
   };
 
-  document.getElementById('btn-undo')!.onclick = () => api.undo();
-  document.getElementById('btn-redo')!.onclick = () => api.redo();
+  document.getElementById('btn-undo')!.onclick = () => api.history.undo();
+  document.getElementById('btn-redo')!.onclick = () => api.history.redo();
 
   document.getElementById('btn-delete')!.onclick = () => {
-    const selected = api.getSelected();
+    const selected = api.selection.getSelected();
     if (selected.length > 0) {
-      api.deleteShapes({ elementIds: selected.map((e) => e.id) });
+      api.shapes.deleteShapes({ elementIds: selected.map((e) => e.id) });
     }
   };
 
   document.getElementById('btn-outline')!.onclick = () => {
-    const selected = api.getSelected();
+    const selected = api.selection.getSelected();
     if (selected.length > 0) {
-      api.outlineElement(selected[0].id);
+      api.shapes.outlineElement(selected[0].id);
     }
   };
 
   document.getElementById('btn-sel-all')!.onclick = () => {
-    const all = api.getAllShapes();
-    api.selectShapes({ elementIds: all.map((e) => e.id) });
+    const all = api.shapes.getAllShapes();
+    api.selection.selectShapes({ elementIds: all.map((e) => e.id) });
   };
-  document.getElementById('btn-sel-none')!.onclick = () => api.clearSelection();
+  document.getElementById('btn-sel-none')!.onclick = () => api.selection.clearSelection();
 
   // ── Copy / Use ──
   document.getElementById('btn-dup-selected')!.onclick = () => {
-    api.duplicateSelected(30, 30);
+    api.clipboard.duplicateSelected(30, 30);
   };
   document.getElementById('btn-use-dup')!.onclick = () => {
-    api.useDuplicateSelected(30, 30);
+    api.clipboard.useDuplicateSelected(30, 30);
   };
   document.getElementById('btn-unbind-use')!.onclick = () => {
-    const selected = api.getSelected();
+    const selected = api.selection.getSelected();
     for (const el of selected) {
-      if (api.isUseElement(el.id)) {
-        api.unbindUseElement(el.id);
+      if (api.clipboard.isUseElement(el.id)) {
+        api.clipboard.unbindUseElement(el.id);
       }
     }
   };
   document.getElementById('btn-unbind-all')!.onclick = () => {
-    const selected = api.getSelected();
+    const selected = api.selection.getSelected();
     for (const el of selected) {
-      const useIds = api.getUseChildIds(el.id);
+      const useIds = api.clipboard.getUseChildIds(el.id);
       if (useIds.length > 0) {
-        api.unbindAllUseReferences(el.id);
+        api.clipboard.unbindAllUseReferences(el.id);
         break;
       }
     }
@@ -370,16 +370,16 @@ function setupLeftToolbar(): void {
       | 0
       | 0.25
       | 1;
-    const selected = api.getSelected();
+    const selected = api.selection.getSelected();
     for (const el of selected) {
-      if (api.isUseElement(el.id)) {
-        api.setUseOpacity(el.id, opacity);
+      if (api.clipboard.isUseElement(el.id)) {
+        api.clipboard.setUseOpacity(el.id, opacity);
       }
     }
   };
 
   document.getElementById('btn-apply-style')!.onclick = () => {
-    const selected = api.getSelected();
+    const selected = api.selection.getSelected();
     if (selected.length === 0) return;
 
     const fill = (document.getElementById('input-fill') as HTMLInputElement)
@@ -390,7 +390,7 @@ function setupLeftToolbar(): void {
       (document.getElementById('input-stroke-width') as HTMLInputElement).value,
     );
 
-    api.updateShapes({
+    api.shapes.updateShapes({
       elementIds: selected.map((e) => e.id),
       style: {
         fill,
@@ -411,7 +411,7 @@ function setupRightPanel(): void {
   let selectedGroupId: string | null = null;
 
   function renderGroups(): void {
-    const groups = api.getGroups();
+    const groups = api.groups.getGroups();
     list.innerHTML = '';
 
     for (const g of groups) {
@@ -421,11 +421,11 @@ function setupRightPanel(): void {
 
       li.onclick = () => {
         selectedGroupId = g.id;
-        api.selectGroup(g.id);
+        api.groups.selectGroup(g.id);
         renderGroups();
       };
       li.ondblclick = () => {
-        api.selectGroupElements(g.id);
+        api.groups.selectGroupElements(g.id);
       };
       list.appendChild(li);
     }
@@ -436,16 +436,16 @@ function setupRightPanel(): void {
     }
   }
 
-  api.onGroupsChange = () => renderGroups();
+  api.groups.onGroupsChange = () => renderGroups();
 
   document.getElementById('btn-group-create')!.onclick = () => {
-    api.groupCreate({ name: nameInput.value.trim() || 'New Group' });
+    api.groups.groupCreate({ name: nameInput.value.trim() || 'New Group' });
     renderGroups();
   };
 
   document.getElementById('btn-group-delete')!.onclick = () => {
     if (selectedGroupId) {
-      api.groupDelete({ groupId: selectedGroupId });
+      api.groups.groupDelete({ groupId: selectedGroupId });
       selectedGroupId = null;
       renderGroups();
     }
@@ -453,9 +453,9 @@ function setupRightPanel(): void {
 
   document.getElementById('btn-group-add-elem')!.onclick = () => {
     if (!selectedGroupId) return;
-    const selected = api.getSelected();
+    const selected = api.selection.getSelected();
     if (selected.length > 0) {
-      api.groupAddElements({
+      api.groups.groupAddElements({
         groupId: selectedGroupId,
         elementIds: selected.map((e) => e.id),
       });
@@ -464,9 +464,9 @@ function setupRightPanel(): void {
 
   document.getElementById('btn-group-rem-elem')!.onclick = () => {
     if (!selectedGroupId) return;
-    const selected = api.getSelected();
+    const selected = api.selection.getSelected();
     if (selected.length > 0) {
-      api.groupRemoveElements({
+      api.groups.groupRemoveElements({
         groupId: selectedGroupId,
         elementIds: selected.map((e) => e.id),
       });
@@ -490,17 +490,17 @@ function setupKeyboardShortcuts(): void {
     if (
       e.key === ' ' &&
       !e.repeat &&
-      !api.isTextEditing() &&
-      !api.isNodeEditing &&
-      !api.getMeasureTool()
+      !api.textEdit.isTextEditing() &&
+      !api.nodeEdit.isNodeEditing &&
+      !api.measure.getMeasureTool()
     ) {
       e.preventDefault();
-      api.setPanHeld(true);
+      api.canvas.setPanHeld(true);
     }
   });
   document.addEventListener('keyup', (e) => {
     if (e.key === ' ') {
-      api.setPanHeld(false);
+      api.canvas.setPanHeld(false);
     }
   });
 
@@ -516,86 +516,86 @@ function setupKeyboardShortcuts(): void {
     const meta = e.metaKey || e.ctrlKey;
 
     // ── Редактирование текста (дабл-клик) ──
-    if (api.isTextEditing()) {
+    if (api.textEdit.isTextEditing()) {
       if (e.key === 'Escape') {
         e.preventDefault();
-        api.exitTextEdit();
+        api.textEdit.exitTextEdit();
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        api.deleteTextCharacter('backward');
+        api.textEdit.deleteTextCharacter('backward');
         return;
       }
       if (meta && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        api.undoTextEdit();
+        api.textEdit.undoTextEdit();
         return;
       }
       if (meta && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
-        api.redoTextEdit();
+        api.textEdit.redoTextEdit();
         return;
       }
       return;
     }
 
     // ── Инструменты измерения ──
-    if (api.getMeasureTool()) {
+    if (api.measure.getMeasureTool()) {
       if (e.key === 'Escape') {
         e.preventDefault();
-        api.cancelMeasure();
-        api.deactivateMeasureTool();
+        api.measure.cancelMeasure();
+        api.measure.deactivateMeasureTool();
         return;
       }
     }
 
     // ── Режим редактирования узлов ──
-    if (api.isNodeEditing) {
+    if (api.nodeEdit.isNodeEditing) {
       if (meta && e.key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        api.undoNodeEdit();
+        api.nodeEdit.undoNodeEdit();
         return;
       }
       if (meta && e.key === 'z' && e.shiftKey) {
         e.preventDefault();
-        api.redoNodeEdit();
+        api.nodeEdit.redoNodeEdit();
         return;
       }
       if (e.key === 'Escape') {
         e.preventDefault();
-        api.exitNodeEdit();
+        api.nodeEdit.exitNodeEdit();
         return;
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault();
-        api.deleteSelectedNodes();
+        api.nodeEdit.deleteSelectedNodes();
         return;
       }
       if (meta && e.key === 'a') {
         e.preventDefault();
-        api.selectAllNodes();
+        api.nodeEdit.selectAllNodes();
         return;
       }
       const step = e.shiftKey ? 10 : 1;
       if (e.key === 'ArrowLeft') {
         e.preventDefault();
-        api.nudgeSelectedNodes(-step, 0);
+        api.nodeEdit.nudgeSelectedNodes(-step, 0);
         return;
       }
       if (e.key === 'ArrowRight') {
         e.preventDefault();
-        api.nudgeSelectedNodes(step, 0);
+        api.nodeEdit.nudgeSelectedNodes(step, 0);
         return;
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
-        api.nudgeSelectedNodes(0, -step);
+        api.nodeEdit.nudgeSelectedNodes(0, -step);
         return;
       }
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        api.nudgeSelectedNodes(0, step);
+        api.nodeEdit.nudgeSelectedNodes(0, step);
         return;
       }
       return;
@@ -604,35 +604,35 @@ function setupKeyboardShortcuts(): void {
     // ── Обычный режим ──
     if (meta && e.key === 'z' && !e.shiftKey) {
       e.preventDefault();
-      api.undo();
+      api.history.undo();
       return;
     }
     if (meta && e.key === 'z' && e.shiftKey) {
       e.preventDefault();
-      api.redo();
+      api.history.redo();
       return;
     }
     if (meta && e.key === 'd' && !e.shiftKey) {
       e.preventDefault();
-      api.duplicateSelected(30, 30);
+      api.clipboard.duplicateSelected(30, 30);
       return;
     }
     if (meta && e.key === 'd' && e.shiftKey) {
       e.preventDefault();
-      api.useDuplicateSelected(30, 30);
+      api.clipboard.useDuplicateSelected(30, 30);
       return;
     }
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      const selected = api.getSelected();
+      const selected = api.selection.getSelected();
       if (selected.length > 0) {
-        api.deleteShapes({ elementIds: selected.map((el) => el.id) });
+        api.shapes.deleteShapes({ elementIds: selected.map((el) => el.id) });
       }
       return;
     }
     if (meta && e.key === 'a') {
       e.preventDefault();
-      const all = api.getAllShapes();
-      api.selectShapes({ elementIds: all.map((el) => el.id) });
+      const all = api.shapes.getAllShapes();
+      api.selection.selectShapes({ elementIds: all.map((el) => el.id) });
       return;
     }
   });
@@ -668,25 +668,25 @@ function setupNodeEditToolbar(): void {
   };
 
   multiBtn.onclick = () => {
-    const on = !api.getNodeMultiSelect();
-    api.setNodeMultiSelect(on);
+    const on = !api.nodeEdit.getNodeMultiSelect();
+    api.nodeEdit.setNodeMultiSelect(on);
     multiBtn.textContent = `Мультивыбор: ${on ? 'on' : 'off'}`;
     multiBtn.classList.toggle('active', on);
   };
 
-  click('btn-node-exit', () => api.exitNodeEdit());
-  click('btn-node-selall', () => api.selectAllNodes());
-  click('btn-node-selnone', () => api.clearNodeSelection());
-  click('btn-node-selinv', () => api.invertNodeSelection());
-  click('btn-node-corner', () => api.setSelectedNodesType('corner'));
-  click('btn-node-smooth', () => api.setSelectedNodesType('smooth'));
-  click('btn-node-symmetric', () => api.setSelectedNodesType('symmetric'));
-  click('btn-node-smooth-op', () => api.smoothSelectedNodes());
-  click('btn-node-sharpen-op', () => api.sharpenSelectedNodes());
-  click('btn-node-distribute', () => api.distributeSelectedNodesEvenly());
-  click('btn-node-delete', () => api.deleteSelectedNodes());
-  click('btn-node-undo', () => api.undoNodeEdit());
-  click('btn-node-redo', () => api.redoNodeEdit());
+  click('btn-node-exit', () => api.nodeEdit.exitNodeEdit());
+  click('btn-node-selall', () => api.nodeEdit.selectAllNodes());
+  click('btn-node-selnone', () => api.nodeEdit.clearNodeSelection());
+  click('btn-node-selinv', () => api.nodeEdit.invertNodeSelection());
+  click('btn-node-corner', () => api.nodeEdit.setSelectedNodesType('corner'));
+  click('btn-node-smooth', () => api.nodeEdit.setSelectedNodesType('smooth'));
+  click('btn-node-symmetric', () => api.nodeEdit.setSelectedNodesType('symmetric'));
+  click('btn-node-smooth-op', () => api.nodeEdit.smoothSelectedNodes());
+  click('btn-node-sharpen-op', () => api.nodeEdit.sharpenSelectedNodes());
+  click('btn-node-distribute', () => api.nodeEdit.distributeSelectedNodesEvenly());
+  click('btn-node-delete', () => api.nodeEdit.deleteSelectedNodes());
+  click('btn-node-undo', () => api.nodeEdit.undoNodeEdit());
+  click('btn-node-redo', () => api.nodeEdit.redoNodeEdit());
 
   makeDraggable(
     panel,
@@ -724,21 +724,21 @@ function setupMeasureToolbar(): void {
   rulerBtn.onclick = () => {
     clearActive();
     rulerBtn.classList.add('active');
-    api.activateRuler();
+    api.measure.activateRuler();
   };
   angleBtn.onclick = () => {
     clearActive();
     angleBtn.classList.add('active');
-    api.activateProtractor('points');
+    api.measure.activateProtractor('points');
   };
   angleObjBtn.onclick = () => {
     clearActive();
     angleObjBtn.classList.add('active');
-    api.activateProtractor('objects');
+    api.measure.activateProtractor('objects');
   };
   document.getElementById('btn-measure-clear')!.onclick = () =>
-    api.clearMeasurements();
-  exitBtn.onclick = () => api.deactivateMeasureTool();
+    api.measure.clearMeasurements();
+  exitBtn.onclick = () => api.measure.deactivateMeasureTool();
 }
 
 // ─── Size Inputs ───────────────────────────────────────────
@@ -805,12 +805,12 @@ function setupSizeInputs(): void {
       const target = parseFloat(inpW.value);
       if (!isNaN(target)) {
         const delta = target - currentAngle;
-        if (Math.abs(delta) > 0.001) api.rotateElement(currentId, delta);
+        if (Math.abs(delta) > 0.001) api.shapes.rotateElement(currentId, delta);
       }
     } else {
       const w = parseFloat(inpW.value);
       const h = parseFloat(inpH.value);
-      if (w > 0 && h > 0) api.resizeElement(currentId, w, h);
+      if (w > 0 && h > 0) api.shapes.resizeElement(currentId, w, h);
     }
   };
 
@@ -845,13 +845,13 @@ let flexSelectedElementId: string | null = null;
 function syncFlexPanelFromSelection(): void {
   flexSelectedElementId = null;
   // Use the API to find currently selected element
-  const selected = api.getSelected();
+  const selected = api.selection.getSelected();
   if (selected.length === 1) {
     flexSelectedElementId = selected[0].id;
   }
   if (!flexSelectedElementId) return;
 
-  const cfg = api.getFlexTreeConfig(flexSelectedElementId);
+  const cfg = api.flexTree.getFlexTreeConfig(flexSelectedElementId);
   const stepInp = document.getElementById('inp-flex-step') as HTMLInputElement;
   const linkInp = document.getElementById('inp-flex-link') as HTMLInputElement;
   const dashInp = document.getElementById('inp-flex-dash') as HTMLInputElement;
@@ -905,8 +905,8 @@ function setupFlexTreePanel(): void {
     if (!flexSelectedElementId) return;
     const active = document.querySelector('.flex-mode-btn.active');
     const algo = active ? active.id.replace('btn-flex-', '') : 'linear';
-    api.setFlexTreeAlgorithm(flexSelectedElementId, algo as never);
-    api.setFlexTreeParams(flexSelectedElementId, {
+    api.flexTree.setFlexTreeAlgorithm(flexSelectedElementId, algo as never);
+    api.flexTree.setFlexTreeParams(flexSelectedElementId, {
       step: Number(
         (document.getElementById('inp-flex-step') as HTMLInputElement).value,
       ),
@@ -925,7 +925,7 @@ function setupFlexTreePanel(): void {
 
   document.getElementById('btn-flex-remove')!.onclick = () => {
     if (!flexSelectedElementId) return;
-    api.removeFlexTree(flexSelectedElementId);
+    api.flexTree.removeFlexTree(flexSelectedElementId);
   };
 }
 
@@ -945,7 +945,7 @@ function applyPreset(preset: 'thin' | 'standard' | 'thick'): void {
   const btn = document.getElementById(`btn-preset-${preset}`);
   if (btn) btn.classList.add('preset-active');
   if (flexSelectedElementId)
-    api.applyFlexTreePreset(flexSelectedElementId, preset);
+    api.flexTree.applyFlexTreePreset(flexSelectedElementId, preset);
 }
 
 // ─── Helpers ─────────────────────────────────────────────
@@ -977,14 +977,14 @@ function setupLaserPanel(): void {
   const layerSection = $('laser-layer-section') as HTMLElement;
 
   btnEdit.onclick = () => {
-    api.setMode('edit');
+    api.canvas.setMode('edit');
     btnEdit.classList.add('active');
     btnLayers.classList.remove('active');
     editSection.style.display = '';
     layerSection.style.display = 'none';
   };
   btnLayers.onclick = () => {
-    api.setMode('layers');
+    api.canvas.setMode('layers');
     btnLayers.classList.add('active');
     btnEdit.classList.remove('active');
     editSection.style.display = 'none';
@@ -994,13 +994,13 @@ function setupLaserPanel(): void {
 
   // Layer management
   $('btn-layer-add').onclick = () => {
-    api.createLaserLayer(`Layer ${api.getLaserLayers().length + 1}`);
+    api.laser.createLaserLayer(`Layer ${api.laser.getLaserLayers().length + 1}`);
     updateLayerGroupSelects();
     renderLayerList();
   };
 
   ($('chk-orphan-groups') as HTMLInputElement).onchange = (e) => {
-    api.setOrphanGroupsVisible((e.target as HTMLInputElement).checked);
+    api.laser.setOrphanGroupsVisible((e.target as HTMLInputElement).checked);
   };
 
   api.on('LASER_LAYER_CREATED', () => renderLayerList());
@@ -1030,7 +1030,7 @@ function setupLaserPanel(): void {
   function populateGroupSelect(sel: HTMLSelectElement, layerId: string): void {
     const current = sel.value;
     sel.innerHTML = '<option value="">- Add group -</option>';
-    const groups = api.getLaserGroups();
+    const groups = api.laser.getLaserGroups();
     for (const g of groups) {
       const opt = document.createElement('option');
       opt.value = g.id;
@@ -1043,7 +1043,7 @@ function setupLaserPanel(): void {
   function renderLayerList(): void {
     const list = $('layer-list');
     list.innerHTML = '';
-    const layers = api.getLaserLayers();
+    const layers = api.laser.getLaserLayers();
 
     for (let i = 0; i < layers.length; i++) {
       const layer = layers[i];
@@ -1071,24 +1071,24 @@ function setupLaserPanel(): void {
       `;
 
       item.querySelector('.layer-up-btn')!.addEventListener('click', () => {
-        api.reorderLayer(layer.id, i - 1);
+        api.laser.reorderLayer(layer.id, i - 1);
       });
       item.querySelector('.layer-down-btn')!.addEventListener('click', () => {
-        api.reorderLayer(layer.id, i + 1);
+        api.laser.reorderLayer(layer.id, i + 1);
       });
       item.querySelector('.layer-visible')!.addEventListener('change', (e) => {
-        api.setLayerVisibility(
+        api.laser.setLayerVisibility(
           layer.id,
           (e.target as HTMLInputElement).checked,
         );
       });
       item.querySelector('.layer-del-btn')!.addEventListener('click', () => {
-        api.deleteLaserLayer(layer.id);
+        api.laser.deleteLaserLayer(layer.id);
       });
       item.querySelector('.layer-group-sel')!.addEventListener('change', (e) => {
         const gid = (e.target as HTMLSelectElement).value;
         if (gid) {
-          api.addGroupToLayer(layer.id, gid);
+          api.laser.addGroupToLayer(layer.id, gid);
           (e.target as HTMLSelectElement).value = '';
         }
       });
@@ -1109,27 +1109,27 @@ function setupLaserPanel(): void {
   const dpiEl = $('laser-dpi');
 
   const refreshReadout = (): void => {
-    const s = api.getLaserSettings();
+    const s = api.laser.getLaserSettings();
     spotEl.textContent = s.spotSizeMm.toFixed(3);
     dpiEl.textContent = String(s.recommendedDpi);
   };
 
   focal.onchange = () => {
-    api.setLaserLensFocal(parseFloat(focal.value));
+    api.laser.setLaserLensFocal(parseFloat(focal.value));
   };
-  lensDia.onchange = () => api.setLaserLensDiameter(parseFloat(lensDia.value));
-  beamDia.onchange = () => api.setLaserBeamDiameter(parseFloat(beamDia.value));
-  height.onchange = () => api.setLaserMaterialHeight(parseFloat(height.value));
-  engColor.onchange = () => api.setLaserEngraveColor(engColor.value);
-  cutColor.onchange = () => api.setLaserCutColor(cutColor.value);
+  lensDia.onchange = () => api.laser.setLaserLensDiameter(parseFloat(lensDia.value));
+  beamDia.onchange = () => api.laser.setLaserBeamDiameter(parseFloat(beamDia.value));
+  height.onchange = () => api.laser.setLaserMaterialHeight(parseFloat(height.value));
+  engColor.onchange = () => api.laser.setLaserEngraveColor(engColor.value);
+  cutColor.onchange = () => api.laser.setLaserCutColor(cutColor.value);
   ($('laser-hide-nonlaser') as HTMLInputElement).onchange = (e) =>
-    api.setNonLaserElementsVisible(!(e.target as HTMLInputElement).checked);
+    api.laser.setNonLaserElementsVisible(!(e.target as HTMLInputElement).checked);
   ($('laser-translucent') as HTMLInputElement).onchange = (e) =>
-    api.setLaserElementsTranslucent((e.target as HTMLInputElement).checked);
+    api.laser.setLaserElementsTranslucent((e.target as HTMLInputElement).checked);
 
   $('laser-create').onclick = () => {
     const name = ($('laser-group-name') as HTMLInputElement).value || 'Laser';
-    api.createLaserGroup({ name });
+    api.laser.createLaserGroup({ name });
     renderLaserGroups();
   };
 
@@ -1148,8 +1148,8 @@ function setupLaserPanel(): void {
 function renderLaserGroups(): void {
   const list = document.getElementById('laser-group-list');
   if (!list) return;
-  const grading = api.getLaserColorGrading();
-  const groups = api.getLaserGroups();
+  const grading = api.laser.getLaserColorGrading();
+  const groups = api.laser.getLaserGroups();
   list.innerHTML = '';
 
   for (const g of groups) {
@@ -1213,22 +1213,22 @@ function renderLaserGroups(): void {
         } else {
           value = input.value;
         }
-        api.updateLaserGroup(g.id, { [f]: value } as never);
+        api.laser.updateLaserGroup(g.id, { [f]: value } as never);
       });
     });
 
-    const sel = (): string[] => api.getSelected().map((e) => e.id);
+    const sel = (): string[] => api.selection.getSelected().map((e) => e.id);
     (item.querySelector('[data-a="add"]') as HTMLButtonElement).onclick =
       () => {
-        api.laserGroupAddElements(g.id, sel());
+        api.laser.laserGroupAddElements(g.id, sel());
       };
     (item.querySelector('[data-a="rem"]') as HTMLButtonElement).onclick =
       () => {
-        api.laserGroupRemoveElements(g.id, sel());
+        api.laser.laserGroupRemoveElements(g.id, sel());
       };
     (item.querySelector('[data-a="del"]') as HTMLButtonElement).onclick =
       () => {
-        api.deleteLaserGroup(g.id);
+        api.laser.deleteLaserGroup(g.id);
       };
 
     list.appendChild(item);
