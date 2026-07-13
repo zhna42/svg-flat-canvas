@@ -654,3 +654,176 @@ input[type='text'] {
 #btn-flex-remove:hover {
   background: rgba(255, 60, 60, 0.3);
 }
+
+/* ===== Raster Dithering Modal ===== */
+.raster-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.raster-modal {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  width: 480px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.raster-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.raster-modal-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.raster-modal-header button {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 2px 8px;
+}
+
+.raster-modal-header button:hover {
+  color: var(--text);
+}
+
+.raster-modal-body {
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.raster-modal-body label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.raster-modal-body select,
+.raster-modal-body input[type="range"],
+.raster-modal-body input[type="number"] {
+  padding: 6px 8px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text);
+}
+
+.raster-modal-body select:focus,
+.raster-modal-body input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.raster-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.raster-slider-row input[type="range"] {
+  flex: 1;
+}
+
+.raster-slider-row span {
+  font-size: 12px;
+  color: var(--text);
+  min-width: 32px;
+  text-align: right;
+}
+
+.raster-modal-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+}
+
+.raster-modal-footer button {
+  flex: 1;
+  padding: 8px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+
+.raster-modal-footer button.raster-btn-primary {
+  background: rgba(0, 150, 255, 0.2);
+  color: #3399ff;
+  border-color: rgba(0, 150, 255, 0.4);
+}
+
+.raster-modal-footer button.raster-btn-primary:hover {
+  background: rgba(0, 150, 255, 0.35);
+}
+
+.raster-modal-footer button.raster-btn-danger {
+  background: rgba(255, 60, 60, 0.15);
+  color: #ff4444;
+  border-color: rgba(255, 60, 60, 0.3);
+}
+
+.raster-modal-footer button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.raster-step-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.raster-step-tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 12px;
+  text-align: center;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+}
+
+.raster-step-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.raster-step-tab:hover {
+  color: var(--text);
+}
+
+.raster-preview {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: block;
+}

@@ -576,6 +576,70 @@
       </div>
     </div>
 
+    <!-- Raster Dithering Modal -->
+    <div id="raster-modal-overlay" class="raster-modal-overlay" style="display:none">
+      <div class="raster-modal">
+        <div class="raster-modal-header">
+          <h3>Растр-редактор</h3>
+          <button id="raster-modal-close">✕</button>
+        </div>
+        <div class="raster-modal-body">
+          <div class="raster-step-tabs">
+            <button class="raster-step-tab active" data-step="dither">Дизеринг</button>
+            <button class="raster-step-tab" data-step="raster">Растр (скоро)</button>
+          </div>
+          <div id="raster-step-dither">
+            <label>
+              Алгоритм
+              <select id="raster-algo">
+                <option value="floyd-steinberg">Floyd-Steinberg</option>
+                <option value="atkinson">Atkinson</option>
+                <option value="bayer">Bayer (Ordered)</option>
+                <option value="threshold">Threshold</option>
+                <option value="halftone">Halftone</option>
+              </select>
+            </label>
+            <label>
+              Brightness
+              <div class="raster-slider-row">
+                <input type="range" id="raster-brightness" min="-255" max="255" value="0" />
+                <span id="raster-brightness-val">0</span>
+              </div>
+            </label>
+            <label>
+              Contrast
+              <div class="raster-slider-row">
+                <input type="range" id="raster-contrast" min="-255" max="255" value="0" />
+                <span id="raster-contrast-val">0</span>
+              </div>
+            </label>
+            <label>
+              Threshold
+              <div class="raster-slider-row">
+                <input type="range" id="raster-threshold" min="0" max="255" value="128" />
+                <span id="raster-threshold-val">128</span>
+              </div>
+            </label>
+            <label>
+              <input type="checkbox" id="raster-invert" /> Invert
+            </label>
+          </div>
+          <div id="raster-step-raster" style="display:none">
+            <p style="color:var(--text-muted);font-size:12px;padding:16px;text-align:center">
+              Удаление фона, ластик, кроп — будут доступны здесь
+            </p>
+          </div>
+          <div>
+            <img id="raster-preview-img" class="raster-preview" src="" style="display:none" alt="Preview" />
+          </div>
+        </div>
+        <div class="raster-modal-footer">
+          <button class="raster-btn-danger" id="raster-modal-reset">Сбросить</button>
+          <button class="raster-btn-primary" id="raster-modal-apply">Применить</button>
+        </div>
+      </div>
+    </div>
+
     <script type="module" src="./main.ts"></script>
   </body>
 </html>

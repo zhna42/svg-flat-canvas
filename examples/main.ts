@@ -1,5 +1,6 @@
 import { SvgCanvas, ExternalApi, svgNodesToElements } from '@/index';
 import type { BusEvent, GroupData, SvgNodeDto, CreateShapeDTO } from '@/index';
+import type { DitherAlgorithm } from '@/index';
 import svgNodes from './svg-nodes.json';
 import groupsData from './groups.json';
 
@@ -26,6 +27,7 @@ function init(): void {
   setupLaserPanel();
   setupTextPanel();
   setupArtboardSize();
+  setupRasterModal();
 }
 
 const GOOGLE_FONTS_KEY = 'AIzaSyBtoXXgjyOUNazwWDWAenfPkoRN7U8VlUs';
@@ -1233,6 +1235,197 @@ function renderLaserGroups(): void {
 
     list.appendChild(item);
   }
+}
+
+// ─── Raster Dithering Modal ──────────────────────────────
+
+function setupRasterModal(): void {
+  let currentElementId: string | null = null;
+  let ditherTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const el = <T extends HTMLElement = HTMLElement>(id: string): T | null =>
+    document.getElementById(id) as T | null;
+
+  const getOverlay = (): HTMLElement | null => el('raster-modal-overlay');
+  const getPreviewImg = (): HTMLImageElement | null => el<HTMLImageElement>('raster-preview-img');
+  const getAlgoSelect = (): HTMLSelectElement | null => el<HTMLSelectElement>('raster-algo');
+  const getBrightnessInput = (): HTMLInputElement | null => el<HTMLInputElement>('raster-brightness');
+  const getContrastInput = (): HTMLInputElement | null => el<HTMLInputElement>('raster-contrast');
+  const getThresholdInput = (): HTMLInputElement | null => el<HTMLInputElement>('raster-threshold');
+  const getInvertChk = (): HTMLInputElement | null => el<HTMLInputElement>('raster-invert');
+  const getBrightnessVal = (): HTMLElement | null => el('raster-brightness-val');
+  const getContrastVal = (): HTMLElement | null => el('raster-contrast-val');
+  const getThresholdVal = (): HTMLElement | null => el('raster-threshold-val');
+
+  const updatePreview = (src: string | undefined): void => {
+    const img = getPreviewImg();
+    if (!img) return;
+    if (src) {
+      img.src = src;
+      img.style.display = 'block';
+    } else {
+      img.style.display = 'none';
+    }
+  };
+
+  const runDithering = (): void => {
+    if (!currentElementId) return;
+    const algoSelect = getAlgoSelect();
+    if (!algoSelect) return;
+
+    const thresholdInput = getThresholdInput();
+    const brightnessInput = getBrightnessInput();
+    const contrastInput = getContrastInput();
+    const invertChk = getInvertChk();
+
+    const algorithm = algoSelect.value as DitherAlgorithm;
+    const options = {
+      threshold: thresholdInput ? parseInt(thresholdInput.value, 10) : 128,
+      brightness: brightnessInput ? parseInt(brightnessInput.value, 10) : 0,
+      contrast: contrastInput ? parseInt(contrastInput.value, 10) : 0,
+      invert: invertChk ? invertChk.checked : false,
+      halftoneSize: 4,
+      halftoneAngle: 0,
+    };
+
+    api.raster.applyDithering(currentElementId, algorithm, options)
+      .then(() => {
+        const state = api.raster.getState(currentElementId);
+        updatePreview(state?.editedImage);
+      })
+      .catch((err: Error) => {
+        console.error('Dithering failed:', err.message);
+      });
+  };
+
+  const scheduleDithering = (): void => {
+    if (ditherTimer) clearTimeout(ditherTimer);
+    ditherTimer = setTimeout(runDithering, 100);
+  };
+
+  const syncSliderLabel = (input: HTMLInputElement, getLabel: () => HTMLElement | null): void => {
+    const label = getLabel();
+    if (label) label.textContent = input.value;
+  };
+
+  const brightnessInput = getBrightnessInput();
+  const contrastInput = getContrastInput();
+  const thresholdInput = getThresholdInput();
+  const invertChk = getInvertChk();
+  const algoSelect = getAlgoSelect();
+
+  if (brightnessInput) {
+    brightnessInput.addEventListener('input', () => {
+      syncSliderLabel(brightnessInput, getBrightnessVal);
+      scheduleDithering();
+    });
+  }
+  if (contrastInput) {
+    contrastInput.addEventListener('input', () => {
+      syncSliderLabel(contrastInput, getContrastVal);
+      scheduleDithering();
+    });
+  }
+  if (thresholdInput) {
+    thresholdInput.addEventListener('input', () => {
+      syncSliderLabel(thresholdInput, getThresholdVal);
+      scheduleDithering();
+    });
+  }
+  if (algoSelect) {
+    algoSelect.addEventListener('change', scheduleDithering);
+  }
+  if (invertChk) {
+    invertChk.addEventListener('change', scheduleDithering);
+  }
+
+  const closeBtn = el('raster-modal-close');
+  if (closeBtn) {
+    closeBtn.onclick = () => {
+      const overlay = getOverlay();
+      if (overlay) overlay.style.display = 'none';
+      currentElementId = null;
+    };
+  }
+
+  const resetBtn = el('raster-modal-reset');
+  if (resetBtn) {
+    resetBtn.onclick = () => {
+      if (!currentElementId) return;
+      api.raster.reset(currentElementId);
+      updatePreview(undefined);
+    };
+  }
+
+  const applyBtn = el('raster-modal-apply');
+  if (applyBtn) {
+    applyBtn.onclick = () => {
+      if (ditherTimer) clearTimeout(ditherTimer);
+      runDithering();
+    };
+  }
+
+  document.querySelectorAll('.raster-step-tab').forEach((tab) => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.raster-step-tab').forEach((t) => t.classList.remove('active'));
+      tab.classList.add('active');
+      const step = (tab as HTMLElement).dataset.step;
+      const dither = el('raster-step-dither');
+      const raster = el('raster-step-raster');
+      if (dither) dither.style.display = step === 'dither' ? '' : 'none';
+      if (raster) raster.style.display = step === 'raster' ? '' : 'none';
+    });
+  });
+
+  api.on('IMG_SELECT_EDIT', (ev: BusEvent) => {
+    const dto = ev.data as Record<string, unknown>;
+    const elementId = dto.id as string;
+    if (!elementId) return;
+
+    currentElementId = elementId;
+
+    const state = api.raster.getState(elementId);
+    const tInput = getThresholdInput();
+    const bInput = getBrightnessInput();
+    const cInput = getContrastInput();
+    const aSelect = getAlgoSelect();
+    const iChk = getInvertChk();
+
+    if (state) {
+      if (aSelect) aSelect.value = state.algorithm;
+      if (state.params.threshold !== undefined && tInput) {
+        tInput.value = String(state.params.threshold);
+        syncSliderLabel(tInput, getThresholdVal);
+      }
+      if (state.params.brightness !== undefined && bInput) {
+        bInput.value = String(state.params.brightness);
+        syncSliderLabel(bInput, getBrightnessVal);
+      }
+      if (state.params.contrast !== undefined && cInput) {
+        cInput.value = String(state.params.contrast);
+        syncSliderLabel(cInput, getContrastVal);
+      }
+      if (iChk) iChk.checked = state.params.invert ?? false;
+
+      const previewSrc = state.editedImage || state.processedSource || state.originalImage || (dto.href as string | undefined) || '';
+      updatePreview(previewSrc || undefined);
+    } else {
+      if (aSelect) aSelect.value = 'floyd-steinberg';
+      if (tInput) { tInput.value = '128'; syncSliderLabel(tInput, getThresholdVal); }
+      if (bInput) { bInput.value = '0'; syncSliderLabel(bInput, getBrightnessVal); }
+      if (cInput) { cInput.value = '0'; syncSliderLabel(cInput, getContrastVal); }
+      if (iChk) iChk.checked = false;
+
+      const previewSrc = (dto.editedImage as string | undefined)
+        || (dto.originalImage as string | undefined)
+        || (dto.href as string | undefined)
+        || '';
+      updatePreview(previewSrc || undefined);
+    }
+
+    const overlay = getOverlay();
+    if (overlay) overlay.style.display = 'flex';
+  });
 }
 
 // ─── Boot ────────────────────────────────────────────────

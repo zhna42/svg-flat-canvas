@@ -75,6 +75,7 @@ export interface ImageGeometryDTO {
   href: string;
   editedImage?: string;
   originalImage?: string;
+  processedSource?: string;
   rasterEditorOptions?: Record<string, unknown>;
 }
 

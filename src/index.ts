@@ -83,10 +83,14 @@ export { svgNodesToElements } from '@/dto';
 export type { SvgNodeDto } from '@/dto';
 export { GuidelineManager, Guideline, RulerBuilder } from '@/modules/ruler';
 export type { GuidelineData, GuidelineEvents } from '@/core/type';
-export {
-  BooleanEngine,
-  booleanOperation,
-} from '@/core/math/boolean';
+export { BooleanEngine, booleanOperation } from '@/core/math/boolean';
 export { BooleanHandler } from '@/manager/commands/handlers/BooleanHandler';
 export type { BooleanOp, Pt } from '@/core/type';
 export { DebugLog } from '@/canvas/overlays/debug/DebugLog';
+export { RasterController, RasterProcessor } from '@/modules/raster';
+export type {
+  DitherAlgorithm,
+  DitherOptions,
+  RasterState,
+} from '@/modules/raster';
+export { DITHER_ALGORITHMS } from '@/modules/raster';

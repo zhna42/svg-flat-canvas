@@ -1,6 +1,7 @@
 import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/core/type';
 import { RectHitAreaSimple } from '../modules/HitArea';
+import type { DitherAlgorithm, DitherOptions } from '@/modules/raster';
 
 export class ImageElement extends AbstractGraphicElement {
   _ha = new RectHitAreaSimple();
@@ -9,7 +10,9 @@ export class ImageElement extends AbstractGraphicElement {
   public href = '';
   public editedImage?: string;
   public originalImage?: string;
+  public processedSource?: string;
   public rasterEditorOptions?: Record<string, unknown>;
+  public rasterState?: { algorithm: DitherAlgorithm; params: DitherOptions };
 
   public constructor(id: string) {
     super(id, 'image');
@@ -20,6 +23,7 @@ export class ImageElement extends AbstractGraphicElement {
       'geometry.height',
       'href',
       'editedImage',
+      'processedSource',
     );
   }
 
@@ -57,6 +61,8 @@ export class ImageElement extends AbstractGraphicElement {
       href: this.href,
       editedImage: this.editedImage,
       originalImage: this.originalImage,
+      processedSource: this.processedSource,
+      rasterState: this.rasterState,
     };
   }
 
@@ -80,6 +86,15 @@ export class ImageElement extends AbstractGraphicElement {
       this.rasterEditorOptions = (data as Record<string, unknown>)
         .rasterEditorOptions as Record<string, unknown> | undefined;
     }
+    if ((data as Record<string, unknown>).processedSource !== undefined) {
+      this.processedSource = (data as Record<string, unknown>)
+        .processedSource as string | undefined;
+    }
+    if ((data as Record<string, unknown>).rasterState !== undefined) {
+      this.rasterState = (data as Record<string, unknown>).rasterState as
+        | { algorithm: DitherAlgorithm; params: DitherOptions }
+        | undefined;
+    }
     this.rebuildHitArea();
   }
 
@@ -89,9 +104,11 @@ export class ImageElement extends AbstractGraphicElement {
     el.href = this.href;
     el.editedImage = this.editedImage;
     el.originalImage = this.originalImage;
+    el.processedSource = this.processedSource;
     el.rasterEditorOptions = this.rasterEditorOptions
       ? { ...this.rasterEditorOptions }
       : undefined;
+    el.rasterState = this.rasterState ? { ...this.rasterState } : undefined;
     el.rebuildHitArea();
   }
 
@@ -108,7 +125,9 @@ export class ImageElement extends AbstractGraphicElement {
       href: this.href,
       editedImage: this.editedImage,
       originalImage: this.originalImage,
+      processedSource: this.processedSource,
       rasterEditorOptions: this.rasterEditorOptions,
+      rasterState: this.rasterState,
     };
   }
 
