@@ -1,7 +1,7 @@
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { HandlePosition, Point, TransformMode } from '@/core/type';
 import type { Camera } from '@/canvas/Camera';
-import type { TimeMachine } from '@/core/time-machine/TimeMachine';
+import type { TimeMachine } from '@/manager/time-machine/TimeMachine';
 
 const HANDLE_TO_ANCHOR: Record<HandlePosition, HandlePosition> = {
   se: 'nw',

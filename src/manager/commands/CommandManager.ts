@@ -1,4 +1,4 @@
-import type { ICanvasContext } from '@/core/type/internal';
+import type { ICanvasContext } from '@/canvas/types';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { CommandHandler, Command } from '@/core/commands/types';
 import { createSelectHandler } from '@/core/commands/handlers/select-handler';
@@ -6,11 +6,11 @@ import {
   createDragMoveHandler,
   createDragEndHandler,
 } from '@/core/commands/handlers/drag-handler';
-import { createGroupHandler } from '@/core/commands/handlers/group-handler';
-import { createDeleteHandler } from '@/core/commands/handlers/delete-handler';
-import { createCreateHandler } from '@/core/commands/handlers/create-handler';
-import { createCreateFileHandler } from '@/core/commands/handlers/create-file-handler';
-import { createBooleanOperationHandler } from '@/core/commands/handlers/boolean-handler';
+import { createGroupHandler } from '@/manager/commands/handlers/group-handler';
+import { createDeleteHandler } from '@/manager/commands/handlers/delete-handler';
+import { createCreateHandler } from '@/manager/commands/handlers/create-handler';
+import { createCreateFileHandler } from '@/manager/commands/handlers/create-file-handler';
+import { createBooleanOperationHandler } from '@/manager/commands/handlers/boolean-handler';
 import { PathElement } from '@/core/shapes/elements/PathElement';
 
 const EDIT_COMMANDS = new Set([

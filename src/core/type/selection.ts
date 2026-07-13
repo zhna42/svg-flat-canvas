@@ -59,7 +59,7 @@ export interface SelectionHandlerOptions {
   hitTestEngine: import('@/core/hit-test').HitTestEngine;
   bus: import('@/core/commands/CommandBus').CommandBus;
   registerDirty: (node: import('@/core/type').IRenderableNode) => void;
-  timeMachine?: import('@/core/time-machine/TimeMachine').TimeMachine;
+  timeMachine?: import('@/manager/time-machine/TimeMachine').TimeMachine;
   isPanning?: () => boolean;
   isCreating?: () => boolean;
   isGuidelineDragging?: () => boolean;

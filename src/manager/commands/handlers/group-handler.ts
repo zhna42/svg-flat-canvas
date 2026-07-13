@@ -1,5 +1,5 @@
-import type { Command } from '../types';
-import type { CommandHandler } from '../types';
+import type { Command } from '@/core/commands/types';
+import type { CommandHandler } from '@/core/commands/types';
 import type { GroupManager } from '@/manager/GroupManager';
 
 export const createGroupHandler = (

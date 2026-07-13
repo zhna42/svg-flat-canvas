@@ -1,6 +1,6 @@
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { Camera } from '@/canvas/Camera';
-import type { TimeMachine } from '@/core/time-machine/TimeMachine';
+import type { TimeMachine } from '@/manager/time-machine/TimeMachine';
 import type {
   Point,
   GroupTransformMode,

@@ -1,7 +1,7 @@
 import type { ShapeManager } from '@/manager/ShapeManager';
 import type { SelectionState } from '@/canvas/overlays/selection/SelectionState';
 import type { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
-import type { TimeMachine } from '@/core/time-machine';
+import type { TimeMachine } from '@/manager/time-machine';
 import type { EventBus } from '@/core/event-bus/EventBus';
 import type { CommandBus } from '@/core/commands/CommandBus';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';

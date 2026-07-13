@@ -75,7 +75,7 @@ export type {
   BBox,
   SelectionGesture,
 } from '@/core/type';
-export { TimeMachine } from '@/core/time-machine';
+export { TimeMachine } from '@/manager/time-machine';
 export type { TimeSnapshot } from '@/core/type';
 export { EventBus } from '@/core/event-bus/EventBus';
 export type { BusEvent } from '@/core/type';
@@ -87,6 +87,6 @@ export {
   BooleanEngine,
   booleanOperation,
 } from '@/core/math/boolean';
-export { BooleanHandler } from '@/core/commands/handlers/BooleanHandler';
+export { BooleanHandler } from '@/manager/commands/handlers/BooleanHandler';
 export type { BooleanOp, Pt } from '@/core/type';
 export { DebugLog } from '@/canvas/overlays/debug/DebugLog';

@@ -1,7 +1,7 @@
-import type { Command } from '../types';
-import type { CommandHandler } from '../types';
+import type { Command } from '@/core/commands/types';
+import type { CommandHandler } from '@/core/commands/types';
 import type { ShapeManager } from '@/manager/ShapeManager';
-import type { TimeMachine } from '@/core/time-machine/TimeMachine';
+import type { TimeMachine } from '@/manager/time-machine/TimeMachine';
 import type { HitTestEngine } from '@/core/hit-test';
 import { PathElement } from '@/core/shapes/elements/PathElement';
 

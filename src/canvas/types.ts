@@ -10,12 +10,12 @@ import type { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverla
 import type { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
 import type { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
 import type { GridOverlay } from '@/canvas/overlays/debug/GridOverlay';
-import type { GroupManager } from '@/core/shapes/group';
+import type { GroupManager } from '@/manager/GroupManager';
 import type { CommandBus } from '@/core/commands/CommandBus';
-import type { TimeMachine } from '@/core/time-machine';
+import type { TimeMachine } from '@/manager/time-machine';
 import type { GuidelineManager } from '@/modules/ruler';
 import type { Rulers } from '@/canvas/nodes';
-import type { CreationHandler } from '@/core/commands/handlers/creation/CreationHandler';
+import type { CreationHandler } from '@/manager/commands/handlers/creation/CreationHandler';
 import type { ExternalApi } from '@/modules/api/ExternalApi';
 import type { EventBus } from '@/core/event-bus/EventBus';
 import type { ElementManager } from '@/manager/ElementManager';

@@ -1,5 +1,5 @@
-import type { Command } from '../types';
-import type { CommandHandler } from '../types';
+import type { Command } from '@/core/commands/types';
+import type { CommandHandler } from '@/core/commands/types';
 import type { ShapeManager } from '@/manager/ShapeManager';
 import type { HitTestEngine } from '@/core/hit-test';
 

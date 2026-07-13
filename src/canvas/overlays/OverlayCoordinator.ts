@@ -1,4 +1,4 @@
-import type { ICanvasContext } from '@/core/type/internal';
+import type { ICanvasContext } from '@/canvas/types';
 import { invalidateGroupBBox } from '@/core/math/group-bbox';
 import type { Group } from '@/core/shapes/group/Group';
 import { MM_TO_PX } from '@/constants';

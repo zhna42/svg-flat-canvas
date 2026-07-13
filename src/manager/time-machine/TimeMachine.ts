@@ -1,5 +1,5 @@
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
-import type { ShapeManager } from '@/manager/ShapeManager';
+import type { ShapeManager } from '../ShapeManager';
 import type { SnapshotCommand, TimeSnapshot, EntityDiff } from '@/core/type';
 import { createElementByType } from '@/core/shapes/factory';
 
