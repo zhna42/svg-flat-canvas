@@ -24,7 +24,7 @@ export class CanvasView {
   readonly _laserStyle: CanvasLaserStyle;
   readonly _clipPath: CanvasClipPath;
   _elements = new Map<string, SVGElement>();
-  _onImageMoved: ((imageId: string, dx: number, dy: number) => void) | null =
+  _onImageMoved: ((imageId: string, oldMatrix: DOMMatrix, newMatrix: DOMMatrix) => void) | null =
     null;
 
   setFlexTreeProvider(fn: (id: string) => FlexTree | null): void {
@@ -93,27 +93,29 @@ export class CanvasView {
       this._systemNodes.applyDiff(id, element, diff as Record<string, unknown>);
     } else {
       const syncMasks = type === 'image' && this._clipPath.hasClipPath(id) && this._onImageMoved;
-      let oldX = 0, oldY = 0, oldTx = 0, oldTy = 0;
+      let oldM: DOMMatrix | null = null;
 
       if (syncMasks) {
-        oldX = parseFloat(element.getAttribute('x') || '0');
-        oldY = parseFloat(element.getAttribute('y') || '0');
-        try { const m = new DOMMatrix(element.getAttribute('transform') || ''); oldTx = m.e; oldTy = m.f; } catch { /* */ }
+        const ox = parseFloat(element.getAttribute('x') || '0');
+        const oy = parseFloat(element.getAttribute('y') || '0');
+        const ot = element.getAttribute('transform') || '';
+        oldM = new DOMMatrix(ot).translateSelf(ox, oy);
       }
 
       this._applyShapeDiff(element, diff as Record<string, unknown>);
 
-      if (syncMasks) {
-        const newX = parseFloat(element.getAttribute('x') || '0');
-        const newY = parseFloat(element.getAttribute('y') || '0');
-        let newTx = 0, newTy = 0;
-        try { const m = new DOMMatrix(element.getAttribute('transform') || ''); newTx = m.e; newTy = m.f; } catch { /* */ }
+      if (syncMasks && oldM) {
+        const nx = parseFloat(element.getAttribute('x') || '0');
+        const ny = parseFloat(element.getAttribute('y') || '0');
+        const nt = element.getAttribute('transform') || '';
+        const newM = new DOMMatrix(nt).translateSelf(nx, ny);
 
-        const dx = (newX - oldX) + (newTx - oldTx);
-        const dy = (newY - oldY) + (newTy - oldTy);
-
-        if (dx !== 0 || dy !== 0) {
-          this._onImageMoved!(id, dx, dy);
+        if (
+          newM.a !== oldM.a || newM.b !== oldM.b ||
+          newM.c !== oldM.c || newM.d !== oldM.d ||
+          newM.e !== oldM.e || newM.f !== oldM.f
+        ) {
+          this._onImageMoved!(id, oldM, newM);
         }
       }
 

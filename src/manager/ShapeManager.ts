@@ -131,13 +131,24 @@ export class ShapeManager {
     }
   }
 
-  moveMaskElements(imageId: string, dx: number, dy: number): void {
+  moveMaskElements(imageId: string, oldMatrix: DOMMatrix, newMatrix: DOMMatrix): void {
     const image = this.getById(imageId) as ImageElement | undefined;
     if (!image || image.type !== 'image') return;
+
+    let delta: DOMMatrix;
+    try {
+      delta = newMatrix.multiply(oldMatrix.inverse());
+    } catch {
+      delta = new DOMMatrix();
+      delta.e = newMatrix.e - oldMatrix.e;
+      delta.f = newMatrix.f - oldMatrix.f;
+    }
+
     for (const maskId of image.maskElementIds) {
       const mask = this.getById(maskId);
       if (!mask) continue;
-      mask.transform.translate(dx, dy);
+      const newMaskMatrix = delta.multiply(mask.transform.matrix);
+      mask.transform.matrix = newMaskMatrix;
       if (this.#registerDirty) this.#registerDirty(mask);
     }
   }

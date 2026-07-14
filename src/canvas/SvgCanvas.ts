@@ -167,8 +167,8 @@ export class SvgCanvas implements ICanvasContext {
     shapeManager.setRegisterDirty(scheduler.registerDirtyNode);
     this.shapeManager = shapeManager;
 
-    view._onImageMoved = (imageId, dx, dy) => {
-      shapeManager.moveMaskElements(imageId, dx, dy);
+    view._onImageMoved = (imageId, oldMatrix, newMatrix) => {
+      shapeManager.moveMaskElements(imageId, oldMatrix, newMatrix);
     };
 
     view.setFlexTreeProvider(
