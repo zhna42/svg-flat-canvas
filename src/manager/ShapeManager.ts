@@ -1,4 +1,5 @@
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import type { ImageElement } from '@/core/shapes/elements/ImageElement';
 import type { CanvasView } from '@/canvas/CanvasView';
 
 export class ShapeManager {
@@ -41,6 +42,7 @@ export class ShapeManager {
   }
 
   public remove(id: string): void {
+    this._cleanupMaskReferences(id);
     const index = this.#shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
       this.#shapes.splice(index, 1);
@@ -49,6 +51,7 @@ export class ShapeManager {
   }
 
   public removeElement(id: string): void {
+    this._cleanupMaskReferences(id);
     const index = this.#shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
       this.#shapes.splice(index, 1);
@@ -56,6 +59,7 @@ export class ShapeManager {
   }
 
   public removeElementAndNode(id: string): void {
+    this._cleanupMaskReferences(id);
     const index = this.#shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
       this.#shapes.splice(index, 1);
@@ -64,6 +68,7 @@ export class ShapeManager {
   }
 
   public removePreviewElement(id: string): void {
+    this._cleanupMaskReferences(id);
     const index = this.#shapes.findIndex((s) => s.id === id);
     if (index !== -1) {
       this.#shapes.splice(index, 1);
@@ -73,6 +78,7 @@ export class ShapeManager {
 
   public clear(): void {
     for (const s of this.#shapes) {
+      this._cleanupMaskReferences(s.id);
       this.#view.remove(s.id);
     }
     this.#shapes.length = 0;
@@ -84,5 +90,44 @@ export class ShapeManager {
 
   public getById(id: string): AbstractGraphicElement | undefined {
     return this.#shapes.find((s) => s.id === id);
+  }
+
+  /** Возвращает ID картинок, которые используют указанный элемент как маску. */
+  getMaskedImageIds(maskElementId: string): string[] {
+    const result: string[] = [];
+    for (const shape of this.#shapes) {
+      if (
+        shape.type === 'image' &&
+        (shape as ImageElement).maskElementIds.includes(maskElementId)
+      ) {
+        result.push(shape.id);
+      }
+    }
+    return result;
+  }
+
+  /** Dirty-ит все картинки, которые используют указанный элемент как маску. */
+  dirtyMaskedImages(maskElementId: string): void {
+    if (!this.#registerDirty) return;
+    for (const shape of this.#shapes) {
+      if (
+        shape.type === 'image' &&
+        (shape as ImageElement).maskElementIds.includes(maskElementId)
+      ) {
+        this.#registerDirty(shape);
+      }
+    }
+  }
+
+  /** Удаляет ссылки на удаляемый элемент из maskElementIds всех картинок. */
+  private _cleanupMaskReferences(elementId: string): void {
+    for (const shape of this.#shapes) {
+      if (shape.type === 'image') {
+        const img = shape as ImageElement;
+        if (img.maskElementIds.includes(elementId)) {
+          img.removeMaskElementId(elementId);
+        }
+      }
+    }
   }
 }

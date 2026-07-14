@@ -6,6 +6,7 @@ export { CanvasFlexCut } from './CanvasFlexCut';
 export { CanvasTextRenderer } from './CanvasTextRenderer';
 export { CanvasSelectionBox } from './CanvasSelectionBox';
 export { CanvasLaserStyle } from './CanvasLaserStyle';
+export { CanvasClipPath } from './CanvasClipPath';
 export { CanvasView } from './CanvasView';
 export { RenderScheduler } from './RenderScheduler';
 export { SvgNodeFactory } from './SvgNodeFactory';

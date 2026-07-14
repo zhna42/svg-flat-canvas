@@ -15,6 +15,7 @@ import { ClipboardController } from './controllers/ClipboardController';
 import { DataController } from './controllers/DataController';
 import { FlexTreeController } from './controllers/FlexTreeController';
 import { RasterController } from '../raster';
+import { MaskController } from './controllers/MaskController';
 
 export class ExternalApi {
   private readonly _canvas: SvgCanvas;
@@ -34,6 +35,7 @@ export class ExternalApi {
   readonly data: DataController;
   readonly flexTree: FlexTreeController;
   readonly raster: RasterController;
+  readonly mask: MaskController;
 
   constructor(canvas: SvgCanvas) {
     this._canvas = canvas;
@@ -51,6 +53,7 @@ export class ExternalApi {
     this.data = new DataController(canvas);
     this.flexTree = new FlexTreeController(canvas);
     this.raster = new RasterController(canvas);
+    this.mask = new MaskController(canvas);
   }
 
   // ── События ──

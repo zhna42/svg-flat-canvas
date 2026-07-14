@@ -13,6 +13,7 @@ export class ImageElement extends AbstractGraphicElement {
   public processedSource?: string;
   public rasterEditorOptions?: Record<string, unknown>;
   public rasterState?: { algorithm: DitherAlgorithm; params: DitherOptions };
+  public maskElementIds: string[] = [];
 
   public constructor(id: string) {
     super(id, 'image');
@@ -25,6 +26,7 @@ export class ImageElement extends AbstractGraphicElement {
       'editedImage',
       'processedSource',
     );
+    this.subscribe('maskElementIds', () => {});
   }
 
   public get hitArea(): Point[] {
@@ -53,7 +55,11 @@ export class ImageElement extends AbstractGraphicElement {
   }
 
   protected getGeometryProps(): Record<string, unknown> {
-    return { ...this.geometry, href: this.getEffectiveHref() };
+    return {
+      ...this.geometry,
+      href: this.getEffectiveHref(),
+      maskElementIds: this.maskElementIds,
+    };
   }
   protected getGeometrySnapshot(): Record<string, unknown> {
     return {
@@ -63,6 +69,7 @@ export class ImageElement extends AbstractGraphicElement {
       originalImage: this.originalImage,
       processedSource: this.processedSource,
       rasterState: this.rasterState,
+      maskElementIds: [...this.maskElementIds],
     };
   }
 
@@ -95,6 +102,11 @@ export class ImageElement extends AbstractGraphicElement {
         | { algorithm: DitherAlgorithm; params: DitherOptions }
         | undefined;
     }
+    if ((data as Record<string, unknown>).maskElementIds !== undefined) {
+      this.maskElementIds = [
+        ...((data as Record<string, unknown>).maskElementIds as string[]),
+      ];
+    }
     this.rebuildHitArea();
   }
 
@@ -109,6 +121,7 @@ export class ImageElement extends AbstractGraphicElement {
       ? { ...this.rasterEditorOptions }
       : undefined;
     el.rasterState = this.rasterState ? { ...this.rasterState } : undefined;
+    el.maskElementIds = [...this.maskElementIds];
     el.rebuildHitArea();
   }
 
@@ -128,6 +141,7 @@ export class ImageElement extends AbstractGraphicElement {
       processedSource: this.processedSource,
       rasterEditorOptions: this.rasterEditorOptions,
       rasterState: this.rasterState,
+      maskElementIds: [...this.maskElementIds],
     };
   }
 
@@ -170,5 +184,21 @@ export class ImageElement extends AbstractGraphicElement {
         { x, y: y + height },
       ],
     ];
+  }
+
+  public addMaskElementId(elementId: string): void {
+    if (!this.maskElementIds.includes(elementId)) {
+      this.maskElementIds = [...this.maskElementIds, elementId];
+    }
+  }
+
+  public removeMaskElementId(elementId: string): void {
+    this.maskElementIds = this.maskElementIds.filter(
+      (id) => id !== elementId,
+    );
+  }
+
+  public clearMaskElementIds(): void {
+    this.maskElementIds = [];
   }
 }

@@ -119,6 +119,7 @@ export class SvgCanvas implements ICanvasContext {
 
   public mode: 'edit' | 'layers' = 'edit';
   public orphanGroupsVisible = true;
+  public maskMode: { imageId: string } | null = null;
 
   private _api!: ExternalApi;
   private _overlayCoordinator!: OverlayCoordinator;
@@ -231,7 +232,11 @@ export class SvgCanvas implements ICanvasContext {
       this.selectionState.replace(keep);
     };
     this.laserGroupManager.setOnChange(() => this._refreshLaser());
-    this.view.setLaserStyleProvider(this.laserColorResolver.resolve);
+    this.view.setLaserStyleProvider((id: string) => {
+      const maskOverride = this._getMaskStyle(id);
+      if (maskOverride) return maskOverride;
+      return this.laserColorResolver.resolve(id);
+    });
 
     this.laserLayerManager = new LaserLayerManager(this.laserGroupManager, () =>
       this.shapeManager.getAll(),
@@ -248,6 +253,17 @@ export class SvgCanvas implements ICanvasContext {
     this.events.emit('LASER_COLOR_GRADING_CHANGED', {
       mapping: this.laserColorResolver.getGrading(),
     });
+  }
+
+  /** Стилевой индикатор: если элемент используется как маска — подсвечиваем. */
+  private _getMaskStyle(
+    id: string,
+  ): import('@/modules/laser/laser-types').LaserStyleOverride | null {
+    const maskedImageIds = this.shapeManager.getMaskedImageIds(id);
+    if (maskedImageIds.length > 0) {
+      return { fill: 'none', stroke: '#ff00ff', opacity: 0.5 };
+    }
+    return null;
   }
 
   /** Переключение режима редактирования / слоёв лазера. */

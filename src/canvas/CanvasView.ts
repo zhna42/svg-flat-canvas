@@ -6,6 +6,7 @@ import { CanvasFlexCut } from './CanvasFlexCut';
 import { CanvasTextRenderer } from './CanvasTextRenderer';
 import { CanvasSelectionBox } from './CanvasSelectionBox';
 import { CanvasLaserStyle } from './CanvasLaserStyle';
+import { CanvasClipPath } from './CanvasClipPath';
 import { DrawPayload, LayerName } from '@/core/type';
 import { RulerBuilder } from '@/modules/ruler/RulerBuilder';
 import { FlexTree } from '@/core/math/flex-tree';
@@ -21,6 +22,7 @@ export class CanvasView {
   readonly _textRenderer: CanvasTextRenderer;
   readonly _selectionBox: CanvasSelectionBox;
   readonly _laserStyle: CanvasLaserStyle;
+  readonly _clipPath: CanvasClipPath;
   _elements = new Map<string, SVGElement>();
 
   setFlexTreeProvider(fn: (id: string) => FlexTree | null): void {
@@ -59,6 +61,7 @@ export class CanvasView {
     );
     this._selectionBox = new CanvasSelectionBox(factory, canvasLayers._layers);
     this._laserStyle = new CanvasLaserStyle(this._elements);
+    this._clipPath = new CanvasClipPath(this._elements, canvasLayers._defsNode);
 
     this._elements.set(camera.id, this._canvasLayers._cameraGroup);
     camera.groupId = this._canvasLayers._cameraGroup.getAttribute('id') || '';
@@ -89,6 +92,11 @@ export class CanvasView {
     } else {
       this._applyShapeDiff(element, diff as Record<string, unknown>);
       this._flexCut.sync(id, type, element, diff as Record<string, unknown>);
+      this._clipPath.sync(id, diff as Record<string, unknown>);
+      this._refreshMaskedImages(id);
+      if (type === 'image' && this._clipPath.hasClipPath(id)) {
+        this._clipPath.refreshImage(id);
+      }
       this._laserStyle.captureBase(id, diff as Record<string, unknown>);
       this._laserStyle.applyLaser(id, element);
     }
@@ -96,11 +104,20 @@ export class CanvasView {
 
   _applyShapeDiff(element: SVGElement, diff: Record<string, unknown>): void {
     for (const [key, value] of Object.entries(diff)) {
+      if (key === 'maskElementIds') continue;
       if (value === null || value === undefined) {
         element.removeAttribute(key);
       } else {
         element.setAttribute(key, String(value));
       }
+    }
+  }
+
+  /** Перестраивает clip-path картинок, замаскированных элементом elementId. */
+  private _refreshMaskedImages(elementId: string): void {
+    const imageIds = this._clipPath.getMaskedImageIds(elementId);
+    for (const imageId of imageIds) {
+      this._clipPath.refreshImage(imageId);
     }
   }
 
@@ -120,6 +137,7 @@ export class CanvasView {
     this._laserStyle._baseStyle.delete(id);
     this._textRenderer._textDivs.delete(id);
     this._flexCut.remove(id);
+    this._clipPath.remove(id);
   }
 
   public refreshLaserStyles(ids?: string[]): void {

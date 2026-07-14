@@ -28,6 +28,7 @@ function init(): void {
   setupTextPanel();
   setupArtboardSize();
   setupRasterModal();
+  setupMaskPanel();
 }
 
 const GOOGLE_FONTS_KEY = 'AIzaSyBtoXXgjyOUNazwWDWAenfPkoRN7U8VlUs';
@@ -1426,6 +1427,81 @@ function setupRasterModal(): void {
     const overlay = getOverlay();
     if (overlay) overlay.style.display = 'flex';
   });
+}
+
+// ─── Mask Panel ────────────────────────────────────────────
+
+function setupMaskPanel(): void {
+  const btnEnter = document.getElementById('btn-mask-enter')!;
+  const btnExit = document.getElementById('btn-mask-exit')!;
+  const btnAssign = document.getElementById('btn-mask-assign')!;
+  const btnRemove = document.getElementById('btn-mask-remove')!;
+  const btnUnmask = document.getElementById('btn-mask-unmask')!;
+  const statusEl = document.getElementById('mask-status')!;
+
+  let maskImageId: string | null = null;
+
+  const getSelectedIds = (): string[] =>
+    api.selection.getSelected().map((e) => e.id);
+  const getImageId = (): string | null => {
+    const ids = getSelectedIds();
+    if (ids.length !== 1) return null;
+    return ids[0];
+  };
+
+  const updateStatus = (): void => {
+    if (maskImageId) {
+      btnEnter.style.display = 'none';
+      btnExit.style.display = '';
+      statusEl.textContent = `Mode: masking image ${maskImageId}`;
+    } else {
+      btnEnter.style.display = '';
+      btnExit.style.display = 'none';
+      statusEl.textContent = '';
+    }
+  };
+
+  btnEnter.onclick = () => {
+    const imageId = getImageId();
+    if (!imageId) {
+      statusEl.textContent = 'Select an image first';
+      return;
+    }
+    api.mask.enterMaskMode(imageId);
+    maskImageId = imageId;
+    updateStatus();
+  };
+
+  btnExit.onclick = () => {
+    api.mask.exitMaskMode();
+    maskImageId = null;
+    updateStatus();
+  };
+
+  btnAssign.onclick = () => {
+    const selected = getSelectedIds();
+    for (const id of selected) {
+      api.mask.assignMask(id);
+    }
+    updateStatus();
+  };
+
+  btnRemove.onclick = () => {
+    const selected = getSelectedIds();
+    for (const id of selected) {
+      api.mask.removeMask(id);
+    }
+    updateStatus();
+  };
+
+  btnUnmask.onclick = () => {
+    const imageId = getImageId();
+    if (!imageId) {
+      statusEl.textContent = 'Select an image to unmask';
+      return;
+    }
+    api.mask.unmaskImage(imageId);
+  };
 }
 
 // ─── Boot ────────────────────────────────────────────────
