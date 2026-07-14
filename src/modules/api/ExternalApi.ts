@@ -16,6 +16,7 @@ import { DataController } from './controllers/DataController';
 import { FlexTreeController } from './controllers/FlexTreeController';
 import { RasterController } from '../raster';
 import { MaskController } from './controllers/MaskController';
+import { ZOrderController } from './controllers/ZOrderController';
 
 export class ExternalApi {
   private readonly _canvas: SvgCanvas;
@@ -36,6 +37,7 @@ export class ExternalApi {
   readonly flexTree: FlexTreeController;
   readonly raster: RasterController;
   readonly mask: MaskController;
+  readonly zOrder: ZOrderController;
 
   constructor(canvas: SvgCanvas) {
     this._canvas = canvas;
@@ -54,6 +56,7 @@ export class ExternalApi {
     this.flexTree = new FlexTreeController(canvas);
     this.raster = new RasterController(canvas);
     this.mask = new MaskController(canvas);
+    this.zOrder = new ZOrderController(canvas);
   }
 
   // ── События ──

@@ -152,4 +152,43 @@ export class ShapeManager {
       if (this.#registerDirty) this.#registerDirty(mask);
     }
   }
+
+  getIndex(id: string): number {
+    return this.#shapes.findIndex((s) => s.id === id);
+  }
+
+  raise(id: string): void {
+    const i = this.getIndex(id);
+    if (i < 0 || i >= this.#shapes.length - 1) return;
+    [this.#shapes[i], this.#shapes[i + 1]] = [this.#shapes[i + 1], this.#shapes[i]];
+  }
+
+  lower(id: string): void {
+    const i = this.getIndex(id);
+    if (i <= 0) return;
+    [this.#shapes[i], this.#shapes[i - 1]] = [this.#shapes[i - 1], this.#shapes[i]];
+  }
+
+  raiseToTop(id: string): void {
+    const i = this.getIndex(id);
+    if (i < 0) return;
+    const el = this.#shapes.splice(i, 1)[0];
+    this.#shapes.push(el);
+  }
+
+  lowerToBottom(id: string): void {
+    const i = this.getIndex(id);
+    if (i < 0) return;
+    const el = this.#shapes.splice(i, 1)[0];
+    this.#shapes.unshift(el);
+  }
+
+  insertBefore(id: string, referenceId: string): void {
+    const i = this.getIndex(id);
+    const ri = this.getIndex(referenceId);
+    if (i < 0 || ri < 0) return;
+    const el = this.#shapes.splice(i, 1)[0];
+    const newRi = id === referenceId ? ri : this.#shapes.findIndex((s) => s.id === referenceId);
+    this.#shapes.splice(newRi, 0, el);
+  }
 }

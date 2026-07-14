@@ -29,6 +29,7 @@ function init(): void {
   setupArtboardSize();
   setupRasterModal();
   setupMaskPanel();
+  setupZOrderButtons();
 }
 
 const GOOGLE_FONTS_KEY = 'AIzaSyBtoXXgjyOUNazwWDWAenfPkoRN7U8VlUs';
@@ -949,6 +950,30 @@ function applyPreset(preset: 'thin' | 'standard' | 'thick'): void {
   if (btn) btn.classList.add('preset-active');
   if (flexSelectedElementId)
     api.flexTree.applyFlexTreePreset(flexSelectedElementId, preset);
+}
+
+// ─── Z-Order Buttons ──────────────────────────────────────
+
+function setupZOrderButtons(): void {
+  const getIds = (): string[] =>
+    api.selection.getSelected().map((e) => e.id);
+
+  document.getElementById('btn-z-raise')!.onclick = () => {
+    const ids = getIds();
+    if (ids.length) api.zOrder.raise(ids);
+  };
+  document.getElementById('btn-z-lower')!.onclick = () => {
+    const ids = getIds();
+    if (ids.length) api.zOrder.lower(ids);
+  };
+  document.getElementById('btn-z-top')!.onclick = () => {
+    const ids = getIds();
+    if (ids.length) api.zOrder.raiseToTop(ids);
+  };
+  document.getElementById('btn-z-bottom')!.onclick = () => {
+    const ids = getIds();
+    if (ids.length) api.zOrder.lowerToBottom(ids);
+  };
 }
 
 // ─── Helpers ─────────────────────────────────────────────

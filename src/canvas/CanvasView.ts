@@ -7,6 +7,7 @@ import { CanvasTextRenderer } from './CanvasTextRenderer';
 import { CanvasSelectionBox } from './CanvasSelectionBox';
 import { CanvasLaserStyle } from './CanvasLaserStyle';
 import { CanvasClipPath } from './CanvasClipPath';
+import { CanvasElementIndex } from './CanvasElementIndex';
 import { DrawPayload, LayerName } from '@/core/type';
 import { RulerBuilder } from '@/modules/ruler/RulerBuilder';
 import { FlexTree } from '@/core/math/flex-tree';
@@ -23,6 +24,7 @@ export class CanvasView {
   readonly _selectionBox: CanvasSelectionBox;
   readonly _laserStyle: CanvasLaserStyle;
   readonly _clipPath: CanvasClipPath;
+  readonly _elementIndex: CanvasElementIndex;
   _elements = new Map<string, SVGElement>();
   _onImageMoved: ((imageId: string, oldMatrix: DOMMatrix, newMatrix: DOMMatrix) => void) | null =
     null;
@@ -64,6 +66,7 @@ export class CanvasView {
     this._selectionBox = new CanvasSelectionBox(factory, canvasLayers._layers);
     this._laserStyle = new CanvasLaserStyle(this._elements);
     this._clipPath = new CanvasClipPath(this._elements, canvasLayers._defsNode);
+    this._elementIndex = new CanvasElementIndex(this._elements);
 
     this._elements.set(camera.id, this._canvasLayers._cameraGroup);
     camera.groupId = this._canvasLayers._cameraGroup.getAttribute('id') || '';
