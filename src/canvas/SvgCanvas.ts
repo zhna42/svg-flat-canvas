@@ -596,8 +596,18 @@ export class SvgCanvas implements ICanvasContext {
         this._api.nodeEdit.editingPath = el ? (el as PathElement) : null;
       },
       getEditingPath: () => this._api.nodeEdit.editingPath,
-      canInteract: (id) => this.laserGroupManager.canInteract(id),
-      canMove: (id) => this.laserGroupManager.canMove(id),
+      canInteract: (id) => {
+        if (this.maskMode) {
+          if (this.shapeManager.getById(id)?.type === 'image') return false;
+        } else {
+          if (this.shapeManager.getMaskedImageIds(id).length > 0) return false;
+        }
+        return this.laserGroupManager.canInteract(id);
+      },
+      canMove: (id) => {
+        if (this.maskMode && this.shapeManager.getById(id)?.type === 'image') return false;
+        return this.laserGroupManager.canMove(id);
+      },
       isTextEditing: () => this.textController.isEditing,
       onTextEdit: (el) => this.textController.enterEdit(el.id),
       getGuidelines: () => this.guidelineManager.getGuidelines(),

@@ -12,10 +12,18 @@ export class MaskController {
     const el = this.canvas.shapeManager.getById(imageId);
     if (!el || el.type !== 'image') return;
     this.canvas.maskMode = { imageId };
+
+    // Снимаем селект с картинки, запрещаем селект любых image
+    this.canvas.selectionState.clear();
+    this.canvas.selectionState.setFilter(
+      (elements) => elements.filter((e) => e.type !== 'image'),
+    );
   }
 
   exitMaskMode(): void {
     this.canvas.maskMode = null;
+    this.canvas.selectionState.clear();
+    this.canvas.selectionState.setFilter(null);
     this._lockMaskSelection();
   }
 
@@ -44,19 +52,12 @@ export class MaskController {
     const image = this.canvas.shapeManager.getById(mode.imageId) as
       | ImageElement
       | undefined;
-    if (!image || image.type !== 'image') { console.warn('[Mask] assignMask: image not found', mode.imageId); return; }
+    if (!image || image.type !== 'image') return;
 
-    console.log('[Mask] assignMask:', elementId, '→ image', mode.imageId);
-    console.log('[Mask] image.pushDiffRendering type:', typeof (image as any).pushDiffRendering);
-    console.log('[Mask] image.isAutoReRendering:', (image as any).isAutoReRendering);
     image.addMaskElementId(elementId);
-    console.log('[Mask] after addMaskElementId, maskElementIds:', image.maskElementIds);
-    console.log('[Mask] image._diffRendering:', (image as any)._diffRendering);
 
-    // Освежаем лазерный стиль маскирующего элемента
     this.canvas.view.refreshLaserStyles([elementId]);
 
-    // Dirty-им изображение для перестраивания clip-path
     this.canvas.shapeManager.dirtyMaskedImages(elementId);
   }
 
@@ -69,11 +70,10 @@ export class MaskController {
       | undefined;
     if (!image || image.type !== 'image') return;
 
-    image.addMaskElementId(elementId);
+    image.removeMaskElementId(elementId);
 
     this.canvas.view.refreshLaserStyles([elementId]);
 
-    // Dirty-им изображение
     const sched = this.canvas.scheduler;
     sched.registerDirtyNode(image);
   }
