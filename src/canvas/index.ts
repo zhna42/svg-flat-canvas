@@ -1,5 +1,11 @@
 export { SvgCanvas } from './SvgCanvas';
 export { Camera } from './Camera';
+export { CanvasLayers } from './CanvasLayers';
+export { CanvasSystemNodes } from './CanvasSystemNodes';
+export { CanvasFlexCut } from './CanvasFlexCut';
+export { CanvasTextRenderer } from './CanvasTextRenderer';
+export { CanvasSelectionBox } from './CanvasSelectionBox';
+export { CanvasLaserStyle } from './CanvasLaserStyle';
 export { CanvasView } from './CanvasView';
 export { RenderScheduler } from './RenderScheduler';
 export { SvgNodeFactory } from './SvgNodeFactory';

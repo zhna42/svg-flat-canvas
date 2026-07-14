@@ -1,490 +1,96 @@
 import { NodeDOMFactory } from './NodeDOMFactory';
 import { Camera } from './Camera';
+import { CanvasLayers } from './CanvasLayers';
+import { CanvasSystemNodes } from './CanvasSystemNodes';
+import { CanvasFlexCut } from './CanvasFlexCut';
+import { CanvasTextRenderer } from './CanvasTextRenderer';
+import { CanvasSelectionBox } from './CanvasSelectionBox';
+import { CanvasLaserStyle } from './CanvasLaserStyle';
 import { DrawPayload, LayerName } from '@/core/type';
 import { RulerBuilder } from '@/modules/ruler/RulerBuilder';
-import { FlexCutBuilder } from '@/canvas/nodes/FlexCutBuilder';
-import { FlexTree, type CutSegment } from '@/core/math/flex-tree';
+import { FlexTree } from '@/core/math/flex-tree';
 import type { LaserStyleOverride } from '@/modules/laser/laser-types';
-import { MM_TO_PX } from '@/constants';
-
-const SYSTEM_IDS = new Set([
-  'camera',
-  'artboard',
-  'grid',
-  'rulers',
-  'selection',
-  'selection-group',
-]);
-
-const TAG_BY_SYS_ID: Record<string, string> = {
-  camera: 'g',
-  artboard: 'rect',
-  grid: 'g',
-  rulers: 'g',
-  selection: 'g',
-  'selection-group': 'g',
-};
 
 export class CanvasView {
   readonly _svgRoot: SVGSVGElement;
   readonly _factory: NodeDOMFactory;
   readonly _camera: Camera;
+  readonly _canvasLayers: CanvasLayers;
+  readonly _systemNodes: CanvasSystemNodes;
+  readonly _flexCut: CanvasFlexCut;
+  readonly _textRenderer: CanvasTextRenderer;
+  readonly _selectionBox: CanvasSelectionBox;
+  readonly _laserStyle: CanvasLaserStyle;
   _elements = new Map<string, SVGElement>();
-  _layers = new Map<LayerName, SVGGElement>();
-  _selectionDOMs = new Map<string, Map<string, SVGElement>>();
-  _defsNode!: SVGDefsElement;
-  _cameraGroup!: SVGGElement;
-  _rulerBuilder: RulerBuilder;
-  _flexCutBuilder = new FlexCutBuilder();
-  _flexCutEls = new Map<
-    string,
-    { path: SVGPathElement; clipId: string; shapeEl: SVGElement }
-  >();
-  _flexCutDefs = new Map<string, SVGClipPathElement>();
-  _flexTreeProvider: ((id: string) => FlexTree | null) | null = null;
-
-  _laserStyleProvider: ((id: string) => LaserStyleOverride | null) | null =
-    null;
-  _baseStyle = new Map<
-    string,
-    { fill?: string; stroke?: string; visibility?: string; opacity?: string }
-  >();
-  _textDivs = new Map<string, HTMLDivElement>();
 
   setFlexTreeProvider(fn: (id: string) => FlexTree | null): void {
-    this._flexTreeProvider = fn;
+    this._flexCut.setFlexTreeProvider(fn);
   }
 
   setLaserStyleProvider(fn: (id: string) => LaserStyleOverride | null): void {
-    this._laserStyleProvider = fn;
+    this._laserStyle.setLaserStyleProvider(fn);
   }
 
   constructor(
     svgElement: SVGSVGElement,
     factory: NodeDOMFactory,
     camera: Camera,
+    canvasLayers: CanvasLayers,
   ) {
     this._svgRoot = svgElement;
     this._factory = factory;
     this._camera = camera;
-    this._rulerBuilder = new RulerBuilder(svgElement);
-    this._buildDOMSkeleton();
-    this._elements.set(camera.id, this._cameraGroup);
-    camera.groupId = this._cameraGroup.getAttribute('id') || '';
-  }
+    this._canvasLayers = canvasLayers;
 
-  _buildDOMSkeleton(): void {
-    this._svgRoot.innerHTML = '';
-
-    this._defsNode = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'defs',
+    const rulerBuilder = new RulerBuilder(svgElement);
+    this._systemNodes = new CanvasSystemNodes(
+      svgElement,
+      canvasLayers._cameraGroup,
+      factory,
+      camera,
+      rulerBuilder,
+      this._elements,
     );
-    this._svgRoot.appendChild(this._defsNode);
 
-    this._cameraGroup = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'g',
+    this._flexCut = new CanvasFlexCut(this._elements, canvasLayers._defsNode);
+    this._textRenderer = new CanvasTextRenderer(
+      this._elements,
+      canvasLayers._layers,
     );
-    this._cameraGroup.setAttribute('id', 'cameraGroup');
-    this._svgRoot.appendChild(this._cameraGroup);
+    this._selectionBox = new CanvasSelectionBox(factory, canvasLayers._layers);
+    this._laserStyle = new CanvasLaserStyle(this._elements);
 
-    const ns = 'http://www.w3.org/2000/svg';
-    const shapes = document.createElementNS(ns, 'g');
-    const preview = document.createElementNS(ns, 'g');
-    const groupSelection = document.createElementNS(ns, 'g');
-    const selectionOverlay = document.createElementNS(ns, 'g');
-    const overlay = document.createElementNS(ns, 'g');
-
-    this._cameraGroup.appendChild(shapes);
-    this._cameraGroup.appendChild(preview);
-    this._cameraGroup.appendChild(groupSelection);
-    this._cameraGroup.appendChild(selectionOverlay);
-    this._svgRoot.appendChild(overlay);
-
-    this._layers.set('shapesGroup', shapes);
-    this._layers.set('previewGroup', preview);
-    this._layers.set('groupSelectionOverlay', groupSelection);
-    this._layers.set('selectionOverlay', selectionOverlay);
-    this._layers.set('overlayRoot', overlay);
+    this._elements.set(camera.id, this._canvasLayers._cameraGroup);
+    camera.groupId = this._canvasLayers._cameraGroup.getAttribute('id') || '';
   }
 
   public initSystemNodes(systemNodes: Record<string, string>): void {
-    for (const [sysId, id] of Object.entries(systemNodes)) {
-      const tag = TAG_BY_SYS_ID[sysId] || 'rect';
-      const el = this._factory.createDOM(tag);
-      this._mountSystemNode(sysId, el);
-      this._elements.set(id, el);
-    }
-  }
-
-  _mountSystemNode(sysId: string, el: SVGElement): void {
-    switch (sysId) {
-      case 'artboard':
-        this._cameraGroup.insertBefore(el, this._cameraGroup.firstChild);
-        break;
-      case 'grid':
-        this._cameraGroup.insertBefore(
-          el,
-          this._cameraGroup.firstChild?.nextSibling ?? null,
-        );
-        break;
-      case 'rulers':
-        this._svgRoot.appendChild(el);
-        break;
-      case 'selection':
-        this._svgRoot.lastElementChild?.appendChild(el);
-        break;
-      case 'selection-group':
-        this._cameraGroup.querySelectorAll('g')[2]?.appendChild(el);
-        break;
-    }
+    this._systemNodes.init(systemNodes);
   }
 
   public draw(payload: DrawPayload): void {
     const { id, type, layerName, ...diff } = payload;
-    if (type === 'text' && !SYSTEM_IDS.has(id)) {
-      this._syncText(id, layerName, diff as Record<string, unknown>);
+    if (type === 'text' && !CanvasSystemNodes.isSystem(id)) {
+      this._textRenderer.sync(id, layerName, diff as Record<string, unknown>);
       return;
     }
     let element = this._elements.get(id);
     if (!element) {
       if (!layerName) return;
-      const targetLayer = this._layers.get(layerName);
+      const targetLayer = this._canvasLayers._layers.get(layerName);
       if (!targetLayer) return;
       element = this._factory.createDOM(type);
       element.setAttribute('id', id);
       targetLayer.appendChild(element);
       this._elements.set(id, element);
     }
-    if (SYSTEM_IDS.has(id)) {
-      this._applySystemDiff(id, element, diff as Record<string, unknown>);
+    if (CanvasSystemNodes.isSystem(id)) {
+      this._systemNodes.applyDiff(id, element, diff as Record<string, unknown>);
     } else {
       this._applyShapeDiff(element, diff as Record<string, unknown>);
-      this._syncFlexCut(id, type, element, diff as Record<string, unknown>);
-      this._captureBaseStyle(id, diff as Record<string, unknown>);
-      this._applyLaserStyle(id, element);
-    }
-  }
-
-  private _captureBaseStyle(id: string, diff: Record<string, unknown>): void {
-    let base = this._baseStyle.get(id);
-    if (!base) {
-      base = {};
-      this._baseStyle.set(id, base);
-    }
-    if ('fill' in diff) base.fill = diff.fill as string;
-    if ('stroke' in diff) base.stroke = diff.stroke as string;
-    if ('visibility' in diff) base.visibility = diff.visibility as string;
-    if ('opacity' in diff) base.opacity = diff.opacity as string;
-  }
-
-  private _applyLaserStyle(id: string, element: SVGElement): void {
-    const base = this._baseStyle.get(id) ?? {};
-    const o = this._laserStyleProvider?.(id) ?? null;
-
-    const fill = o?.fill ?? base.fill;
-    if (fill !== undefined) element.setAttribute('fill', fill);
-
-    const stroke = o?.stroke ?? base.stroke;
-    if (stroke !== undefined) element.setAttribute('stroke', stroke);
-
-    const visibility = o?.visibility ?? base.visibility;
-    if (visibility !== undefined)
-      element.setAttribute('visibility', visibility);
-
-    const opacity = o?.opacity != null ? String(o.opacity) : base.opacity;
-    if (opacity !== undefined) element.setAttribute('opacity', opacity);
-  }
-
-  /** Переприменить лазерный стиль к элементам (при изменении групп/настроек). */
-  public refreshLaserStyles(ids?: string[]): void {
-    const targets = ids ?? Array.from(this._baseStyle.keys());
-    for (const id of targets) {
-      const el = this._elements.get(id);
-      if (el) this._applyLaserStyle(id, el);
-    }
-  }
-
-  private _syncText(
-    id: string,
-    layerName: string | undefined,
-    diff: Record<string, unknown>,
-  ): void {
-    const SVG_NS = 'http://www.w3.org/2000/svg';
-    const XHTML_NS = 'http://www.w3.org/1999/xhtml';
-    const isRich = diff._rich === '1';
-    const desiredTag = isRich ? 'foreignObject' : 'text';
-
-    let el = this._elements.get(id);
-    if (!el || el.tagName.toLowerCase() !== desiredTag.toLowerCase()) {
-      if (el) el.remove();
-      this._textDivs.delete(id);
-      const layer = this._layers.get((layerName as LayerName) ?? 'shapesGroup');
-      if (!layer) return;
-      el = document.createElementNS(SVG_NS, desiredTag) as SVGElement;
-      el.setAttribute('id', id);
-      layer.appendChild(el);
-      this._elements.set(id, el);
-    }
-
-    if (diff.transform !== undefined)
-      el.setAttribute('transform', String(diff.transform));
-    if (diff.visibility !== undefined)
-      el.setAttribute('visibility', String(diff.visibility));
-    if (diff.opacity !== undefined)
-      el.setAttribute('opacity', String(diff.opacity));
-
-    if (!isRich) {
-      const setA = (k: string, v: unknown): void => {
-        if (v !== undefined) el!.setAttribute(k, String(v));
-      };
-      setA('x', diff.x);
-      setA('y', diff.y);
-      setA('font-size', diff['font-size']);
-      setA('font-family', diff['font-family']);
-      setA('text-anchor', diff['text-anchor']);
-      setA('fill', diff.fill);
-      el.textContent = String(diff._content ?? '');
-      return;
-    }
-
-    el.setAttribute('x', String(diff.x ?? '0'));
-    el.setAttribute('y', String(diff.y ?? '0'));
-    el.setAttribute('width', String(diff.width ?? '0'));
-    el.setAttribute('height', String(diff.height ?? '0'));
-
-    let div = this._textDivs.get(id);
-    if (!div) {
-      div = document.createElementNS(
-        XHTML_NS,
-        'div',
-      ) as unknown as HTMLDivElement;
-      el.appendChild(div);
-      this._textDivs.set(id, div);
-    }
-    const deco: string[] = [];
-    if (diff._underline === '1') deco.push('underline');
-    if (diff._strike === '1') deco.push('line-through');
-    const isEmpty = !String(diff._content ?? '')
-      .replace(/<[^>]*>/g, '')
-      .trim();
-    div.setAttribute(
-      'style',
-      [
-        'width:100%',
-        'height:100%',
-        'overflow:hidden',
-        'box-sizing:border-box',
-        'white-space:pre-wrap',
-        'word-break:break-word',
-        'outline:none',
-        `font-family:${diff._fontFamily || 'sans-serif'}`,
-        `font-size:${diff._fontSize ?? '16'}px`,
-        `color:${diff._color ?? '#000'}`,
-        `font-weight:${diff._fontWeight ?? '400'}`,
-        `font-style:${diff._italic === '1' ? 'italic' : 'normal'}`,
-        `text-decoration:${deco.length ? deco.join(' ') : 'none'}`,
-        `text-align:${diff._align ?? 'left'}`,
-        `line-height:${diff._lineHeight ?? '1.2'}`,
-        isEmpty
-          ? 'background:rgba(255,255,255,0.15);border:1px solid #000;'
-          : '',
-      ].join(';'),
-    );
-    if (!div.isContentEditable) {
-      div.innerHTML = String(diff._content ?? '');
-    }
-  }
-
-  public getTextForeignObject(id: string): SVGElement | undefined {
-    return this._elements.get(id);
-  }
-  public getTextDiv(id: string): HTMLDivElement | undefined {
-    return this._textDivs.get(id);
-  }
-
-  public measureTextBBox(
-    id: string,
-  ): { x: number; y: number; width: number; height: number } | null {
-    const el = this._elements.get(id);
-    const g = el as unknown as SVGGraphicsElement;
-    if (g && typeof g.getBBox === 'function') {
-      try {
-        const b = g.getBBox();
-        return { x: b.x, y: b.y, width: b.width, height: b.height };
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-
-  public drawSelectionBox(diff: Record<string, unknown>): string | null {
-    const visible = diff.visible !== false;
-    let domRef = (diff._domRef as string) || '';
-    const layerName = (diff._layerName as string) || 'selectionOverlay';
-
-    if (!visible && domRef) {
-      const els = this._selectionDOMs.get(domRef);
-      if (els) {
-        els.get('g')?.remove();
-        this._selectionDOMs.delete(domRef);
-      }
-      return null;
-    }
-    if (!visible) return domRef || null;
-
-    if (!domRef) {
-      const { uuid, elements } = this._factory.createSelectionBox();
-      this._selectionDOMs.set(uuid, elements);
-      const targetLayer = this._layers.get(layerName as LayerName);
-      if (targetLayer) targetLayer.appendChild(elements.get('g')!);
-      domRef = uuid;
-    }
-
-    const els = this._selectionDOMs.get(domRef);
-    if (!els) return domRef;
-
-    const g = els.get('g')!;
-    const rectBg = els.get('rect-bg')!;
-    const rectFg = els.get('rect-fg')!;
-
-    const x =
-      typeof diff.x === 'number'
-        ? diff.x
-        : parseFloat(g.getAttribute('data-x') || '0');
-    const y =
-      typeof diff.y === 'number'
-        ? diff.y
-        : parseFloat(g.getAttribute('data-y') || '0');
-    const angle =
-      typeof diff.angle === 'number'
-        ? diff.angle
-        : parseFloat(g.getAttribute('data-angle') || '0');
-    const w =
-      typeof diff.width === 'number'
-        ? diff.width
-        : parseFloat(rectBg.getAttribute('data-w') || '0');
-    const h =
-      typeof diff.height === 'number'
-        ? diff.height
-        : parseFloat(rectBg.getAttribute('data-h') || '0');
-
-    const rcx = w / 2;
-    const rcy = h / 2;
-    g.setAttribute(
-      'transform',
-      `translate(${x}, ${y}) rotate(${angle}, ${rcx}, ${rcy})`,
-    );
-    g.setAttribute('data-x', String(x));
-    g.setAttribute('data-y', String(y));
-    g.setAttribute('data-angle', String(angle));
-    g.setAttribute('visibility', 'visible');
-
-    const inset = 0.75;
-    const innerW = Math.max(w - 1.5, 0);
-    const innerH = Math.max(h - 1.5, 0);
-
-    for (const r of [rectBg, rectFg]) {
-      r.setAttribute('x', String(inset));
-      r.setAttribute('y', String(inset));
-      r.setAttribute('width', String(innerW));
-      r.setAttribute('height', String(innerH));
-    }
-    rectBg.setAttribute('data-w', String(w));
-    rectBg.setAttribute('data-h', String(h));
-
-    const hw = w / 2;
-    const hh = h / 2;
-    const offCorner = 3500;
-    const offEdge = 6000;
-    const cx = 6000;
-    const cy = 6000;
-    const handleData: Array<{
-      key: string;
-      hx: number;
-      hy: number;
-      rot: number;
-    }> = [
-      { key: 'h-nw', hx: 0 - offCorner, hy: 0 - offCorner, rot: 315 },
-      { key: 'h-n', hx: hw, hy: 0 - offEdge, rot: 0 },
-      { key: 'h-ne', hx: w + offCorner, hy: 0 - offCorner, rot: 45 },
-      { key: 'h-e', hx: w + offEdge, hy: hh, rot: 90 },
-      { key: 'h-se', hx: w + offCorner, hy: h + offCorner, rot: 135 },
-      { key: 'h-s', hx: hw, hy: h + offEdge, rot: 0 },
-      { key: 'h-sw', hx: 0 - offCorner, hy: h + offCorner, rot: 225 },
-      { key: 'h-w', hx: 0 - offEdge, hy: hh, rot: 270 },
-    ];
-    for (const hd of handleData) {
-      const handle = els.get(hd.key);
-      if (handle) {
-        handle.setAttribute(
-          'transform',
-          `translate(${hd.hx - cx}, ${hd.hy - cy}) rotate(${hd.rot}, ${cx}, ${cy})`,
-        );
-      }
-    }
-
-    return domRef;
-  }
-
-  _applySystemDiff(
-    id: string,
-    element: SVGElement,
-    diff: Record<string, unknown>,
-  ): void {
-    switch (id) {
-      case 'camera': {
-        const x = typeof diff.x === 'number' ? diff.x : this._camera.x;
-        const y = typeof diff.y === 'number' ? diff.y : this._camera.y;
-        const zoom =
-          typeof diff.zoom === 'number' ? diff.zoom : this._camera.zoom;
-        const transform = `translate(${x}, ${y}) scale(${zoom})`;
-        element.setAttribute('transform', transform);
-        return;
-      }
-      case 'artboard': {
-        element.setAttribute('x', '0');
-        element.setAttribute('y', '0');
-        element.setAttribute('pointer-events', 'none');
-        const w =
-          typeof diff.widthMM === 'number'
-            ? diff.widthMM * MM_TO_PX
-            : undefined;
-        const h =
-          typeof diff.heightMM === 'number'
-            ? diff.heightMM * MM_TO_PX
-            : undefined;
-        const fill = typeof diff.fill === 'string' ? diff.fill : '#ffffff';
-        if (w !== undefined) element.setAttribute('width', String(w));
-        if (h !== undefined) element.setAttribute('height', String(h));
-        element.setAttribute('fill', fill);
-        return;
-      }
-      case 'rulers': {
-        this._rulerBuilder.update(element as SVGGElement, {
-          visible: typeof diff.visible === 'boolean' ? diff.visible : true,
-          cameraX: typeof diff.cameraX === 'number' ? diff.cameraX : 0,
-          cameraY: typeof diff.cameraY === 'number' ? diff.cameraY : 0,
-          zoom: typeof diff.zoom === 'number' ? diff.zoom : 1,
-          flipY: typeof diff.flipY === 'boolean' ? diff.flipY : false,
-          worldHeightPx:
-            typeof diff.worldHeightPx === 'number' ? diff.worldHeightPx : 0,
-        });
-        return;
-      }
-      case 'grid':
-      case 'selection':
-      case 'selection-group': {
-        if ('visible' in diff) {
-          element.setAttribute(
-            'visibility',
-            diff.visible ? 'visible' : 'hidden',
-          );
-        }
-        return;
-      }
+      this._flexCut.sync(id, type, element, diff as Record<string, unknown>);
+      this._laserStyle.captureBase(id, diff as Record<string, unknown>);
+      this._laserStyle.applyLaser(id, element);
     }
   }
 
@@ -499,7 +105,7 @@ export class CanvasView {
   }
 
   public setLayerVisibility(layerName: string, visible: boolean): void {
-    const layer = this._layers.get(layerName as LayerName);
+    const layer = this._canvasLayers._layers.get(layerName as LayerName);
     if (layer) {
       layer.style.display = visible ? '' : 'none';
     }
@@ -511,191 +117,38 @@ export class CanvasView {
       element.remove();
       this._elements.delete(id);
     }
-    this._baseStyle.delete(id);
-    this._textDivs.delete(id);
-    this._removeFlexCut(id);
+    this._laserStyle._baseStyle.delete(id);
+    this._textRenderer._textDivs.delete(id);
+    this._flexCut.remove(id);
   }
 
-  private _removeFlexCut(id: string): void {
-    const ce = this._flexCutEls.get(id);
-    if (ce) {
-      ce.path.remove();
-      this._flexCutEls.delete(id);
-    }
-    const def = this._flexCutDefs.get(`flexcut-${id}`);
-    if (def) {
-      def.remove();
-      this._flexCutDefs.delete(`flexcut-${id}`);
-    }
+  public refreshLaserStyles(ids?: string[]): void {
+    this._laserStyle.refresh(ids);
   }
 
-  private _syncFlexCut(
+  public getTextForeignObject(id: string): SVGElement | undefined {
+    return this._textRenderer.getForeignObject(id);
+  }
+
+  public getTextDiv(id: string): HTMLDivElement | undefined {
+    return this._textRenderer.getDiv(id);
+  }
+
+  public measureTextBBox(
     id: string,
-    type: string,
-    shapeEl: SVGElement,
-    diff: Record<string, unknown>,
-  ): void {
-    const hasFlexTree = typeof diff['flexTree.algorithm'] === 'string';
-    const currentCut = this._flexCutEls.get(id);
-    const wasActive = currentCut !== undefined;
-
-    if (!hasFlexTree && !wasActive) return;
-
-    if (!hasFlexTree && wasActive) {
-      this._removeFlexCut(id);
-      return;
-    }
-
-    if (!hasFlexTree) return;
-
-    const config: Record<string, number | string> = {};
-    for (const [key, val] of Object.entries(diff)) {
-      if (key.startsWith('flexTree.')) {
-        config[key.slice(9)] = val as number | string;
-      }
-    }
-
-    let geomChanged = false;
-    const geomKeys = [
-      'x',
-      'y',
-      'width',
-      'height',
-      'cx',
-      'cy',
-      'r',
-      'rx',
-      'ry',
-      'points',
-      'd',
-      'transform',
-    ];
-    for (const key of Object.keys(diff)) {
-      if (geomKeys.includes(key)) {
-        geomChanged = true;
-        break;
-      }
-    }
-
-    const configChanged = Object.keys(config).length > 0;
-    if (!configChanged && !geomChanged && wasActive) return;
-
-    const algo = (config.algorithm as string) ?? 'linear';
-    const step =
-      config.step !== undefined
-        ? Number(config.step)
-        : (this._flexTreeFor(id)?.step ?? 3.5);
-    const link =
-      config.link !== undefined
-        ? Number(config.link)
-        : (this._flexTreeFor(id)?.link ?? 3.0);
-    const dash =
-      config.dash !== undefined
-        ? Number(config.dash)
-        : (this._flexTreeFor(id)?.dash ?? 25.0);
-    const amplitude =
-      config.amplitude !== undefined
-        ? Number(config.amplitude)
-        : (this._flexTreeFor(id)?.amplitude ?? 1.0);
-
-    let bboxX = parseFloat(
-      shapeEl.getAttribute('x') || shapeEl.getAttribute('cx') || '0',
-    );
-    let bboxY = parseFloat(
-      shapeEl.getAttribute('y') || shapeEl.getAttribute('cy') || '0',
-    );
-    let bboxW = parseFloat(shapeEl.getAttribute('width') || '0');
-    let bboxH = parseFloat(shapeEl.getAttribute('height') || '0');
-
-    if (type === 'circle') {
-      const r = parseFloat(shapeEl.getAttribute('r') || '0');
-      bboxW = r * 2;
-      bboxH = r * 2;
-      bboxX = bboxX - r;
-      bboxY = bboxY - r;
-    } else if (type === 'ellipse') {
-      const rx = parseFloat(shapeEl.getAttribute('rx') || '0');
-      const ry = parseFloat(shapeEl.getAttribute('ry') || '0');
-      bboxW = rx * 2;
-      bboxH = ry * 2;
-      bboxX = bboxX - rx;
-      bboxY = bboxY - ry;
-    }
-
-    // Извлечь масштаб из матрицы: узор генерируется в масштабированном
-    // размере (мм сохраняются), а из трансформа оверлея scale убирается.
-    const transformStr = shapeEl.getAttribute('transform');
-    let m = new DOMMatrix();
-    if (transformStr) {
-      try {
-        m = new DOMMatrix(transformStr);
-      } catch {
-        m = new DOMMatrix();
-      }
-    }
-    const sx = Math.hypot(m.a, m.b) || 1;
-    const sy = Math.hypot(m.c, m.d) || 1;
-
-    const bbox = {
-      x: bboxX * sx,
-      y: bboxY * sy,
-      width: bboxW * sx,
-      height: bboxH * sy,
-    };
-
-    const clone = new FlexTree();
-    clone.algorithm = algo as never;
-    clone.step = step;
-    clone.link = link;
-    clone.dash = dash;
-    clone.amplitude = amplitude;
-
-    const segments: CutSegment[] = clone.generateCutData(bbox);
-    const pathD = this._flexCutBuilder.buildPathD(segments);
-
-    // Матрица оверлея без scale: M * scale(1/sx, 1/sy)
-    const descaledTransform = `matrix(${m.a / sx},${m.b / sx},${m.c / sy},${m.d / sy},${m.e},${m.f})`;
-
-    const clipId = `flexcut-${id}`;
-    const existingDef = this._flexCutDefs.get(clipId);
-    if (existingDef && (configChanged || geomChanged)) {
-      existingDef.remove();
-      this._flexCutDefs.delete(clipId);
-    }
-
-    if (!this._flexCutDefs.has(clipId)) {
-      const geom: Record<string, unknown> = {};
-      for (const k of geomKeys) {
-        const v = shapeEl.getAttribute(k);
-        if (v !== null) geom[k] = v;
-      }
-      const cp = this._flexCutBuilder.buildClipDef(id, type, geom, sx, sy);
-      this._defsNode.appendChild(cp);
-      this._flexCutDefs.set(clipId, cp);
-    }
-
-    if (currentCut) {
-      currentCut.path.setAttribute('d', pathD);
-      currentCut.path.setAttribute('transform', descaledTransform);
-    } else {
-      const path = this._flexCutBuilder.createCutPath(pathD, clipId);
-      path.setAttribute('transform', descaledTransform);
-      if (shapeEl.parentNode) {
-        shapeEl.parentNode.insertBefore(path, shapeEl.nextSibling);
-      }
-      this._flexCutEls.set(id, { path, clipId, shapeEl });
-    }
+  ): { x: number; y: number; width: number; height: number } | null {
+    return this._textRenderer.measureBBox(id);
   }
 
-  private _flexTreeFor(id: string): FlexTree | null {
-    return this._flexTreeProvider?.(id) ?? null;
+  public drawSelectionBox(diff: Record<string, unknown>): string | null {
+    return this._selectionBox.draw(diff);
   }
 
   public get defs(): SVGDefsElement {
-    return this._defsNode;
+    return this._canvasLayers._defsNode;
   }
 
   public get cameraGroup(): SVGGElement {
-    return this._cameraGroup;
+    return this._canvasLayers._cameraGroup;
   }
 }

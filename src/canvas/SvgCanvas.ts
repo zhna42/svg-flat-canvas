@@ -1,4 +1,5 @@
 import { Camera } from '@/canvas/Camera';
+import { CanvasLayers } from '@/canvas/CanvasLayers';
 import { CanvasView } from '@/canvas/CanvasView';
 import { RenderScheduler } from '@/canvas/RenderScheduler';
 import { SvgNodeFactory } from '@/canvas/SvgNodeFactory';
@@ -156,7 +157,8 @@ export class SvgCanvas implements ICanvasContext {
     this.camera = camera;
 
     const factory = new SvgNodeFactory();
-    const view = new CanvasView(svg, factory, camera);
+    const layers = new CanvasLayers(svg);
+    const view = new CanvasView(svg, factory, camera, layers);
     this.view = view;
     scheduler.setView(view);
 
