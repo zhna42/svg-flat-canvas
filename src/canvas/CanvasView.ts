@@ -24,6 +24,8 @@ export class CanvasView {
   readonly _laserStyle: CanvasLaserStyle;
   readonly _clipPath: CanvasClipPath;
   _elements = new Map<string, SVGElement>();
+  _onImageMoved: ((imageId: string, dx: number, dy: number) => void) | null =
+    null;
 
   setFlexTreeProvider(fn: (id: string) => FlexTree | null): void {
     this._flexCut.setFlexTreeProvider(fn);
@@ -90,7 +92,31 @@ export class CanvasView {
     if (CanvasSystemNodes.isSystem(id)) {
       this._systemNodes.applyDiff(id, element, diff as Record<string, unknown>);
     } else {
+      const syncMasks = type === 'image' && this._clipPath.hasClipPath(id) && this._onImageMoved;
+      let oldX = 0, oldY = 0, oldTx = 0, oldTy = 0;
+
+      if (syncMasks) {
+        oldX = parseFloat(element.getAttribute('x') || '0');
+        oldY = parseFloat(element.getAttribute('y') || '0');
+        try { const m = new DOMMatrix(element.getAttribute('transform') || ''); oldTx = m.e; oldTy = m.f; } catch { /* */ }
+      }
+
       this._applyShapeDiff(element, diff as Record<string, unknown>);
+
+      if (syncMasks) {
+        const newX = parseFloat(element.getAttribute('x') || '0');
+        const newY = parseFloat(element.getAttribute('y') || '0');
+        let newTx = 0, newTy = 0;
+        try { const m = new DOMMatrix(element.getAttribute('transform') || ''); newTx = m.e; newTy = m.f; } catch { /* */ }
+
+        const dx = (newX - oldX) + (newTx - oldTx);
+        const dy = (newY - oldY) + (newTy - oldTy);
+
+        if (dx !== 0 || dy !== 0) {
+          this._onImageMoved!(id, dx, dy);
+        }
+      }
+
       this._flexCut.sync(id, type, element, diff as Record<string, unknown>);
       this._clipPath.sync(id, diff as Record<string, unknown>);
       this._refreshMaskedImages(id);

@@ -130,4 +130,15 @@ export class ShapeManager {
       }
     }
   }
+
+  moveMaskElements(imageId: string, dx: number, dy: number): void {
+    const image = this.getById(imageId) as ImageElement | undefined;
+    if (!image || image.type !== 'image') return;
+    for (const maskId of image.maskElementIds) {
+      const mask = this.getById(maskId);
+      if (!mask) continue;
+      mask.transform.translate(dx, dy);
+      if (this.#registerDirty) this.#registerDirty(mask);
+    }
+  }
 }
