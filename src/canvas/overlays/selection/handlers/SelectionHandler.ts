@@ -30,6 +30,9 @@ export class SelectionHandler {
   private panAuto = false;
   private panStartWorld: { x: number; y: number } | null = null;
 
+  private _lastCyclePoint: { x: number; y: number } | null = null;
+  private _lastCycleIndex = -1;
+
   public constructor(opts: SelectionHandlerOptions) {
     this.opts = opts;
     this.shortcuts = { ...DEFAULT_SELECTION_SHORTCUTS, ...opts.shortcuts };
@@ -467,14 +470,35 @@ export class SelectionHandler {
     const interactable = (hits as AbstractGraphicElement[]).filter(
       (h) => this.opts.canInteract?.(h.id) ?? true,
     );
-    if (interactable.length === 0) return false;
+    if (interactable.length === 0) {
+      this._lastCyclePoint = null;
+      return false;
+    }
 
-    const picked = interactable[interactable.length - 1];
+    const CYCLE_THRESHOLD = 3;
+    let pickedIndex: number;
+
+    if (
+      this._lastCyclePoint &&
+      Math.abs(wp.x - this._lastCyclePoint.x) < CYCLE_THRESHOLD &&
+      Math.abs(wp.y - this._lastCyclePoint.y) < CYCLE_THRESHOLD
+    ) {
+      // Циклический переход к элементу под текущим
+      pickedIndex =
+        (this._lastCycleIndex - 1 + interactable.length) % interactable.length;
+    } else {
+      // Первый клик — берём верхний
+      pickedIndex = interactable.length - 1;
+    }
+
+    this._lastCyclePoint = { x: wp.x, y: wp.y };
+    this._lastCycleIndex = pickedIndex;
+
+    const picked = interactable[pickedIndex];
     const selectedIds = new Set(this.opts.state.selected.map((s) => s.id));
 
     if (!selectedIds.has(picked.id)) {
-      const cmd = createSelectPickCommand('element', wp, false);
-      this.opts.bus.execute(cmd);
+      this.opts.state.replace([picked]);
       selectedIds.clear();
       selectedIds.add(picked.id);
     }
