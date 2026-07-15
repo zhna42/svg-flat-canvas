@@ -974,6 +974,10 @@ function setupZOrderButtons(): void {
     const ids = getIds();
     if (ids.length) api.zOrder.lowerToBottom(ids);
   };
+  document.getElementById('btn-bake')!.onclick = () => {
+    const ids = getIds();
+    if (ids.length) api.bake.bake(ids);
+  };
 }
 
 // ─── Helpers ─────────────────────────────────────────────
