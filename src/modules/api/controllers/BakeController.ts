@@ -45,16 +45,11 @@ export class BakeController {
     tempSvg.setAttribute('height', String(h));
     tempSvg.setAttribute('viewBox', `0 0 ${w} ${h}`);
 
-    const bg = document.createElementNS(NS, 'rect');
-    bg.setAttribute('x', '0');
-    bg.setAttribute('y', '0');
-    bg.setAttribute('width', String(w));
-    bg.setAttribute('height', String(h));
-    bg.setAttribute('fill', '#ffffff');
-    tempSvg.appendChild(bg);
-
     const wrapper = document.createElementNS(NS, 'g');
     wrapper.setAttribute('transform', `translate(${-minX}, ${-minY})`);
+
+    const defs = document.createElementNS(NS, 'defs');
+    wrapper.appendChild(defs);
 
     for (const s of shapes) {
       const dom = this.canvas.view._elements.get(s.id);
@@ -64,7 +59,16 @@ export class BakeController {
       clone.removeAttribute('id');
 
       if (s.type === 'image') {
-        clone.removeAttribute('clip-path');
+        // Клонируем clipPath-маску в defs, сохраняем ссылку на изображении
+        const clipAttr = dom.getAttribute('clip-path');
+        if (clipAttr) {
+          const clipId = clipAttr.replace(/^url\(#/, '').replace(/\)$/, '');
+          const srcClip = this.canvas.view.defs.querySelector(`#${clipId}`) as SVGClipPathElement | null;
+          if (srcClip) {
+            const clipClone = srcClip.cloneNode(true) as SVGClipPathElement;
+            defs.appendChild(clipClone);
+          }
+        }
       } else {
         this._blackenClone(clone);
       }
@@ -90,8 +94,6 @@ export class BakeController {
 
     const img = new Image();
     img.onload = () => {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, cw, ch);
       ctx.drawImage(img, 0, 0, cw, ch);
 
       const dataUrl = renderCanvas.toDataURL('image/png');
