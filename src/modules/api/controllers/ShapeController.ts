@@ -236,6 +236,34 @@ export class ShapeController {
     shape.clearTimeMachineDiff();
   }
 
+  getElementPosition(id: string): { xMm: number; yMm: number } | null {
+    const el = this.canvas.shapeManager.getById(id) as
+      | AbstractGraphicElement
+      | undefined;
+    if (!el) return null;
+    const bbox = el.getTransformedBBox();
+    return {
+      xMm: bbox.x / MM_TO_PX,
+      yMm: bbox.y / MM_TO_PX,
+    };
+  }
+
+  setElementPosition(id: string, xMm: number, yMm: number): void {
+    if (!guardEditMode(this.canvas)) return;
+    const el = this.canvas.shapeManager.getById(id) as
+      | AbstractGraphicElement
+      | undefined;
+    if (!el) return;
+    const bbox = el.getTransformedBBox();
+    const dx = xMm * MM_TO_PX - bbox.x;
+    const dy = yMm * MM_TO_PX - bbox.y;
+    if (dx !== 0 || dy !== 0) {
+      el.transform.translate(dx, dy);
+      el.rebuildHitArea();
+      this._emitSize(id);
+    }
+  }
+
   enterBooleanMode(op: BooleanOp): void {
     this.canvas.booleanHandler.enterMode(op);
   }
@@ -268,6 +296,8 @@ export class ShapeController {
     const bbox = el.getTransformedBBox();
     this.canvas.events.emit('ELEMENT_SIZE', {
       id,
+      xMm: bbox.x / MM_TO_PX,
+      yMm: bbox.y / MM_TO_PX,
       widthMm: bbox.width / MM_TO_PX,
       heightMm: bbox.height / MM_TO_PX,
       angleDeg: el.transform.angle,

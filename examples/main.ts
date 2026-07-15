@@ -748,6 +748,8 @@ function setupMeasureToolbar(): void {
 // ─── Size Inputs ───────────────────────────────────────────
 
 function setupSizeInputs(): void {
+  const inpX = document.getElementById('inp-pos-x') as HTMLInputElement;
+  const inpY = document.getElementById('inp-pos-y') as HTMLInputElement;
   const inpW = document.getElementById('inp-size-w') as HTMLInputElement;
   const inpH = document.getElementById('inp-size-h') as HTMLInputElement;
   const labelW = inpW.parentElement!;
@@ -775,13 +777,19 @@ function setupSizeInputs(): void {
   api.on('ELEMENT_SIZE', (ev) => {
     const data = ev.data as {
       id: string | null;
+      xMm: number;
+      yMm: number;
       widthMm: number;
       heightMm: number;
       angleDeg: number;
     };
     if (!data.id) {
+      inpX.disabled = true;
+      inpY.disabled = true;
       inpW.disabled = true;
       inpH.disabled = true;
+      inpX.value = '';
+      inpY.value = '';
       inpW.value = '';
       inpH.value = '';
       currentId = null;
@@ -789,6 +797,11 @@ function setupSizeInputs(): void {
     }
     currentId = data.id;
     currentAngle = data.angleDeg;
+
+    inpX.value = data.xMm.toFixed(1);
+    inpX.disabled = false;
+    inpY.value = data.yMm.toFixed(1);
+    inpY.disabled = false;
 
     if (mode === 'rotate') {
       showAngle();
@@ -812,12 +825,21 @@ function setupSizeInputs(): void {
         if (Math.abs(delta) > 0.001) api.shapes.rotateElement(currentId, delta);
       }
     } else {
+      const x = parseFloat(inpX.value);
+      const y = parseFloat(inpY.value);
+      if (!isNaN(x) || !isNaN(y)) {
+        api.shapes.setElementPosition(currentId, x, y);
+      }
       const w = parseFloat(inpW.value);
       const h = parseFloat(inpH.value);
       if (w > 0 && h > 0) api.shapes.resizeElement(currentId, w, h);
     }
   };
 
+  inpX.addEventListener('change', apply);
+  inpY.addEventListener('change', apply);
+  inpX.addEventListener('keydown', (e) => e.key === 'Enter' && apply());
+  inpY.addEventListener('keydown', (e) => e.key === 'Enter' && apply());
   inpW.addEventListener('change', apply);
   inpH.addEventListener('change', apply);
   inpW.addEventListener('keydown', (e) => e.key === 'Enter' && apply());

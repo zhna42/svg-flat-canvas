@@ -380,6 +380,8 @@ export class SvgCanvas implements ICanvasContext {
         const bbox = selected[0].getTransformedBBox();
         this.events.emit('ELEMENT_SIZE', {
           id: selected[0].id,
+          xMm: bbox.x / MM_TO_PX,
+          yMm: bbox.y / MM_TO_PX,
           widthMm: bbox.width / MM_TO_PX,
           heightMm: bbox.height / MM_TO_PX,
           angleDeg: selected[0].transform.angle,
@@ -387,6 +389,7 @@ export class SvgCanvas implements ICanvasContext {
       } else {
         this.events.emit('ELEMENT_SIZE', {
           id: null,
+          xMm: 0, yMm: 0,
           widthMm: 0,
           heightMm: 0,
           angleDeg: 0,

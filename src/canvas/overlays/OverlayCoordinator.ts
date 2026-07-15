@@ -108,6 +108,8 @@ export class OverlayCoordinator {
       const bbox = el.getTransformedBBox();
       this.ctx.events.emit('ELEMENT_SIZE', {
         id: el.id,
+        xMm: bbox.x / MM_TO_PX,
+        yMm: bbox.y / MM_TO_PX,
         widthMm: bbox.width / MM_TO_PX,
         heightMm: bbox.height / MM_TO_PX,
         angleDeg: el.transform.angle,
