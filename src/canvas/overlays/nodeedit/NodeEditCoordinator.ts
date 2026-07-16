@@ -7,7 +7,7 @@ import { NodeEditRenderer } from './NodeEditRenderer';
 import { NodeEditTimeMachine } from './NodeEditTimeMachine';
 import { NodeSnapHelper } from './NodeSnapHelper';
 
-const HIT_PX = 8;
+const HIT_PX = 40000;
 
 export interface NodeEditDeps {
   camera: Camera;
@@ -136,8 +136,6 @@ export class NodeEditCoordinator {
     const r = HIT_PX / this.deps.camera.zoom;
     return this.session.hitNode(worldX, worldY, r);
   }
-
-  // ── Pointer (drag / click) ──
 
   public get isDragging(): boolean {
     return this.drag !== null;

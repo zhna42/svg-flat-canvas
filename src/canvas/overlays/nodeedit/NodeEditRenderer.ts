@@ -7,10 +7,10 @@ const FILL = '#ffffff';
 const LINE_COLOR = '#a0a0a0';
 
 // Базовые экранные размеры (в пикселях), делятся на zoom.
-const ANCHOR_PX = 9;
-const CTRL_R_PX = 4;
-const STROKE_PX = 1500;
-const LINE_PX = 1000;
+const ANCHOR_PX = 27;
+const CTRL_R_PX = 10;
+const STROKE_PX = 4500;
+const LINE_PX = 3000;
 
 /**
  * Рендерер ручек редактирования узлов. Живёт ВНУТРИ cameraGroup,
