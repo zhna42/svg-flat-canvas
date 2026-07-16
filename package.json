@@ -40,7 +40,10 @@
   "dependencies": {
     "canvas-dither": "^1.0.1",
     "clipper-lib": "^6.4.2",
+    "d3-contour": "^4.0.2",
+    "fit-curves": "^0.0.1",
     "omnifont": "^0.1.0",
+    "simplify-js": "^1.2.4",
     "svg-path-outline": "^1.0.1"
   }
 }

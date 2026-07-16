@@ -1000,6 +1000,10 @@ function setupZOrderButtons(): void {
     const ids = getIds();
     if (ids.length) api.bake.bake(ids);
   };
+  document.getElementById('btn-merge')!.onclick = () => {
+    const ids = getIds();
+    if (ids.length) api.merge.merge(ids);
+  };
 }
 
 // ─── Helpers ─────────────────────────────────────────────

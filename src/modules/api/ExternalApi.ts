@@ -18,6 +18,7 @@ import { RasterController } from '../raster';
 import { MaskController } from './controllers/MaskController';
 import { ZOrderController } from './controllers/ZOrderController';
 import { BakeController } from './controllers/BakeController';
+import { MergeController } from './controllers/MergeController';
 
 export class ExternalApi {
   private readonly _canvas: SvgCanvas;
@@ -40,6 +41,7 @@ export class ExternalApi {
   readonly mask: MaskController;
   readonly zOrder: ZOrderController;
   readonly bake: BakeController;
+  readonly merge: MergeController;
 
   constructor(canvas: SvgCanvas) {
     this._canvas = canvas;
@@ -60,6 +62,7 @@ export class ExternalApi {
     this.mask = new MaskController(canvas);
     this.zOrder = new ZOrderController(canvas);
     this.bake = new BakeController(canvas);
+    this.merge = new MergeController(canvas);
   }
 
   // ── События ──
