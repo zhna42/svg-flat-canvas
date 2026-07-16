@@ -3,7 +3,6 @@ import { createFromJSON } from '@/core/shapes/factory';
 import type { SvgCanvas } from '@/canvas/SvgCanvas';
 import { contours } from 'd3-contour';
 import simplify from 'simplify-js';
-import fitCurve from 'fit-curves';
 
 let _idCounter = 0;
 const genId = (): string =>
@@ -145,7 +144,6 @@ export class MergeController {
     const result: string[] = [];
     const invScale = 1 / scale;
     const simplifyTolerance = Math.max(1, Math.sqrt(w * w + h * h) * 0.0005);
-    const curveError = Math.max(1, simplifyTolerance * 0.5);
 
     for (const polygon of threshold.coordinates) {
       for (const ring of polygon) {
@@ -165,28 +163,9 @@ export class MergeController {
 
         if (simplified.length < 3) continue;
 
-        let d = '';
-        try {
-          const curves = fitCurve(simplified, curveError);
-          if (curves.length > 0) {
-            const parts: string[] = [];
-            for (let i = 0; i < curves.length; i++) {
-              const [, [c1x, c1y], [c2x, c2y], [ex, ey]] = curves[i];
-              const cmd = i === 0
-                ? `M${curves[0][0][0].toFixed(0)},${curves[0][0][1].toFixed(0)} C${c1x.toFixed(0)},${c1y.toFixed(0)} ${c2x.toFixed(0)},${c2y.toFixed(0)} ${ex.toFixed(0)},${ey.toFixed(0)}`
-                : `C${c1x.toFixed(0)},${c1y.toFixed(0)} ${c2x.toFixed(0)},${c2y.toFixed(0)} ${ex.toFixed(0)},${ey.toFixed(0)}`;
-              parts.push(cmd);
-            }
-            d = parts.join(' ') + ' Z';
-          }
-        } catch { /* fall through */ }
-
-        if (!d) {
-          d = 'M ' + simplified
-            .map(([x, y]) => `${x.toFixed(0)},${y.toFixed(0)}`)
-            .join(' L ') + ' Z';
-        }
-
+        const d = 'M ' + simplified
+          .map(([x, y]) => `${x.toFixed(0)},${y.toFixed(0)}`)
+          .join(' L ') + ' Z';
         result.push(d);
       }
     }
