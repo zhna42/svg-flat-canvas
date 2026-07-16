@@ -169,6 +169,11 @@ export class SvgCanvas implements ICanvasContext {
 
     view._onImageMoved = (imageId, oldMatrix, newMatrix) => {
       shapeManager.moveMaskElements(imageId, oldMatrix, newMatrix);
+      shapeManager.updateMaskBBox(imageId);
+    };
+    view._onElementRedrawn = (elementId) => {
+      const maskedIds = shapeManager.getMaskedImageIds(elementId);
+      for (const mid of maskedIds) shapeManager.updateMaskBBox(mid);
     };
 
     view.setFlexTreeProvider(

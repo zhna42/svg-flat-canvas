@@ -57,8 +57,8 @@ export class MaskController {
     image.addMaskElementId(elementId);
 
     this.canvas.view.refreshLaserStyles([elementId]);
-
     this.canvas.shapeManager.dirtyMaskedImages(elementId);
+    this.canvas.shapeManager.updateMaskBBox(mode.imageId);
   }
 
   removeMask(elementId: string): void {
@@ -76,6 +76,7 @@ export class MaskController {
 
     const sched = this.canvas.scheduler;
     sched.registerDirtyNode(image);
+    this.canvas.shapeManager.updateMaskBBox(mode.imageId);
   }
 
   unmaskImage(imageId: string): void {
@@ -92,6 +93,7 @@ export class MaskController {
     const sched = this.canvas.scheduler;
     sched.registerDirtyNode(image);
 
+    this.canvas.shapeManager.updateMaskBBox(imageId);
     this._lockMaskSelection();
   }
 

@@ -28,6 +28,7 @@ export class CanvasView {
   _elements = new Map<string, SVGElement>();
   _onImageMoved: ((imageId: string, oldMatrix: DOMMatrix, newMatrix: DOMMatrix) => void) | null =
     null;
+  _onElementRedrawn: ((elementId: string) => void) | null = null;
 
   setFlexTreeProvider(fn: (id: string) => FlexTree | null): void {
     this._flexCut.setFlexTreeProvider(fn);
@@ -149,6 +150,7 @@ export class CanvasView {
     const imageIds = this._clipPath.getMaskedImageIds(elementId);
     for (const imageId of imageIds) {
       this._clipPath.refreshImage(imageId);
+      this._onElementRedrawn?.(imageId);
     }
   }
 

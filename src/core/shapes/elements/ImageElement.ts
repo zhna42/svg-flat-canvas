@@ -14,6 +14,7 @@ export class ImageElement extends AbstractGraphicElement {
   public rasterEditorOptions?: Record<string, unknown>;
   public rasterState?: { algorithm: DitherAlgorithm; params: DitherOptions };
   public maskElementIds: string[] = [];
+  public maskBBox: { x: number; y: number; width: number; height: number } | null = null;
 
   public constructor(id: string) {
     super(id, 'image');
@@ -30,6 +31,15 @@ export class ImageElement extends AbstractGraphicElement {
   }
 
   public get hitArea(): Point[] {
+    const b = this.maskBBox;
+    if (b) {
+      return [
+        { x: b.x, y: b.y },
+        { x: b.x + b.width, y: b.y },
+        { x: b.x + b.width, y: b.y + b.height },
+        { x: b.x, y: b.y + b.height },
+      ];
+    }
     return this._ha.points;
   }
 
@@ -48,6 +58,21 @@ export class ImageElement extends AbstractGraphicElement {
 
   public getBBox(): BoundingBox {
     return { ...this.geometry };
+  }
+
+  /** Полный bounding box (игнорирует maskBBox). */
+  public getFullBBox(): BoundingBox {
+    const pts = this._ha.points;
+    if (pts.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of pts) {
+      const tp = this.transformPoint(p);
+      if (tp.x < minX) minX = tp.x;
+      if (tp.y < minY) minY = tp.y;
+      if (tp.x > maxX) maxX = tp.x;
+      if (tp.y > maxY) maxY = tp.y;
+    }
+    return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
   }
 
   private getEffectiveHref(): string {
