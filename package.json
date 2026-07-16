@@ -22,6 +22,7 @@
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
+    "@types/opentype.js": "^1.3.10",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "eslint": "^8.57.0",
@@ -38,10 +39,12 @@
     "vite": "^8.0.16"
   },
   "dependencies": {
+    "@pdf-lib/fontkit": "^1.1.1",
     "canvas-dither": "^1.0.1",
     "clipper-lib": "^6.4.2",
     "d3-contour": "^4.0.2",
-    "omnifont": "^0.1.0",
+    "omnifont": "file:/Users/nikitazhitin/Desktop/fontless-core",
+    "opentype.js": "^2.0.0",
     "simplify-js": "^1.2.4",
     "svg-path-outline": "^1.0.1"
   }

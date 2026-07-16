@@ -83,6 +83,19 @@ export class FontService {
     return family;
   }
 
+  /** Возвращает полный буфер шрифта через downloadVariant (полный шрифт, без сабсета). */
+  public async getFontBuffer(
+    family: string,
+    weight: string,
+    style: FontStyle,
+  ): Promise<ArrayBuffer | null> {
+    const font = this.findFont(family);
+    if (!font || !this.fm) return null;
+    const variant = this.fm.resolveVariant(font, weight, style);
+    if (!variant) return null;
+    return this.fm.downloadVariant(font, variant.id);
+  }
+
   private findFont(family: string): FontItem | undefined {
     return this.catalog.find((f) => f.family === family);
   }

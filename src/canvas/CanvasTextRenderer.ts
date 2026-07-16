@@ -1,4 +1,5 @@
 import type { LayerName } from '@/core/type';
+import { MM_TO_PX } from '@/constants';
 
 export class CanvasTextRenderer {
   _textDivs = new Map<string, HTMLDivElement>();
@@ -49,7 +50,12 @@ export class CanvasTextRenderer {
       };
       setA('x', diff.x);
       setA('y', diff.y);
-      setA('font-size', diff['font-size']);
+      setA(
+        'font-size',
+        diff['font-size'] !== undefined
+          ? Number(diff['font-size']) * MM_TO_PX
+          : undefined,
+      );
       setA('font-family', diff['font-family']);
       setA('text-anchor', diff['text-anchor']);
       setA('fill', diff.fill);
@@ -88,7 +94,7 @@ export class CanvasTextRenderer {
         'word-break:break-word',
         'outline:none',
         `font-family:${diff._fontFamily || 'sans-serif'}`,
-        `font-size:${diff._fontSize ?? '16'}px`,
+        `font-size:${(Number(diff._fontSize) || 16) * MM_TO_PX}px`,
         `color:${diff._color ?? '#000'}`,
         `font-weight:${diff._fontWeight ?? '400'}`,
         `font-style:${diff._italic === '1' ? 'italic' : 'normal'}`,
@@ -96,7 +102,7 @@ export class CanvasTextRenderer {
         `text-align:${diff._align ?? 'left'}`,
         `line-height:${diff._lineHeight ?? '1.2'}`,
         isEmpty
-          ? 'background:rgba(255,255,255,0.15);border:1px solid #000;'
+          ? `background:rgba(255,255,255,0.15);border:${Math.max(1, Math.round((Number(diff._fontSize) || 16) * MM_TO_PX / 100))}px solid #000;`
           : '',
       ].join(';'),
     );

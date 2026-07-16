@@ -26,6 +26,7 @@ export class PathElement
 {
   _ha = new PathHitArea();
   public readonly supportsCurves = true;
+  public isSimpleHitArea = false;
 
   public geometry = {
     commands: [] as PathCommand[],
@@ -51,6 +52,38 @@ export class PathElement
   public buildHitArea(): void {
     const cmds = this.geometry.commands;
     if (cmds.length === 0) return;
+
+    if (this.isSimpleHitArea) {
+      // Быстрый прямоугольный хит-тест без flattenCommands
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const cmd of cmds) {
+        const args = cmd.args;
+        for (let i = 0; i < args.length; i += 2) {
+          if (args[i] < minX) minX = args[i];
+          if (args[i] > maxX) maxX = args[i];
+          if (args[i + 1] < minY) minY = args[i + 1];
+          if (args[i + 1] > maxY) maxY = args[i + 1];
+        }
+      }
+      if (minX > maxX || minY > maxY) return;
+      const isClosed =
+        cmds.length > 0 &&
+        (cmds[cmds.length - 1].command === 'Z' ||
+          cmds[cmds.length - 1].command === 'z');
+      this._ha.set(
+        [
+          { x: minX, y: minY },
+          { x: maxX, y: minY },
+          { x: maxX, y: maxY },
+          { x: minX, y: maxY },
+        ],
+        this.style.strokeWidth,
+        this.style.hasFill,
+        isClosed,
+      );
+      return;
+    }
+
     const flat = flattenCommands(cmds);
     const isClosed =
       cmds.length > 0 &&

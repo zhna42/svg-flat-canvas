@@ -264,6 +264,15 @@ export class ShapeController {
     }
   }
 
+  setSimpleHitArea(elementId: string, simple: boolean): void {
+    const el = this.canvas.shapeManager.getById(elementId);
+    if (!el || el.type !== 'path') return;
+    const path = el as import('@/core/shapes/elements/PathElement').PathElement;
+    path.isSimpleHitArea = simple;
+    path.rebuildHitArea();
+    this.canvas.elementManager.reindexElement(path);
+  }
+
   enterBooleanMode(op: BooleanOp): void {
     this.canvas.booleanHandler.enterMode(op);
   }

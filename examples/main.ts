@@ -1004,6 +1004,19 @@ function setupZOrderButtons(): void {
     const ids = getIds();
     if (ids.length) api.merge.merge(ids);
   };
+  document.getElementById('btn-text-to-path')!.onclick = () => {
+    api.textToPath.convertSelected();
+  };
+  document.getElementById('btn-path-detail')!.onclick = () => {
+    const ids = getIds();
+    for (const id of ids) {
+      const el = api.shapes.getElementById(id);
+      if (el?.type === 'path') {
+        const simple = (el as { isSimpleHitArea?: boolean }).isSimpleHitArea ?? true;
+        api.shapes.setSimpleHitArea(id, !simple);
+      }
+    }
+  };
 }
 
 // ─── Helpers ─────────────────────────────────────────────
