@@ -37,19 +37,21 @@ export class SvgNodeFactory extends NodeDOMFactory {
     const rectBg = this.createSvgElement('rect');
     rectBg.setAttribute('fill', 'none');
     rectBg.setAttribute('stroke', '#ffffff');
-    rectBg.setAttribute('stroke-width', '1500');
+    rectBg.setAttribute('stroke-width', '2');
     rectBg.setAttribute('pointer-events', 'none');
     rectBg.setAttribute('shape-rendering', 'crispEdges');
+    rectBg.setAttribute('vector-effect', 'non-scaling-stroke');
     elements.set('rect-bg', rectBg);
     g.appendChild(rectBg);
 
     const rectFg = this.createSvgElement('rect');
     rectFg.setAttribute('fill', 'none');
     rectFg.setAttribute('stroke', '#000000');
-    rectFg.setAttribute('stroke-width', '1500');
-    rectFg.setAttribute('stroke-dasharray', '4000 3000');
+    rectFg.setAttribute('stroke-width', '2');
+    rectFg.setAttribute('stroke-dasharray', '4 3');
     rectFg.setAttribute('pointer-events', 'none');
     rectFg.setAttribute('shape-rendering', 'crispEdges');
+    rectFg.setAttribute('vector-effect', 'non-scaling-stroke');
     elements.set('rect-fg', rectFg);
     g.appendChild(rectFg);
 
@@ -62,8 +64,9 @@ export class SvgNodeFactory extends NodeDOMFactory {
       );
       path.setAttribute('fill', '#000000');
       path.setAttribute('stroke', '#FFFFFF');
-      path.setAttribute('stroke-width', '1500');
+      path.setAttribute('stroke-width', '1');
       path.setAttribute('stroke-linejoin', 'round');
+      path.setAttribute('vector-effect', 'non-scaling-stroke');
       path.setAttribute('data-handle', h);
       elements.set(`h-${h}`, path);
       g.appendChild(path);
