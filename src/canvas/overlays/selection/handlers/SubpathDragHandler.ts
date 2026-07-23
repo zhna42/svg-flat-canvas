@@ -1,6 +1,5 @@
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import { PathElement } from '@/core/shapes/elements/PathElement';
-import type { PathTimeMachine } from '@/core/shapes/path/PathTimeMachine';
 import type { Point } from '@/core/type';
 
 export class SubpathDragHandler {
@@ -8,7 +7,6 @@ export class SubpathDragHandler {
   private _element: PathElement | null = null;
   private _subpathIdx = -1;
   private _lastWorld: Point = { x: 0, y: 0 };
-  public pathTimeMachine: PathTimeMachine | null = null;
 
   public get isActive(): boolean {
     return this._active;
@@ -47,8 +45,6 @@ export class SubpathDragHandler {
     if (!this._active || !this._element) return;
     this._element.rebuildHitArea();
 
-    this.pathTimeMachine?.capture();
-
     this._active = false;
     this._element = null;
     this._subpathIdx = -1;
@@ -56,7 +52,6 @@ export class SubpathDragHandler {
 
   public abort(): void {
     if (!this._active) return;
-    this.pathTimeMachine?.undo();
     this._active = false;
     this._element = null;
     this._subpathIdx = -1;

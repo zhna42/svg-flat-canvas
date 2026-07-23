@@ -58,27 +58,43 @@ export const svgNodesToElements = (
       }
       if (el instanceof TextElement) {
         if (key === 'textContent') {
-          el.setTextContent(value);
+          const stripped = value.replace(/<[^>]*>/g, '');
+          if (stripped.trim()) {
+            if (el.textModel.length > 0) {
+              el.textModel[0].text = stripped;
+            } else {
+              el.textModel = [{ ...el.defaultStyle, text: stripped }];
+            }
+          }
           continue;
         }
         if (key === 'x') {
-          el.posX = value;
+          el.boxX = parseFloat(value);
           continue;
         }
         if (key === 'y') {
-          el.posY = value;
+          el.boxY = parseFloat(value);
           continue;
         }
         if (key === 'font-size') {
-          el.fontSize = value;
+          if (el.textModel.length > 0) {
+            el.textModel[0].fontSize = parseFloat(value);
+          } else {
+            el.textModel = [
+              { ...el.defaultStyle, fontSize: parseFloat(value), text: '' },
+            ];
+          }
           continue;
         }
         if (key === 'font-family') {
-          el.fontFamily = value;
+          if (el.textModel.length > 0) {
+            el.textModel[0].fontFamily = value;
+          }
           continue;
         }
         if (key === 'text-anchor') {
-          el.textAnchor = value;
+          el.align =
+            value === 'middle' ? 'center' : value === 'end' ? 'right' : 'left';
           continue;
         }
       }

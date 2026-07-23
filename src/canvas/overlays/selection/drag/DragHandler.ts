@@ -98,12 +98,10 @@ export class DragHandler {
           typed.type !== 'line' &&
           !(
             typed instanceof PathElement &&
-            typed.geometry.commands.length > 0 &&
+            typed.geometry.segments.length > 0 &&
             !(
-              typed.geometry.commands[typed.geometry.commands.length - 1]
-                .command === 'Z' ||
-              typed.geometry.commands[typed.geometry.commands.length - 1]
-                .command === 'z'
+              typed.geometry.segments[typed.geometry.segments.length - 1]
+                .type === 'Z'
             )
           )
         );

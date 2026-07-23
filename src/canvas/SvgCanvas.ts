@@ -19,6 +19,7 @@ import { SelectionHandler } from '@/canvas/overlays/selection/handlers/Selection
 import { SelectionManager } from '@/canvas/overlays/selection/SelectionManager';
 import { PathNodeOverlay } from '@/canvas/overlays/selection/PathNodeOverlay';
 import { NodeEditCoordinator } from '@/canvas/overlays/nodeedit/NodeEditCoordinator';
+import { NodeEditOverlayElement } from '@/core/shapes/elements/NodeEditOverlayElement';
 import { MeasureCoordinator } from '@/canvas/overlays/measure/MeasureCoordinator';
 import {
   LaserGroupManager,
@@ -27,14 +28,15 @@ import {
 } from '@/modules/laser';
 import { LaserLayerManager, LaserLayerRenderer } from '@/modules/laser/layers';
 import type { LaserLayerGroupInfo } from '@/modules/laser/layers';
-import { TextController } from '@/modules/text';
+import { CadTextEngine } from '@/modules/text/CadTextEngine';
+import { FontService } from '@/modules/text';
 import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
 import { GroupTransformHandler } from '@/canvas/overlays/selection/transform/GroupTransformHandler';
 import { DebugOverlay } from '@/canvas/overlays/debug/DebugOverlay';
 import { PreloaderOverlay } from '@/canvas/overlays/debug/PreloaderOverlay';
 import { GridOverlay } from '@/canvas/overlays/debug/GridOverlay';
 import { ColorMap } from '@/core/color/ColorMap';
-import { GroupManager } from '@/manager/GroupManager'
+import { GroupManager } from '@/manager/GroupManager';
 import type { Group } from '@/core/shapes/group';
 import { CommandBus } from '@/core/commands/CommandBus';
 import { TimeMachine } from '@/manager/time-machine';
@@ -112,7 +114,8 @@ export class SvgCanvas implements ICanvasContext {
   laserLayerManager!: LaserLayerManager;
   laserLayerRenderer!: LaserLayerRenderer;
 
-  textController!: TextController;
+  textEngine!: CadTextEngine;
+  fonts!: FontService;
 
   selectionHandler!: SelectionHandler;
   creationHandler!: CreationHandler;
@@ -132,7 +135,7 @@ export class SvgCanvas implements ICanvasContext {
     this._initLaserModule();
     this._initOverlayInfrastructure();
     this._initElementManager();
-    this._initTextController();
+    this._initTextEngine();
     this._initManagers(options);
     this._createApi();
     this._wire();
@@ -145,7 +148,9 @@ export class SvgCanvas implements ICanvasContext {
   private _initCore(container: HTMLElement, options?: SvgCanvasOptions): void {
     this.element = container;
     this.element.style.userSelect = 'none';
-    (this.element.style as unknown as Record<string, unknown>).webkitUserSelect = 'none';
+    (
+      this.element.style as unknown as Record<string, unknown>
+    ).webkitUserSelect = 'none';
 
     const svg = createSvgElement(options);
     svg.setAttribute('tabindex', '0');
@@ -350,21 +355,26 @@ export class SvgCanvas implements ICanvasContext {
     );
   }
 
-  private _initTextController(): void {
-    this.textController = new TextController({
+  private _initTextEngine(): void {
+    this.fonts = new FontService();
+
+    this.textEngine = new CadTextEngine({
       svg: this.svg,
       camera: this.camera,
-      view: this.view,
-      getElement: (id) => this.shapeManager.getById(id),
+      fonts: this.fonts,
+      getTextElement: (id) => {
+        const el = this.shapeManager.getById(id);
+        if (el?.type === 'text')
+          return el as import('@/core/shapes/elements/TextElement').TextElement;
+        return undefined;
+      },
+      getTextSvg: (id) => this.view.getTextSvgElement(id),
+      deleteElement: (id) => this._api.shapes.deleteElement(id),
       hitTest: (x, y) =>
         this.hitTestEngine.queryPoint(x, y).hits.map((h) => h.id),
-      deleteElement: (id) => this._api.shapes.deleteElement(id),
-      emit: (type, data) => this.events.emit(type, data),
+      onUndo: () => this.timeMachine.undo(),
+      onRedo: () => this.timeMachine.redo(),
     });
-    this.textController._selectedTextIds = () =>
-      this.selectionState.selected
-        .filter((e) => e.type === 'text')
-        .map((e) => e.id);
   }
 
   private _initOverlayInfrastructure(): void {
@@ -394,7 +404,8 @@ export class SvgCanvas implements ICanvasContext {
       } else {
         this.events.emit('ELEMENT_SIZE', {
           id: null,
-          xMm: 0, yMm: 0,
+          xMm: 0,
+          yMm: 0,
           widthMm: 0,
           heightMm: 0,
           angleDeg: 0,
@@ -410,10 +421,7 @@ export class SvgCanvas implements ICanvasContext {
       this._overlayCoordinator?.syncGroups();
     });
 
-    this.transformHandler = new TransformHandler(
-      this.camera,
-      this.timeMachine,
-    );
+    this.transformHandler = new TransformHandler(this.camera, this.timeMachine);
     this.groupTransformHandler = new GroupTransformHandler(
       this.camera,
       this.timeMachine,
@@ -432,11 +440,15 @@ export class SvgCanvas implements ICanvasContext {
     }));
     this.view.cameraGroup.appendChild(this.gridOverlay.getElement());
 
+    const overlayEl = new NodeEditOverlayElement('node-edit-overlay');
+    this.shapeManager.add(overlayEl);
+
     this.nodeEdit = new NodeEditCoordinator({
       camera: this.camera,
       getElement: (id) => this.shapeManager.getById(id),
       getAllElements: () => this.shapeManager.getAll(),
       convertToPath: (id) => this._convertToPath(id),
+      getOverlayElement: () => overlayEl,
       onEnter: (ids) => this.events.emit('NODE_EDIT_ENTERED', { ids }),
       onExit: () => this.events.emit('NODE_EDIT_EXITED', {}),
       onSelectionChange: (count) =>
@@ -448,7 +460,6 @@ export class SvgCanvas implements ICanvasContext {
           (id) => this.shapeManager.getById(id),
         ),
     });
-    this.view.cameraGroup.appendChild(this.nodeEdit.renderer.getElement());
 
     this.measure = new MeasureCoordinator({
       camera: this.camera,
@@ -541,6 +552,12 @@ export class SvgCanvas implements ICanvasContext {
     creationHandler.onElementFinalize = (el) => {
       this.elementManager.indexShape(el);
     };
+    creationHandler.onCreationEnd = (el) => {
+      this.selectionState.replace([el]);
+      if (el.type === 'text') {
+        this.textEngine.enterEdit(el.id);
+      }
+    };
     this.creationHandler = creationHandler;
 
     const onGroupSelect = (ids: string[]): void => {
@@ -613,11 +630,12 @@ export class SvgCanvas implements ICanvasContext {
         return this.laserGroupManager.canInteract(id);
       },
       canMove: (id) => {
-        if (this.maskMode && this.shapeManager.getById(id)?.type === 'image') return false;
+        if (this.maskMode && this.shapeManager.getById(id)?.type === 'image')
+          return false;
         return this.laserGroupManager.canMove(id);
       },
-      isTextEditing: () => this.textController.isEditing,
-      onTextEdit: (el) => this.textController.enterEdit(el.id),
+      isTextEditing: () => this.textEngine.isEditing,
+      onTextEdit: (el) => this.textEngine.enterEdit(el.id),
       getGuidelines: () => this.guidelineManager.getGuidelines(),
       getGridLines: () => this.gridOverlay.getGridLines(),
       events: this.events,
@@ -630,7 +648,7 @@ export class SvgCanvas implements ICanvasContext {
     this.eventManager.register(this.booleanHandler);
     this.eventManager.register(this.selectionHandler);
     this.eventManager.register(this.measure);
-    this.eventManager.register(this.textController);
+    this.eventManager.register(this.textEngine);
     this.eventManager.bind();
     requestAnimationFrame(() => {
       this.timeMachine.captureRoot();

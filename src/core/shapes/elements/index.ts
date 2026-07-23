@@ -8,6 +8,7 @@ export { PreviewElement } from './PreviewElement';
 export { PolygonElement } from './PolygonElement';
 export { PolylineElement } from './PolylineElement';
 export { TextElement } from './TextElement';
+export { NodeEditOverlayElement } from './NodeEditOverlayElement';
 export { ImageElement } from './ImageElement';
 export { PatternElement } from './PatternElement';
 export { UseElement } from './UseElement';

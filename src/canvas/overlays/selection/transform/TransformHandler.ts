@@ -91,7 +91,7 @@ export class TransformHandler {
     for (const el of currentSelected) {
       const startMatrix = new DOMMatrix(el.transform.matrix.toString());
       this.startMatrices.set(el.id, startMatrix);
-      if (el.type === 'text' && (el as { rich?: boolean }).rich) {
+      if (el.type === 'text') {
         const b = el.getBBox();
         this.startTextBoxes.set(el.id, {
           x: b.x,
@@ -270,13 +270,15 @@ export class TransformHandler {
         const newX = isRightAnchor ? textBox.x + textBox.w - newW : textBox.x;
         const newY = isBottomAnchor ? textBox.y + textBox.h - newH : textBox.y;
         const t = el as unknown as {
-          posX: string;
-          posY: string;
-          setBox: (w: number, h: number) => void;
+          boxX: number;
+          boxY: number;
+          boxWidth: number;
+          boxHeight: number;
         };
-        t.posX = String(newX);
-        t.posY = String(newY);
-        t.setBox(newW, newH);
+        t.boxX = newX;
+        t.boxY = newY;
+        t.boxWidth = newW;
+        t.boxHeight = newH;
         el.transform.matrix = new DOMMatrix(startMatrix.toString());
         continue;
       }

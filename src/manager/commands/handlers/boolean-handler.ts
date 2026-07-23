@@ -4,6 +4,7 @@ import type { ShapeManager } from '@/manager/ShapeManager';
 import type { TimeMachine } from '@/manager/time-machine/TimeMachine';
 import type { HitTestEngine } from '@/core/hit-test';
 import { PathElement } from '@/core/shapes/elements/PathElement';
+import { commandsToSegments } from '@/core/type';
 
 export const createBooleanOperationHandler = (
   shapeManager: ShapeManager,
@@ -30,7 +31,7 @@ export const createBooleanOperationHandler = (
 
     const newId = crypto.randomUUID();
     const resultEl = new PathElement(newId);
-    resultEl.commands = resultCommands;
+    resultEl.geometry.segments = commandsToSegments(resultCommands);
     resultEl.style.fill = resultFill;
     resultEl.style.stroke = resultStroke;
     resultEl.style.strokeWidth = 2;

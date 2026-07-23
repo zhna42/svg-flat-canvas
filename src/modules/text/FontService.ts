@@ -22,6 +22,7 @@ export class FontService {
   private fm: FontManager | null = null;
   private catalog: FontItem[] = [];
   private loaded = new Set<string>();
+  private bufferCache = new Map<string, ArrayBuffer>();
   private inited = false;
 
   public async init(apiKey: string): Promise<void> {
@@ -71,6 +72,8 @@ export class FontService {
     this.fm.select(font, variant.id);
     const res = await this.fm.confirm();
 
+    this.bufferCache.set(key, res.buffer);
+
     if (typeof FontFace !== 'undefined') {
       const face = new FontFace(family, res.buffer, {
         weight,
@@ -83,17 +86,23 @@ export class FontService {
     return family;
   }
 
-  /** Возвращает полный буфер шрифта через downloadVariant (полный шрифт, без сабсета). */
+  /** Возвращает полный буфер шрифта (из кеша если был загружен, иначе — downloadVariant). */
   public async getFontBuffer(
     family: string,
     weight: string,
     style: FontStyle,
   ): Promise<ArrayBuffer | null> {
+    const key = `${family}|${weight}|${style}`;
+    const cached = this.bufferCache.get(key);
+    if (cached) return cached;
+
     const font = this.findFont(family);
     if (!font || !this.fm) return null;
     const variant = this.fm.resolveVariant(font, weight, style);
     if (!variant) return null;
-    return this.fm.downloadVariant(font, variant.id);
+    const buf = await this.fm.downloadVariant(font, variant.id);
+    if (buf) this.bufferCache.set(key, buf);
+    return buf;
   }
 
   private findFont(family: string): FontItem | undefined {

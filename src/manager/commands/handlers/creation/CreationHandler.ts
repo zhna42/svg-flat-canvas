@@ -9,8 +9,8 @@ import { PolygonElement } from '@/core/shapes/elements/PolygonElement';
 import { PathElement } from '@/core/shapes/elements/PathElement';
 import { TextElement } from '@/core/shapes/elements/TextElement';
 import type { CommandBus } from '@/core/commands/CommandBus';
-import { PathTimeMachine } from '@/core/shapes/path/PathTimeMachine';
 import type { CreationElementType } from '@/core/type';
+import { segmentsToCommands } from '@/core/type';
 import { Camera } from '@/canvas/Camera';
 
 const DEFAULT_STYLE = {
@@ -44,7 +44,6 @@ export class CreationHandler {
   private _editingPath: AbstractGraphicElement | null = null;
 
   private multiPointPoints: Point[] = [];
-  private pathTimeMachine: PathTimeMachine | null = null;
 
   public get editingPathElement(): AbstractGraphicElement | null {
     return this._editingPath;
@@ -58,6 +57,7 @@ export class CreationHandler {
   public onCreationEnd: ((el: AbstractGraphicElement) => void) | null = null;
   public onElementFinalize: ((el: AbstractGraphicElement) => void) | null =
     null;
+  public onEnterTextEdit: ((el: AbstractGraphicElement) => void) | null = null;
 
   public constructor(
     svg: SVGSVGElement,
@@ -162,28 +162,6 @@ export class CreationHandler {
       return true;
     }
 
-    if (
-      this.pathTimeMachine &&
-      (e.metaKey || e.ctrlKey) &&
-      e.key === 'z' &&
-      !e.shiftKey
-    ) {
-      this.pathTimeMachine.undo();
-      e.preventDefault();
-      return true;
-    }
-
-    if (
-      this.pathTimeMachine &&
-      (e.metaKey || e.ctrlKey) &&
-      e.key === 'z' &&
-      e.shiftKey
-    ) {
-      this.pathTimeMachine.redo();
-      e.preventDefault();
-      return true;
-    }
-
     return false;
   }
 
@@ -205,9 +183,9 @@ export class CreationHandler {
         return;
       }
       this.multiPointPoints = [{ x: worldPoint.x, y: worldPoint.y }];
-      const existingCmds = existingPath.geometry.commands;
-      existingCmds.push({ command: 'M', args: [worldPoint.x, worldPoint.y] });
-      existingCmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
+      const segs = existingPath.geometry.segments;
+      segs.push({ type: 'M', x: worldPoint.x, y: worldPoint.y });
+      segs.push({ type: 'L', x: worldPoint.x, y: worldPoint.y });
       existingPath.rebuildHitArea();
       this.currentPreview = existingPath as any;
       this.onCreationStart?.(type);
@@ -222,10 +200,11 @@ export class CreationHandler {
     }
 
     const preview = this.createElementInstance(type);
+    preview.isPreview = true;
     if (type === 'text') {
       preview.style.fill = 'none';
-      preview.style.stroke = 'none';
-      preview.style.strokeWidth = 0;
+      preview.style.stroke = '#000000';
+      preview.style.strokeWidth = 1;
       preview.style.opacity = 1;
     } else {
       preview.style.fill = DEFAULT_STYLE.fill;
@@ -244,12 +223,11 @@ export class CreationHandler {
     if (type === 'path') {
       const path = preview as PathElement;
       const p = this.multiPointPoints[0];
-      path.geometry.commands = [
-        { command: 'M', args: [p.x, p.y] },
-        { command: 'L', args: [p.x, p.y] },
+      path.geometry.segments = [
+        { type: 'M', x: p.x, y: p.y },
+        { type: 'L', x: p.x, y: p.y },
       ];
       path.rebuildHitArea();
-      this.pathTimeMachine = new PathTimeMachine(path);
     }
 
     this.currentPreview = preview;
@@ -275,10 +253,11 @@ export class CreationHandler {
 
     if (el.type === 'path') {
       const path = el as PathElement;
-      const cmds = path.geometry.commands;
-      if (cmds.length < 2) return;
-      const last = cmds[cmds.length - 1];
-      last.args = [worldPoint.x, worldPoint.y];
+      const segs = path.geometry.segments;
+      if (segs.length < 2) return;
+      const last = segs[segs.length - 1];
+      if (last.type === 'L') { last.x = worldPoint.x; last.y = worldPoint.y; }
+      if (last.type === 'M') { last.x = worldPoint.x; last.y = worldPoint.y; }
       path.rebuildHitArea();
       return;
     }
@@ -338,14 +317,14 @@ export class CreationHandler {
     if (type === 'path') {
       this.multiPointPoints.push({ x: worldPoint.x, y: worldPoint.y });
       const path = this.currentPreview as PathElement;
-      const cmds = path.geometry.commands;
-      if (cmds.length > 0) {
-        const last = cmds[cmds.length - 1];
-        last.args = [worldPoint.x, worldPoint.y];
+      const segs = path.geometry.segments;
+      if (segs.length > 0) {
+        const last = segs[segs.length - 1];
+        if (last.type === 'L') { last.x = worldPoint.x; last.y = worldPoint.y; }
+        if (last.type === 'M') { last.x = worldPoint.x; last.y = worldPoint.y; }
       }
-      cmds.push({ command: 'L', args: [worldPoint.x, worldPoint.y] });
+      segs.push({ type: 'L', x: worldPoint.x, y: worldPoint.y });
       path.rebuildHitArea();
-      this.pathTimeMachine?.capture();
       return;
     }
   }
@@ -367,23 +346,24 @@ export class CreationHandler {
     if (worldPoint) {
       if (el.type === 'path') {
         const path = el as PathElement;
-        const cmds = path.geometry.commands;
-        if (cmds.length > 1) {
-          const last = cmds[cmds.length - 1];
-          last.args = [worldPoint.x, worldPoint.y];
+        const segs = path.geometry.segments;
+        if (segs.length > 1) {
+          const last = segs[segs.length - 1];
+          if (last.type === 'L') { last.x = worldPoint.x; last.y = worldPoint.y; }
+          if (last.type === 'M') { last.x = worldPoint.x; last.y = worldPoint.y; }
         }
 
-        const first = cmds[0];
-        if (first.command === 'M' && first.args.length >= 2) {
-          const dx = worldPoint.x - first.args[0];
-          const dy = worldPoint.y - first.args[1];
+        const first = segs[0];
+        if (first.type === 'M') {
+          const dx = worldPoint.x - first.x;
+          const dy = worldPoint.y - first.y;
           if (Math.hypot(dx, dy) < 20) {
-            if (cmds.length >= 4) {
-              cmds.splice(-2, 2);
+            if (segs.length >= 4) {
+              segs.splice(-2, 2);
             } else {
-              cmds.pop();
+              segs.pop();
             }
-            cmds.push({ command: 'Z', args: [] });
+            segs.push({ type: 'Z' });
             path.rebuildHitArea();
             closed = true;
           }
@@ -438,16 +418,16 @@ export class CreationHandler {
     // Если контур уже замкнут (closed), пропускаем очистку
     if (!closed && el.type === 'path') {
       const path = el as PathElement;
-      const cmds = path.geometry.commands;
-      if (cmds.length > 1) {
+      const segs = path.geometry.segments;
+      if (segs.length > 1) {
         if (worldPoint) {
-          if (cmds.length >= 3) {
-            cmds.splice(cmds.length - 2, 1);
+          if (segs.length >= 3) {
+            segs.splice(segs.length - 2, 1);
           }
         } else {
-          const last = cmds[cmds.length - 1];
-          if (last.command === 'L' || last.command === 'Z') {
-            cmds.pop();
+          const last = segs[segs.length - 1];
+          if (last.type === 'L' || last.type === 'Z') {
+            segs.pop();
           }
         }
         path.rebuildHitArea();
@@ -457,10 +437,7 @@ export class CreationHandler {
     // Feature 4: Если рисуем суб-путь внутри editingPath — финализируем через GEOMETRY_MUTATE
     if (el === this._editingPath && el.type === 'path') {
       const path = el as PathElement;
-      const newCommands = path.geometry.commands.map((c) => ({
-        ...c,
-        args: [...c.args],
-      }));
+      const newCommands = segmentsToCommands(path.geometry.segments);
       this.bus.execute({
         type: 'GEOMETRY_MUTATE',
         options: { id: path.id, newCommands },
@@ -482,7 +459,6 @@ export class CreationHandler {
     }
     this.currentPreview = null;
     this.multiPointPoints = [];
-    this.pathTimeMachine = null;
     this._activeType = null;
   }
 
@@ -521,10 +497,6 @@ export class CreationHandler {
         return new PathElement(id);
       case 'text': {
         const t = new TextElement(id);
-        t.rich = true;
-        t.fontFamily = 'sans-serif';
-        t.fontSize = '16';
-        t.color = '#000000';
         return t;
       }
     }
@@ -602,10 +574,10 @@ export class CreationHandler {
 
       case 'text': {
         const t = el as TextElement;
-        t.posX = String(Math.min(start.x, current.x));
-        t.posY = String(Math.min(start.y, current.y));
-        t.boxWidth = String(Math.max(Math.abs(current.x - start.x), 1));
-        t.boxHeight = String(Math.max(Math.abs(current.y - start.y), 1));
+        t.boxX = Math.min(start.x, current.x);
+        t.boxY = Math.min(start.y, current.y);
+        t.boxWidth = Math.max(Math.abs(current.x - start.x), 1);
+        t.boxHeight = Math.max(Math.abs(current.y - start.y), 1);
         t.rebuildHitArea();
         break;
       }

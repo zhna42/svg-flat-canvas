@@ -519,31 +519,6 @@ function setupKeyboardShortcuts(): void {
 
     const meta = e.metaKey || e.ctrlKey;
 
-    // ── Редактирование текста (дабл-клик) ──
-    if (api.textEdit.isTextEditing()) {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        api.textEdit.exitTextEdit();
-        return;
-      }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        e.preventDefault();
-        api.textEdit.deleteTextCharacter('backward');
-        return;
-      }
-      if (meta && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        api.textEdit.undoTextEdit();
-        return;
-      }
-      if (meta && e.key === 'z' && e.shiftKey) {
-        e.preventDefault();
-        api.textEdit.redoTextEdit();
-        return;
-      }
-      return;
-    }
-
     // ── Инструменты измерения ──
     if (api.measure.getMeasureTool()) {
       if (e.key === 'Escape') {

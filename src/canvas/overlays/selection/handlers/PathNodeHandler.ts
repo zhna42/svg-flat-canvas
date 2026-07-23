@@ -1,11 +1,10 @@
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { Point, PathNodeActivation } from '@/core/type';
 import { PathElement } from '@/core/shapes/elements/PathElement';
-import type { PathTimeMachine } from '@/core/shapes/path/PathTimeMachine';
+import { segmentsToCommands, commandsToSegments } from '@/core/type';
 
 export class PathNodeHandler {
   private active: PathNodeActivation | null = null;
-  public pathTimeMachine: PathTimeMachine | null = null;
 
   public onNodeDragStart: ((el: AbstractGraphicElement) => void) | null = null;
   public onNodeDragEnd: (() => void) | null = null;
@@ -33,10 +32,7 @@ export class PathNodeHandler {
 
     this.onNodeDragStart?.(el);
 
-    const cmds = el.geometry.commands.map((c) => ({
-      ...c,
-      args: [...c.args],
-    }));
+    const cmds = segmentsToCommands(el.geometry.segments);
 
     this.active = {
       element: el,
@@ -60,7 +56,8 @@ export class PathNodeHandler {
     this.active.lastMouseWorld = { x: worldPoint.x, y: worldPoint.y };
 
     const path = this.active.element;
-    const cmd = path.geometry.commands[this.active.cmdIdx];
+    const cmds = segmentsToCommands(path.geometry.segments);
+    const cmd = cmds[this.active.cmdIdx];
     if (!cmd) return;
 
     const idx = this.active.ptIdx;
@@ -69,24 +66,14 @@ export class PathNodeHandler {
       cmd.args[idx + 1] += frameDy;
     }
 
+    path.geometry.segments = commandsToSegments(cmds);
     path.rebuildHitArea();
   }
 
   public end(): void {
     if (!this.active) return;
 
-    const path = this.active.element;
-    const newCommands = path.geometry.commands.map((c) => ({
-      ...c,
-      args: [...c.args],
-    }));
-
     this.active = null;
-
-    path.geometry.commands = newCommands;
-    path.rebuildHitArea();
-
-    this.pathTimeMachine?.capture();
 
     this.onNodeDragEnd?.();
     this.onNodeActivate?.(-1);
@@ -95,9 +82,12 @@ export class PathNodeHandler {
   public abort(): void {
     if (!this.active) return;
 
-    this.active = null;
-    this.pathTimeMachine?.undo();
+    const path = this.active.element;
+    path.geometry.segments = commandsToSegments(this.active.startCommands);
+    path.rebuildHitArea();
 
+    this.active = null;
+    this.onNodeDragEnd?.();
     this.onNodeActivate?.(-1);
   }
 }

@@ -1,11 +1,12 @@
 import type { LayerName } from '@/core/type';
+import type { TextChunk } from '@/core/shapes/elements/TextElement';
+import { layoutText } from '@/modules/text/TextLayout';
 import { MM_TO_PX } from '@/constants';
 
 export class CanvasTextRenderer {
-  _textDivs = new Map<string, HTMLDivElement>();
-
   readonly _elements: Map<string, SVGElement>;
   readonly _layers: Map<LayerName, SVGGElement>;
+  _textEls = new Map<string, SVGElement>();
 
   constructor(
     elements: Map<string, SVGElement>,
@@ -21,102 +22,333 @@ export class CanvasTextRenderer {
     diff: Record<string, unknown>,
   ): void {
     const SVG_NS = 'http://www.w3.org/2000/svg';
-    const XHTML_NS = 'http://www.w3.org/1999/xhtml';
-    const isRich = diff._rich === '1';
-    const desiredTag = isRich ? 'foreignObject' : 'text';
 
-    let el = this._elements.get(id);
-    if (!el || el.tagName.toLowerCase() !== desiredTag.toLowerCase()) {
-      if (el) el.remove();
-      this._textDivs.delete(id);
+    let g = this._elements.get(id);
+    if (!g || g.tagName.toLowerCase() !== 'g') {
+      if (g) g.remove();
       const layer = this._layers.get((layerName as LayerName) ?? 'shapesGroup');
       if (!layer) return;
-      el = document.createElementNS(SVG_NS, desiredTag) as SVGElement;
-      el.setAttribute('id', id);
-      layer.appendChild(el);
-      this._elements.set(id, el);
+      g = document.createElementNS(SVG_NS, 'g') as SVGGElement;
+      g.setAttribute('id', id);
+      layer.appendChild(g);
+      this._elements.set(id, g);
+    }
+
+    let textEl = this._textEls.get(id);
+    if (!textEl) {
+      textEl = document.createElementNS(SVG_NS, 'text') as SVGElement;
+      this._textEls.set(id, textEl);
     }
 
     if (diff.transform !== undefined)
-      el.setAttribute('transform', String(diff.transform));
+      g.setAttribute('transform', String(diff.transform));
     if (diff.visibility !== undefined)
-      el.setAttribute('visibility', String(diff.visibility));
+      g.setAttribute('visibility', String(diff.visibility));
     if (diff.opacity !== undefined)
-      el.setAttribute('opacity', String(diff.opacity));
+      g.setAttribute('opacity', String(diff.opacity));
 
-    if (!isRich) {
-      const setA = (k: string, v: unknown): void => {
-        if (v !== undefined) el!.setAttribute(k, String(v));
-      };
-      setA('x', diff.x);
-      setA('y', diff.y);
-      setA(
-        'font-size',
-        diff['font-size'] !== undefined
-          ? Number(diff['font-size']) * MM_TO_PX
-          : undefined,
-      );
-      setA('font-family', diff['font-family']);
-      setA('text-anchor', diff['text-anchor']);
-      setA('fill', diff.fill);
-      el.textContent = String(diff._content ?? '');
+    const modelRaw = diff._model;
+    let model: TextChunk[] = [];
+    if (typeof modelRaw === 'string') {
+      try {
+        model = JSON.parse(modelRaw);
+      } catch {
+        model = [];
+      }
+    }
+
+    const boxX = parseFloat(String(diff._boxX ?? '0'));
+    const boxY = parseFloat(String(diff._boxY ?? '0'));
+    const boxWidth = parseFloat(String(diff._boxWidth ?? '100'));
+    const boxHeight = parseFloat(String(diff._boxHeight ?? '40'));
+    const align = String(diff._align ?? 'left');
+    const lineHeight = parseFloat(String(diff._lineHeight ?? '1.2'));
+    const caretIdx = parseInt(String(diff._caretIdx ?? '-1'), 10);
+    const selStart = parseInt(String(diff._selStart ?? '-1'), 10);
+    const selEnd = parseInt(String(diff._selEnd ?? '-1'), 10);
+    const editing = diff._editing === '1';
+
+    const hasText = model.some((c) => c.text.trim().length > 0);
+    const isPreview = diff._isPreview === '1';
+
+    let boxRect: SVGRectElement | null = g.querySelector(':scope > rect');
+    if (hasText || !isPreview) {
+      if (boxRect) boxRect.remove();
+    } else {
+      if (!boxRect) {
+        boxRect = document.createElementNS(SVG_NS, 'rect') as SVGRectElement;
+        boxRect.setAttribute('fill', 'none');
+        boxRect.setAttribute('stroke', '#000000');
+        boxRect.setAttribute('stroke-width', String(1000));
+        boxRect.setAttribute('pointer-events', 'none');
+        g.insertBefore(boxRect, g.firstChild);
+      }
+      boxRect.setAttribute('x', String(boxX));
+      boxRect.setAttribute('y', String(boxY));
+      boxRect.setAttribute('width', String(Math.max(boxWidth, 1)));
+      boxRect.setAttribute('height', String(Math.max(boxHeight, 1)));
+    }
+
+    if (!g.contains(textEl)) {
+      g.appendChild(textEl);
+    }
+
+    const layout = layoutText(model, boxWidth);
+
+    while (textEl.firstChild) {
+      textEl.removeChild(textEl.firstChild);
+    }
+
+    let baseY = boxY;
+    const lineYPositions: number[] = [];
+
+    for (let li = 0; li < layout.lines.length; li++) {
+      const line = layout.lines[li];
+      const lineDy = line.maxFontSize * lineHeight * MM_TO_PX;
+      const lineY = baseY + line.maxFontSize * MM_TO_PX;
+      lineYPositions.push(baseY);
+
+      let xOffset: number;
+      if (align === 'center') {
+        xOffset = boxX + (boxWidth - line.width) / 2;
+      } else if (align === 'right') {
+        xOffset = boxX + boxWidth - line.width;
+      } else {
+        xOffset = boxX;
+      }
+
+      let isFirstSeg = true;
+
+      for (const seg of line.segments) {
+        const tspan = document.createElementNS(SVG_NS, 'tspan');
+        tspan.textContent = seg.text;
+
+        if (isFirstSeg) {
+          tspan.setAttribute('x', String(xOffset));
+          tspan.setAttribute('y', String(lineY));
+          isFirstSeg = false;
+        }
+
+        tspan.setAttribute('font-size', String(seg.fontSize * MM_TO_PX));
+        tspan.setAttribute('font-family', seg.fontFamily);
+        tspan.setAttribute('font-weight', seg.fontWeight);
+        if (seg.fontStyle === 'italic')
+          tspan.setAttribute('font-style', 'italic');
+        tspan.setAttribute('fill', seg.color);
+
+        if (seg.letterSpacing)
+          tspan.setAttribute(
+            'letter-spacing',
+            String(seg.letterSpacing * MM_TO_PX),
+          );
+
+        if (seg.underline || seg.strike) {
+          const deco: string[] = [];
+          if (seg.underline) deco.push('underline');
+          if (seg.strike) deco.push('line-through');
+          tspan.setAttribute('text-decoration', deco.join(' '));
+        }
+
+        textEl!.appendChild(tspan);
+      }
+
+      baseY += lineDy;
+    }
+
+    this._syncUiOverlay(
+      g,
+      SVG_NS,
+      textEl,
+      layout,
+      boxX,
+      boxY,
+      lineYPositions,
+      caretIdx,
+      selStart,
+      selEnd,
+      editing,
+    );
+  }
+
+  private _syncUiOverlay(
+    g: SVGElement,
+    NS: string,
+    textEl: SVGElement,
+    layout: ReturnType<typeof layoutText>,
+    boxX: number,
+    boxY: number,
+    lineYs: number[],
+    caretIdx: number,
+    selStart: number,
+    selEnd: number,
+    editing: boolean,
+  ): void {
+    let caretLine: SVGLineElement | null = g.querySelector(
+      ':scope > .text-caret',
+    );
+    let selPoly: SVGPolygonElement | null = g.querySelector(
+      ':scope > .text-selection',
+    );
+    let styleEl: HTMLStyleElement | null = g.querySelector(
+      ':scope > .text-caret-style',
+    );
+
+    if (!editing) {
+      if (caretLine) caretLine.remove();
+      if (selPoly) selPoly.remove();
+      if (styleEl) styleEl.remove();
       return;
     }
 
-    el.setAttribute('x', String(diff.x ?? '0'));
-    el.setAttribute('y', String(diff.y ?? '0'));
-    el.setAttribute('width', String(diff.width ?? '0'));
-    el.setAttribute('height', String(diff.height ?? '0'));
-
-    let div = this._textDivs.get(id);
-    if (!div) {
-      div = document.createElementNS(
-        XHTML_NS,
-        'div',
-      ) as unknown as HTMLDivElement;
-      el.appendChild(div);
-      this._textDivs.set(id, div);
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.className = 'text-caret-style';
+      styleEl.textContent =
+        '@keyframes caret-blink{0%,100%{opacity:1}50%{opacity:0}}.text-caret{animation:caret-blink 0.6s infinite}';
+      g.insertBefore(styleEl, g.firstChild);
     }
-    const deco: string[] = [];
-    if (diff._underline === '1') deco.push('underline');
-    if (diff._strike === '1') deco.push('line-through');
-    const isEmpty = !String(diff._content ?? '')
-      .replace(/<[^>]*>/g, '')
-      .trim();
-    div.setAttribute(
-      'style',
-      [
-        'width:100%',
-        'height:100%',
-        'overflow:hidden',
-        'box-sizing:border-box',
-        'white-space:pre-wrap',
-        'word-break:break-word',
-        'outline:none',
-        `font-family:${diff._fontFamily || 'sans-serif'}`,
-        `font-size:${(Number(diff._fontSize) || 16) * MM_TO_PX}px`,
-        `color:${diff._color ?? '#000'}`,
-        `font-weight:${diff._fontWeight ?? '400'}`,
-        `font-style:${diff._italic === '1' ? 'italic' : 'normal'}`,
-        `text-decoration:${deco.length ? deco.join(' ') : 'none'}`,
-        `text-align:${diff._align ?? 'left'}`,
-        `line-height:${diff._lineHeight ?? '1.2'}`,
-        isEmpty
-          ? `background:rgba(255,255,255,0.15);border:${Math.max(1, Math.round((Number(diff._fontSize) || 16) * MM_TO_PX / 100))}px solid #000;`
-          : '',
-      ].join(';'),
-    );
-    if (!div.isContentEditable) {
-      div.innerHTML = String(diff._content ?? '');
+
+    const fullLen = (textEl.textContent ?? '').length;
+
+    if (!selPoly) {
+      selPoly = document.createElementNS(NS, 'polygon') as SVGPolygonElement;
+      selPoly.setAttribute('fill', 'rgba(0,120,215,0.3)');
+      selPoly.classList.add('text-selection');
+      g.appendChild(selPoly);
+    }
+
+    let offset = 0;
+    const allPolys: number[][] = [];
+
+    for (let l = 0; l < layout.lines.length; l++) {
+      const line = layout.lines[l];
+      const lineLen = line.segments.reduce((s, seg) => s + seg.text.length, 0);
+      const ls = Math.max(selStart - offset, 0);
+      const le = Math.min(selEnd - offset, lineLen);
+
+      if (le > ls) {
+        const lineBaseY = lineYs[l] || boxY;
+        const lineH = (line.maxFontSize || 4) * MM_TO_PX;
+        const r1 = this._getCharRectFromDom(textEl, offset + ls, fullLen, boxX, lineH, lineBaseY);
+        const r2 = this._getCharRectFromDom(textEl, offset + le - 1, fullLen, boxX, lineH, lineBaseY);
+
+        allPolys.push([
+          r1.x,
+          lineBaseY,
+          r2.x + r2.w,
+          lineBaseY,
+          r2.x + r2.w,
+          lineBaseY + lineH,
+          r1.x,
+          lineBaseY + lineH,
+        ]);
+      }
+
+      offset += lineLen;
+    }
+
+    if (allPolys.length > 0) {
+      selPoly.setAttribute('points', allPolys.flat().join(' '));
+      selPoly.style.display = '';
+    } else {
+      selPoly.style.display = 'none';
+    }
+
+    if (!caretLine) {
+      caretLine = document.createElementNS(NS, 'line') as SVGLineElement;
+      caretLine.setAttribute('stroke', '#000000');
+      caretLine.setAttribute('stroke-width', '2');
+      caretLine.setAttribute('vector-effect', 'non-scaling-stroke');
+      caretLine.classList.add('text-caret');
+      g.appendChild(caretLine);
+    }
+
+    if (caretIdx < 0) {
+      caretLine.style.display = 'none';
+      return;
+    }
+
+    let co = 0;
+    let found = false;
+
+    for (let l = 0; l < layout.lines.length && !found; l++) {
+      const line = layout.lines[l];
+      const lineLen = line.segments.reduce((s, seg) => s + seg.text.length, 0);
+
+      if (caretIdx >= co && caretIdx <= co + lineLen) {
+        const lineBaseY = lineYs[l] || boxY;
+        const lineH = (line.maxFontSize || 4) * MM_TO_PX;
+        const rect = this._getCharRectFromDom(textEl, caretIdx, fullLen, boxX, lineH, lineBaseY);
+
+        caretLine.setAttribute('x1', String(rect.x));
+        caretLine.setAttribute('y1', String(rect.y));
+        caretLine.setAttribute('x2', String(rect.x));
+        caretLine.setAttribute('y2', String(rect.y + rect.h));
+        caretLine.style.display = '';
+        found = true;
+      }
+
+      co += lineLen;
+    }
+
+    if (!found) {
+      if (layout.lines.length > 0) {
+        const li = layout.lines.length - 1;
+        const lastLine = layout.lines[li];
+        const lastBaseY = lineYs[li] || boxY;
+        const lineH = (lastLine.maxFontSize || 4) * MM_TO_PX;
+        const rect = this._getCharRectFromDom(textEl, fullLen - 1, fullLen, boxX, lineH, lastBaseY);
+
+        caretLine.setAttribute('x1', String(rect.x + rect.w));
+        caretLine.setAttribute('y1', String(rect.y));
+        caretLine.setAttribute('x2', String(rect.x + rect.w));
+        caretLine.setAttribute('y2', String(rect.y + rect.h));
+        caretLine.style.display = '';
+      } else {
+        const lineH = 4 * MM_TO_PX;
+        caretLine.setAttribute('x1', String(boxX));
+        caretLine.setAttribute('y1', String(boxY));
+        caretLine.setAttribute('x2', String(boxX));
+        caretLine.setAttribute('y2', String(boxY + lineH));
+        caretLine.style.display = '';
+      }
     }
   }
 
-  getForeignObject(id: string): SVGElement | undefined {
-    return this._elements.get(id);
+  private _getCharRectFromDom(
+    textEl: SVGElement,
+    charIdx: number,
+    fullLen: number,
+    fallbackX: number,
+    fallbackH: number,
+    fallbackY: number,
+  ): { x: number; y: number; w: number; h: number } {
+    const g = textEl as unknown as {
+      getExtentOfChar?: (i: number) => { x: number; y: number; width: number; height: number };
+    };
+
+    if (fullLen === 0 || typeof g.getExtentOfChar !== 'function') {
+      return { x: fallbackX, y: fallbackY, w: 2, h: fallbackH };
+    }
+
+    const idx = Math.max(0, Math.min(charIdx, fullLen - 1));
+
+    try {
+      const ext = g.getExtentOfChar(idx);
+      const after = charIdx >= fullLen;
+      return {
+        x: after ? ext.x + ext.width : ext.x,
+        y: ext.y,
+        w: 2,
+        h: ext.height,
+      };
+    } catch {
+      return { x: fallbackX, y: fallbackY, w: 2, h: fallbackH };
+    }
   }
 
-  getDiv(id: string): HTMLDivElement | undefined {
-    return this._textDivs.get(id);
+  getTextElement(id: string): SVGElement | undefined {
+    return this._textEls.get(id);
   }
 
   measureBBox(

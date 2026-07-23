@@ -2,48 +2,48 @@ import { AbstractGraphicElement } from './AbstractGraphicElement';
 import type { Point, BoundingBox } from '@/core/type';
 import { RectHitAreaSimple } from '../modules/HitArea';
 
+export interface TextChunk {
+  text: string;
+  color: string;
+  fontWeight: string;
+  fontStyle: 'normal' | 'italic';
+  fontFamily: string;
+  fontSize: number;
+  underline: boolean;
+  strike: boolean;
+  letterSpacing: number;
+}
+
 export class TextElement extends AbstractGraphicElement {
   _ha = new RectHitAreaSimple();
 
-  // Общие / legacy (<text>) поля
-  public posX = '0';
-  public posY = '0';
-  public fontSize = '16';
-  public fontFamily = '';
-  public textAnchor = 'start';
-  public textContent = '';
+  public textModel: TextChunk[] = [];
+  public boxX = 0;
+  public boxY = 0;
+  public boxWidth = 100;
+  public boxHeight = 40;
+  public align: 'left' | 'center' | 'right' = 'left';
+  public lineHeight = 1.2;
 
-  // Rich (foreignObject) модель
-  public rich = false;
-  public boxWidth = '0';
-  public boxHeight = '0';
-  public color = '#000000';
-  public fontWeight = '400';
-  public italic = false;
-  public underline = false;
-  public strike = false;
-  public align = 'left';
-  public lineHeight = '1.2';
+  public caretIdx = -1;
+  public selStart = -1;
+  public selEnd = -1;
+  public editing = false;
 
   public constructor(id: string) {
     super(id, 'text');
     this.subscribeGeometry(
-      'posX',
-      'posY',
-      'fontSize',
-      'fontFamily',
-      'textAnchor',
-      'textContent',
-      'rich',
+      'textModel',
+      'boxX',
+      'boxY',
       'boxWidth',
       'boxHeight',
-      'color',
-      'fontWeight',
-      'italic',
-      'underline',
-      'strike',
       'align',
       'lineHeight',
+      'caretIdx',
+      'selStart',
+      'selEnd',
+      'editing',
     );
   }
 
@@ -52,169 +52,129 @@ export class TextElement extends AbstractGraphicElement {
   }
 
   public buildHitArea(): void {
-    const bbox = this.getBBox();
     this._ha.set([
-      { x: bbox.x, y: bbox.y },
-      { x: bbox.x + bbox.width, y: bbox.y },
-      { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
-      { x: bbox.x, y: bbox.y + bbox.height },
+      { x: this.boxX, y: this.boxY },
+      { x: this.boxX + this.boxWidth, y: this.boxY },
+      { x: this.boxX + this.boxWidth, y: this.boxY + this.boxHeight },
+      { x: this.boxX, y: this.boxY + this.boxHeight },
     ]);
   }
 
   public getBBox(): BoundingBox {
-    if (this.rich) {
-      return {
-        x: parseFloat(this.posX),
-        y: parseFloat(this.posY),
-        width: Math.max(parseFloat(this.boxWidth), 1),
-        height: Math.max(parseFloat(this.boxHeight), 1),
-      };
-    }
-    const fx = parseFloat(this.posX),
-      fy = parseFloat(this.posY),
-      fsize = parseFloat(this.fontSize);
     return {
-      x: fx,
-      y: fy - fsize,
-      width: this.textContent.length * fsize * 0.6,
-      height: fsize,
+      x: this.boxX,
+      y: this.boxY,
+      width: Math.max(this.boxWidth, 1),
+      height: Math.max(this.boxHeight, 1),
     };
   }
 
-  /** Перевести legacy <text> в rich-модель (box + html), сохранив стиль. */
-  public convertToRich(box: BoundingBox): void {
-    const size = parseFloat(this.fontSize) || 16;
-    this.rich = true;
-    this.posX = String(box.x);
-    this.posY = String(box.y);
-    this.boxWidth = String(Math.max(box.width, size));
-    this.boxHeight = String(Math.max(box.height, size * 1.4));
-    this.align =
-      this.textAnchor === 'middle'
-        ? 'center'
-        : this.textAnchor === 'end'
-          ? 'right'
-          : 'left';
-    if (this.textContent && !/[<>]/.test(this.textContent)) {
-      this.textContent = escapeBasic(this.textContent);
-    }
-    this.rebuildHitArea();
+  public get fullText(): string {
+    return this.textModel.map((c) => c.text).join('');
   }
 
-  protected getGeometryProps(): Record<string, unknown> {
-    if (this.rich) {
+  public get defaultStyle(): Omit<TextChunk, 'text'> {
+    if (this.textModel.length > 0) {
+      const {
+        color,
+        fontWeight,
+        fontStyle,
+        fontFamily,
+        fontSize,
+        underline,
+        strike,
+        letterSpacing,
+      } = this.textModel[0];
       return {
-        _rich: '1',
-        x: this.posX,
-        y: this.posY,
-        width: this.boxWidth,
-        height: this.boxHeight,
-        _content: this.textContent,
-        _fontFamily: this.fontFamily,
-        _fontSize: this.fontSize,
-        _color: this.color,
-        _fontWeight: this.fontWeight,
-        _italic: this.italic ? '1' : '',
-        _underline: this.underline ? '1' : '',
-        _strike: this.strike ? '1' : '',
-        _align: this.align,
-        _lineHeight: this.lineHeight,
+        color,
+        fontWeight,
+        fontStyle,
+        fontFamily,
+        fontSize,
+        underline,
+        strike,
+        letterSpacing,
       };
     }
     return {
-      _rich: '',
-      x: this.posX,
-      y: this.posY,
-      'font-size': this.fontSize,
-      'font-family': this.fontFamily,
-      'text-anchor': this.textAnchor,
-      _content: this.textContent,
+      color: '#000000',
+      fontWeight: '400',
+      fontStyle: 'normal',
+      fontFamily: 'Roboto',
+      fontSize: 4,
+      underline: false,
+      strike: false,
+      letterSpacing: 0,
+    };
+  }
+
+  protected getGeometryProps(): Record<string, unknown> {
+    return {
+      _model: JSON.stringify(this.textModel),
+      _boxX: String(this.boxX),
+      _boxY: String(this.boxY),
+      _boxWidth: String(this.boxWidth),
+      _boxHeight: String(this.boxHeight),
+      _align: this.align,
+      _lineHeight: String(this.lineHeight),
+      _isPreview: this.isPreview ? '1' : '',
+      _caretIdx: String(this.caretIdx),
+      _selStart: String(this.selStart),
+      _selEnd: String(this.selEnd),
+      _editing: this.editing ? '1' : '',
     };
   }
 
   protected getGeometrySnapshot(): Record<string, unknown> {
     return {
-      rich: this.rich,
-      x: this.posX,
-      y: this.posY,
-      fontSize: this.fontSize,
-      fontFamily: this.fontFamily,
-      textAnchor: this.textAnchor,
-      textContent: this.textContent,
+      textModel: JSON.stringify(this.textModel),
+      boxX: this.boxX,
+      boxY: this.boxY,
       boxWidth: this.boxWidth,
       boxHeight: this.boxHeight,
-      color: this.color,
-      fontWeight: this.fontWeight,
-      italic: this.italic,
-      underline: this.underline,
-      strike: this.strike,
       align: this.align,
       lineHeight: this.lineHeight,
     };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    const s = data as Record<string, unknown>;
-    if (s.rich !== undefined) this.rich = s.rich as boolean;
-    if (s.x !== undefined) this.posX = s.x as string;
-    if (s.y !== undefined) this.posY = s.y as string;
-    if (s.fontSize !== undefined) this.fontSize = s.fontSize as string;
-    if (s.fontFamily !== undefined) this.fontFamily = s.fontFamily as string;
-    if (s.textAnchor !== undefined) this.textAnchor = s.textAnchor as string;
-    if (s.textContent !== undefined) this.textContent = s.textContent as string;
-    if (s.boxWidth !== undefined) this.boxWidth = s.boxWidth as string;
-    if (s.boxHeight !== undefined) this.boxHeight = s.boxHeight as string;
-    if (s.color !== undefined) this.color = s.color as string;
-    if (s.fontWeight !== undefined) this.fontWeight = s.fontWeight as string;
-    if (s.italic !== undefined) this.italic = s.italic as boolean;
-    if (s.underline !== undefined) this.underline = s.underline as boolean;
-    if (s.strike !== undefined) this.strike = s.strike as boolean;
-    if (s.align !== undefined) this.align = s.align as string;
-    if (s.lineHeight !== undefined) this.lineHeight = s.lineHeight as string;
+    if (typeof data.textModel === 'string') {
+      try {
+        this.textModel = JSON.parse(data.textModel);
+      } catch {
+        this.textModel = [];
+      }
+    }
+    if (typeof data.boxX === 'number') this.boxX = data.boxX;
+    if (typeof data.boxY === 'number') this.boxY = data.boxY;
+    if (typeof data.boxWidth === 'number') this.boxWidth = data.boxWidth;
+    if (typeof data.boxHeight === 'number') this.boxHeight = data.boxHeight;
+    if (typeof data.align === 'string')
+      this.align = data.align as TextElement['align'];
+    if (typeof data.lineHeight === 'number') this.lineHeight = data.lineHeight;
     this.rebuildHitArea();
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {
     const el = clone as TextElement;
-    el.rich = this.rich;
-    el.posX = this.posX;
-    el.posY = this.posY;
-    el.fontSize = this.fontSize;
-    el.fontFamily = this.fontFamily;
-    el.textAnchor = this.textAnchor;
-    el.textContent = this.textContent;
+    el.textModel = this.textModel.map((c) => ({ ...c }));
+    el.boxX = this.boxX;
+    el.boxY = this.boxY;
     el.boxWidth = this.boxWidth;
     el.boxHeight = this.boxHeight;
-    el.color = this.color;
-    el.fontWeight = this.fontWeight;
-    el.italic = this.italic;
-    el.underline = this.underline;
-    el.strike = this.strike;
     el.align = this.align;
     el.lineHeight = this.lineHeight;
     el.rebuildHitArea();
   }
 
-  public setTextContent(text: string): void {
-    this.textContent = text;
-    this.rebuildHitArea();
-  }
-  public getTextContent(): string {
-    return this.textContent;
-  }
-  public setBox(width: number, height: number): void {
-    this.boxWidth = String(Math.max(width, 1));
-    this.boxHeight = String(Math.max(height, 1));
-    this.rebuildHitArea();
-  }
-
   protected flattenTranslateDelta(dx: number, dy: number): void {
-    this.posX = String(parseFloat(this.posX) + dx);
-    this.posY = String(parseFloat(this.posY) + dy);
+    this.boxX += dx;
+    this.boxY += dy;
     this.rebuildHitArea();
   }
 
   public toOutlinePath(): import('./PathElement').PathElement {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { PathElement: PE } = require('./PathElement');
     return new PE(`${this.id}-outline`);
   }
@@ -222,8 +182,4 @@ export class TextElement extends AbstractGraphicElement {
   public toSegmentPolygons(): Point[][] {
     return [];
   }
-}
-
-function escapeBasic(t: string): string {
-  return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

@@ -4,6 +4,7 @@ import { CanvasLayers } from './CanvasLayers';
 import { CanvasSystemNodes } from './CanvasSystemNodes';
 import { CanvasFlexCut } from './CanvasFlexCut';
 import { CanvasTextRenderer } from './CanvasTextRenderer';
+import { CanvasNodeEditRenderer } from './CanvasNodeEditRenderer';
 import { CanvasSelectionBox } from './CanvasSelectionBox';
 import { CanvasLaserStyle } from './CanvasLaserStyle';
 import { CanvasClipPath } from './CanvasClipPath';
@@ -21,13 +22,15 @@ export class CanvasView {
   readonly _systemNodes: CanvasSystemNodes;
   readonly _flexCut: CanvasFlexCut;
   readonly _textRenderer: CanvasTextRenderer;
+  readonly _nodeEditRenderer: CanvasNodeEditRenderer;
   readonly _selectionBox: CanvasSelectionBox;
   readonly _laserStyle: CanvasLaserStyle;
   readonly _clipPath: CanvasClipPath;
   readonly _elementIndex: CanvasElementIndex;
   _elements = new Map<string, SVGElement>();
-  _onImageMoved: ((imageId: string, oldMatrix: DOMMatrix, newMatrix: DOMMatrix) => void) | null =
-    null;
+  _onImageMoved:
+    | ((imageId: string, oldMatrix: DOMMatrix, newMatrix: DOMMatrix) => void)
+    | null = null;
   _onElementRedrawn: ((elementId: string) => void) | null = null;
 
   setFlexTreeProvider(fn: (id: string) => FlexTree | null): void {
@@ -64,6 +67,10 @@ export class CanvasView {
       this._elements,
       canvasLayers._layers,
     );
+    this._nodeEditRenderer = new CanvasNodeEditRenderer(
+      this._elements,
+      canvasLayers._layers,
+    );
     this._selectionBox = new CanvasSelectionBox(factory, canvasLayers._layers);
     this._laserStyle = new CanvasLaserStyle(this._elements);
     this._clipPath = new CanvasClipPath(this._elements, canvasLayers._defsNode);
@@ -83,6 +90,17 @@ export class CanvasView {
       this._textRenderer.sync(id, layerName, diff as Record<string, unknown>);
       return;
     }
+    if (type === 'overlay') {
+      this._nodeEditRenderer.sync(
+        id,
+        layerName,
+        diff as Record<string, unknown>,
+      );
+      return;
+    }
+    if (type === 'path' && !CanvasSystemNodes.isSystem(id)) {
+      // path rendering is handled by NodeDOMFactory via _applyShapeDiff (d attribute)
+    }
     let element = this._elements.get(id);
     if (!element) {
       if (!layerName) return;
@@ -96,7 +114,10 @@ export class CanvasView {
     if (CanvasSystemNodes.isSystem(id)) {
       this._systemNodes.applyDiff(id, element, diff as Record<string, unknown>);
     } else {
-      const syncMasks = type === 'image' && this._clipPath.hasClipPath(id) && this._onImageMoved;
+      const syncMasks =
+        type === 'image' &&
+        this._clipPath.hasClipPath(id) &&
+        this._onImageMoved;
       let oldM: DOMMatrix | null = null;
 
       if (syncMasks) {
@@ -115,9 +136,12 @@ export class CanvasView {
         const newM = new DOMMatrix(nt).translateSelf(nx, ny);
 
         if (
-          newM.a !== oldM.a || newM.b !== oldM.b ||
-          newM.c !== oldM.c || newM.d !== oldM.d ||
-          newM.e !== oldM.e || newM.f !== oldM.f
+          newM.a !== oldM.a ||
+          newM.b !== oldM.b ||
+          newM.c !== oldM.c ||
+          newM.d !== oldM.d ||
+          newM.e !== oldM.e ||
+          newM.f !== oldM.f
         ) {
           this._onImageMoved!(id, oldM, newM);
         }
@@ -168,7 +192,7 @@ export class CanvasView {
       this._elements.delete(id);
     }
     this._laserStyle._baseStyle.delete(id);
-    this._textRenderer._textDivs.delete(id);
+    this._textRenderer._textEls.delete(id);
     this._flexCut.remove(id);
     this._clipPath.remove(id);
   }
@@ -177,12 +201,8 @@ export class CanvasView {
     this._laserStyle.refresh(ids);
   }
 
-  public getTextForeignObject(id: string): SVGElement | undefined {
-    return this._textRenderer.getForeignObject(id);
-  }
-
-  public getTextDiv(id: string): HTMLDivElement | undefined {
-    return this._textRenderer.getDiv(id);
+  public getTextSvgElement(id: string): SVGElement | undefined {
+    return this._textRenderer.getTextElement(id);
   }
 
   public measureTextBBox(

@@ -1,25 +1,27 @@
 import type { SvgCanvas } from '@/canvas/SvgCanvas';
-import type { TextController } from '@/modules/text';
-import type { TextStylePatch } from '@/modules/text';
+import type { CadTextEngine, TextStylePatch } from '@/modules/text';
+import { setEngineDefaultFont, getEngineDefaultFont } from '@/modules/text';
 
 export class TextEditController {
   constructor(private canvas: SvgCanvas) {}
 
-  private get tc(): TextController {
-    return this.canvas.textController;
+  private get engine(): CadTextEngine {
+    return this.canvas.textEngine;
   }
 
   async initTextFonts(apiKey: string): Promise<void> {
-    await this.tc.fonts.init(apiKey);
+    await this.canvas.fonts.init(apiKey);
+    const def = getEngineDefaultFont();
+    await this.canvas.fonts.ensureLoaded(def.family, def.weight, 'normal');
     this.canvas.events.emit('FONTS_READY', {});
   }
 
   searchFonts(query = '', category?: string) {
-    return this.tc.fonts.search(query, category);
+    return this.canvas.fonts.search(query, category);
   }
 
   getFontVariants(family: string) {
-    return this.tc.fonts.getVariants(family);
+    return this.canvas.fonts.getVariants(family);
   }
 
   activateTextTool(): void {
@@ -27,70 +29,167 @@ export class TextEditController {
   }
 
   enterTextEdit(id: string): void {
-    this.tc.enterEdit(id);
+    this.engine.enterEdit(id);
   }
 
   exitTextEdit(): void {
-    this.tc.exitEdit();
+    this.engine.exitEdit();
   }
 
   isTextEditing(): boolean {
-    return this.tc.isEditing;
+    return this.engine.isEditing;
   }
 
   async setTextStyle(patch: TextStylePatch): Promise<void> {
-    await this.tc.applyStyle(patch);
+    const p = patch;
+    if (p.fontFamily || p.fontWeight || p.italic || p.fontSize) {
+      const el = this.engine.isEditing
+        ? this.canvas.shapeManager.getById(this.engine.getEditingId()!)
+        : null;
+      const curFamily =
+        p.fontFamily ??
+        (el
+          ? (el as import('@/core/shapes/elements/TextElement').TextElement)
+              .defaultStyle.fontFamily
+          : 'Roboto');
+      const curWeight =
+        p.fontWeight ??
+        (el
+          ? (el as import('@/core/shapes/elements/TextElement').TextElement)
+              .defaultStyle.fontWeight
+          : '400');
+      const curItalic = p.italic
+        ? 'italic'
+        : el
+          ? (el as import('@/core/shapes/elements/TextElement').TextElement)
+              .defaultStyle.fontStyle
+          : 'normal';
+      this.canvas.events.emit('FONT_LOADING_START', {
+        family: curFamily,
+        weight: curWeight,
+      });
+      await this.canvas.fonts.ensureLoaded(curFamily, curWeight, curItalic);
+      this.canvas.events.emit('FONT_LOADING_END', {
+        family: curFamily,
+        weight: curWeight,
+      });
+    }
+    if (this.engine.isEditing) {
+      this.engine.applyStyleToSelection(patch);
+    } else {
+      const ids = this.canvas.selectionState.selected
+        .filter((e) => e.type === 'text')
+        .map((e) => e.id);
+      for (const id of ids) {
+        const el = this.canvas.shapeManager.getById(id) as
+          | import('@/core/shapes/elements/TextElement').TextElement
+          | undefined;
+        if (!el || !el.textModel || el.textModel.length === 0) continue;
+        el.textModel = el.textModel.map((c) => {
+          const styled = { ...c };
+          if (p.fontFamily !== undefined) styled.fontFamily = p.fontFamily;
+          if (p.fontWeight !== undefined) styled.fontWeight = p.fontWeight;
+          if (p.italic !== undefined)
+            styled.fontStyle = p.italic ? 'italic' : 'normal';
+          if (p.fontSize !== undefined) styled.fontSize = p.fontSize;
+          if (p.color !== undefined) styled.color = p.color;
+          if (p.underline !== undefined) styled.underline = p.underline;
+          if (p.strike !== undefined) styled.strike = p.strike;
+          if (p.letterSpacing !== undefined)
+            styled.letterSpacing = p.letterSpacing;
+          return styled;
+        });
+      }
+    }
   }
 
-  setTextFontSize(px: number): void {
-    void this.tc.applyStyle({ fontSizePx: px });
+  setTextFontSize(px: number): Promise<void> {
+    return this.setTextStyle({ fontSize: px });
   }
 
   setTextFontFamily(family: string): void {
-    void this.tc.applyStyle({ fontFamily: family });
+    setEngineDefaultFont(family, '400');
+    void this.setTextStyle({ fontFamily: family });
   }
 
   setTextWeight(weight: string): void {
-    void this.tc.applyStyle({ fontWeight: weight });
+    const cur = getEngineDefaultFont();
+    setEngineDefaultFont(cur.family, weight);
+    void this.setTextStyle({ fontWeight: weight });
   }
 
   setTextItalic(italic: boolean): void {
-    void this.tc.applyStyle({ italic });
+    void this.setTextStyle({ italic });
   }
 
   setTextColor(color: string): void {
-    void this.tc.applyStyle({ color });
+    void this.setTextStyle({ color });
   }
 
   setTextUnderline(on: boolean): void {
-    void this.tc.applyStyle({ underline: on });
+    void this.setTextStyle({ underline: on });
   }
 
   setTextStrike(on: boolean): void {
-    void this.tc.applyStyle({ strike: on });
+    void this.setTextStyle({ strike: on });
+  }
+
+  setTextLetterSpacing(value: number): void {
+    void this.setTextStyle({ letterSpacing: value });
+  }
+
+  setTextLineHeight(value: number): void {
+    const ids = this.engine.isEditing
+      ? [this.engine.getEditingId()!]
+      : this.canvas.selectionState.selected
+          .filter((e) => e.type === 'text')
+          .map((e) => e.id);
+    for (const id of ids) {
+      const el = this.canvas.shapeManager.getById(id) as
+        | import('@/core/shapes/elements/TextElement').TextElement
+        | undefined;
+      if (el) el.lineHeight = value;
+    }
   }
 
   setTextAlign(align: 'left' | 'center' | 'right'): void {
-    void this.tc.applyStyle({ align });
+    const ids = this.engine.isEditing
+      ? [this.engine.getEditingId()!]
+      : this.canvas.selectionState.selected
+          .filter((e) => e.type === 'text')
+          .map((e) => e.id);
+    for (const id of ids) {
+      const el = this.canvas.shapeManager.getById(id) as
+        | import('@/core/shapes/elements/TextElement').TextElement
+        | undefined;
+      if (el) el.align = align;
+    }
   }
 
   getText(id: string): string | null {
-    return this.tc.getContent(id);
+    return this.engine.getContent(id);
   }
 
   setText(id: string, html: string): void {
-    this.tc.setContent(id, html);
+    const el = this.canvas.shapeManager.getById(id) as
+      | import('@/core/shapes/elements/TextElement').TextElement
+      | undefined;
+    if (el) {
+      el.textModel = [
+        { ...el.defaultStyle, text: html.replace(/<[^>]*>/g, '') },
+      ];
+    }
   }
 
-  deleteTextCharacter(direction: 'forward' | 'backward'): void {
-    this.tc.deleteCharacter(direction);
+  deleteTextCharacter(_direction: 'forward' | 'backward'): void {
+    // Теперь все операции ввода идут через нативную textarea — клавиши Delete/Backspace не требуют программной эмуляции
   }
 
   undoTextEdit(): void {
-    this.tc.undo();
+    // Единый TimeMachine
   }
 
   redoTextEdit(): void {
-    this.tc.redo();
+    // Единый TimeMachine
   }
 }

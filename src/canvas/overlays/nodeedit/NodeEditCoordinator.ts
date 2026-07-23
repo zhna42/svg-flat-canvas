@@ -2,25 +2,23 @@ import type { Camera } from '@/canvas/Camera';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { Point, NodeKind, NodeHit, INodeEditable } from '@/core/type';
 import { PathElement } from '@/core/shapes/elements/PathElement';
+import { NodeEditOverlayElement } from '@/core/shapes/elements/NodeEditOverlayElement';
 import { NodeEditSession } from './NodeEditSession';
-import { NodeEditRenderer } from './NodeEditRenderer';
-import { NodeEditTimeMachine } from './NodeEditTimeMachine';
 import { NodeSnapHelper } from './NodeSnapHelper';
 
 const HIT_PX = 40000;
+const ANCHOR_PX = 27;
 
 export interface NodeEditDeps {
   camera: Camera;
   getElement: (id: string) => AbstractGraphicElement | undefined;
   getAllElements: () => AbstractGraphicElement[];
-  /** Конвертировать элемент (polyline/polygon) в PathElement с тем же id. */
   convertToPath: (id: string) => PathElement | null;
+  getOverlayElement: () => NodeEditOverlayElement;
   onEnter?: (ids: string[]) => void;
   onExit?: () => void;
   onSelectionChange?: (count: number) => void;
-  /** Скрыть обводку выделения (transform-бокс) на время правки узлов. */
   hideSelectionOverlay?: () => void;
-  /** Восстановить обводку выделения после выхода. */
   restoreSelectionOverlay?: () => void;
 }
 
@@ -38,28 +36,26 @@ interface DragState {
 
 export class NodeEditCoordinator {
   public readonly session = new NodeEditSession();
-  public readonly renderer = new NodeEditRenderer();
   private readonly snap: NodeSnapHelper;
-  private timeMachine: NodeEditTimeMachine | null = null;
   private deps: NodeEditDeps;
   private editingIds = new Set<string>();
   private drag: DragState | null = null;
+  public readonly overlayEl: NodeEditOverlayElement;
 
   constructor(deps: NodeEditDeps) {
     this.deps = deps;
+    this.overlayEl = deps.getOverlayElement();
     this.snap = new NodeSnapHelper(deps.camera, deps.getAllElements);
 
     this.session.onGeometryChange = (id): void => {
       this.applyBack(id);
-      this.renderOverlay();
+      this.syncOverlay();
     };
     this.session.onSelectionChange = (): void => {
-      this.renderOverlay();
+      this.syncOverlay();
       this.deps.onSelectionChange?.(this.session.getSelectedCount());
     };
   }
-
-  // ── Lifecycle ──
 
   public get isActive(): boolean {
     return !this.session.isEmpty;
@@ -76,15 +72,14 @@ export class NodeEditCoordinator {
 
     const models = editable.map((el) => {
       el.isEditingNodes = true;
+      if ('_suppressHitArea' in el) (el as PathElement)._suppressHitArea = true;
       return el.toEditModel();
     });
     this.editingIds = new Set(editable.map((el) => el.id));
     this.session.setTargets(models);
     this.deps.hideSelectionOverlay?.();
-    this.timeMachine = new NodeEditTimeMachine(this.session, (id) => {
-      this.applyBack(id);
-    });
-    this.renderOverlay();
+    this.syncOverlay();
+    this.overlayEl.editing = true; // маркер для RenderScheduler
     this.deps.onEnter?.(Array.from(this.editingIds));
   }
 
@@ -92,29 +87,91 @@ export class NodeEditCoordinator {
     if (this.session.isEmpty) return;
     for (const id of this.editingIds) {
       const el = this.deps.getElement(id);
-      if (el) el.isEditingNodes = false;
+      if (el) {
+        el.isEditingNodes = false;
+        if ('_suppressHitArea' in el)
+          (el as PathElement)._suppressHitArea = false;
+        (el as PathElement).rebuildHitArea();
+      }
     }
     this.editingIds.clear();
     this.session.clear();
+    this.overlayEl.editing = false;
+    this.overlayEl.anchorRects = {};
+    this.overlayEl.controlCircles = {};
+    this.overlayEl.handleLines = {};
     this.deps.restoreSelectionOverlay?.();
-    this.timeMachine?.clear();
-    this.timeMachine = null;
     this.drag = null;
-    this.renderer.clear();
     this.deps.onExit?.();
   }
 
-  // ── Camera ──
-
   public onZoomChange(): void {
-    if (this.isActive) this.renderer.setZoom(this.deps.camera.zoom);
+    if (this.isActive) this.syncOverlay();
   }
 
-  private renderOverlay(): void {
-    this.renderer.render(this.session.getTargets(), this.deps.camera.zoom);
-  }
+  private syncOverlay(): void {
+    const targets = this.session.getTargets();
+    const zoom = this.deps.camera.zoom;
+    const z = zoom > 0 ? zoom : 1;
+    const anchorSz = ANCHOR_PX / z;
+    const half = anchorSz / 2;
 
-  // ── Write-back (+ авто-конверсия в path при кривизне) ──
+    const anchors: typeof this.overlayEl.anchorRects = {};
+    const controls: typeof this.overlayEl.controlCircles = {};
+    const lines: typeof this.overlayEl.handleLines = {};
+
+    for (const target of targets) {
+      for (const contour of target.contours) {
+        for (const node of contour.nodes) {
+          const sel = target.selection.has(node.id);
+
+          if (sel) {
+            if (node.handleIn) {
+              lines[`${node.id}-in`] = {
+                x1: node.anchor.x,
+                y1: node.anchor.y,
+                x2: node.handleIn.x,
+                y2: node.handleIn.y,
+              };
+              controls[`${node.id}-in`] = {
+                cx: node.handleIn.x,
+                cy: node.handleIn.y,
+              };
+            }
+            if (node.handleOut) {
+              lines[`${node.id}-out`] = {
+                x1: node.anchor.x,
+                y1: node.anchor.y,
+                x2: node.handleOut.x,
+                y2: node.handleOut.y,
+              };
+              controls[`${node.id}-out`] = {
+                cx: node.handleOut.x,
+                cy: node.handleOut.y,
+              };
+            }
+          }
+
+          anchors[node.id] = {
+            x: node.anchor.x - half,
+            y: node.anchor.y - half,
+            w: anchorSz,
+            h: anchorSz,
+            kind:
+              node.type === 'corner'
+                ? 'corner'
+                : node.type === 'symmetric'
+                  ? 'symmetric'
+                  : 'smooth',
+          };
+        }
+      }
+    }
+
+    this.overlayEl.anchorRects = anchors;
+    this.overlayEl.controlCircles = controls;
+    this.overlayEl.handleLines = lines;
+  }
 
   private applyBack(id: string): void {
     const el = this.deps.getElement(id);
@@ -130,8 +187,6 @@ export class NodeEditCoordinator {
     editable.applyEditModel(model);
   }
 
-  // ── Hit test ──
-
   public hitNode(worldX: number, worldY: number): NodeHit | null {
     const r = HIT_PX / this.deps.camera.zoom;
     return this.session.hitNode(worldX, worldY, r);
@@ -141,7 +196,6 @@ export class NodeEditCoordinator {
     return this.drag !== null;
   }
 
-  /** Начать взаимодействие с узлом. Возвращает true, если попали. */
   public pointerDown(worldPt: Point): boolean {
     const hit = this.hitNode(worldPt.x, worldPt.y);
     if (!hit) return false;
@@ -191,10 +245,8 @@ export class NodeEditCoordinator {
 
   public pointerUp(): void {
     if (!this.drag) return;
-    const moved = this.drag.moved;
     this.drag = null;
     this.snap.reset();
-    if (moved) this.commit();
   }
 
   private collectSnapNodes(hit: NodeHit): Point[] {
@@ -210,8 +262,6 @@ export class NodeEditCoordinator {
     return pts;
   }
 
-  // ── Insert node on dbl-click ──
-
   public insertAt(worldX: number, worldY: number): boolean {
     const maxD = 12 / this.deps.camera.zoom;
     let best: {
@@ -223,7 +273,9 @@ export class NodeEditCoordinator {
     } | null = null;
 
     for (const target of this.session.getTargets()) {
-      target.contours.forEach((contour, contourIdx) => {
+      const contours = target.contours;
+      for (let contourIdx = 0; contourIdx < contours.length; contourIdx++) {
+        const contour = contours[contourIdx];
         const n = contour.nodes.length;
         const segCount = contour.closed ? n : n - 1;
         for (let s = 0; s < segCount; s++) {
@@ -240,31 +292,21 @@ export class NodeEditCoordinator {
             };
           }
         }
-      });
+      }
     }
-    const chosen = best as {
-      elementId: string;
-      contourIdx: number;
-      segIdx: number;
-      t: number;
-      dist: number;
-    } | null;
-    if (!chosen || chosen.dist > maxD) return false;
+    if (!best || best.dist > maxD) return false;
     const nodeId = this.session.insertNode(
-      chosen.elementId,
-      chosen.contourIdx,
-      chosen.segIdx,
-      chosen.t,
+      best.elementId,
+      best.contourIdx,
+      best.segIdx,
+      best.t,
     );
     if (nodeId) {
-      this.session.selectSingle(chosen.elementId, nodeId);
-      this.commit();
+      this.session.selectSingle(best.elementId, nodeId);
       return true;
     }
     return false;
   }
-
-  // ── API operations ──
 
   public setMultiSelect(on: boolean): void {
     this.session.multiSelectMode = on;
@@ -272,30 +314,23 @@ export class NodeEditCoordinator {
   public getMultiSelect(): boolean {
     return this.session.multiSelectMode;
   }
-
   public deleteSelected(): void {
     this.session.deleteSelected();
-    this.commit();
   }
   public setSelectedType(kind: NodeKind): void {
     this.session.setSelectedType(kind);
-    this.commit();
   }
   public smoothSelected(): void {
     this.session.smoothSelected();
-    this.commit();
   }
   public sharpenSelected(): void {
     this.session.sharpenSelected();
-    this.commit();
   }
   public distributeEvenly(): void {
     this.session.distributeSelectedEvenly();
-    this.commit();
   }
   public nudge(dx: number, dy: number): void {
     this.session.moveSelected(dx, dy);
-    this.commit();
   }
   public selectAll(): void {
     this.session.selectAll();
@@ -309,22 +344,8 @@ export class NodeEditCoordinator {
   public getSelectedCount(): number {
     return this.session.getSelectedCount();
   }
-
   public clickEmpty(): void {
     if (!this.session.multiSelectMode) this.session.clearSelection();
-  }
-
-  public undo(): void {
-    this.timeMachine?.undo();
-    this.renderOverlay();
-  }
-  public redo(): void {
-    this.timeMachine?.redo();
-    this.renderOverlay();
-  }
-
-  private commit(): void {
-    this.timeMachine?.capture();
   }
 }
 

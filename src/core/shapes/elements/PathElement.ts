@@ -3,17 +3,18 @@ import type {
   Point,
   BoundingBox,
   PathCommand,
+  PathSegment,
   NodeEditPoint,
   EditNodeModel,
   INodeEditable,
 } from '@/core/type';
-import { PathHitArea } from '../modules/HitArea';
 import {
-  commandsToString,
-  flattenCommands,
-  parseD,
-  transformCommands,
-} from '@/core/math/path';
+  segmentsToCommands,
+  commandsToSegments,
+  segmentsToD,
+} from '@/core/type';
+import { PathHitArea } from '../modules/HitArea';
+import { flattenCommands, parseD, transformCommands } from '@/core/math/path';
 import {
   commandsToContours,
   contoursToCommands,
@@ -27,49 +28,55 @@ export class PathElement
   _ha = new PathHitArea();
   public readonly supportsCurves = true;
   public isSimpleHitArea = false;
+  public _suppressHitArea = false;
 
   public geometry = {
-    commands: [] as PathCommand[],
+    segments: [] as PathSegment[],
   };
 
   public constructor(id: string) {
     super(id, 'path');
-    this.subscribeGeometry('geometry.commands');
+    this.subscribeGeometry('geometry.segments');
   }
 
   public get hitArea(): Point[] {
     return this._ha.points;
   }
 
-  public get commands(): PathCommand[] {
-    return this.geometry.commands;
-  }
-
-  public set commands(cmds: PathCommand[]) {
-    this.geometry.commands = cmds;
-  }
-
   public buildHitArea(): void {
-    const cmds = this.geometry.commands;
-    if (cmds.length === 0) return;
+    if (this._suppressHitArea) return;
+    const segs = this.geometry.segments;
+    if (segs.length === 0) return;
 
     if (this.isSimpleHitArea) {
-      // Быстрый прямоугольный хит-тест без flattenCommands
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-      for (const cmd of cmds) {
-        const args = cmd.args;
-        for (let i = 0; i < args.length; i += 2) {
-          if (args[i] < minX) minX = args[i];
-          if (args[i] > maxX) maxX = args[i];
-          if (args[i + 1] < minY) minY = args[i + 1];
-          if (args[i + 1] > maxY) maxY = args[i + 1];
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      for (const s of segs) {
+        if (s.type === 'Z') continue;
+        const pts =
+          s.type === 'C'
+            ? [
+                [s.c1x, s.c1y],
+                [s.c2x, s.c2y],
+                [s.x, s.y],
+              ]
+            : [
+                [
+                  (s as { x: number; y: number }).x,
+                  (s as { x: number; y: number }).y,
+                ],
+              ];
+        for (const [cx, cy] of pts) {
+          if (cx < minX) minX = cx;
+          if (cx > maxX) maxX = cx;
+          if (cy < minY) minY = cy;
+          if (cy > maxY) maxY = cy;
         }
       }
       if (minX > maxX || minY > maxY) return;
-      const isClosed =
-        cmds.length > 0 &&
-        (cmds[cmds.length - 1].command === 'Z' ||
-          cmds[cmds.length - 1].command === 'z');
+      const isClosed = segs.length > 0 && segs[segs.length - 1].type === 'Z';
       this._ha.set(
         [
           { x: minX, y: minY },
@@ -84,11 +91,9 @@ export class PathElement
       return;
     }
 
+    const cmds = segmentsToCommands(segs);
     const flat = flattenCommands(cmds);
-    const isClosed =
-      cmds.length > 0 &&
-      (cmds[cmds.length - 1].command === 'Z' ||
-        cmds[cmds.length - 1].command === 'z');
+    const isClosed = segs.length > 0 && segs[segs.length - 1].type === 'Z';
     this._ha.set(flat, this.style.strokeWidth, this.style.hasFill, isClosed);
   }
 
@@ -114,29 +119,38 @@ export class PathElement
 
   protected getGeometrySnapshot(): Record<string, unknown> {
     return {
-      commands: this.geometry.commands.map((c) => ({
-        ...c,
-        args: [...c.args],
-      })),
+      segments: this.geometry.segments.map((s) =>
+        s.type === 'C'
+          ? { ...s }
+          : s.type === 'Z'
+            ? { type: 'Z' as const }
+            : { ...s },
+      ),
     };
   }
 
   protected applyGeometrySnapshot(data: Record<string, unknown>): void {
-    if (data.commands !== undefined) {
-      this.geometry.commands = (data.commands as PathCommand[]).map((c) => ({
-        ...c,
-        args: [...c.args],
-      }));
+    if (data.segments !== undefined) {
+      this.geometry.segments = (data.segments as PathSegment[]).map((s) =>
+        s.type === 'C'
+          ? { ...s }
+          : s.type === 'Z'
+            ? { type: 'Z' as const }
+            : { ...s },
+      );
     }
     this.rebuildHitArea();
   }
 
   protected copyGeometryTo(clone: AbstractGraphicElement): void {
     const el = clone as PathElement;
-    el.geometry.commands = this.geometry.commands.map((c) => ({
-      ...c,
-      args: [...c.args],
-    }));
+    el.geometry.segments = this.geometry.segments.map((s) =>
+      s.type === 'C'
+        ? { ...s }
+        : s.type === 'Z'
+          ? { type: 'Z' as const }
+          : { ...s },
+    );
     el.rebuildHitArea();
   }
 
@@ -145,12 +159,12 @@ export class PathElement
   }
 
   public set d(val: string) {
-    this.geometry.commands = parseD(val);
+    this.geometry.segments = commandsToSegments(parseD(val));
     this.rebuildHitArea();
   }
 
   public toDString(): string {
-    return commandsToString(this.geometry.commands);
+    return segmentsToD(this.geometry.segments);
   }
 
   public applyMatrixToD(
@@ -162,14 +176,16 @@ export class PathElement
     f: number,
   ): void {
     const m = new DOMMatrix([a, b, c, d, e, f]);
-    this.geometry.commands = transformCommands(this.geometry.commands, m);
+    const cmds = segmentsToCommands(this.geometry.segments);
+    this.geometry.segments = commandsToSegments(transformCommands(cmds, m));
     this.rebuildHitArea();
   }
 
   public flattenTransform(): void {
     const m = this.transform.matrix;
     if (m.isIdentity) return;
-    this.geometry.commands = transformCommands(this.geometry.commands, m);
+    const cmds = segmentsToCommands(this.geometry.segments);
+    this.geometry.segments = commandsToSegments(transformCommands(cmds, m));
     this.transform.reset();
     this.rebuildHitArea();
   }
@@ -181,19 +197,17 @@ export class PathElement
     this.applyMatrixToD(1, 0, 0, 1, dx, dy);
   }
 
-  // ---- Subpath utilities ----
-
   public getSubpathRanges(): Array<{ start: number; end: number }> {
     const ranges: Array<{ start: number; end: number }> = [];
-    const cmds = this.geometry.commands;
+    const segs = this.geometry.segments;
     let start = -1;
-    for (let i = 0; i < cmds.length; i++) {
-      if (cmds[i].command.toUpperCase() === 'M') {
+    for (let i = 0; i < segs.length; i++) {
+      if (segs[i].type === 'M') {
         if (start >= 0) ranges.push({ start, end: i - 1 });
         start = i;
       }
     }
-    if (start >= 0) ranges.push({ start, end: cmds.length - 1 });
+    if (start >= 0) ranges.push({ start, end: segs.length - 1 });
     return ranges;
   }
 
@@ -232,115 +246,128 @@ export class PathElement
     prevEndX: number,
     prevEndY: number,
   ): void {
-    const cmds = this.geometry.commands;
-    const nextCmd = cmds[cmdIdx + 1];
-    if (!nextCmd) {
-      cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
+    const segs = this.geometry.segments;
+    if (cmdIdx < 0 || cmdIdx >= segs.length) return;
+
+    let nextSeg: PathSegment | null = null;
+    for (let i = cmdIdx + 1; i < segs.length; i++) {
+      if (segs[i].type !== 'Z') {
+        nextSeg = segs[i];
+        break;
+      }
+    }
+
+    if (!nextSeg) {
+      segs.splice(cmdIdx + 1, 0, { type: 'L', x, y });
       return;
     }
 
-    const nc = nextCmd.command.toUpperCase();
-
-    if (nc === 'C' && nextCmd.args.length >= 6) {
+    if (nextSeg.type === 'C') {
       const sx = prevEndX;
       const sy = prevEndY;
-      const [c1x, c1y, c2x, c2y, ex, ey] = nextCmd.args;
       const { left, right } = PathElement.splitCubic(
         sx,
         sy,
-        c1x,
-        c1y,
-        c2x,
-        c2y,
-        ex,
-        ey,
+        nextSeg.c1x,
+        nextSeg.c1y,
+        nextSeg.c2x,
+        nextSeg.c2y,
+        nextSeg.x,
+        nextSeg.y,
         t,
       );
-      nextCmd.args = [left[2], left[3], left[4], left[5], left[6], left[7]];
-      cmds.splice(cmdIdx + 1, 0, {
-        command: 'C',
-        args: [right[2], right[3], right[4], right[5], right[6], right[7]],
+      nextSeg.c1x = left[2];
+      nextSeg.c1y = left[3];
+      nextSeg.c2x = left[4];
+      nextSeg.c2y = left[5];
+      nextSeg.x = left[6];
+      nextSeg.y = left[7];
+      segs.splice(cmdIdx + 1, 0, {
+        type: 'C',
+        c1x: right[2],
+        c1y: right[3],
+        c2x: right[4],
+        c2y: right[5],
+        x: right[6],
+        y: right[7],
       });
-    } else if (nc === 'S' && nextCmd.args.length >= 4) {
-      const sx = prevEndX;
-      const sy = prevEndY;
-      const prevCmd = cmds[cmdIdx];
-      const pc = prevCmd?.command.toUpperCase();
-      let reflectX = sx;
-      let reflectY = sy;
-      if (pc === 'C' && prevCmd.args.length >= 6) {
-        reflectX = 2 * sx - prevCmd.args[2];
-        reflectY = 2 * sy - prevCmd.args[3];
-      }
-      const [c2x, c2y, ex, ey] = nextCmd.args;
-      const { left, right } = PathElement.splitCubic(
-        sx,
-        sy,
-        reflectX,
-        reflectY,
-        c2x,
-        c2y,
-        ex,
-        ey,
-        t,
-      );
-      nextCmd.args = [left[4], left[5], left[6], left[7]];
-      nextCmd.command = 'S';
-      cmds.splice(cmdIdx + 1, 0, {
-        command: 'S',
-        args: [right[4], right[5], right[6], right[7]],
-      });
-    } else if (nc === 'Q' && nextCmd.args.length >= 4) {
-      const [c1x, c1y, ex, ey] = nextCmd.args;
+    } else if (nextSeg.type === 'Q') {
       const A = {
-        x: prevEndX + (c1x - prevEndX) * t,
-        y: prevEndY + (c1y - prevEndY) * t,
+        x: prevEndX + (nextSeg.cx - prevEndX) * t,
+        y: prevEndY + (nextSeg.cy - prevEndY) * t,
       };
-      const B = { x: c1x + (ex - c1x) * t, y: c1y + (ey - c1y) * t };
+      const B = {
+        x: nextSeg.cx + (nextSeg.x - nextSeg.cx) * t,
+        y: nextSeg.cy + (nextSeg.y - nextSeg.cy) * t,
+      };
       const F = { x: A.x + (B.x - A.x) * t, y: A.y + (B.y - A.y) * t };
-      nextCmd.args = [A.x, A.y, F.x, F.y];
-      cmds.splice(cmdIdx + 1, 0, {
-        command: 'Q',
-        args: [B.x, B.y, ex, ey],
+      nextSeg.cx = A.x;
+      nextSeg.cy = A.y;
+      nextSeg.x = F.x;
+      nextSeg.y = F.y;
+      segs.splice(cmdIdx + 1, 0, {
+        type: 'Q',
+        cx: B.x,
+        cy: B.y,
+        x: nextSeg.x,
+        y: nextSeg.y,
       });
+    } else if (nextSeg.type === 'L') {
+      segs.splice(cmdIdx + 1, 0, { type: 'L', x: nextSeg.x, y: nextSeg.y });
     } else {
-      cmds.splice(cmdIdx + 1, 0, { command: 'L', args: [x, y] });
+      segs.splice(cmdIdx + 1, 0, { type: 'L', x, y });
     }
   }
 
   public changeNodeType(cmdIdx: number, newType: 'L' | 'C'): void {
-    const cmd = this.geometry.commands[cmdIdx];
-    if (!cmd) return;
-    const c = cmd.command.toUpperCase();
+    const seg = this.geometry.segments[cmdIdx];
+    if (!seg) return;
     if (newType === 'L') {
-      if (c === 'C' && cmd.args.length >= 6) {
-        cmd.args = [cmd.args[4], cmd.args[5]];
-      } else if (c === 'S' && cmd.args.length >= 4) {
-        cmd.args = [cmd.args[2], cmd.args[3]];
-      } else if (c === 'Q' && cmd.args.length >= 4) {
-        cmd.args = [cmd.args[2], cmd.args[3]];
+      (seg as PathSegment).type = 'L';
+      if (seg.type === 'C') {
+        const c = seg as {
+          c1x: number;
+          c1y: number;
+          c2x: number;
+          c2y: number;
+          x: number;
+          y: number;
+        };
+        (seg as any).x = c.x;
+        (seg as any).y = c.y;
+        delete (seg as any).c1x;
+        delete (seg as any).c1y;
+        delete (seg as any).c2x;
+        delete (seg as any).c2y;
       }
-      cmd.command = 'L';
     } else if (newType === 'C') {
-      if (cmd.args.length >= 2) {
-        const x = cmd.args[0];
-        const y = cmd.args[1];
-        cmd.args = [x - 25, y, x, y - 25, x, y];
-        cmd.command = 'C';
-      }
+      const x = 'x' in seg ? (seg as { x: number }).x : 0;
+      const y = 'y' in seg ? (seg as { y: number }).y : 0;
+      const ns: any = {
+        type: 'C',
+        c1x: x - 25,
+        c1y: y,
+        c2x: x,
+        c2y: y - 25,
+        x,
+        y,
+      };
+      this.geometry.segments[cmdIdx] = ns;
     }
   }
 
   public removeNodeAt(cmdIdx: number): void {
-    const cmds = this.geometry.commands;
-    if (cmdIdx < 0 || cmdIdx >= cmds.length) return;
-    cmds.splice(cmdIdx, 1);
-    if (cmdIdx === 0 && cmds.length > 0) {
-      const next = cmds[0];
-      const nc = next.command.toUpperCase();
-      if (nc === 'L' || nc === 'C' || nc === 'S' || nc === 'Q' || nc === 'T') {
-        next.command = 'M';
-      }
+    const segs = this.geometry.segments;
+    if (cmdIdx < 0 || cmdIdx >= segs.length) return;
+    segs.splice(cmdIdx, 1);
+    if (cmdIdx === 0 && segs.length > 0) {
+      const s = segs[0];
+      if (s.type !== 'Z' && s.type !== 'M')
+        segs[0] = {
+          type: 'M',
+          x: 'x' in s ? (s as any).x : 0,
+          y: 'y' in s ? (s as any).y : 0,
+        };
     }
   }
 
@@ -349,167 +376,104 @@ export class PathElement
     if (subpathIdx < 0 || subpathIdx >= ranges.length) return;
     const { start, end } = ranges[subpathIdx];
     for (let i = start; i <= end; i++) {
-      const cmd = this.geometry.commands[i];
-      for (let j = 0; j < cmd.args.length; j++) {
-        if (j % 2 === 0) cmd.args[j] += dx;
-        else cmd.args[j] += dy;
+      const s = this.geometry.segments[i];
+      if (s.type === 'Z') continue;
+      if (s.type === 'C') {
+        s.c1x += dx;
+        s.c1y += dy;
+        s.c2x += dx;
+        s.c2y += dy;
+        s.x += dx;
+        s.y += dy;
+      } else if (s.type === 'Q') {
+        s.cx += dx;
+        s.cy += dy;
+        s.x += dx;
+        s.y += dy;
+      } else {
+        (s as { x: number; y: number }).x += dx;
+        (s as { x: number; y: number }).y += dy;
       }
     }
   }
 
-  // ---- Node editing ----
-
   public getNodeEditPoints(): NodeEditPoint[] {
     const result: NodeEditPoint[] = [];
-    const cmds = this.geometry.commands;
+    const segs = this.geometry.segments;
     let prevAnchor: Point | null = null;
 
-    for (let cmdIdx = 0; cmdIdx < cmds.length; cmdIdx++) {
-      const cmd = cmds[cmdIdx];
-      const c = cmd.command.toUpperCase();
+    for (let ci = 0; ci < segs.length; ci++) {
+      const s = segs[ci];
 
-      if (c === 'M') {
-        if (cmd.args.length >= 2) {
-          const world = this.transform.transformPoint({
-            x: cmd.args[0],
-            y: cmd.args[1],
-          });
-          result.push({
-            x: world.x,
-            y: world.y,
-            type: 'anchor',
-            cmdIdx,
-            ptIdx: 0,
-          });
-          prevAnchor = world;
-        }
-      } else if (c === 'L') {
-        if (cmd.args.length >= 2) {
-          const world = this.transform.transformPoint({
-            x: cmd.args[0],
-            y: cmd.args[1],
-          });
-          result.push({
-            x: world.x,
-            y: world.y,
-            type: 'anchor',
-            cmdIdx,
-            ptIdx: 0,
-          });
-          prevAnchor = world;
-        }
-      } else if (c === 'C' && cmd.args.length >= 6) {
-        const endWorld = this.transform.transformPoint({
-          x: cmd.args[4],
-          y: cmd.args[5],
+      if (s.type === 'M') {
+        const world = this.transform.transformPoint({ x: s.x, y: s.y });
+        result.push({
+          x: world.x,
+          y: world.y,
+          type: 'anchor',
+          cmdIdx: ci,
+          ptIdx: 0,
         });
-        const control1World = this.transform.transformPoint({
-          x: cmd.args[0],
-          y: cmd.args[1],
+        prevAnchor = world;
+      } else if (s.type === 'L') {
+        const world = this.transform.transformPoint({ x: s.x, y: s.y });
+        result.push({
+          x: world.x,
+          y: world.y,
+          type: 'anchor',
+          cmdIdx: ci,
+          ptIdx: 0,
         });
-        const control2World = this.transform.transformPoint({
-          x: cmd.args[2],
-          y: cmd.args[3],
-        });
-
+        prevAnchor = world;
+      } else if (s.type === 'C') {
+        const endWorld = this.transform.transformPoint({ x: s.x, y: s.y });
+        const c1World = this.transform.transformPoint({ x: s.c1x, y: s.c1y });
+        const c2World = this.transform.transformPoint({ x: s.c2x, y: s.c2y });
         if (prevAnchor) {
           result.push({
-            x: control1World.x,
-            y: control1World.y,
+            x: c1World.x,
+            y: c1World.y,
             type: 'control',
-            cmdIdx,
+            cmdIdx: ci,
             ptIdx: 0,
             parentAnchor: { x: prevAnchor.x, y: prevAnchor.y },
           });
         }
-
         result.push({
-          x: control2World.x,
-          y: control2World.y,
+          x: c2World.x,
+          y: c2World.y,
           type: 'control',
-          cmdIdx,
+          cmdIdx: ci,
           ptIdx: 2,
           parentAnchor: { x: endWorld.x, y: endWorld.y },
         });
-
         result.push({
           x: endWorld.x,
           y: endWorld.y,
           type: 'anchor',
-          cmdIdx,
+          cmdIdx: ci,
           ptIdx: 4,
         });
         prevAnchor = endWorld;
-      } else if (c === 'Q' && cmd.args.length >= 4) {
-        const endWorld = this.transform.transformPoint({
-          x: cmd.args[2],
-          y: cmd.args[3],
-        });
-        const controlWorld = this.transform.transformPoint({
-          x: cmd.args[0],
-          y: cmd.args[1],
-        });
-
+      } else if (s.type === 'Q') {
+        const endWorld = this.transform.transformPoint({ x: s.x, y: s.y });
+        const cWorld = this.transform.transformPoint({ x: s.cx, y: s.cy });
         if (prevAnchor) {
           result.push({
-            x: controlWorld.x,
-            y: controlWorld.y,
+            x: cWorld.x,
+            y: cWorld.y,
             type: 'control',
-            cmdIdx,
+            cmdIdx: ci,
             ptIdx: 0,
             parentAnchor: { x: prevAnchor.x, y: prevAnchor.y },
           });
         }
-
         result.push({
           x: endWorld.x,
           y: endWorld.y,
           type: 'anchor',
-          cmdIdx,
+          cmdIdx: ci,
           ptIdx: 2,
-        });
-        prevAnchor = endWorld;
-      } else if (c === 'S' && cmd.args.length >= 4) {
-        const controlWorld = this.transform.transformPoint({
-          x: cmd.args[0],
-          y: cmd.args[1],
-        });
-        const endWorld = this.transform.transformPoint({
-          x: cmd.args[2],
-          y: cmd.args[3],
-        });
-
-        if (prevAnchor) {
-          result.push({
-            x: controlWorld.x,
-            y: controlWorld.y,
-            type: 'control',
-            cmdIdx,
-            ptIdx: 0,
-            parentAnchor: { x: prevAnchor.x, y: prevAnchor.y },
-          });
-        }
-
-        result.push({
-          x: endWorld.x,
-          y: endWorld.y,
-          type: 'anchor',
-          cmdIdx,
-          ptIdx: 2,
-        });
-        prevAnchor = endWorld;
-      } else if (c === 'T' && cmd.args.length >= 2) {
-        const endWorld = this.transform.transformPoint({
-          x: cmd.args[0],
-          y: cmd.args[1],
-        });
-
-        result.push({
-          x: endWorld.x,
-          y: endWorld.y,
-          type: 'anchor',
-          cmdIdx,
-          ptIdx: 0,
         });
         prevAnchor = endWorld;
       }
@@ -518,7 +482,8 @@ export class PathElement
   }
 
   public toEditModel(): EditNodeModel {
-    const contours = commandsToContours(this.geometry.commands);
+    const cmds = segmentsToCommands(this.geometry.segments);
+    const contours = commandsToContours(cmds);
     const m = this.transform.matrix;
     mapContours(contours, (p) => {
       const tp = m.transformPoint(new DOMPoint(p.x, p.y));
@@ -537,11 +502,13 @@ export class PathElement
       const tp = inv.transformPoint(new DOMPoint(p.x, p.y));
       return { x: tp.x, y: tp.y };
     });
-    this.geometry.commands = contoursToCommands(contours);
+    const cmds = contoursToCommands(contours);
+    this.geometry.segments = commandsToSegments(cmds);
     this.rebuildHitArea();
   }
 
   public toOutlinePath(): PathElement {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { svgStringToOutlinePath } = require('./svg-outline');
     const d = this.toDString();
     const fill = this.style.hasFill
@@ -552,9 +519,10 @@ export class PathElement
   }
 
   public toSegmentPolygons(): Point[][] {
+    const cmds = segmentsToCommands(this.geometry.segments);
     const subPaths: PathCommand[][] = [];
     let cur: PathCommand[] = [];
-    for (const cmd of this.geometry.commands) {
+    for (const cmd of cmds) {
       if (cmd.command === 'M' && cur.length > 0) {
         subPaths.push(cur);
         cur = [];
@@ -562,7 +530,6 @@ export class PathElement
       cur.push(cmd);
     }
     if (cur.length > 0) subPaths.push(cur);
-
     const result: Point[][] = [];
     for (const sp of subPaths) {
       const pts = flattenCommands(sp);

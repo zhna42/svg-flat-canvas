@@ -5,6 +5,7 @@ import type { CurveTarget, ScreenBezierSeg } from '@/core/type';
 import { CircleElement } from '@/core/shapes/elements/CircleElement';
 import { EllipseElement } from '@/core/shapes/elements/EllipseElement';
 import { PathElement } from '@/core/shapes/elements/PathElement';
+import { segmentsToCommands } from '@/core/type';
 import { flattenCommands } from '@/core/math/path';
 import {
   approximateArc,
@@ -47,8 +48,9 @@ export function getCenterlinePoints(
 
   if (el instanceof PathElement) {
     const steps = Math.max(12, Math.round(12 * camera.zoom));
-    const cmds = el.geometry.commands;
-    if (cmds.length === 0) return [];
+    const segs = el.geometry.segments;
+    if (segs.length === 0) return [];
+    const cmds = segmentsToCommands(segs);
     return toWorld(flattenCommands(cmds, steps));
   }
 
@@ -260,7 +262,7 @@ export function extractBezierTargets(
   const targets: CurveTarget[] = [];
   for (const el of elements) {
     if (!(el instanceof PathElement)) continue;
-    const cmds = el.geometry.commands;
+    const cmds = segmentsToCommands(el.geometry.segments);
     if (cmds.length === 0) continue;
     const segs: ScreenBezierSeg[] = [];
     let curX = 0;

@@ -1,5 +1,6 @@
 import { PathElement } from './PathElement';
 import { parseD } from '@/core/math/path';
+import { commandsToSegments } from '@/core/type';
 
 type OutlineFn = (
   svgData: string,
@@ -27,7 +28,7 @@ export function svgStringToOutlinePath(
   const d = outline(svgString, 0, { tagName: 'path' });
   const path = new PathElement(id);
   if (d) {
-    path.geometry.commands = parseD(d);
+    path.geometry.segments = commandsToSegments(parseD(d));
   }
   path.buildHitArea();
   return path;

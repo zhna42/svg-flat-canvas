@@ -71,11 +71,11 @@ export class NodeEditController {
   }
 
   undoNodeEdit(): void {
-    this.canvas.nodeEdit.undo();
+    this.canvas.timeMachine.undo();
   }
 
   redoNodeEdit(): void {
-    this.canvas.nodeEdit.redo();
+    this.canvas.timeMachine.redo();
   }
 
   getElementPath(id: string): string | null {

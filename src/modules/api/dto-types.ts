@@ -65,6 +65,11 @@ export interface TextGeometryDTO {
   fontFamily?: string;
   textAnchor?: string;
   textContent?: string;
+  boxWidth?: number;
+  boxHeight?: number;
+  fontSizePx?: number;
+  color?: string;
+  fontWeight?: string;
 }
 
 export interface ImageGeometryDTO {

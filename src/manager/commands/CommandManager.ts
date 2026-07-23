@@ -12,6 +12,7 @@ import { createCreateHandler } from '@/manager/commands/handlers/create-handler'
 import { createCreateFileHandler } from '@/manager/commands/handlers/create-file-handler';
 import { createBooleanOperationHandler } from '@/manager/commands/handlers/boolean-handler';
 import { PathElement } from '@/core/shapes/elements/PathElement';
+import { commandsToSegments } from '@/core/type';
 
 const EDIT_COMMANDS = new Set([
   'DRAG_END',
@@ -207,7 +208,9 @@ export class CommandManager {
         if (command.type !== 'GEOMETRY_MUTATE') return;
         const el = findPath(command.options.id);
         if (el) {
-          el.geometry.commands = command.options.newCommands;
+          el.geometry.segments = commandsToSegments(
+            command.options.newCommands,
+          );
           el.rebuildHitArea();
         }
       }),
