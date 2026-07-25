@@ -103,8 +103,8 @@ export class TextEditController {
     }
   }
 
-  setTextFontSize(px: number): Promise<void> {
-    return this.setTextStyle({ fontSize: px });
+  setTextFontSize(microns: number): Promise<void> {
+    return this.setTextStyle({ fontSize: microns / 1000 });
   }
 
   setTextFontFamily(family: string): void {

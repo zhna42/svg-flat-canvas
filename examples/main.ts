@@ -70,6 +70,7 @@ function setupTextPanel(): void {
   fontSel.onchange = () => {
     fillWeights(fontSel.value);
     api.textEdit.setTextFontFamily(fontSel.value);
+    sizeInp.value = '4000';
   };
   weightSel.onchange = () => api.textEdit.setTextWeight(weightSel.value);
   sizeInp.onchange = () => api.textEdit.setTextFontSize(parseFloat(sizeInp.value));
