@@ -38,6 +38,7 @@ function setupTextPanel(): void {
   const fontSel = document.getElementById('txt-font') as HTMLSelectElement;
   const weightSel = document.getElementById('txt-weight') as HTMLSelectElement;
   const sizeInp = document.getElementById('txt-size') as HTMLInputElement;
+  const lineHInp = document.getElementById('txt-line-height') as HTMLInputElement;
   const colorInp = document.getElementById('txt-color') as HTMLInputElement;
 
   const fillWeights = (family: string): void => {
@@ -74,6 +75,7 @@ function setupTextPanel(): void {
   };
   weightSel.onchange = () => api.textEdit.setTextWeight(weightSel.value);
   sizeInp.onchange = () => api.textEdit.setTextFontSize(parseFloat(sizeInp.value));
+  lineHInp.onchange = () => api.textEdit.setTextLineHeight(parseFloat(lineHInp.value));
   colorInp.onchange = () => api.textEdit.setTextColor(colorInp.value);
   document.getElementById('txt-italic')!.onclick = () =>
     api.textEdit.setTextItalic(toggleBtn('txt-italic'));
