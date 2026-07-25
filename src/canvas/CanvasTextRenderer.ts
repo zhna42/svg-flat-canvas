@@ -79,7 +79,8 @@ export class CanvasTextRenderer {
         boxRect = document.createElementNS(SVG_NS, 'rect') as SVGRectElement;
         boxRect.setAttribute('fill', 'none');
         boxRect.setAttribute('stroke', '#000000');
-        boxRect.setAttribute('stroke-width', String(1000));
+        boxRect.setAttribute('stroke-width', '2');
+        boxRect.setAttribute('vector-effect', 'non-scaling-stroke');
         boxRect.setAttribute('pointer-events', 'none');
         g.insertBefore(boxRect, g.firstChild);
       }
@@ -229,8 +230,22 @@ export class CanvasTextRenderer {
       if (le > ls) {
         const lineBaseY = lineYs[l] || boxY;
         const lineH = (line.maxFontSize || 4) * MM_TO_PX;
-        const r1 = this._getCharRectFromDom(textEl, offset + ls, fullLen, boxX, lineH, lineBaseY);
-        const r2 = this._getCharRectFromDom(textEl, offset + le - 1, fullLen, boxX, lineH, lineBaseY);
+        const r1 = this._getCharRectFromDom(
+          textEl,
+          offset + ls,
+          fullLen,
+          boxX,
+          lineH,
+          lineBaseY,
+        );
+        const r2 = this._getCharRectFromDom(
+          textEl,
+          offset + le - 1,
+          fullLen,
+          boxX,
+          lineH,
+          lineBaseY,
+        );
 
         allPolys.push([
           r1.x,
@@ -278,7 +293,14 @@ export class CanvasTextRenderer {
       if (caretIdx >= co && caretIdx <= co + lineLen) {
         const lineBaseY = lineYs[l] || boxY;
         const lineH = (line.maxFontSize || 4) * MM_TO_PX;
-        const rect = this._getCharRectFromDom(textEl, caretIdx, fullLen, boxX, lineH, lineBaseY);
+        const rect = this._getCharRectFromDom(
+          textEl,
+          caretIdx,
+          fullLen,
+          boxX,
+          lineH,
+          lineBaseY,
+        );
 
         caretLine.setAttribute('x1', String(rect.x));
         caretLine.setAttribute('y1', String(rect.y));
@@ -297,7 +319,14 @@ export class CanvasTextRenderer {
         const lastLine = layout.lines[li];
         const lastBaseY = lineYs[li] || boxY;
         const lineH = (lastLine.maxFontSize || 4) * MM_TO_PX;
-        const rect = this._getCharRectFromDom(textEl, fullLen - 1, fullLen, boxX, lineH, lastBaseY);
+        const rect = this._getCharRectFromDom(
+          textEl,
+          fullLen - 1,
+          fullLen,
+          boxX,
+          lineH,
+          lastBaseY,
+        );
 
         caretLine.setAttribute('x1', String(rect.x + rect.w));
         caretLine.setAttribute('y1', String(rect.y));
@@ -324,7 +353,12 @@ export class CanvasTextRenderer {
     fallbackY: number,
   ): { x: number; y: number; w: number; h: number } {
     const g = textEl as unknown as {
-      getExtentOfChar?: (i: number) => { x: number; y: number; width: number; height: number };
+      getExtentOfChar?: (i: number) => {
+        x: number;
+        y: number;
+        width: number;
+        height: number;
+      };
     };
 
     if (fullLen === 0 || typeof g.getExtentOfChar !== 'function') {

@@ -5,8 +5,8 @@ export class LassoOverlay extends ReactiveNode {
   public points = '';
   public fill = 'rgba(255, 165, 0, 0.1)';
   public stroke = '#ff8c00';
-  public strokeWidth = 1500;
-  public strokeDasharray = '3000 2000';
+  public strokeWidth = 2;
+  public strokeDasharray = '4 3';
   public visibility: 'visible' | 'hidden' = 'hidden';
 
   constructor(registerDirty: (node: IRenderableNode) => void) {
@@ -22,6 +22,7 @@ export class LassoOverlay extends ReactiveNode {
       'stroke-width': this.strokeWidth,
       'stroke-dasharray': this.strokeDasharray,
       'stroke-linejoin': 'round',
+      'vector-effect': 'non-scaling-stroke',
       visibility: this.visibility,
       'pointer-events': 'none',
     };

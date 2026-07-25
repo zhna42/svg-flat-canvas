@@ -4,8 +4,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const ACCENT = '#4285f4';
 const FILL = '#ffffff';
 const LINE_COLOR = '#a0a0a0';
-const STROKE_W = 4500;
-const LINE_W = 3000;
+const STROKE_W = 2;
+const LINE_W = 1;
 const CTRL_R = 10;
 
 export class CanvasNodeEditRenderer {
@@ -100,6 +100,7 @@ export class CanvasNodeEditRenderer {
         el.setAttribute('fill', FILL);
         el.setAttribute('stroke', ACCENT);
         el.setAttribute('stroke-width', String(STROKE_W));
+        el.setAttribute('vector-effect', 'non-scaling-stroke');
         el.setAttribute('data-ctrl-id', ctrlId);
         g.appendChild(el);
       }
@@ -125,6 +126,7 @@ export class CanvasNodeEditRenderer {
         el = document.createElementNS(SVG_NS, 'line') as SVGLineElement;
         el.setAttribute('stroke', LINE_COLOR);
         el.setAttribute('stroke-width', String(LINE_W));
+        el.setAttribute('vector-effect', 'non-scaling-stroke');
         el.setAttribute('data-line-id', lineId);
         g.appendChild(el);
       }
@@ -151,6 +153,7 @@ function createAnchor(
     r.setAttribute('fill', FILL);
     r.setAttribute('stroke', ACCENT);
     r.setAttribute('stroke-width', String(STROKE_W));
+    r.setAttribute('vector-effect', 'non-scaling-stroke');
     g.appendChild(r);
     return r;
   } else if (kind === 'symmetric') {
@@ -161,6 +164,7 @@ function createAnchor(
     poly.setAttribute('fill', FILL);
     poly.setAttribute('stroke', ACCENT);
     poly.setAttribute('stroke-width', String(STROKE_W));
+    poly.setAttribute('vector-effect', 'non-scaling-stroke');
     g.appendChild(poly);
     return poly;
   } else {
@@ -169,6 +173,7 @@ function createAnchor(
     c.setAttribute('fill', FILL);
     c.setAttribute('stroke', ACCENT);
     c.setAttribute('stroke-width', String(STROKE_W));
+    c.setAttribute('vector-effect', 'non-scaling-stroke');
     g.appendChild(c);
     return c;
   }

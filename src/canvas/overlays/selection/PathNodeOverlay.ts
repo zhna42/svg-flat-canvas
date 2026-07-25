@@ -90,6 +90,7 @@ export class PathNodeOverlay {
       line.setAttribute('y2', String(screen.y));
       line.setAttribute('stroke', '#a0a0a0');
       line.setAttribute('stroke-width', '1');
+      line.setAttribute('vector-effect', 'non-scaling-stroke');
       line.setAttribute('pointer-events', 'none');
       this.root.appendChild(line);
     }
@@ -108,6 +109,7 @@ export class PathNodeOverlay {
         circle.setAttribute('fill', fillColor);
         circle.setAttribute('stroke', STROKE_COLOR);
         circle.setAttribute('stroke-width', '1.5');
+        circle.setAttribute('vector-effect', 'non-scaling-stroke');
         circle.setAttribute('data-type', 'path-node');
         circle.setAttribute('data-element-id', el.id);
         circle.setAttribute('data-cmd-idx', String(node.cmdIdx));
@@ -122,6 +124,7 @@ export class PathNodeOverlay {
         handle.setAttribute('fill', fillColor);
         handle.setAttribute('stroke', STROKE_COLOR);
         handle.setAttribute('stroke-width', '1.5');
+        handle.setAttribute('vector-effect', 'non-scaling-stroke');
         handle.setAttribute('data-type', 'path-node');
         handle.setAttribute('data-element-id', el.id);
         handle.setAttribute('data-cmd-idx', String(node.cmdIdx));
