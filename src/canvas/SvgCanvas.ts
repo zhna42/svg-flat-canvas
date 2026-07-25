@@ -26,8 +26,6 @@ import {
   LaserSettings,
   LaserColorResolver,
 } from '@/modules/laser';
-import { LaserLayerManager, LaserLayerRenderer } from '@/modules/laser/layers';
-import type { LaserLayerGroupInfo } from '@/modules/laser/layers';
 import { CadTextEngine } from '@/modules/text/CadTextEngine';
 import { FontService } from '@/modules/text';
 import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
@@ -111,8 +109,6 @@ export class SvgCanvas implements ICanvasContext {
   laserGroupManager!: LaserGroupManager;
   laserSettings!: LaserSettings;
   laserColorResolver!: LaserColorResolver;
-  laserLayerManager!: LaserLayerManager;
-  laserLayerRenderer!: LaserLayerRenderer;
 
   textEngine!: CadTextEngine;
   fonts!: FontService;
@@ -120,8 +116,6 @@ export class SvgCanvas implements ICanvasContext {
   selectionHandler!: SelectionHandler;
   creationHandler!: CreationHandler;
 
-  public mode: 'edit' | 'layers' = 'edit';
-  public orphanGroupsVisible = true;
   public maskMode: { imageId: string } | null = null;
 
   private _api!: ExternalApi;
@@ -251,13 +245,6 @@ export class SvgCanvas implements ICanvasContext {
       if (maskOverride) return maskOverride;
       return this.laserColorResolver.resolve(id);
     });
-
-    this.laserLayerManager = new LaserLayerManager(this.laserGroupManager, () =>
-      this.shapeManager.getAll(),
-    );
-    this.laserLayerManager.setEvents(this.events);
-    this.laserLayerRenderer = new LaserLayerRenderer();
-    this.laserLayerRenderer.init(this.svg, this.camera);
   }
 
   /** Пересчёт градации + переприменение стилей + отрисовка. */
@@ -278,68 +265,6 @@ export class SvgCanvas implements ICanvasContext {
       return { fill: 'none', stroke: '#ff00ff', opacity: 0.5 };
     }
     return null;
-  }
-
-  /** Переключение режима редактирования / слоёв лазера. */
-  public setMode(mode: 'edit' | 'layers'): void {
-    if (this.mode === mode) return;
-    this.mode = mode;
-
-    if (mode === 'layers') {
-      this.view.setLayerVisibility('shapesGroup', false);
-      this.view.setLayerVisibility('previewGroup', false);
-      this._rebuildLayerOverlay();
-      this.selectionState.clear();
-      this.selectionManager.clear();
-    } else {
-      this.view.setLayerVisibility('shapesGroup', true);
-      this.view.setLayerVisibility('previewGroup', true);
-      this.laserLayerRenderer.clear();
-      this._refreshLaser();
-    }
-
-    this.events.emit('MODE_CHANGED', { mode: this.mode });
-  }
-
-  public _rebuildLayerOverlay(): void {
-    const layers = this.laserLayerManager.getLayers();
-    const elements = this.shapeManager.getAll().filter((e) => !e.isPreview);
-
-    const layerInfos = layers.map((l) => ({
-      layerId: l.id,
-      groups: this.laserLayerManager.getLayerGroupInfo(l.id),
-    }));
-
-    let orphanGroups: LaserLayerGroupInfo[] = [];
-    if (this.orphanGroupsVisible) {
-      const allGroupIds = this.laserGroupManager.getGroups().map((g) => g.id);
-      const layerGroupIds = new Set(
-        layers.flatMap((l) => Array.from(l.groupIds)),
-      );
-      const orphanIds = allGroupIds.filter((gid) => !layerGroupIds.has(gid));
-      orphanGroups = orphanIds.flatMap((gid) => {
-        const group = this.laserGroupManager.getGroup(gid);
-        if (!group) return [];
-        const elementIds = Array.from(group.elementIds);
-        const resolved = this.laserLayerManager.resolveElements(elementIds);
-        return [
-          {
-            groupId: group.id,
-            groupName: group.name,
-            type: group.type,
-            elementIds,
-            resolvedElementIds: resolved,
-          },
-        ];
-      });
-    }
-
-    this.laserLayerRenderer.build(
-      elements,
-      layerInfos,
-      orphanGroups,
-      this.orphanGroupsVisible,
-    );
   }
 
   private _initElementManager(): void {

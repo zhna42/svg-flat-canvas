@@ -6,7 +6,6 @@ import type {
   LaserOpType,
   LaserSettingsInfo,
 } from '@/modules/laser';
-import type { LaserLayerData } from '@/modules/laser/layers';
 
 export class LaserController {
   constructor(private canvas: SvgCanvas) {}
@@ -176,70 +175,10 @@ export class LaserController {
     };
   }
 
-  createLaserLayer(name?: string): string {
-    return this.canvas.laserLayerManager.createLayer(
-      name ? { name } : undefined,
-    );
-  }
-
-  deleteLaserLayer(id: string): void {
-    this.canvas.laserLayerManager.deleteLayer(id);
-  }
-
-  addGroupToLayer(layerId: string, groupId: string): void {
-    this.canvas.laserLayerManager.addGroupToLayer(layerId, groupId);
-  }
-
-  removeGroupFromLayer(layerId: string, groupId: string): void {
-    this.canvas.laserLayerManager.removeGroupFromLayer(layerId, groupId);
-  }
-
-  setLayerVisibility(layerId: string, visible: boolean): void {
-    this.canvas.laserLayerManager.setLayerVisibility(layerId, visible);
-    if (this.canvas.mode === 'layers') {
-      this.canvas._rebuildLayerOverlay();
-    }
-  }
-
-  getLaserLayers(): LaserLayerData[] {
-    return this.canvas.laserLayerManager.getLayerData();
-  }
-
-  loadLaserLayers(data: LaserLayerData[]): void {
-    this.canvas.laserLayerManager.loadLayers(data);
-  }
-
-  setOrphanGroupsVisible(visible: boolean): void {
-    this.canvas.orphanGroupsVisible = visible;
-    if (this.canvas.mode === 'layers') {
-      this.canvas._rebuildLayerOverlay();
-    }
-  }
-
-  getOrphanGroupsVisible(): boolean {
-    return this.canvas.orphanGroupsVisible;
-  }
-
-  reorderLayer(layerId: string, newIndex: number): void {
-    const layers = this.canvas.laserLayerManager.getLayers();
-    const idx = layers.findIndex((l) => l.id === layerId);
-    if (idx < 0) return;
-    layers.splice(
-      Math.max(0, Math.min(newIndex, layers.length - 1)),
-      0,
-      ...layers.splice(idx, 1),
-    );
-    this.canvas.laserLayerManager.loadLayers(layers.map((l) => l.toData()));
-    if (this.canvas.mode === 'layers') {
-      this.canvas._rebuildLayerOverlay();
-    }
-  }
-
   private _emitLaserSettings(): void {
     this.canvas.events.emit(
       'LASER_SETTINGS_CHANGED',
       this.canvas.laserSettings.toInfo(),
     );
   }
-
 }

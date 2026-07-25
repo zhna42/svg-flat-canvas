@@ -1,4 +1,3 @@
 import type { SvgCanvas } from '@/canvas/SvgCanvas';
 
-export const guardEditMode = (canvas: SvgCanvas): boolean =>
-  canvas.mode !== 'layers';
+export const guardEditMode = (_canvas: SvgCanvas): boolean => true;

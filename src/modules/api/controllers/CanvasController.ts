@@ -100,14 +100,6 @@ export class CanvasController {
     }
   }
 
-  public setMode(mode: 'edit' | 'layers'): void {
-    this.canvas.setMode(mode);
-  }
-
-  public getMode(): 'edit' | 'layers' {
-    return this.canvas.mode;
-  }
-
   public showPreloader(): void {
     if (this.canvas.preloaderOverlay.visible) return;
     const vb = this.canvas.svg.getAttribute('viewBox') || '0 0 800 600';
@@ -202,5 +194,4 @@ export class CanvasController {
     this._debugShowHitArea = v;
     this.canvas.debugOverlay.update(v ? this.canvas.shapeManager.getAll() : []);
   }
-
 }
