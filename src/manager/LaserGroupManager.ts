@@ -66,14 +66,16 @@ export class LaserGroupManager {
     // Элемент с гибким деревом — только в группу резки.
     if (el.flexTree && g.type !== 'cut') return;
 
-    const prevId = el.laserProps.laserGroupId;
-    if (prevId && prevId !== groupId) {
-      const prev = this.groups.get(prevId);
-      if (prev) {
-        prev.elementIds.delete(elementId);
-        prev.markUnsaved('elementIds');
-      }
-    }
+    // Растровые элементы (изображения) — только в группу растровой гравировки.
+    if (el.type === 'image' && g.type !== 'raster_engrave') return;
+
+    // Элемент не может быть одновременно в векторной и растровой гравировке.
+    if (
+      (g.type === 'vector_engrave' || g.type === 'raster_engrave') &&
+      this.isInEngraveOfType(elementId, g.type === 'vector_engrave' ? 'raster_engrave' : 'vector_engrave')
+    )
+      return;
+
     el.laserProps.laserGroupId = groupId;
     el.laserProps.laserType = g.type;
     g.elementIds.add(elementId);
@@ -134,20 +136,41 @@ export class LaserGroupManager {
 
   private unlinkElement(elementId: string, groupId: string): void {
     const el = this.findElement(elementId);
-    if (el && el.laserProps.laserGroupId === groupId) {
-      el.laserProps.laserGroupId = '';
-      el.laserProps.laserType = '';
+    if (!el || el.laserProps.laserGroupId !== groupId) return;
+    for (const g of this.groups.values()) {
+      if (g.id !== groupId && g.elementIds.has(elementId)) {
+        el.laserProps.laserGroupId = g.id;
+        el.laserProps.laserType = g.type;
+        return;
+      }
     }
+    el.laserProps.laserGroupId = '';
+    el.laserProps.laserType = '';
   }
 
-  /** Удалить элемент из его лазер-группы (при удалении фигуры). */
+  /** Удалить элемент из всех лазер-групп (при удалении фигуры). */
   public purgeElement(elementId: string): void {
-    const g = this.getGroupByElement(elementId);
-    if (g) {
-      g.elementIds.delete(elementId);
-      g.markUnsaved('elementIds');
-      this.notify();
+    const el = this.findElement(elementId);
+    if (!el) return;
+    for (const g of this.groups.values()) {
+      if (g.elementIds.has(elementId)) {
+        g.elementIds.delete(elementId);
+        g.markUnsaved('elementIds');
+      }
     }
+    el.laserProps.laserGroupId = '';
+    el.laserProps.laserType = '';
+    this.notify();
+  }
+
+  private isInEngraveOfType(
+    elementId: string,
+    type: 'vector_engrave' | 'raster_engrave',
+  ): boolean {
+    for (const g of this.groups.values()) {
+      if (g.type === type && g.elementIds.has(elementId)) return true;
+    }
+    return false;
   }
 
   // ── Queries ──

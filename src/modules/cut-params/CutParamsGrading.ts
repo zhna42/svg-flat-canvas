@@ -54,6 +54,13 @@ export class CutParamsGrading {
     const elements = this.getElements().filter((e) => !e.isPreview);
     const elementIds = new Set(elements.map((e) => e.id));
 
+    const hasFill = new Set<string>();
+    for (const el of elements) {
+      if (el.style.fill && el.style.fill !== 'none') {
+        hasFill.add(el.id);
+      }
+    }
+
     const info = new Map<string, CutParamsElementInfo>();
 
     for (const eid of elementIds) {
@@ -80,15 +87,23 @@ export class CutParamsGrading {
       }
     }
 
-    let maxCount = 0;
+    let cutMaxCount = 0;
+    let vectorMaxCount = 0;
+    let rasterMaxCount = 0;
     let maxFactor = 0;
     for (const entry of info.values()) {
-      if (entry.totalCount > maxCount) maxCount = entry.totalCount;
+      if (entry.cutCount > cutMaxCount) cutMaxCount = entry.cutCount;
+      if (entry.vectorEngraveCount > vectorMaxCount)
+        vectorMaxCount = entry.vectorEngraveCount;
+      if (entry.rasterEngraveCount > rasterMaxCount)
+        rasterMaxCount = entry.rasterEngraveCount;
       if (entry.totalCount > 0 && entry.totalFactor > maxFactor)
         maxFactor = entry.totalFactor;
     }
 
-    const step = maxCount > 0 ? 1.0 / maxCount : 1.0;
+    const cutStep = cutMaxCount > 0 ? 1.0 / cutMaxCount : 1.0;
+    const vectorStep = vectorMaxCount > 0 ? 1.0 / vectorMaxCount : 1.0;
+    const rasterStep = rasterMaxCount > 0 ? 1.0 / rasterMaxCount : 1.0;
 
     const results: CutParamsGradingResult[] = [];
 
@@ -98,7 +113,7 @@ export class CutParamsGrading {
       if (totalCount === 0) {
         results.push({
           elementId,
-          fill: RASTER_ENGRAVE_COLOR,
+          fill: hasFill.has(elementId) ? RASTER_ENGRAVE_COLOR : 'none',
           stroke: 'none',
           strokeWidth: 0,
           opacity: DEFAULT_UNASSIGNED_OPACITY,
@@ -107,28 +122,31 @@ export class CutParamsGrading {
       }
 
       const normalized = maxFactor > 0 ? totalFactor / maxFactor : 0;
-      const baseOpacity = Math.min(step * totalCount, 1.0);
-      const opacity = clampOpacity(
-        baseOpacity * (1 - normalized * 0.5),
-      );
+      const powerDim = cutMaxCount + vectorMaxCount + rasterMaxCount <= 1
+        ? 0
+        : normalized * 0.3;
 
       let fill: string;
       let stroke: string;
       let strokeWidth = 0;
 
       if (vectorEngraveCount > 0) {
-        const lightness = Math.round(20 + normalized * 30);
+        const intensity = Math.min(vectorStep * vectorEngraveCount, 1.0);
+        const lightness = clampL(100 - intensity * 80 - powerDim * 10, 15, 90);
         fill = `hsl(240, 100%, ${lightness}%)`;
       } else if (rasterEngraveCount > 0) {
-        const lightness = Math.round(normalized * 30);
+        const intensity = Math.min(rasterStep * rasterEngraveCount, 1.0);
+        const lightness = clampL(100 - intensity * 80 - powerDim * 10, 8, 85);
         fill = `hsl(0, 0%, ${lightness}%)`;
       } else {
         fill = CUT_FILL;
       }
 
       if (cutCount > 0) {
+        const cutIntensity = Math.min(cutStep * cutCount, 1.0);
         const avgPower = this.computeAvgCutPower(elementId, groups);
-        const hue = CUT_HUE_MIN + (1 - avgPower / 100) * (CUT_HUE_MAX - CUT_HUE_MIN);
+        const hue = CUT_HUE_MIN +
+          (1 - (avgPower / 100) * cutIntensity) * (CUT_HUE_MAX - CUT_HUE_MIN);
         stroke = `hsl(${Math.round(hue)}, 100%, 50%)`;
         strokeWidth = this.computeStrokeWidth(elementId, groups);
       } else {
@@ -140,7 +158,7 @@ export class CutParamsGrading {
         fill,
         stroke,
         strokeWidth,
-        opacity,
+        opacity: 1,
       });
     }
 
@@ -169,6 +187,6 @@ export class CutParamsGrading {
   }
 }
 
-function clampOpacity(v: number): number {
-  return Math.min(1, Math.max(0.05, v));
+function clampL(v: number, min: number, max: number): number {
+  return Math.round(Math.min(max, Math.max(min, v)));
 }

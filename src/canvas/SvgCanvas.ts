@@ -618,7 +618,11 @@ export class SvgCanvas implements ICanvasContext {
       canMove: (id) => {
         if (this.maskMode && this.shapeManager.getById(id)?.type === 'image')
           return false;
-        if (this._isCutParamsMode()) return false;
+        if (
+          this._isCutParamsMode() &&
+          !this.cutParamsController.movable
+        )
+          return false;
         return this.laserGroupManager.canMove(id);
       },
       isTextEditing: () => this.textEngine.isEditing,
