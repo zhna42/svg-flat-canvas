@@ -89,6 +89,9 @@ export class RulerBuilder {
     const fontSizeSmall = FONT_SIZE_SMALL / sy;
     const lineW = 0.5 * MM_TO_PX;
 
+    const padBottom = 6 / sy;
+    const padRight = 4 / svgToPx;
+
     if (svgW < rsV || svgH < rsH) return '';
 
     let h = '';
@@ -96,7 +99,7 @@ export class RulerBuilder {
     h += `<rect x="0" y="0" width="${rsV}" height="${rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
     if (panX < rsV && panY < rsH) {
       const cornerLabel = flipY ? this.formatMmLabel(worldHMm, mmStep) : '0';
-      h += `<text x="${rsV - 2}" y="${rsH - 4}" fill="${RULER_TEXT_COLOR}" font-size="${fontSizeSmall}" font-family="system-ui, sans-serif" text-anchor="end">${cornerLabel}</text>`;
+      h += `<text x="${rsV - padRight}" y="${rsH - padBottom}" fill="${RULER_TEXT_COLOR}" font-size="${fontSizeSmall}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="text-after-edge">${cornerLabel}</text>`;
     }
 
     h += `<rect x="${rsV}" y="0" width="${svgW - rsV}" height="${rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
@@ -123,7 +126,7 @@ export class RulerBuilder {
             : rsH * 0.3;
       h += `<line x1="${sx}" y1="${rsH - len}" x2="${sx}" y2="${rsH}" stroke="${RULER_TICK_COLOR}" stroke-width="${lineW}"/>`;
       if (tickType === 'major') {
-        h += `<text x="${sx + 2}" y="${rsH - 4}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-family="system-ui, sans-serif">${this.formatMmLabel(mmVal, mmStep)}</text>`;
+        h += `<text x="${sx + 2}" y="${rsH - padBottom}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-family="system-ui, sans-serif" dominant-baseline="text-after-edge">${this.formatMmLabel(mmVal, mmStep)}</text>`;
       }
     }
 
@@ -148,7 +151,7 @@ export class RulerBuilder {
       h += `<line x1="${rsV - len}" y1="${sy}" x2="${rsV}" y2="${sy}" stroke="${RULER_TICK_COLOR}" stroke-width="${lineW}"/>`;
       if (tickType === 'major') {
         const displayMmVal = flipY ? rawMmVal - flipOffset : rawMmVal;
-        h += `<text x="${rsV - 2}" y="${sy + 2}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="hanging">${this.formatMmLabel(displayMmVal, mmStep)}</text>`;
+        h += `<text x="${rsV - padRight}" y="${sy + 2}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="hanging">${this.formatMmLabel(displayMmVal, mmStep)}</text>`;
       }
     }
 
