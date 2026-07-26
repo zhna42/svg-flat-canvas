@@ -58,6 +58,7 @@ export class LaserGroup {
   public selectable: boolean;
   public movable: boolean;
   public visible: boolean;
+  public cutLineWidthMm?: number;
 
   private _savedFlag = false;
   private _unsavedKeys = new Set<string>();
@@ -84,6 +85,7 @@ export class LaserGroup {
     this.selectable = (migrated.selectable as boolean) ?? DEFAULTS.selectable;
     this.movable = (migrated.movable as boolean) ?? DEFAULTS.movable;
     this.visible = (migrated.visible as boolean) ?? DEFAULTS.visible;
+    this.cutLineWidthMm = migrated.cutLineWidthMm as number | undefined;
   }
 
   public get isSaved(): boolean {
@@ -120,6 +122,8 @@ export class LaserGroup {
     if (fields.selectable !== undefined) this.selectable = fields.selectable;
     if (fields.movable !== undefined) this.movable = fields.movable;
     if (fields.visible !== undefined) this.visible = fields.visible;
+    if (fields.cutLineWidthMm !== undefined)
+      this.cutLineWidthMm = fields.cutLineWidthMm;
     for (const k of Object.keys(fields)) this.markUnsaved(k);
   }
 
@@ -142,6 +146,7 @@ export class LaserGroup {
       selectable: this.selectable,
       movable: this.movable,
       visible: this.visible,
+      cutLineWidthMm: this.cutLineWidthMm,
     };
   }
 

@@ -94,3 +94,12 @@ export type {
   RasterState,
 } from '@/modules/raster';
 export { DITHER_ALGORITHMS } from '@/modules/raster';
+export {
+  CutParamsGrading,
+  CutParamsRenderer,
+  CutParamsController,
+} from '@/modules/cut-params';
+export type {
+  CutParamsElementInfo,
+  CutParamsGradingResult,
+} from '@/modules/cut-params';

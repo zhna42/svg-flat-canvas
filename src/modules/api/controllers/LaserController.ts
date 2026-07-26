@@ -175,6 +175,27 @@ export class LaserController {
     };
   }
 
+  get cutParams(): {
+    setMode: (enabled: boolean) => void;
+    isActive: () => boolean;
+    setMovable: (v: boolean) => void;
+    setResizable: (v: boolean) => void;
+    getMovable: () => boolean;
+    getResizable: () => boolean;
+  } {
+    return {
+      setMode: (enabled) =>
+        this.canvas.cutParamsController.setMode(enabled),
+      isActive: () => this.canvas.cutParamsController.isActive(),
+      setMovable: (v) =>
+        this.canvas.cutParamsController.setMovable(v),
+      setResizable: (v) =>
+        this.canvas.cutParamsController.setResizable(v),
+      getMovable: () => this.canvas.cutParamsController.movable,
+      getResizable: () => this.canvas.cutParamsController.resizable,
+    };
+  }
+
   private _emitLaserSettings(): void {
     this.canvas.events.emit(
       'LASER_SETTINGS_CHANGED',

@@ -41,6 +41,16 @@ export class CanvasView {
     this._laserStyle.setLaserStyleProvider(fn);
   }
 
+  private _modeStyleProvider:
+    | ((id: string) => LaserStyleOverride | null)
+    | null = null;
+
+  setModeStyleProvider(
+    fn: ((id: string) => LaserStyleOverride | null) | null,
+  ): void {
+    this._modeStyleProvider = fn;
+  }
+
   constructor(
     svgElement: SVGSVGElement,
     factory: NodeDOMFactory,
@@ -155,6 +165,7 @@ export class CanvasView {
       }
       this._laserStyle.captureBase(id, diff as Record<string, unknown>);
       this._laserStyle.applyLaser(id, element);
+      this._applyModeStyle(id, element);
     }
   }
 
@@ -199,6 +210,27 @@ export class CanvasView {
 
   public refreshLaserStyles(ids?: string[]): void {
     this._laserStyle.refresh(ids);
+    if (this._modeStyleProvider) {
+      const targets = ids ?? Array.from(this._elements.keys());
+      for (const id of targets) {
+        const el = this._elements.get(id);
+        if (el) this._applyModeStyle(id, el);
+      }
+    }
+  }
+
+  private _applyModeStyle(id: string, element: SVGElement): void {
+    if (CanvasSystemNodes.isSystem(id)) return;
+    const o = this._modeStyleProvider?.(id);
+    if (!o) return;
+    if (o.fill !== undefined) element.setAttribute('fill', o.fill);
+    if (o.stroke !== undefined) element.setAttribute('stroke', o.stroke);
+    if (o.strokeWidth !== undefined)
+      element.setAttribute('stroke-width', String(o.strokeWidth));
+    if (o.visibility !== undefined)
+      element.setAttribute('visibility', o.visibility);
+    if (o.opacity !== undefined)
+      element.setAttribute('opacity', String(o.opacity));
   }
 
   public getTextSvgElement(id: string): SVGElement | undefined {

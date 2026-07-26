@@ -80,6 +80,10 @@ export class CanvasController {
 
   public setActiveCreationTool(type: ElementType | null): void {
     this.dbg.log('API', 'setActiveCreationTool', { type });
+    if (this.canvas.cutParamsController.isActive()) {
+      this.dbg.log('API', 'setActiveCreationTool blocked (cut-params mode)');
+      return;
+    }
     if (type !== null) {
       this.canvas.panActive.value = false;
     }

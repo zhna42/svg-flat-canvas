@@ -5,7 +5,7 @@ export class CanvasLaserStyle {
     null;
   _baseStyle = new Map<
     string,
-    { fill?: string; stroke?: string; visibility?: string; opacity?: string }
+    { fill?: string; stroke?: string; strokeWidth?: string; visibility?: string; opacity?: string }
   >();
 
   readonly _elements: Map<string, SVGElement>;
@@ -28,6 +28,8 @@ export class CanvasLaserStyle {
     }
     if ('fill' in diff) base.fill = diff.fill as string;
     if ('stroke' in diff) base.stroke = diff.stroke as string;
+    if ('stroke-width' in diff)
+      base.strokeWidth = diff['stroke-width'] as string;
     if ('visibility' in diff) base.visibility = diff.visibility as string;
     if ('opacity' in diff) base.opacity = diff.opacity as string;
   }
@@ -41,6 +43,12 @@ export class CanvasLaserStyle {
 
     const stroke = o?.stroke ?? base.stroke;
     if (stroke !== undefined) element.setAttribute('stroke', stroke);
+
+    const strokeWidth = o?.strokeWidth != null
+      ? String(o.strokeWidth)
+      : base.strokeWidth;
+    if (strokeWidth !== undefined)
+      element.setAttribute('stroke-width', strokeWidth);
 
     const visibility = o?.visibility ?? base.visibility;
     if (visibility !== undefined)

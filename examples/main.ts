@@ -1063,6 +1063,46 @@ function setupLaserPanel(): void {
 
   refreshReadout();
   renderLaserGroups();
+
+  const btnCutParams = $('btn-cut-params-mode') as HTMLButtonElement;
+  const cpControls = $('laser-cut-params-controls') as HTMLElement;
+  const chkMove = $('chk-cut-params-movable') as HTMLInputElement;
+  const chkResize = $('chk-cut-params-resizable') as HTMLInputElement;
+  const laserEditSection = $('laser-edit-section') as HTMLElement;
+
+  btnCutParams.onclick = () => {
+    const active = !api.laser.cutParams.isActive();
+    api.laser.cutParams.setMode(active);
+    btnCutParams.classList.toggle('active', active);
+    cpControls.style.display = active ? '' : 'none';
+    if (!active) {
+      chkMove.checked = false;
+      chkResize.checked = false;
+    }
+  };
+
+  chkMove.onchange = () =>
+    api.laser.cutParams.setMovable(chkMove.checked);
+  chkResize.onchange = () =>
+    api.laser.cutParams.setResizable(chkResize.checked);
+
+  api.on('CUT_PARAMS_MODE_CHANGED', (ev) => {
+    const { enabled } = ev.data as { enabled: boolean };
+    btnCutParams.classList.toggle('active', enabled);
+    cpControls.style.display = enabled ? '' : 'none';
+
+    const creationTools = document.querySelectorAll('.creation-tool');
+    creationTools.forEach((t) => {
+      (t as HTMLElement).style.display = enabled ? 'none' : '';
+    });
+    const deleteBtn = document.getElementById('btn-delete');
+    if (deleteBtn) deleteBtn.style.display = enabled ? 'none' : '';
+
+    if (!enabled) {
+      chkMove.checked = false;
+      chkResize.checked = false;
+    }
+  });
 }
 
 function renderLaserGroups(): void {

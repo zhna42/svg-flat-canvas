@@ -418,6 +418,15 @@
       <div id="laser-panel">
         <h3>🔥 Лазер</h3>
         <div class="laser-block" style="margin-bottom:4px">
+          <button id="btn-cut-params-mode" class="mode-btn">📐 Параметры реза</button>
+        </div>
+        <div id="laser-cut-params-controls" class="laser-block" style="display:none">
+          <label style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+            <input type="checkbox" id="chk-cut-params-movable"> Разрешить перемещение
+          </label>
+          <label style="display:flex;align-items:center;gap:4px">
+            <input type="checkbox" id="chk-cut-params-resizable"> Разрешить resize/rotate
+          </label>
         </div>
         <div id="laser-edit-section">
         <div class="laser-block">

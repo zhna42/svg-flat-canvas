@@ -18,6 +18,7 @@ export interface LaserGroupData {
   selectable: boolean;
   movable: boolean;
   visible: boolean;
+  cutLineWidthMm?: number;
 }
 
 export type LaserGroupFields = Partial<
@@ -63,6 +64,7 @@ export interface LaserSettingsInfo extends LaserSettingsData {
 export interface LaserStyleOverride {
   fill?: string;
   stroke?: string;
+  strokeWidth?: number;
   visibility?: string;
   opacity?: number;
 }

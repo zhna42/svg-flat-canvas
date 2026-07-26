@@ -1,6 +1,7 @@
 import { Camera } from '@/canvas/Camera';
 import { CanvasLayers } from '@/canvas/CanvasLayers';
 import { CanvasView } from '@/canvas/CanvasView';
+import { CanvasSystemNodes } from '@/canvas/CanvasSystemNodes';
 import { RenderScheduler } from '@/canvas/RenderScheduler';
 import { SvgNodeFactory } from '@/canvas/SvgNodeFactory';
 import {
@@ -26,6 +27,11 @@ import {
   LaserSettings,
   LaserColorResolver,
 } from '@/modules/laser';
+import {
+  CutParamsGrading,
+  CutParamsRenderer,
+  CutParamsController,
+} from '@/modules/cut-params';
 import { CadTextEngine } from '@/modules/text/CadTextEngine';
 import { FontService } from '@/modules/text';
 import { TransformHandler } from '@/canvas/overlays/selection/transform/TransformHandler';
@@ -109,6 +115,9 @@ export class SvgCanvas implements ICanvasContext {
   laserGroupManager!: LaserGroupManager;
   laserSettings!: LaserSettings;
   laserColorResolver!: LaserColorResolver;
+  cutParamsGrading!: CutParamsGrading;
+  cutParamsRenderer!: CutParamsRenderer;
+  cutParamsController!: CutParamsController;
 
   textEngine!: CadTextEngine;
   fonts!: FontService;
@@ -239,12 +248,64 @@ export class SvgCanvas implements ICanvasContext {
       );
       this.selectionState.replace(keep);
     };
-    this.laserGroupManager.setOnChange(() => this._refreshLaser());
     this.view.setLaserStyleProvider((id: string) => {
       const maskOverride = this._getMaskStyle(id);
       if (maskOverride) return maskOverride;
       return this.laserColorResolver.resolve(id);
     });
+
+    this.cutParamsGrading = new CutParamsGrading(
+      this.laserGroupManager,
+      this.laserSettings,
+      () =>
+        this.shapeManager
+          .getAll()
+          .filter(
+            (e) => !e.isPreview && !CanvasSystemNodes.isSystem(e.id),
+          ),
+    );
+    this.cutParamsRenderer = new CutParamsRenderer(this.cutParamsGrading);
+    this.cutParamsController = new CutParamsController(
+      this.cutParamsRenderer,
+    );
+    this.cutParamsController.bindMode(
+      (enabled) => this._setCutParamsMode(enabled),
+      () => this.cutParamsRenderer.isActive(),
+    );
+
+    this.laserGroupManager.setOnChange(() => {
+      this._refreshLaser();
+      if (this.cutParamsRenderer.isActive()) {
+        this.cutParamsRenderer.refresh();
+        this.view.refreshLaserStyles();
+        this.events.emit('CUT_PARAMS_GRADING_CHANGED', {
+          grading: this.cutParamsRenderer.getGradingResults(),
+        });
+      }
+    });
+  }
+
+  private _setCutParamsMode(enabled: boolean): void {
+    if (enabled) {
+      this.view.setModeStyleProvider(
+        (id) => this.cutParamsRenderer.getStyleOverride(id),
+      );
+      this.cutParamsRenderer.setActive(true);
+      this.view.refreshLaserStyles();
+      this.events.emit('CUT_PARAMS_MODE_CHANGED', { enabled: true });
+      this.events.emit('CUT_PARAMS_GRADING_CHANGED', {
+        grading: this.cutParamsRenderer.getGradingResults(),
+      });
+    } else {
+      this.cutParamsRenderer.setActive(false);
+      this.view.setModeStyleProvider(null);
+      this.view.refreshLaserStyles();
+      this.events.emit('CUT_PARAMS_MODE_CHANGED', { enabled: false });
+    }
+  }
+
+  private _isCutParamsMode(): boolean {
+    return this.cutParamsRenderer.isActive();
   }
 
   /** Пересчёт градации + переприменение стилей + отрисовка. */
@@ -557,6 +618,7 @@ export class SvgCanvas implements ICanvasContext {
       canMove: (id) => {
         if (this.maskMode && this.shapeManager.getById(id)?.type === 'image')
           return false;
+        if (this._isCutParamsMode()) return false;
         return this.laserGroupManager.canMove(id);
       },
       isTextEditing: () => this.textEngine.isEditing,
