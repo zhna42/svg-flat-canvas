@@ -8,18 +8,20 @@ export function getRulerSvgSize(svg: SVGSVGElement): {
 } {
   const ctm = svg.getScreenCTM();
   const sx = ctm ? Math.abs(ctm.a) || 1 : 1;
-  const sy = ctm ? Math.abs(ctm.d) || 1 : 1;
+  const syScale = ctm ? Math.abs(ctm.d) || 1 : 1;
   return {
     rsV: RULER_SIZE_PX / sx,
-    rsH: RULER_SIZE_PX / sy,
+    rsH: RULER_SIZE_PX / syScale,
   };
 }
 const RULER_BG = '#fff';
 const RULER_BORDER = '#888';
 const RULER_TEXT_COLOR = '#555';
 const RULER_TICK_COLOR = '#888';
+const RULER_TICK_MAJOR = '#777';
 const FONT_SIZE_BASE = 9;
 const FONT_SIZE_SMALL = 8;
+const FONT_WEIGHT = 'bold';
 
 export interface RulerParams {
   visible: boolean;
@@ -73,7 +75,7 @@ export class RulerBuilder {
 
     const ctm = this.svg.getScreenCTM();
     const svgToPx = ctm ? Math.abs(ctm.a) || 1 : 1;
-    const sy = ctm ? Math.abs(ctm.d) || 1 : 1;
+    const syScale = ctm ? Math.abs(ctm.d) || 1 : 1;
     const pxToSvg = 1 / svgToPx;
     const targetWorldUnits = (7 * pxToSvg) / z;
     const targetMm = targetWorldUnits / MM_TO_PX;
@@ -85,12 +87,15 @@ export class RulerBuilder {
     const svgH = bounds.h;
     const { rsV, rsH } = getRulerSvgSize(this.svg);
 
-    const fontSize = FONT_SIZE_BASE / sy;
-    const fontSizeSmall = FONT_SIZE_SMALL / sy;
+    const fontSize = FONT_SIZE_BASE / syScale;
+    const fontSizeSmall = FONT_SIZE_SMALL / syScale;
     const lineW = 0.5 * MM_TO_PX;
+    const lineWMajor = 0.6 * MM_TO_PX;
 
-    const padBottom = 6 / sy;
+    const padBottom = 6 / syScale;
     const padRight = 4 / svgToPx;
+    const padLeft = 4 / svgToPx;
+    const padV = 5 / syScale;
 
     if (svgW < rsV || svgH < rsH) return '';
 
@@ -99,7 +104,7 @@ export class RulerBuilder {
     h += `<rect x="0" y="0" width="${rsV}" height="${rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
     if (panX < rsV && panY < rsH) {
       const cornerLabel = flipY ? this.formatMmLabel(worldHMm, mmStep) : '0';
-      h += `<text x="${rsV - padRight}" y="${rsH - padBottom}" fill="${RULER_TEXT_COLOR}" font-size="${fontSizeSmall}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="text-after-edge">${cornerLabel}</text>`;
+      h += `<text x="${rsV - padRight}" y="${rsH - padBottom}" fill="${RULER_TEXT_COLOR}" font-size="${fontSizeSmall}" font-weight="${FONT_WEIGHT}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="text-after-edge">${cornerLabel}</text>`;
     }
 
     h += `<rect x="${rsV}" y="0" width="${svgW - rsV}" height="${rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
@@ -124,9 +129,11 @@ export class RulerBuilder {
           : tickType === 'medium'
             ? rsH * 0.55
             : rsH * 0.3;
-      h += `<line x1="${sx}" y1="${rsH - len}" x2="${sx}" y2="${rsH}" stroke="${RULER_TICK_COLOR}" stroke-width="${lineW}"/>`;
+      const tickColor = tickType === 'major' ? RULER_TICK_MAJOR : RULER_TICK_COLOR;
+      const tickW = tickType === 'major' ? lineWMajor : lineW;
+      h += `<line x1="${sx}" y1="${rsH - len}" x2="${sx}" y2="${rsH}" stroke="${tickColor}" stroke-width="${tickW}"/>`;
       if (tickType === 'major') {
-        h += `<text x="${sx + 2}" y="${rsH - padBottom}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-family="system-ui, sans-serif" dominant-baseline="text-after-edge">${this.formatMmLabel(mmVal, mmStep)}</text>`;
+        h += `<text x="${sx + padLeft}" y="${rsH - padBottom}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-weight="${FONT_WEIGHT}" font-family="system-ui, sans-serif" dominant-baseline="text-after-edge">${this.formatMmLabel(mmVal, mmStep)}</text>`;
       }
     }
 
@@ -135,9 +142,9 @@ export class RulerBuilder {
     const flipOffset = flipY ? worldHMm - iBottom * mmStep : 0;
     for (let i = startIdxV; ; i++) {
       const w = i * step;
-      const sy = w * z + panY;
-      if (sy >= svgH) break;
-      if (sy < rsH) continue;
+      const tickY = w * z + panY;
+      if (tickY >= svgH) break;
+      if (tickY < rsH) continue;
       const rawMmVal = flipY ? worldHMm - w / MM_TO_PX : w / MM_TO_PX;
       const tickType = flipY
         ? this.flippedTickType(i, iBottom, mmStep)
@@ -148,10 +155,12 @@ export class RulerBuilder {
           : tickType === 'medium'
             ? rsV * 0.55
             : rsV * 0.3;
-      h += `<line x1="${rsV - len}" y1="${sy}" x2="${rsV}" y2="${sy}" stroke="${RULER_TICK_COLOR}" stroke-width="${lineW}"/>`;
+      const tickColor = tickType === 'major' ? RULER_TICK_MAJOR : RULER_TICK_COLOR;
+      const tickW = tickType === 'major' ? lineWMajor : lineW;
+      h += `<line x1="${rsV - len}" y1="${tickY}" x2="${rsV}" y2="${tickY}" stroke="${tickColor}" stroke-width="${tickW}"/>`;
       if (tickType === 'major') {
         const displayMmVal = flipY ? rawMmVal - flipOffset : rawMmVal;
-        h += `<text x="${rsV - padRight}" y="${sy + 2}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="hanging">${this.formatMmLabel(displayMmVal, mmStep)}</text>`;
+        h += `<text x="${rsV - padRight}" y="${tickY + padV}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-weight="${FONT_WEIGHT}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="hanging">${this.formatMmLabel(displayMmVal, mmStep)}</text>`;
       }
     }
 
