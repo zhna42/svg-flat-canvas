@@ -81,7 +81,7 @@ export class CanvasView {
       this._elements,
       canvasLayers._layers,
     );
-    this._selectionBox = new CanvasSelectionBox(factory, canvasLayers._layers);
+    this._selectionBox = new CanvasSelectionBox(factory, canvasLayers._layers, camera);
     this._laserStyle = new CanvasLaserStyle(this._elements);
     this._clipPath = new CanvasClipPath(this._elements, canvasLayers._defsNode);
     this._elementIndex = new CanvasElementIndex(this._elements);
@@ -123,6 +123,9 @@ export class CanvasView {
     }
     if (CanvasSystemNodes.isSystem(id)) {
       this._systemNodes.applyDiff(id, element, diff as Record<string, unknown>);
+      if (id === this._camera.id) {
+        this._selectionBox.refreshHandles();
+      }
     } else {
       const syncMasks =
         type === 'image' &&

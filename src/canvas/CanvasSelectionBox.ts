@@ -1,18 +1,33 @@
 import type { NodeDOMFactory } from './NodeDOMFactory';
 import type { LayerName } from '@/core/type';
+import type { Camera } from './Camera';
+
+interface BoxState {
+  w: number;
+  h: number;
+}
+
+const CX = 6000;
+const CY = 6000;
+const OFF_CORNER = 3500;
+const OFF_EDGE = 6000;
 
 export class CanvasSelectionBox {
   _selectionDOMs = new Map<string, Map<string, SVGElement>>();
+  _boxStates = new Map<string, BoxState>();
 
   readonly _factory: NodeDOMFactory;
   readonly _layers: Map<LayerName, SVGGElement>;
+  readonly _camera: Camera;
 
   constructor(
     factory: NodeDOMFactory,
     layers: Map<LayerName, SVGGElement>,
+    camera: Camera,
   ) {
     this._factory = factory;
     this._layers = layers;
+    this._camera = camera;
   }
 
   draw(diff: Record<string, unknown>): string | null {
@@ -25,6 +40,7 @@ export class CanvasSelectionBox {
       if (els) {
         els.get('g')?.remove();
         this._selectionDOMs.delete(domRef);
+        this._boxStates.delete(domRef);
       }
       return null;
     }
@@ -90,13 +106,33 @@ export class CanvasSelectionBox {
     rectBg.setAttribute('data-w', String(w));
     rectBg.setAttribute('data-h', String(h));
 
+    this._boxStates.set(domRef, { w, h });
+    this._applyHandles(els, domRef);
+
+    return domRef;
+  }
+
+  public refreshHandles(): void {
+    for (const [domRef, els] of this._selectionDOMs) {
+      this._applyHandles(els, domRef);
+    }
+  }
+
+  private _applyHandles(
+    els: Map<string, SVGElement>,
+    domRef: string,
+  ): void {
+    const state = this._boxStates.get(domRef);
+    if (!state) return;
+    const { w, h } = state;
+    const zoom = this._camera.zoom;
+    const invZoom = 1 / zoom;
+    const offCorner = OFF_CORNER / zoom;
+    const offEdge = OFF_EDGE / zoom;
     const hw = w / 2;
     const hh = h / 2;
-    const offCorner = 3500;
-    const offEdge = 6000;
-    const cx = 6000;
-    const cy = 6000;
-    const handleData: Array<{
+
+    const data: Array<{
       key: string;
       hx: number;
       hy: number;
@@ -111,16 +147,15 @@ export class CanvasSelectionBox {
       { key: 'h-sw', hx: 0 - offCorner, hy: h + offCorner, rot: 225 },
       { key: 'h-w', hx: 0 - offEdge, hy: hh, rot: 270 },
     ];
-    for (const hd of handleData) {
+
+    for (const hd of data) {
       const handle = els.get(hd.key);
       if (handle) {
         handle.setAttribute(
           'transform',
-          `translate(${hd.hx - cx}, ${hd.hy - cy}) rotate(${hd.rot}, ${cx}, ${cy})`,
+          `translate(${hd.hx}, ${hd.hy}) scale(${invZoom}) rotate(${hd.rot}) translate(${-CX}, ${-CY})`,
         );
       }
     }
-
-    return domRef;
   }
 }
