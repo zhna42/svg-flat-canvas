@@ -1,15 +1,8 @@
 # SVG Canvas
 
-<p align="center">
-  <b>Библиотека для рендеринга и интерактивного редактирования SVG-графики</b><br>
-  Редактирование мышью и через API · Undo/Redo · Группы · Привязки · Редактирование узлов пути
-</p>
-
----
+Библиотека для рендеринга и интерактивного редактирования SVG-графики. Редактирование мышью и через API, Undo/Redo, группы, привязки, булевы операции, растровая обработка, лазерная раскройка.
 
 ## Установка
-
-Клонирование репозитория и сборка:
 
 ```bash
 git clone https://github.com/<user>/svg-canvas.git
@@ -18,120 +11,317 @@ npm install
 npm run build
 ```
 
-Подключение в проекте — импорт из исходников (tsconfig paths `@/` → `src/`) или из собранного бандла:
-
 ```ts
-import { SvgCanvas } from './path/to/dist/index.mjs';   // ESM
-// или
-const { SvgCanvas } = require('./path/to/dist/index.js'); // CJS
+import { SvgCanvas } from 'svg-canvas';
 ```
 
-## Быстрый старт
+---
+
+## Минимальный пример
 
 ```ts
-import { SvgCanvas } from './path/to/svg-canvas';
+import { SvgCanvas } from 'svg-canvas';
 
 const canvas = new SvgCanvas(document.getElementById('container')!, {
   width: 800,
   height: 600,
 });
 
-const api = canvas.getExternalApi();
+const api = canvas.api;
 
-// Создать прямоугольник
-const rect = api.createShape({
+// Создать фигуру
+const rect = api.shapes.createShape({
   type: 'rect',
   geometry: { x: 100, y: 100, width: 200, height: 150 },
   style: { fill: '#3498db', stroke: '#2c3e50', strokeWidth: 2 },
 });
 
+// Выделить через API
+api.selection.selectShapes({ elementIds: [rect.id] });
+
 // Подписаться на события
-canvas.on('SVG_CAD_SELECT', (e) => {
-  console.log('Выделено:', e.data.elementIds);
+api.on('GROUP_CREATED', (e) => {
+  console.log('Группа создана:', e.data);
 });
+
+// Создать группу
+const groupId = api.groups.groupCreate({ name: 'Деталь' });
+api.groups.groupAddElements({ groupId, elementIds: [rect.id] });
+
+// Undo
+api.history.undo();
+api.history.redo();
+
+// Сохранить/восстановить состояние
+const snapshot = api.history.save();
+api.history.load(snapshot);
 ```
 
 ---
 
-## Внешний API
+## API
 
-### Создание элементов
+Экземпляр `ExternalApi` доступен через `canvas.api`. Методы сгруппированы по контроллерам.
+
+### shapes — элементы
 
 ```ts
-// Одна фигура
-const el = api.createShape({
-  type: 'rect',                    // rect | circle | ellipse | line | path | polygon | polyline | text | image
-  geometry: { x: 10, y: 10, width: 100, height: 50 },
-  style: { fill: 'red', stroke: 'black', strokeWidth: 2, opacity: 0.8 },
-  transform: { x: 200, y: 100, angle: 45 },
-  name: 'Мой элемент',
-  visible: true,
-  lock: false,
-  groupId: 'group-1',
-  data: { author: 'Иван' },
-});
+// Создание
+api.shapes.createShape(dto: CreateShapeDTO): AbstractGraphicElement
+api.shapes.createFile(dtos: CreateShapeDTO[], name?: string): { groupId, elements }
 
-// Пачка фигур как файл (группируются, откатываются вместе)
-const { groupId, elements } = api.createFile([
-  { type: 'rect', geometry: { x: 0, y: 0, width: 100, height: 50 }, style: { fill: 'blue' } },
-  { type: 'circle', geometry: { cx: 150, cy: 25, r: 20 }, style: { fill: 'green' } },
-], 'чертёж-1');
+// Редактирование
+api.shapes.updateShapes({ elementIds, style?, geometry?, transform?, visible?, lock?, name?, groupId?, data? })
+api.shapes.deleteShapes({ elementIds: string[] })
+api.shapes.moveShapes({ elementIds: string[], delta: { x, y } })
+api.shapes.rotateShapes({ elementIds: string[], angle: number })
+api.shapes.resizeShapes({ elementIds: string[], bbox: BoundingBox })
+api.shapes.setTransformShapes({ elementIds: string[], matrix: [a,b,c,d,e,f] })
+
+// Запросы
+api.shapes.getAllShapes(): readonly AbstractGraphicElement[]
+api.shapes.getElementById(id: string): Record<string, unknown> | null
+api.shapes.getElementPosition(id: string): { xMm, yMm } | null
+api.shapes.setElementPosition(id: string, xMm: number, yMm: number): void
+api.shapes.resizeElement(id: string, widthMm: number, heightMm: number): void
+api.shapes.rotateElement(id: string, angle: number): void
+
+// Булевы операции
+api.shapes.enterBooleanMode(op: 'UNION' | 'INTERSECT' | 'DIFFERENCE'): void
+api.shapes.exitBooleanMode(): void
+
+// Outline
+api.shapes.outlineElement(id: string): void
+api.shapes.getOutlinePath(id: string): Record<string, unknown> | null
 ```
 
-### Редактирование
+### groups — группы
 
 ```ts
-// Обновить стили, трансформацию, геометрию, имя, видимость, блокировку, groupId, data
-api.updateShapes({
-  elementIds: ['id1', 'id2'],
-  style: { fill: 'red', strokeWidth: 3 },
-  visible: true,
-});
-
-api.moveShapes({ elementIds: ['id1'], delta: { x: 50, y: 0 } });
-api.rotateShapes({ elementIds: ['id1'], angle: 45 });
-api.resizeShapes({ elementIds: ['id1'], bbox: { x: 0, y: 0, width: 300, height: 200 } });
-api.setTransformShapes({ elementIds: ['id1'], matrix: [1, 0, 0, 1, 100, 100] });
-api.deleteShapes({ elementIds: ['id1', 'id2'] });
+const gid = api.groups.groupCreate({ name: string })
+api.groups.groupDelete({ groupId: string })
+api.groups.groupAddElements({ groupId, elementIds })
+api.groups.groupRemoveElements({ groupId, elementIds })
+api.groups.selectGroup(groupId: string)
+api.groups.selectGroupElements(groupId: string)
+api.groups.selectMultipleGroups(ids: string[])
 ```
 
-### Z-order
+### selection — выделение
 
 ```ts
-api.sortShapes({ elementIds: ['id1'], targetId: 'id2', position: 'before' });
-api.sortShapes({ elementIds: ['id1'], targetId: 'id2', position: 'after' });
+api.selection.selectShapes({ elementIds: string[], toggle?: boolean })
+api.selection.clearSelection()
+api.selection.setSelectionMode('element' | 'group')
+api.selection.setSelectionGesture('click' | 'rect' | 'lasso')
+api.selection.setTransformMode('free' | 'rotate' | 'scale')
+api.selection.setProportionalResize(enabled: boolean)
+api.selection.setSnapRotation(enabled: boolean)
+api.selection.setRotationStep(step: number)
 ```
 
-### Выделение
+### canvas — холст и инструменты
 
 ```ts
-api.selectShapes({ elementIds: ['id1', 'id2'] });
-api.selectShapes({ elementIds: ['id1'], toggle: true });  // переключить
-api.clearSelection();
-const selected = api.getAllShapes();  // AbstractGraphicElement[]
+api.canvas.getCanvasSize(): { widthMM, heightMM, widthPx, heightPx, pxPerMM }
+api.canvas.setArtboardSize(widthMM, heightMM)
+api.canvas.setPanMode(enabled: boolean)
+api.canvas.setActiveCreationTool(type: ElementType | null)
+api.canvas.showGrid() / hideGrid() / isGridVisible() / setGridStep(mm)
+api.canvas.showPreloader() / hidePreloader()
+api.canvas.setRulersVisible(v: boolean)
+api.canvas.addGuideline(orientation: 'v' | 'h', position: number): string
+api.canvas.removeGuideline(id: string)
+api.canvas.setDebugMode(enabled: boolean)
+api.canvas.debugShowHitArea: boolean
 ```
 
-### Группы
+### snap — привязки
 
 ```ts
-const groupId = api.groupCreate({ name: 'Моя группа' });
-api.groupDelete({ groupId });
-api.groupAddElements({ groupId, elementIds: ['id1', 'id2'] });
-api.groupRemoveElements({ groupId, elementIds: ['id1'] });
+api.snap.setSnapToElements(v: boolean)
+api.snap.setSnapToArtboard(v: boolean)
+api.snap.setSnapToGrid(v: boolean)
+api.snap.setSnapToCorners(v: boolean)
+api.snap.setSnapToPlanes(v: boolean)
+api.snap.setAvoidCollisions(v: boolean)
+api.snap.setLockDragAxis(v: boolean)
+api.snap.setSnapAxis(v: boolean)
 ```
 
-### Инструменты
+### zOrder
 
 ```ts
-api.setActiveCreationTool('rect');   // интерактивное рисование кликами
-api.setActiveCreationTool(null);     // режим выделения
-api.setPanMode(true);                // панорамирование
-api.getCanvasSize();                 // { widthMM, heightMM, widthPx, heightPx, pxPerMM }
+api.zOrder.raise()
+api.zOrder.lower()
+api.zOrder.raiseToTop()
+api.zOrder.lowerToBottom()
+```
+
+### clipboard
+
+```ts
+api.clipboard.duplicateSelected()
+api.clipboard.useDuplicateSelected()
+api.clipboard.unbindUseElement(id: string)
+```
+
+### nodeEdit — редактирование узлов пути
+
+```ts
+api.nodeEdit.enterNodeEdit(elementIds: string[])
+api.nodeEdit.exitNodeEdit()
+api.nodeEdit.selectAllNodes()
+api.nodeEdit.selectNoNodes()
+api.nodeEdit.invertNodeSelection()
+api.nodeEdit.changeNodeType(type: 'L' | 'C' | 'Q')
+api.nodeEdit.smoothNode()
+api.nodeEdit.sharpenNode()
+api.nodeEdit.nudgeNode(delta: { x, y })
+api.nodeEdit.deleteSelectedNodes()
+```
+
+### measure — измерения
+
+```ts
+api.measure.activateRuler()
+api.measure.activateProtractor('points' | 'objects')
+api.measure.deactivateMeasureTool()
+api.measure.clearMeasurements()
+```
+
+### history
+
+```ts
+api.history.undo()
+api.history.redo()
+api.history.save(): TimeMachineRecord[]
+api.history.load(records: TimeMachineRecord[])
+```
+
+### data — загрузка/выгрузка
+
+```ts
+api.data.load(elements, groups)
+api.data.toDTO(): { elements, groups }
+```
+
+### bake — запекание
+
+```ts
+api.bake.bake()
+```
+
+### merge — склейка
+
+```ts
+api.merge.merge()
+```
+
+### textToPath
+
+```ts
+api.textToPath.convertSelected()
+```
+
+### laser — лазерная раскройка
+
+```ts
+api.laser.setLaserLensFocal(mm)
+api.laser.setLaserDiameter(mm)
+api.laser.setLaserBeamDiameter(mm)
+api.laser.setMaterialHeight(mm)
+api.laser.createLaserGroup(name, color, type, ...)
+api.laser.deleteLaserGroup(id)
+api.laser.laserGroupAddElements(groupId, elementIds)
+api.laser.laserGroupRemoveElements(groupId, elementIds)
+api.laser.setNonLaserElementsVisible(v: boolean)
+api.laser.setLaserElementsTranslucent(v: boolean)
+```
+
+### cutParams — параметры реза
+
+```ts
+api.laser.cutParams.setMode(enabled: boolean)
+api.laser.cutParams.setMovable(v: boolean)
+api.laser.cutParams.setResizable(v: boolean)
+api.laser.cutParams.isActive(): boolean
+```
+
+### raster — растрирование
+
+```ts
+api.raster.applyDithering(algorithm: DitherAlgorithm, options?: DitherOptions)
+api.raster.getState(): RasterState | null
+api.raster.reset()
+```
+
+### mask — маскирование изображений
+
+```ts
+api.mask.enterMaskMode()
+api.mask.exitMaskMode()
+api.mask.assignMask()
+api.mask.removeMask()
+api.mask.unmaskImage()
+```
+
+### flexTree
+
+```ts
+api.flexTree.setFlexTreeAlgorithm(elementId: string, algorithm: string)
+api.flexTree.setFlexTreeParams(elementId: string, params: Record<string, unknown>)
+api.flexTree.removeFlexTree(elementId: string)
+api.flexTree.applyFlexTreePreset(elementId: string, preset: string)
+```
+
+### textEdit — шрифты
+
+```ts
+api.textEdit.initTextFonts(googleApiKey?: string)
+api.textEdit.searchFonts(query: string): Promise<FontResult[]>
+api.textEdit.getFontVariants(family: string): FontVariant[]
+api.textEdit.setTextFontFamily(family: string)
+api.textEdit.setTextFontWeight(weight: string)
+api.textEdit.setTextFontSize(size: number)
+api.textEdit.setTextLineHeight(height: number)
+api.textEdit.setTextColor(color: string)
+```
+
+### Подписка на события
+
+```ts
+const unsub = api.on(eventType: string, (event: BusEvent) => void): () => void
+api.off(eventType: string, fn)
+```
+
+### Уничтожение
+
+```ts
+api.destroy()
 ```
 
 ---
 
-## Типы геометрии
+## Типы
+
+### CreateShapeDTO
+
+```ts
+interface CreateShapeDTO {
+  type: 'rect' | 'circle' | 'ellipse' | 'line' | 'path' | 'polygon' | 'polyline' | 'text' | 'image' | 'use';
+  geometry: ElementGeometryDTO;
+  style?: StyleDTO;
+  transform?: TransformDTO;
+  name?: string;
+  visible?: boolean;
+  lock?: boolean;
+  groupId?: string;
+  data?: Record<string, unknown>;
+}
+```
+
+### Геометрия
 
 | Тип | Параметры |
 |-----|-----------|
@@ -139,34 +329,34 @@ api.getCanvasSize();                 // { widthMM, heightMM, widthPx, heightPx, 
 | `circle` | `{ cx, cy, r }` |
 | `ellipse` | `{ cx, cy, rx, ry }` |
 | `line` | `{ x1, y1, x2, y2 }` |
-| `path` | `{ d: string }` — например `'M 10 10 L 100 100 C 150 50, 200 150, 250 100 Z'` |
-| `polygon` | `{ points: string }` — например `'10,10 50,50 90,10'` |
+| `path` | `{ d: string }` |
+| `polygon` | `{ points: string }` |
 | `polyline` | `{ points: string }` |
 | `text` | `{ x, y, fontSize?, fontFamily?, textAnchor?, textContent? }` |
 | `image` | `{ x, y, width, height, href }` |
 
-## Типы стилей
+### StyleDTO
 
 ```ts
 interface StyleDTO {
-  fill?: string;        // цвет заливки (CSS)
-  stroke?: string;      // цвет обводки
-  strokeWidth?: number; // толщина обводки
-  opacity?: number;     // прозрачность 0–1
-  visible?: boolean;    // видимость
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  opacity?: number;
+  visible?: boolean;
 }
 ```
 
-## Типы трансформаций
+### TransformDTO
 
 ```ts
 interface TransformDTO {
-  x?: number;           // абсолютная позиция X
-  y?: number;           // абсолютная позиция Y
+  x?: number;
+  y?: number;
   scaleX?: number;
   scaleY?: number;
-  angle?: number;       // поворот в градусах
-  matrix?: [a, b, c, d, e, f]; // матрица 2×3 (приоритетнее полей выше)
+  angle?: number;
+  matrix?: [a, b, c, d, e, f];
 }
 ```
 
@@ -174,260 +364,144 @@ interface TransformDTO {
 
 ## События
 
-```ts
-import { SvgCanvas, Events } from './path/to/svg-canvas';
+События — строковые идентификаторы, подписка через `api.on(type, handler)`. Обработчик получает `BusEvent = { type: string; data: unknown }`. Подписка на `'*'` ловит все события.
 
-const unsub = canvas.on(Events.SelectionChange, (selected) => {
-  console.log('Выделено:', selected.map(s => s.id));
-});
-unsub(); // отписка
-```
+### Элементы и холст
 
-| Событие | Данные | Когда |
-|---------|--------|-------|
-| `Events.ElementCreated` | `AbstractGraphicElement` | Создан элемент через API |
-| `Events.ElementChanged` | `{ elementIds: string[] }` | Изменены/удалены элементы через API |
-| `Events.SelectionChange` | `readonly AbstractGraphicElement[]` | Изменилось выделение |
-| `Events.DragStart` | `void` | Начало перетаскивания |
-| `Events.DragEnd` | `void` | Конец перетаскивания |
-| `Events.TransformStart` | `'resize' \| 'rotate'` | Начало ресайза/поворота |
-| `Events.TransformEnd` | `'resize' \| 'rotate'` | Конец ресайза/поворота |
-| `Events.GroupSelect` | `string[]` | ID выбранных групп |
-| `Events.GroupsChange` | `void` | Изменён состав групп |
-| `Events.FileCreated` | `{ groupId, elements }` | Файл создан через `createFile` |
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `NODE_EDIT_ENTERED` | `{ ids: string[] }` | Вход в режим редактирования узлов |
+| `NODE_EDIT_EXITED` | `{}` | Выход из режима редактирования узлов |
+| `NODE_SELECTION_CHANGED` | `{ count: number }` | Изменилось выделение узлов |
+| `ELEMENT_SIZE` | `{ id, xMm, yMm, widthMm, heightMm, angleDeg }` | Изменились размеры/позиция элемента |
+| `SVG_CAD_SELECT` | selection data | Изменилось выделение элементов |
+| `element-outlined` | `{ id, newId }` | Элемент оконтурен |
+| `IMG_SELECT_EDIT` | `{ id, href?, editedImage?, ... }` | Выбрано изображение для редактирования |
+
+### Группы
+
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `GROUP_CREATED` | `{ id, name }` | Группа создана |
+| `GROUP_DELETED` | `{ id }` | Группа удалена |
+| `GROUP_ELEMENT_ADDED` | `{ groupId, elementId }` | Элемент добавлен в группу |
+| `GROUP_ELEMENT_REMOVED` | `{ groupId, elementId }` | Элемент удалён из группы |
+| `GROUP_CLEARED` | `{ id }` | Группа очищена |
+| `GROUP_SELECTION_CHANGED` | `{ ids: string[] }` | Изменилось выделение групп |
+
+### Булевы операции
+
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `BOOLEAN_MODE_ENTER` | `{ op: BooleanOp }` | Вход в режим булевых операций |
+| `BOOLEAN_MODE_EXIT` | `{}` | Выход из режима |
+| `BOOLEAN_COMMIT` | `{ subjectIds, clipIds, resultId }` | Применение булевой операции |
+| `BOOLEAN_CANCEL` | `{ op: BooleanOp }` | Отмена булевой операции |
+
+### Лазерная раскройка
+
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `LASER_GROUP_CREATED` | `{ id, group }` | Лазерная группа создана |
+| `LASER_GROUP_DELETED` | `{ id }` | Лазерная группа удалена |
+| `LASER_GROUP_ELEMENT_ADDED` | `{ groupId, elementId }` | Элемент добавлен в лазерную группу |
+| `LASER_GROUP_ELEMENT_REMOVED` | `{ groupId, elementId }` | Элемент удалён из лазерной группы |
+| `LASER_GROUP_CLEARED` | `{ id }` | Лазерная группа очищена |
+| `LASER_GROUP_UPDATED` | `{ id, fields }` | Лазерная группа обновлена |
+| `LASER_SETTINGS_CHANGED` | настройки лазера | Изменились настройки лазера |
+| `LASER_VISIBILITY_CHANGED` | `{ visibleNonLaser?, visibleTranslucent? }` | Изменилась видимость слоёв |
+| `LASER_COLOR_GRADING_CHANGED` | `{ gradingMap }` | Изменился цветовой грейдинг |
+| `LASER_STYLE_LOCKED` | `{ id: string }` | Стиль заблокирован |
+| `CUT_PARAMS_GRADING_CHANGED` | `{ gradingMap }` | Изменился грейдинг параметров реза |
+| `CUT_PARAMS_MODE_CHANGED` | `{ enabled: boolean }` | Включён/выключен режим параметров реза |
+
+### Измерения, холст, сетка
+
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `MEASURE_TOOL_CHANGED` | `{ tool: string \| null }` | Активирован/деактивирован инструмент измерений |
+| `MEASURE_ADDED` | `{ result: MeasureResult }` | Добавлен результат измерения |
+| `SVG_CAD_PAN_MODE_CHANGED` | `{ enabled: boolean }` | Режим панорамирования изменён |
+| `artboard-resized` | `{ widthMM, heightMM }` | Изменён размер артборда |
+| `grid-toggled` | `{ visible: boolean }` | Сетка показана/скрыта |
+| `grid-step-changed` | `{ stepMM: number }` | Изменён шаг сетки |
+| `preloader-toggled` | `{ visible: boolean }` | Прелоадер показан/скрыт |
+
+### Привязки, выделение, трансформация
+
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `PROPORTIONAL_RESIZE_TOGGLED` | `{ enabled: boolean }` | Пропорциональный ресайз вкл/выкл |
+| `ROTATION_SNAP_TOGGLED` | `{ enabled: boolean }` | Привязка поворота вкл/выкл |
+| `ROTATION_STEP_CHANGED` | `{ step: number }` | Изменён шаг поворота |
+| `DRAG_AXIS_LOCK_CHANGED` | `{ enabled: boolean }` | Блокировка оси перетаскивания |
+
+### Линейки и направляющие
+
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `RULER_VISIBILITY_CHANGED` | `{ visible: boolean }` | Линейки показаны/скрыты |
+| `RULER_GUIDELINE_ADD` | `{ id, orientation: 'v' \| 'h', position }` | Направляющая добавлена |
+| `RULER_GUIDELINE_REMOVE` | `{ id }` | Направляющая удалена |
+| `RULER_GUIDELINE_MOVE` | `{ id, position }` | Направляющая передвинута |
+| `RULER_GUIDELINES_VISIBILITY_CHANGED` | `{ orientation: 'v' \| 'h', visible }` | Видимость направляющих изменена |
+
+### Шрифты и текст
+
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `FONTS_READY` | `{}` | Шрифты загружены |
+| `FONT_LOADING_START` | `{ family, weight }` | Начало загрузки шрифта |
+| `FONT_LOADING_END` | `{ family, weight }` | Конец загрузки шрифта |
+
+### FlexTree, Merge, Данные
+
+| Событие | `data` | Описание |
+|---------|--------|----------|
+| `FLEX_TREE_CHANGED` | `{ id, algorithm? \| preset? \| params? }` | Изменён алгоритм/параметры flex tree |
+| `FLEX_TREE_REMOVED` | `{ id }` | Flex tree удалён |
+| `MERGE_WARNING` | `{ badIds: string[] }` | Предупреждение при склейке |
+| `elements-loaded` | элементы | Элементы загружены |
+| `elements-added` | элементы | Элементы добавлены |
+| `elements-updated` | patches | Элементы обновлены |
+| `groups-loaded` | группы | Группы загружены |
+| `groups-added` | группы | Группы добавлены |
+| `groups-updated` | patches | Группы обновлены |
+| `color-map-recalculated` | `{}` | Пересчитана цветовая карта |
 
 ---
 
-## Основной класс SvgCanvas
+## Импорт / экспорт
+
+### Конвертация SVG-узлов
 
 ```ts
-const canvas = new SvgCanvas(container, { width: 800, height: 600 });
-
-// Артборд
-canvas.setArtboardSize(210, 297);  // A4 в мм
-
-// Выделение
-canvas.getSelected();               // AbstractGraphicElement[]
-canvas.setSelectedElements(elements);
-canvas.setSelectionMode('element' | 'group');
-canvas.setSelectionGesture('click' | 'rect' | 'lasso');
-
-// Привязки
-canvas.setSnapToElements(true);
-canvas.setSnapToArtboard(true);
-canvas.setAvoidCollisions(true);
-
-// Undo / Redo
-canvas.undo();
-canvas.redo();
-canvas.canUndo;  // boolean
-canvas.canRedo;  // boolean
-
-// Группы
-canvas.groups;                     // Group[]
-canvas.createGroup(name?);         // → string (groupId)
-canvas.deleteGroup(id);
-canvas.addToGroup(groupId, [elementIds]);
-canvas.removeFromGroup(groupId, [elementIds]);
-canvas.getElementIdsInGroup(id);
-canvas.highlightGroupElements(id);
-canvas.selectGroup(id);
-canvas.selectGroupElements(id);
-canvas.selectMultipleGroups([id]);
-canvas.setGroups(data);
-
-// Камера
-canvas.getCamera();                // { zoom, panX, panY, ... }
-canvas.getSVG();                   // SVGSVGElement
-
-// Пути — редактирование узлов
-canvas.editingPath = pathElement;  // войти в режим
-canvas.editingPath = null;         // выйти
-
-// Сохранение / загрузка состояния
-const records = canvas.saveTimeMachine();   // TimeMachineRecord[]
-canvas.loadTimeMachine(records);
-
-// Отладка
-canvas.debugShowHitArea = true;    // показать hit-области
-
-canvas.destroy();  // уничтожить
-```
-
----
-
-## Импорт / экспорт данных
-
-### Загрузка из JSON
-
-```ts
-canvas.loadJSON([
-  { id: 'bg', type: 'rect', attributes: { x: '0', y: '0', width: '800', height: '600', fill: '#f5f5f5' } },
-  { id: 'r1', type: 'rect', attributes: { x: '100', y: '100', width: '200', height: '150', fill: 'blue' } },
-]);
-```
-
-### Конвертация SVG-узлов в элементы
-
-```ts
-import { svgNodesToElements } from './path/to/svg-canvas';
+import { svgNodesToElements } from 'svg-canvas';
 
 const elements = svgNodesToElements([
-  { id: 'path-1', type: 'path', attributes: { d: 'M 10 10 L 100 100', stroke: 'black', 'stroke-width': '2', fill: 'none' } },
-  // ...
+  { id: 'p1', type: 'path', attributes: { d: 'M 10 10 L 100 100', stroke: 'black', 'stroke-width': '2', fill: 'none' } },
 ]);
+
 for (const el of elements) {
-  canvas.addShape(el);
+  canvas.api.shapes.addShape(el);
 }
 ```
 
-### Сохранение истории
+### Сохранение/восстановление
 
 ```ts
-// Сериализовать и сохранить в БД
-const records = canvas.saveTimeMachine();
-localStorage.setItem('canvas-snapshot', JSON.stringify(records));
-
-// Восстановить
-const loaded = JSON.parse(localStorage.getItem('canvas-snapshot')!);
-canvas.loadTimeMachine(loaded);
-```
-
----
-
-## Редактирование узлов пути
-
-```ts
-// Войти в режим
-canvas.editingPath = pathElement;
-
-// Добавить узел
-canvas.getCommandBus().execute({
-  type: 'PATH_ADD_NODE',
-  options: { id: pathElement.id, cmdIdx: 0, x: 150, y: 150, t: 0.5, prevEndX: 100, prevEndY: 100 },
-});
-
-// Удалить узел
-canvas.getCommandBus().execute({
-  type: 'PATH_REMOVE_NODE',
-  options: { id: pathElement.id, cmdIdx: 0 },
-});
-
-// Сменить тип узла (C — кубическая Безье, L — линия)
-canvas.getCommandBus().execute({
-  type: 'PATH_CHANGE_NODE_TYPE',
-  options: { id: pathElement.id, cmdIdx: 0, newType: 'C' },
-});
-
-// Сдвинуть суб-путь
-canvas.getCommandBus().execute({
-  type: 'PATH_MOVE_SUBPATH',
-  options: { id: pathElement.id, subpathIdx: 0, delta: { x: 50, y: 0 } },
-});
-
-// Выйти из режима
-canvas.editingPath = null;
-```
-
----
-
-## Команды (низкоуровневый доступ)
-
-```ts
-const bus = canvas.getCommandBus();
-
-// Ручное перемещение
-bus.execute({ type: 'DRAG_MOVE', options: { delta: { x: 10, y: 0 } } });
-bus.execute({ type: 'DRAG_END', options: {} });
-
-// Удаление
-bus.execute({ type: 'DELETE', options: { elementIds: ['id1'] } });
-
-// Группы
-bus.execute({ type: 'GROUP_CREATE', options: { name: 'MyGroup' } });
-bus.execute({ type: 'GROUP_DELETE', options: { groupId: 'g1' } });
-bus.execute({ type: 'GROUP_ADD', options: { groupId: 'g1', elementIds: ['id1'] } });
-bus.execute({ type: 'GROUP_REMOVE', options: { groupId: 'g1', elementIds: ['id1'] } });
-
-// Трансформации
-bus.execute({ type: 'RESIZE', options: { elementIds: ['id1'], bbox: { x: 0, y: 0, width: 200, height: 100 } } });
-bus.execute({ type: 'ROTATE', options: { elementIds: ['id1'], angle: 45 } });
-bus.execute({ type: 'TRANSFORM', options: { elementIds: ['id1'], matrix: [1, 0, 0, 1, 100, 0] } });
-
-// Выделение
-bus.execute({ type: 'SELECT', options: { elementIds: ['id1'], toggle: false } });
-
-// Z-order
-bus.execute({ type: 'SORT', options: { elementIds: ['id1'], targetId: 'id2', position: 'before' } });
-```
-
-Каждая команда попадает в `TimeMachine` и может быть отменена через `canvas.undo()`.
-
----
-
-## Полный пример
-
-```ts
-import { SvgCanvas, Events } from './path/to/svg-canvas';
-
-const canvas = new SvgCanvas(document.getElementById('app')!, {
-  width: 1200,
-  height: 800,
-});
-
-const api = canvas.getExternalApi();
-
-// Артборд A4
-canvas.setArtboardSize(210, 297);
-
-// Подписка на события
-canvas.on(Events.SelectionChange, (selected) => {
-  console.log('Выделено:', selected.length, 'элементов');
-});
-
-canvas.on(Events.ElementCreated, (el) => {
-  console.log('Создан:', el.id, el.type);
-});
-
-// Загрузка подложки
-canvas.loadJSON([
-  { id: 'bg', type: 'rect', attributes: { x: '0', y: '0', width: '800', height: '600', fill: '#fafafa' } },
-]);
-
-// Создание фигур
-const rect = api.createShape({
-  type: 'rect',
-  geometry: { x: 100, y: 100, width: 200, height: 150 },
-  style: { fill: '#3498db', stroke: '#2c3e50', strokeWidth: 2 },
-  data: { author: 'Иван', material: 'фанера 3мм' },
-});
-
-const circle = api.createShape({
-  type: 'circle',
-  geometry: { cx: 300, cy: 200, r: 40 },
-  style: { fill: '#e74c3c', stroke: '#c0392b', strokeWidth: 2 },
-});
-
-// Группировка
-const groupId = api.groupCreate({ name: 'Деталь А' });
-api.groupAddElements({ groupId, elementIds: [rect.id, circle.id] });
-
-// Поворот группы
-api.rotateShapes({ elementIds: [rect.id, circle.id], angle: 15 });
-
-// Отмена
-canvas.undo();
-
-// Сохранение
-const snapshot = canvas.saveTimeMachine();
+const snapshot = api.history.save();
 localStorage.setItem('project', JSON.stringify(snapshot));
 
-// Включить привязки
-canvas.setSnapToElements(true);
-canvas.setSnapToArtboard(true);
+const loaded = JSON.parse(localStorage.getItem('project')!);
+api.history.load(loaded);
+```
 
-// Включить инструмент рисования прямоугольников
-api.setActiveCreationTool('rect');
+### Данные элементов и групп
+
+```ts
+const dto = api.data.toDTO();
+api.data.load(dto.elements, dto.groups);
 ```
 
 ---
@@ -436,14 +510,12 @@ api.setActiveCreationTool('rect');
 
 ```bash
 npm install
-npm run dev        # сборка в watch-режиме
-npm run example    # запуск примеров (Vite)
-npm run lint       # проверка ESLint
-npm run typecheck  # проверка TypeScript
-npm run build      # production-сборка в dist/
+npm run dev         # сборка в watch-режиме
+npm run example     # запуск примеров (Vite)
+npm run lint        # ESLint
+npm run typecheck   # TypeScript
+npm run build       # production-сборка в dist/
 ```
-
----
 
 ## Лицензия
 
