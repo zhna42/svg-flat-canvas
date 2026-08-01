@@ -36,29 +36,72 @@ export class CanvasController {
     };
   }
 
+  private _getRealViewportSize(fallbackW: number, fallbackH: number): { w: number; h: number } {
+    const ctm = this.canvas.svg.getScreenCTM();
+    if (!ctm) {
+      console.log('[getRealViewportSize] CTM null, fallback:', { w: fallbackW, h: fallbackH });
+      return { w: fallbackW, h: fallbackH };
+    }
+    const rect = this.canvas.svg.getBoundingClientRect();
+    const inv = ctm.inverse();
+    const p0 = this.canvas.svg.createSVGPoint();
+    p0.x = rect.left;
+    p0.y = rect.top;
+    const p1 = this.canvas.svg.createSVGPoint();
+    p1.x = rect.left + rect.width;
+    p1.y = rect.top + rect.height;
+    const v0 = p0.matrixTransform(inv);
+    const v1 = p1.matrixTransform(inv);
+    const result = { w: v1.x - v0.x, h: v1.y - v0.y };
+    console.log('[getRealViewportSize]', {
+      cssRect: { left: rect.left, top: rect.top, w: rect.width, h: rect.height },
+      ctm: { a: ctm.a, d: ctm.d, e: ctm.e, f: ctm.f },
+      v0: { x: v0.x, y: v0.y },
+      v1: { x: v1.x, y: v1.y },
+      result
+    });
+    return result;
+  }
+
+  private _getScaleFactor(): number {
+    const ctm = this.canvas.svg.getScreenCTM();
+    const scale = ctm ? Math.abs(ctm.a) || 1 : 1;
+    console.log('[getScaleFactor]', { ctmA: ctm?.a, ctmD: ctm?.d, scale });
+    return scale;
+  }
+
   public setArtboardSize(widthMM: number, heightMM: number): void {
     this.canvas.artboard?.setSize(widthMM, heightMM);
     const wUnits = widthMM * MM_TO_PX;
     const hUnits = heightMM * MM_TO_PX;
     this.canvas.svg.setAttribute('viewBox', `0 0 ${wUnits} ${hUnits}`);
-    const ctm = this.canvas.svg.getScreenCTM();
-    let realW = wUnits;
-    let realH = hUnits;
-    if (ctm) {
-      const rect = this.canvas.svg.getBoundingClientRect();
-      const inv = ctm.inverse();
-      const p = this.canvas.svg.createSVGPoint();
-      p.x = rect.width;
-      p.y = rect.height;
-      const vp = p.matrixTransform(inv);
-      realW = vp.x;
-      realH = vp.y;
-    }
-    this.canvas.camera.fitToViewport(wUnits, hUnits, realW, realH, 40);
+    const { w: realW, h: realH } = this._getRealViewportSize(wUnits, hUnits);
+    const paddingSvg = 40 / this._getScaleFactor();
+    this.canvas.camera.fitToViewport(wUnits, hUnits, realW, realH, paddingSvg);
     if (this.canvas.rulers.flipY) {
       this.canvas.rulers.setFlipY(true, hUnits);
     }
     this.canvas.events.emit('artboard-resized', { widthMM, heightMM });
+  }
+
+  public setArtboardCenter(padding = 40): void {
+    const wUnits = this.canvas.artboard.widthPx;
+    const hUnits = this.canvas.artboard.heightPx;
+    const { w: realW, h: realH } = this._getRealViewportSize(wUnits, hUnits);
+    const scale = this._getScaleFactor();
+    const paddingSvg = padding / scale;
+    console.log('[setArtboardCenter]', {
+      artboard: { w: wUnits, h: hUnits },
+      viewport: { w: realW, h: realH },
+      cssPadding: padding,
+      scale,
+      paddingSvg,
+      cameraBefore: { x: this.canvas.camera.x, y: this.canvas.camera.y, zoom: this.canvas.camera.zoom }
+    });
+    this.canvas.camera.fitToViewport(wUnits, hUnits, realW, realH, paddingSvg);
+    console.log('[setArtboardCenter] after fitToViewport:', {
+      cameraAfter: { x: this.canvas.camera.x, y: this.canvas.camera.y, zoom: this.canvas.camera.zoom }
+    });
   }
 
   public getCamera(): Camera {

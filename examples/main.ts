@@ -13,6 +13,7 @@ function init(): void {
   const canvas = new SvgCanvas(container, { width: 800, height: 600 });
   api = canvas.api;
   api.canvas.setArtboardSize(210, 297);
+  api.canvas.setArtboardCenter(40);
 
   loadDemoData();
   setupEventLog();

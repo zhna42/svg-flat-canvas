@@ -26,7 +26,10 @@ export class RenderScheduler {
     this._rafId = null;
 
     if (this._dirtyNodes.size === 0) return;
-    if (!this._view) return;
+    if (!this._view) {
+      this._dirtyNodes.clear();
+      return;
+    }
 
     for (const node of this._dirtyNodes) {
       if (node.type === 'selection-box') {

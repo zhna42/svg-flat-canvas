@@ -70,6 +70,7 @@ export class CanvasSystemNodes {
         const zoom =
           typeof diff.zoom === 'number' ? diff.zoom : this._camera.zoom;
         const transform = `translate(${x}, ${y}) scale(${zoom})`;
+        console.log('[applyDiff camera]', { diff, x, y, zoom, transform, elementId: element.id });
         element.setAttribute('transform', transform);
         return;
       }

@@ -93,5 +93,13 @@ export class Camera extends ReactiveNode {
     this.zoom = Math.min(scaleX, scaleY);
     this.x = (viewWidth - contentWidth * this.zoom) / 2;
     this.y = (viewHeight - contentHeight * this.zoom) / 2;
+    console.log('[Camera.fitToViewport]', {
+      content: { w: contentWidth, h: contentHeight },
+      view: { w: viewWidth, h: viewHeight },
+      padding,
+      padX, padY,
+      scaleX, scaleY,
+      result: { x: this.x, y: this.y, zoom: this.zoom }
+    });
   }
 }
