@@ -110,6 +110,10 @@ export class CanvasController {
 
   public setPanMode(enabled: boolean): void {
     this.dbg.log('API', 'setPanMode', { enabled });
+    const gesture = this.canvas.selectionHandler.getGesture();
+    if (enabled && (gesture === 'rect' || gesture === 'lasso')) {
+      return;
+    }
     this.canvas.panActive.value = enabled;
     if (enabled) {
       this.canvas.creationHandler.setActiveType(null);
@@ -119,6 +123,10 @@ export class CanvasController {
 
   public setPanHeld(held: boolean): void {
     this.canvas.camera.panHeld = held;
+    const gesture = this.canvas.selectionHandler.getGesture();
+    if (gesture === 'rect' || gesture === 'lasso') {
+      this.canvas.panActive.value = held;
+    }
   }
 
   public setActiveCreationTool(type: ElementType | null): void {

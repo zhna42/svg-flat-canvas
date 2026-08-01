@@ -72,6 +72,9 @@ export class SelectionController {
 
   public setSelectionGesture(g: SelectionGesture): void {
     this.canvas.selectionHandler.setGesture(g);
+    if (g === 'rect' || g === 'lasso') {
+      this.canvas.panActive.value = false;
+    }
   }
 
   public getSelectionGesture(): SelectionGesture {
