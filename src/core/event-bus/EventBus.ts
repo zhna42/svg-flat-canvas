@@ -28,6 +28,7 @@ export class EventBus {
   }
 
   public emit(type: string, data: unknown): void {
+    console.log(`[EventBus] ${type}`, data);
     const busEvent: BusEvent = { type, data };
     const set = this.listeners.get(type);
     if (set) {

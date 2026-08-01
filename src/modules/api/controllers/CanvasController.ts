@@ -39,7 +39,6 @@ export class CanvasController {
   private _getRealViewportSize(fallbackW: number, fallbackH: number): { w: number; h: number } {
     const ctm = this.canvas.svg.getScreenCTM();
     if (!ctm) {
-      console.log('[getRealViewportSize] CTM null, fallback:', { w: fallbackW, h: fallbackH });
       return { w: fallbackW, h: fallbackH };
     }
     const rect = this.canvas.svg.getBoundingClientRect();
@@ -53,20 +52,12 @@ export class CanvasController {
     const v0 = p0.matrixTransform(inv);
     const v1 = p1.matrixTransform(inv);
     const result = { w: v1.x - v0.x, h: v1.y - v0.y };
-    console.log('[getRealViewportSize]', {
-      cssRect: { left: rect.left, top: rect.top, w: rect.width, h: rect.height },
-      ctm: { a: ctm.a, d: ctm.d, e: ctm.e, f: ctm.f },
-      v0: { x: v0.x, y: v0.y },
-      v1: { x: v1.x, y: v1.y },
-      result
-    });
     return result;
   }
 
   private _getScaleFactor(): number {
     const ctm = this.canvas.svg.getScreenCTM();
     const scale = ctm ? Math.abs(ctm.a) || 1 : 1;
-    console.log('[getScaleFactor]', { ctmA: ctm?.a, ctmD: ctm?.d, scale });
     return scale;
   }
 
@@ -90,18 +81,7 @@ export class CanvasController {
     const { w: realW, h: realH } = this._getRealViewportSize(wUnits, hUnits);
     const scale = this._getScaleFactor();
     const paddingSvg = padding / scale;
-    console.log('[setArtboardCenter]', {
-      artboard: { w: wUnits, h: hUnits },
-      viewport: { w: realW, h: realH },
-      cssPadding: padding,
-      scale,
-      paddingSvg,
-      cameraBefore: { x: this.canvas.camera.x, y: this.canvas.camera.y, zoom: this.canvas.camera.zoom }
-    });
     this.canvas.camera.fitToViewport(wUnits, hUnits, realW, realH, paddingSvg);
-    console.log('[setArtboardCenter] after fitToViewport:', {
-      cameraAfter: { x: this.canvas.camera.x, y: this.canvas.camera.y, zoom: this.canvas.camera.zoom }
-    });
   }
 
   public getCamera(): Camera {
@@ -138,11 +118,6 @@ export class CanvasController {
     }
     if (type !== null) {
       this.canvas.panActive.value = false;
-    } else {
-      const gesture = this.canvas.selectionHandler.getGesture();
-      if (gesture !== 'rect' && gesture !== 'lasso') {
-        this.canvas.panActive.value = true;
-      }
     }
     const allowed: ElementType[] = [
       'rect',
@@ -158,6 +133,9 @@ export class CanvasController {
       this.canvas.creationHandler.setActiveType(
         type as CreationElementType | null,
       );
+      if (type === null) {
+        this.canvas.events.emit('CREATION_TOOL_DEACTIVATED', {});
+      }
     }
   }
 

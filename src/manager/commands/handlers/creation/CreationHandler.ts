@@ -288,9 +288,8 @@ export class CreationHandler {
       }
     }
 
-    this.finalizeCreation(el);
-
     this.currentPreview = null;
+    this.finalizeCreation(el);
   }
 
   public addPointToMulti(worldPoint: Point): void {
@@ -395,8 +394,8 @@ export class CreationHandler {
               options: { element: polygon },
             });
             this.onElementFinalize?.(polygon);
-            this.onCreationEnd?.(polygon);
             this.currentPreview = null;
+            this.onCreationEnd?.(polygon);
             this.multiPointPoints = [];
             return;
           }
@@ -447,9 +446,9 @@ export class CreationHandler {
       return;
     }
 
+    this.currentPreview = null;
     this.finalizeCreation(el);
 
-    this.currentPreview = null;
     this.multiPointPoints = [];
   }
 

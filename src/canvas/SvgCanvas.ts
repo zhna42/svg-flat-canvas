@@ -539,10 +539,12 @@ export class SvgCanvas implements ICanvasContext {
       this.elementManager.indexShape(el);
     };
     creationHandler.onCreationEnd = (el) => {
+      creationHandler.setActiveType(null);
       this.selectionState.replace([el]);
       if (el.type === 'text') {
         this.textEngine.enterEdit(el.id);
       }
+      this.events.emit('CREATION_TOOL_DEACTIVATED', { elementId: el.id });
     };
     this.creationHandler = creationHandler;
 
