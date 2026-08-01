@@ -89,8 +89,8 @@ export class RulerBuilder {
 
     const fontSize = FONT_SIZE_BASE / syScale;
     const fontSizeSmall = FONT_SIZE_SMALL / syScale;
-    const lineW = 0.5 * MM_TO_PX;
-    const lineWMajor = 0.6 * MM_TO_PX;
+    const lineW = 1;
+    const lineWMajor = 1.5;
 
     const padBottom = 6 / syScale;
     const padRight = 4 / svgToPx;
@@ -101,17 +101,17 @@ export class RulerBuilder {
 
     let h = '';
 
-    h += `<rect x="0" y="0" width="${rsV}" height="${rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
+    h += `<rect x="0" y="0" width="${rsV}" height="${rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}" vector-effect="non-scaling-stroke"/>`;
     if (panX < rsV && panY < rsH) {
       const cornerLabel = flipY ? this.formatMmLabel(worldHMm, mmStep) : '0';
       h += `<text x="${rsV - padRight}" y="${rsH - padBottom}" fill="${RULER_TEXT_COLOR}" font-size="${fontSizeSmall}" font-weight="${FONT_WEIGHT}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="text-after-edge">${cornerLabel}</text>`;
     }
 
-    h += `<rect x="${rsV}" y="0" width="${svgW - rsV}" height="${rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
-    h += `<line x1="${rsV}" y1="${rsH}" x2="${svgW}" y2="${rsH}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
+    h += `<rect x="${rsV}" y="0" width="${svgW - rsV}" height="${rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}" vector-effect="non-scaling-stroke"/>`;
+    h += `<line x1="${rsV}" y1="${rsH}" x2="${svgW}" y2="${rsH}" stroke="${RULER_BORDER}" stroke-width="${lineW}" vector-effect="non-scaling-stroke"/>`;
 
-    h += `<rect x="0" y="${rsH}" width="${rsV}" height="${svgH - rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
-    h += `<line x1="${rsV}" y1="${rsH}" x2="${rsV}" y2="${svgH}" stroke="${RULER_BORDER}" stroke-width="${lineW}"/>`;
+    h += `<rect x="0" y="${rsH}" width="${rsV}" height="${svgH - rsH}" fill="${RULER_BG}" stroke="${RULER_BORDER}" stroke-width="${lineW}" vector-effect="non-scaling-stroke"/>`;
+    h += `<line x1="${rsV}" y1="${rsH}" x2="${rsV}" y2="${svgH}" stroke="${RULER_BORDER}" stroke-width="${lineW}" vector-effect="non-scaling-stroke"/>`;
 
     const stepPx = step * z;
 
@@ -131,7 +131,7 @@ export class RulerBuilder {
             : rsH * 0.3;
       const tickColor = tickType === 'major' ? RULER_TICK_MAJOR : RULER_TICK_COLOR;
       const tickW = tickType === 'major' ? lineWMajor : lineW;
-      h += `<line x1="${sx}" y1="${rsH - len}" x2="${sx}" y2="${rsH}" stroke="${tickColor}" stroke-width="${tickW}"/>`;
+      h += `<line x1="${sx}" y1="${rsH - len}" x2="${sx}" y2="${rsH}" stroke="${tickColor}" stroke-width="${tickW}" vector-effect="non-scaling-stroke"/>`;
       if (tickType === 'major') {
         h += `<text x="${sx + padLeft}" y="${rsH - padBottom}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-weight="${FONT_WEIGHT}" font-family="system-ui, sans-serif" dominant-baseline="text-after-edge">${this.formatMmLabel(mmVal, mmStep)}</text>`;
       }
@@ -157,7 +157,7 @@ export class RulerBuilder {
             : rsV * 0.3;
       const tickColor = tickType === 'major' ? RULER_TICK_MAJOR : RULER_TICK_COLOR;
       const tickW = tickType === 'major' ? lineWMajor : lineW;
-      h += `<line x1="${rsV - len}" y1="${tickY}" x2="${rsV}" y2="${tickY}" stroke="${tickColor}" stroke-width="${tickW}"/>`;
+      h += `<line x1="${rsV - len}" y1="${tickY}" x2="${rsV}" y2="${tickY}" stroke="${tickColor}" stroke-width="${tickW}" vector-effect="non-scaling-stroke"/>`;
       if (tickType === 'major') {
         const displayMmVal = flipY ? rawMmVal - flipOffset : rawMmVal;
         h += `<text x="${rsV - padRight}" y="${tickY + padV}" fill="${RULER_TEXT_COLOR}" font-size="${fontSize}" font-weight="${FONT_WEIGHT}" font-family="system-ui, sans-serif" text-anchor="end" dominant-baseline="hanging">${this.formatMmLabel(displayMmVal, mmStep)}</text>`;
