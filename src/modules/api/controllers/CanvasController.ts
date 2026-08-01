@@ -124,7 +124,8 @@ export class CanvasController {
   public setPanHeld(held: boolean): void {
     this.canvas.camera.panHeld = held;
     const gesture = this.canvas.selectionHandler.getGesture();
-    if (gesture === 'rect' || gesture === 'lasso') {
+    const isCreating = this.canvas.creationHandler.activeType !== null;
+    if (gesture === 'rect' || gesture === 'lasso' || isCreating) {
       this.canvas.panActive.value = held;
     }
   }
@@ -137,6 +138,11 @@ export class CanvasController {
     }
     if (type !== null) {
       this.canvas.panActive.value = false;
+    } else {
+      const gesture = this.canvas.selectionHandler.getGesture();
+      if (gesture !== 'rect' && gesture !== 'lasso') {
+        this.canvas.panActive.value = true;
+      }
     }
     const allowed: ElementType[] = [
       'rect',
