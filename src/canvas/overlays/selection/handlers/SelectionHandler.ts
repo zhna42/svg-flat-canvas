@@ -147,6 +147,13 @@ export class SelectionHandler {
   }
 
   public onMouseDown(e: MouseEvent): boolean {
+    if (e.button === 2) {
+      this.opts.events.emit('RIGHT_CLICK_DOWN', {
+        ids: this.opts.state.selected.map((s) => s.id),
+      });
+      e.preventDefault();
+      return true;
+    }
     if (e.button !== 0) return false;
 
     if (this.opts.isCreating?.()) return false;
@@ -316,6 +323,13 @@ export class SelectionHandler {
   }
 
   public onMouseUp(e: MouseEvent): boolean {
+    if (e.button === 2) {
+      this.opts.events.emit('RIGHT_CLICK_UP', {
+        ids: this.opts.state.selected.map((s) => s.id),
+      });
+      e.preventDefault();
+      return true;
+    }
     if (e.button !== 0) return false;
 
     if (this.panning) {
