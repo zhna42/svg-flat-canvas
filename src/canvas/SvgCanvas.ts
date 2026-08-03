@@ -377,6 +377,7 @@ export class SvgCanvas implements ICanvasContext {
         selected.map((e) => e.id),
         (id) => this.shapeManager.getById(id),
       );
+      this.events.emit('SELECTED_ELEMENT', { ids: selected.map((e) => e.id) });
       if (selected.length === 1) {
         const bbox = selected[0].getTransformedBBox();
         this.events.emit('ELEMENT_SIZE', {
