@@ -196,6 +196,13 @@ function setupTopToolbar(): void {
   toggleButton('btn-avoid-collisions', false, (v) => api.snap.setAvoidCollisions(v));
   toggleButton('btn-lock-drag-axis', false, (v) => api.snap.setLockDragAxis(v));
 
+  api.on('SNAP_CORNERS_CHANGED', (ev: BusEvent) => {
+    updateButtonState('btn-snap-corners', ev.data.enabled);
+  });
+  api.on('SNAP_PLANES_CHANGED', (ev: BusEvent) => {
+    updateButtonState('btn-snap-planes', ev.data.enabled);
+  });
+
   const snapAxis = document.getElementById(
     'sel-snap-axis',
   ) as HTMLSelectElement;
@@ -1013,6 +1020,13 @@ function toggleButton(
     state ? btn.classList.add('on') : btn.classList.remove('on');
     onChange(state);
   });
+}
+
+function updateButtonState(id: string, enabled: boolean): void {
+  const btn = document.getElementById(id);
+  if (!btn) return;
+  if (enabled) btn.classList.add('on');
+  else btn.classList.remove('on');
 }
 
 // ─── Laser Panel ───────────────────────────────────────────

@@ -6,17 +6,15 @@ import type {
   ScreenBezierSeg,
   CurveTarget,
 } from '@/core/type';
-
-const SLOW_ENGAGE_DIST = 10;
-const SLOW_HOLD_DIST = 12;
-
-const FAST_ENGAGE_DIST = 2;
-const FAST_HOLD_DIST = 3;
-
-const SLOW_SPEED = 2;
-const FAST_SPEED = 14;
-
-const VELOCITY_SMOOTH = 0.35;
+import {
+  SNAP_SLOW_ENGAGE_DISTANCE,
+  SNAP_SLOW_HOLD_DISTANCE,
+  SNAP_FAST_ENGAGE_DISTANCE,
+  SNAP_FAST_HOLD_DISTANCE,
+  SNAP_SLOW_SPEED,
+  SNAP_FAST_SPEED,
+  SNAP_VELOCITY_SMOOTH,
+} from '@/constants/snap';
 
 export class AdaptiveSnapEngine {
   private active: Partial<Record<SnapAxis, boolean>> = {};
@@ -55,7 +53,7 @@ export class AdaptiveSnapEngine {
   setMotionContext(screenDeltaX: number, screenDeltaY: number): void {
     const rawSpeed = Math.hypot(screenDeltaX, screenDeltaY);
     this.smoothSpeed =
-      VELOCITY_SMOOTH * rawSpeed + (1 - VELOCITY_SMOOTH) * this.smoothSpeed;
+      SNAP_VELOCITY_SMOOTH * rawSpeed + (1 - SNAP_VELOCITY_SMOOTH) * this.smoothSpeed;
 
     const len = Math.hypot(screenDeltaX, screenDeltaY);
     if (len > 0.01) {
@@ -68,17 +66,17 @@ export class AdaptiveSnapEngine {
   }
 
   private engageDist(): number {
-    if (this.smoothSpeed <= SLOW_SPEED) return SLOW_ENGAGE_DIST;
-    if (this.smoothSpeed >= FAST_SPEED) return FAST_ENGAGE_DIST;
-    const t = (this.smoothSpeed - SLOW_SPEED) / (FAST_SPEED - SLOW_SPEED);
-    return SLOW_ENGAGE_DIST + t * (FAST_ENGAGE_DIST - SLOW_ENGAGE_DIST);
+    if (this.smoothSpeed <= SNAP_SLOW_SPEED) return SNAP_SLOW_ENGAGE_DISTANCE;
+    if (this.smoothSpeed >= SNAP_FAST_SPEED) return SNAP_FAST_ENGAGE_DISTANCE;
+    const t = (this.smoothSpeed - SNAP_SLOW_SPEED) / (SNAP_FAST_SPEED - SNAP_SLOW_SPEED);
+    return SNAP_SLOW_ENGAGE_DISTANCE + t * (SNAP_FAST_ENGAGE_DISTANCE - SNAP_SLOW_ENGAGE_DISTANCE);
   }
 
   private holdDist(): number {
-    if (this.smoothSpeed <= SLOW_SPEED) return SLOW_HOLD_DIST;
-    if (this.smoothSpeed >= FAST_SPEED) return FAST_HOLD_DIST;
-    const t = (this.smoothSpeed - SLOW_SPEED) / (FAST_SPEED - SLOW_SPEED);
-    return SLOW_HOLD_DIST + t * (FAST_HOLD_DIST - SLOW_HOLD_DIST);
+    if (this.smoothSpeed <= SNAP_SLOW_SPEED) return SNAP_SLOW_HOLD_DISTANCE;
+    if (this.smoothSpeed >= SNAP_FAST_SPEED) return SNAP_FAST_HOLD_DISTANCE;
+    const t = (this.smoothSpeed - SNAP_SLOW_SPEED) / (SNAP_FAST_SPEED - SNAP_SLOW_SPEED);
+    return SNAP_SLOW_HOLD_DISTANCE + t * (SNAP_FAST_HOLD_DISTANCE - SNAP_SLOW_HOLD_DISTANCE);
   }
 
   private directionalPenalty(

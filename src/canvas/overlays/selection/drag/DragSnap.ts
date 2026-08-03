@@ -69,13 +69,13 @@ export class DragSnapHelper {
   buildTargets(
     targets: AbstractGraphicElement[],
     snapToArtboard: boolean,
-    snapToCorners: boolean,
-    snapToPlanes: boolean,
+    _snapToCorners: boolean,
+    _snapToPlanes: boolean,
   ): void {
     this.engine.reset();
     const selectedIds = new Set(targets.map((t) => t.id));
 
-    if (this.snapToElements && (snapToCorners || snapToPlanes)) {
+    if (this.snapToElements) {
       const allElementsScreenPoints: { x: number; y: number }[][] = [];
 
       for (const el of this.getElements()) {

@@ -1,0 +1,14 @@
+export const SNAP_HOLD_DISTANCE = 40000;
+
+export const SNAP_SLOW_ENGAGE_DISTANCE = 10000;
+export const SNAP_SLOW_HOLD_DISTANCE = 12000;
+
+export const SNAP_FAST_ENGAGE_DISTANCE = 2000;
+export const SNAP_FAST_HOLD_DISTANCE = 3000;
+
+export const SNAP_SLOW_SPEED = 2000;
+export const SNAP_FAST_SPEED = 14000;
+
+export const SNAP_VELOCITY_SMOOTH = 0.35;
+
+export const SNAP_AXIS_LOCK_DEADZONE = 2000;

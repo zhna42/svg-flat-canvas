@@ -8,9 +8,7 @@ import type { SnapAxisMode } from '@/core/type';
 import { checkSceneCollisions, type CollisionContext } from '@/core/hit-test';
 import { getVisualWorldPoints } from '@/canvas/overlays/selection/drag/DragCollision';
 import { PathElement } from '@/core/shapes/elements/PathElement';
-
-const HOLD_DIST_SCREEN = 40;
-const AXIS_LOCK_DEADZONE_PX = 2;
+import { SNAP_HOLD_DISTANCE, SNAP_AXIS_LOCK_DEADZONE } from '@/constants/snap';
 
 interface SnapState {
   type: 'point' | 'line' | 'curve';
@@ -206,7 +204,8 @@ export class DragHandler {
       this.snapToCorners ||
       this.snapToPlanes ||
       this.dragSnap.snapToGuidelines ||
-      this.dragSnap.snapToGrid
+      this.dragSnap.snapToGrid ||
+      this.dragSnap.snapToElements
     ) {
       this.dragSnap.buildTargets(
         this.targets,
@@ -245,7 +244,7 @@ export class DragHandler {
       const relXpx = Math.abs(relX) * this.camera.zoom;
       const relYpx = Math.abs(relY) * this.camera.zoom;
 
-      if (relXpx < AXIS_LOCK_DEADZONE_PX && relYpx < AXIS_LOCK_DEADZONE_PX) {
+      if (relXpx < SNAP_AXIS_LOCK_DEADZONE && relYpx < SNAP_AXIS_LOCK_DEADZONE) {
         lockedDx = origin.dx;
         lockedDy = origin.dy;
         lockedAxis = 'none';
@@ -266,7 +265,13 @@ export class DragHandler {
     let elemDy = lockedDy;
     let snapEngaged = false;
 
-    const snapEnabled = this.snapToCorners || this.snapToPlanes;
+    const snapEnabled =
+      this.snapToCorners ||
+      this.snapToPlanes ||
+      this.snapToArtboard ||
+      this.dragSnap.snapToGuidelines ||
+      this.dragSnap.snapToGrid ||
+      this.dragSnap.snapToElements;
 
     if (snapEnabled) {
       const snapResult = this.dragSnap.computeWorldSnap(
@@ -302,7 +307,7 @@ export class DragHandler {
             const perpY = lockedDy - elemDy - mouseAlong * dirY;
             const perpDist = Math.hypot(perpX, perpY) * this.camera.zoom;
 
-            if (perpDist > HOLD_DIST_SCREEN) {
+            if (perpDist > SNAP_HOLD_DISTANCE) {
               this.snapState = null;
             } else {
               snapEngaged = true;
@@ -315,7 +320,7 @@ export class DragHandler {
           const gapY = (lockedDy - elemDy) * this.camera.zoom;
           const gapDist = Math.hypot(gapX, gapY);
 
-          if (gapDist > HOLD_DIST_SCREEN) {
+          if (gapDist > SNAP_HOLD_DISTANCE) {
             this.snapState = null;
           } else if (lockedDx * lockedDx + lockedDy * lockedDy > 0.01) {
             const mouseDotDrag =
@@ -462,7 +467,7 @@ export class DragHandler {
             Math.abs(lockedDx - this.currentDx) * this.camera.zoom;
           const newGapY =
             Math.abs(lockedDy - this.currentDy) * this.camera.zoom;
-          if (newGapX > HOLD_DIST_SCREEN || newGapY > HOLD_DIST_SCREEN) {
+          if (newGapX > SNAP_HOLD_DISTANCE || newGapY > SNAP_HOLD_DISTANCE) {
             this.snapState = null;
           }
         }
