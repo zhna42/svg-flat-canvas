@@ -48,6 +48,7 @@ export class ClipboardController {
       clone.lock = resolved.lock;
       clone.rebuildHitArea();
       clone.clearTimeMachineDiff();
+      clone.data = { ...clone.data, isCopy: true };
 
       this.canvas.elementManager.addShape(clone);
       clones.push(clone);
@@ -66,6 +67,12 @@ export class ClipboardController {
       [],
       clones,
     );
+
+    this.canvas.events.emit('COPY', {
+      ids: clones.map((c) => c.id),
+      dx,
+      dy,
+    });
 
     return clones;
   }
@@ -86,6 +93,9 @@ export class ClipboardController {
       useEl.transform.matrix = new DOMMatrix().translateSelf(dx, dy);
       useEl.bindToParent(root);
       useEl.clearTimeMachineDiff();
+      useEl.data = { ...useEl.data, isCopy: true };
+
+      root.data = { ...root.data, hasCopies: true };
 
       this.canvas.elementManager.addShape(useEl);
       useElements.push(useEl);
@@ -105,6 +115,12 @@ export class ClipboardController {
       useElements,
     );
 
+    this.canvas.events.emit('USE_DUPLICATE', {
+      ids: useElements.map((u) => u.id),
+      dx,
+      dy,
+    });
+
     return useElements;
   }
 
@@ -113,11 +129,24 @@ export class ClipboardController {
     const el = this.canvas.shapeManager.getById(useId);
     if (!el || !(el instanceof UseElement)) return null;
 
+    const parentId = el.refId;
     const clone = el.unobind();
     if (!clone) return null;
 
+    clone.data = { ...clone.data, isCopy: false };
+
     this.canvas.elementManager.deleteElements([useId]);
     this.canvas.elementManager.addShape(clone);
+
+    if (parentId) {
+      const remainingUses = this.getUseChildIds(parentId);
+      if (remainingUses.length === 0) {
+        const parent = this.canvas.shapeManager.getById(parentId);
+        if (parent) {
+          parent.data = { ...parent.data, hasCopies: false };
+        }
+      }
+    }
 
     this.canvas.selectionState.replace([clone]);
     this.canvas.selectionManager.setElementSelection([clone.id], (id) =>
@@ -131,6 +160,12 @@ export class ClipboardController {
       [el.id],
       [clone],
     );
+
+    this.canvas.events.emit('UNBIND', {
+      id: clone.id,
+      useId,
+      parentId: parentId ?? null,
+    });
 
     return clone;
   }
@@ -184,6 +219,11 @@ export class ClipboardController {
         (id) => this.canvas.shapeManager.getById(id),
       );
     }
+
+    this.canvas.events.emit('UNBIND_ALL', {
+      ids: clones.map((c) => c.id),
+      parentId,
+    });
 
     return clones;
   }
