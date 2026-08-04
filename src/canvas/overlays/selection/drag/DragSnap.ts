@@ -1,6 +1,6 @@
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { Camera } from '@/canvas/Camera';
-import type { Point, SnapAxisMode, WorldSnapResult } from '@/core/type';
+import type { Point, SnapAxisMode, WorldSnapResult, BoundingBox } from '@/core/type';
 import { AdaptiveSnapEngine } from '@/core/math/snap/AdaptiveSnapEngine';
 import { CircleElement } from '@/core/shapes/elements/CircleElement';
 import { EllipseElement } from '@/core/shapes/elements/EllipseElement';
@@ -12,6 +12,17 @@ import {
   extractBezierTargets,
   getVisualWorldPoints,
 } from '@/canvas/overlays/selection/drag/DragCollision';
+
+const SNAP_SPATIAL_MARGIN = 300000;
+
+function bboxesOverlap(a: BoundingBox, b: BoundingBox): boolean {
+  return !(
+    a.x + a.width < b.x ||
+    a.x > b.x + b.width ||
+    a.y + a.height < b.y ||
+    a.y > b.y + b.height
+  );
+}
 
 export class DragSnapHelper {
   private engine = new AdaptiveSnapEngine();
@@ -75,14 +86,36 @@ export class DragSnapHelper {
     this.engine.reset();
     const selectedIds = new Set(targets.map((t) => t.id));
 
+    const margin = SNAP_SPATIAL_MARGIN / this.camera.zoom;
+    const dragBbox: BoundingBox = { x: Infinity, y: Infinity, width: 0, height: 0 };
+    for (const t of targets) {
+      const b = t.getTransformedBBox();
+      if (b.width === 0 && b.height === 0) continue;
+      const x2 = b.x + b.width;
+      const y2 = b.y + b.height;
+      if (b.x < dragBbox.x) dragBbox.x = b.x;
+      if (b.y < dragBbox.y) dragBbox.y = b.y;
+      if (x2 > dragBbox.x + dragBbox.width) dragBbox.width = x2 - dragBbox.x;
+      if (y2 > dragBbox.y + dragBbox.height) dragBbox.height = y2 - dragBbox.y;
+    }
+    dragBbox.x -= margin;
+    dragBbox.y -= margin;
+    dragBbox.width += margin * 2;
+    dragBbox.height += margin * 2;
+    const useSpatial =
+      dragBbox.width > 0 && dragBbox.height > 0 &&
+      isFinite(dragBbox.x) && isFinite(dragBbox.y);
+
     if (this.snapToElements) {
       const allElementsScreenPoints: { x: number; y: number }[][] = [];
 
       for (const el of this.getElements()) {
         if (selectedIds.has(el.id)) continue;
+        if (useSpatial && !bboxesOverlap(el.getTransformedBBox(), dragBbox)) continue;
         const strokeOffsetPx = (el.style.strokeWidth / 2) * this.camera.zoom;
         const worldPts = getCenterlinePoints(el, this.camera);
         if (!worldPts || worldPts.length === 0) continue;
+        if (worldPts.length > 1000) continue;
         let screenPts = worldPts.map((p) => this.camera.worldToScreen(p));
         if (strokeOffsetPx > 0) {
           const isClosed = el.type !== 'polyline' && el.type !== 'line';
@@ -100,10 +133,14 @@ export class DragSnapHelper {
       const curveElements = this.getElements().filter(
         (e) =>
           !selectedIds.has(e.id) &&
+          (!useSpatial || bboxesOverlap(e.getTransformedBBox(), dragBbox)) &&
           (e instanceof CircleElement || e instanceof EllipseElement),
       );
       const bezierElements = this.getElements().filter(
-        (e) => !selectedIds.has(e.id) && e instanceof PathElement,
+        (e) =>
+          !selectedIds.has(e.id) &&
+          (!useSpatial || bboxesOverlap(e.getTransformedBBox(), dragBbox)) &&
+          e instanceof PathElement,
       );
       const allCurveTargets = [
         ...getScreenCurveTargets(curveElements, this.camera),

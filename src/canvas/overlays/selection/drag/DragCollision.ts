@@ -27,6 +27,23 @@ export function generateCirclePoints(
   return pts;
 }
 
+function decimateByThreshold(pts: Point[]): Point[] {
+  let step = 1;
+  const n = pts.length;
+  if (n > 800) step = 10;
+  else if (n > 500) step = 6;
+  else if (n > 300) step = 3;
+  else if (n > 100) step = 2;
+  if (step === 1) return pts;
+
+  const decimated: Point[] = [];
+  for (let i = 0; i < pts.length; i += step) decimated.push(pts[i]);
+  if (decimated[decimated.length - 1] !== pts[pts.length - 1]) {
+    decimated.push(pts[pts.length - 1]);
+  }
+  return decimated;
+}
+
 export function getCenterlinePoints(
   el: AbstractGraphicElement,
   camera: Camera,
@@ -47,11 +64,13 @@ export function getCenterlinePoints(
   }
 
   if (el instanceof PathElement) {
-    const steps = Math.max(12, Math.round(12 * camera.zoom));
     const segs = el.geometry.segments;
     if (segs.length === 0) return [];
+    const steps = Math.max(12, Math.round(12 * camera.zoom));
     const cmds = segmentsToCommands(segs);
-    return toWorld(flattenCommands(cmds, steps));
+    let pts = flattenCommands(cmds, steps);
+    pts = decimateByThreshold(pts);
+    return toWorld(pts);
   }
 
   if (el.type === 'rect') {

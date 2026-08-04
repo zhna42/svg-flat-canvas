@@ -1,4 +1,4 @@
-import type { Point, SnapAxisMode } from '@/core/type';
+import type { Point, SnapAxisMode, BoundingBox } from '@/core/type';
 import type { Camera } from '@/canvas/Camera';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import { AdaptiveSnapEngine } from '@/core/math/snap/AdaptiveSnapEngine';
@@ -10,6 +10,17 @@ import {
   getScreenCurveTargets,
   extractBezierTargets,
 } from '@/canvas/overlays/selection/drag/DragCollision';
+
+const SNAP_SPATIAL_MARGIN = 300000;
+
+function bboxesOverlap(a: BoundingBox, b: BoundingBox): boolean {
+  return !(
+    a.x + a.width < b.x ||
+    a.x > b.x + b.width ||
+    a.y + a.height < b.y ||
+    a.y > b.y + b.height
+  );
+}
 
 export interface NodeSnapResult {
   x: number;
@@ -46,14 +57,32 @@ export class NodeSnapHelper {
     this.engine.reset();
     if (!this.enabled) return;
 
+    const margin = SNAP_SPATIAL_MARGIN / this.camera.zoom;
+    const dragBbox: BoundingBox = { x: Infinity, y: Infinity, width: 0, height: 0 };
+    for (const p of extraNodes) {
+      if (p.x < dragBbox.x) dragBbox.x = p.x;
+      if (p.y < dragBbox.y) dragBbox.y = p.y;
+      if (p.x > dragBbox.x + dragBbox.width) dragBbox.width = p.x - dragBbox.x;
+      if (p.y > dragBbox.y + dragBbox.height) dragBbox.height = p.y - dragBbox.y;
+    }
+    dragBbox.x -= margin;
+    dragBbox.y -= margin;
+    dragBbox.width += margin * 2;
+    dragBbox.height += margin * 2;
+    const useSpatial =
+      dragBbox.width > 0 && dragBbox.height > 0 &&
+      isFinite(dragBbox.x) && isFinite(dragBbox.y);
+
     const screenPolys: Point[][] = [];
     const curveElements: AbstractGraphicElement[] = [];
     const bezierElements: AbstractGraphicElement[] = [];
 
     for (const el of this.getElements()) {
       if (editingIds.has(el.id)) continue;
+      if (useSpatial && !bboxesOverlap(el.getTransformedBBox(), dragBbox)) continue;
       const worldPts = getCenterlinePoints(el, this.camera);
-      if (worldPts && worldPts.length > 0) {
+      if (!worldPts || worldPts.length > 1000) continue;
+      if (worldPts.length > 0) {
         screenPolys.push(worldPts.map((p) => this.camera.worldToScreen(p)));
       }
       if (el instanceof CircleElement || el instanceof EllipseElement) {
