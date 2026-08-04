@@ -3,9 +3,14 @@ import type { PathElement } from '@/core/shapes/elements/PathElement';
 import { PathElement as PathElementCtor } from '@/core/shapes/elements/PathElement';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { NodeKind } from '@/core/type';
+import type { NodeEditSession } from '@/canvas/overlays/nodeedit/NodeEditSession';
 
 export class NodeEditController {
   constructor(private canvas: SvgCanvas) {}
+
+  get session(): NodeEditSession {
+    return this.canvas.nodeEdit.session;
+  }
 
   enterNodeEdit(ids: string[]): void {
     const els = ids
