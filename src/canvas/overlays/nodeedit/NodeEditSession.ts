@@ -53,6 +53,11 @@ export class NodeEditSession {
   public onGeometryChange: ((elementId: string) => void) | null = null;
   /** Вызывается при изменении выбора (нужен только re-render оверлея). */
   public onSelectionChange: (() => void) | null = null;
+  /** Вызывается при изменении pending-контура в режиме extend. */
+  public onExtendChange: (() => void) | null = null;
+
+  /** Точки дорисовываемого контура (extend mode). */
+  public pendingContour: EditContour | null = null;
 
   // ── Targets ──
 
@@ -515,6 +520,51 @@ export class NodeEditSession {
     contour.nodes.splice(segIdx + 1, 0, newNode);
     this.onGeometryChange?.(elementId);
     return newNode.id;
+  }
+
+  // ── Extend path (дорисовка контура) ──
+
+  public extendStart(): void {
+    this.pendingContour = { nodes: [], closed: false };
+    this.onExtendChange?.();
+  }
+
+  public extendAddPoint(x: number, y: number): void {
+    if (!this.pendingContour) return;
+    this.pendingContour.nodes.push({
+      id: nextNodeId(),
+      anchor: { x, y },
+      type: 'corner',
+    });
+    this.onExtendChange?.();
+  }
+
+  public extendAddExistingNode(elementId: string, nodeId: string): boolean {
+    if (!this.pendingContour) return false;
+    const loc = this.locate(elementId, nodeId);
+    if (!loc) return false;
+    this.pendingContour.nodes.push(loc.node);
+    this.onExtendChange?.();
+    return true;
+  }
+
+  public extendFinish(): boolean {
+    if (!this.pendingContour) return false;
+    const nodes = this.pendingContour.nodes;
+    this.pendingContour = null;
+    if (nodes.length === 0) return false;
+
+    const target = this.targets.values().next().value;
+    if (!target) return false;
+    target.contours.push({ nodes, closed: false });
+    this.onExtendChange?.();
+    this.emitGeometry(new Set([target.elementId]));
+    return true;
+  }
+
+  public extendCancel(): void {
+    this.pendingContour = null;
+    this.onExtendChange?.();
   }
 }
 

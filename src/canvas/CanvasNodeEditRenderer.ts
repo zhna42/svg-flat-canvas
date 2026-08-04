@@ -42,6 +42,8 @@ export class CanvasNodeEditRenderer {
     const controlsRaw = diff._controls;
     const linesRaw = diff._lines;
     const segmentsRaw = diff._segments;
+    const pendingAnchorsRaw = diff._pendingAnchors;
+    const pendingSegsRaw = diff._pendingSegs;
 
     if (typeof segmentsRaw === 'string')
       this._syncSegments(g, JSON.parse(segmentsRaw), diff._selectedSegId as string | null);
@@ -50,6 +52,10 @@ export class CanvasNodeEditRenderer {
     if (typeof controlsRaw === 'string')
       this._syncControls(g, JSON.parse(controlsRaw));
     if (typeof linesRaw === 'string') this._syncLines(g, JSON.parse(linesRaw));
+    if (typeof pendingAnchorsRaw === 'string')
+      this._syncPendingAnchors(g, JSON.parse(pendingAnchorsRaw));
+    if (typeof pendingSegsRaw === 'string')
+      this._syncPendingSegs(g, JSON.parse(pendingSegsRaw));
   }
 
   private _syncAnchors(
@@ -239,6 +245,66 @@ export class CanvasNodeEditRenderer {
       fg.setAttribute('vector-effect', 'non-scaling-stroke');
       group.appendChild(fg);
     }
+  }
+
+  private _syncPendingAnchors(
+    g: SVGElement,
+    data: Record<
+      string,
+      { x: number; y: number; w: number; h: number; kind: string }
+    >,
+  ): void {
+    const existing = new Map<string, SVGElement>();
+    for (const el of g.querySelectorAll('[data-pending-node-id]'))
+      existing.set(el.getAttribute('data-pending-node-id')!, el as SVGElement);
+
+    for (const [nodeId, rect] of Object.entries(data)) {
+      let el = existing.get(nodeId);
+      if (!el) {
+        const r = document.createElementNS(SVG_NS, 'rect') as SVGRectElement;
+        r.setAttribute('width', String(rect.w));
+        r.setAttribute('height', String(rect.h));
+        r.setAttribute('fill', '#4caf50');
+        r.setAttribute('stroke', '#ffffff');
+        r.setAttribute('stroke-width', String(STROKE_W));
+        r.setAttribute('vector-effect', 'non-scaling-stroke');
+        r.setAttribute('data-pending-node-id', nodeId);
+        g.appendChild(r);
+        el = r;
+      }
+      el.setAttribute('x', String(rect.x));
+      el.setAttribute('y', String(rect.y));
+      existing.delete(nodeId);
+    }
+    for (const el of existing.values()) el.remove();
+  }
+
+  private _syncPendingSegs(
+    g: SVGElement,
+    data: Record<string, { x1: number; y1: number; x2: number; y2: number }>,
+  ): void {
+    const existing = new Map<string, SVGLineElement>();
+    for (const el of g.querySelectorAll('[data-pending-seg-id]'))
+      existing.set(el.getAttribute('data-pending-seg-id')!, el as SVGLineElement);
+
+    for (const [segId, l] of Object.entries(data)) {
+      let el = existing.get(segId);
+      if (!el) {
+        el = document.createElementNS(SVG_NS, 'line') as SVGLineElement;
+        el.setAttribute('stroke', '#4caf50');
+        el.setAttribute('stroke-width', String(SEG_STROKE_W));
+        el.setAttribute('stroke-dasharray', '4 4');
+        el.setAttribute('vector-effect', 'non-scaling-stroke');
+        el.setAttribute('data-pending-seg-id', segId);
+        g.appendChild(el);
+      }
+      el.setAttribute('x1', String(l.x1));
+      el.setAttribute('y1', String(l.y1));
+      el.setAttribute('x2', String(l.x2));
+      el.setAttribute('y2', String(l.y2));
+      existing.delete(segId);
+    }
+    for (const el of existing.values()) el.remove();
   }
 }
 

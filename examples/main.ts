@@ -730,6 +730,19 @@ function setupNodeEditToolbar(): void {
     api.nodeEdit.deleteSegment(ids[0], _segContourIdx, _segSegIdx);
   });
 
+  const extendBtn = document.getElementById('btn-node-extend') as HTMLButtonElement;
+  click('btn-node-extend', () => {
+    if (api.nodeEdit.isExtendingPath) {
+      api.nodeEdit.extendPathStop();
+      extendBtn.textContent = 'Дорисовать';
+      extendBtn.classList.remove('active');
+    } else {
+      api.nodeEdit.extendPathStart();
+      extendBtn.textContent = 'Стоп';
+      extendBtn.classList.add('active');
+    }
+  });
+
   closedChk.onchange = () => {
     const ids = api.nodeEdit.session.getTargetIds();
     if (ids.length === 0) return;

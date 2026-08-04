@@ -411,6 +411,12 @@ export class SelectionHandler {
     const worldPt = this.screenToWorld(e);
 
     if (this.nodeEdit.isActive) {
+      if (this.nodeEdit.isExtending) {
+        console.log('[onDblClick] extending — finish');
+        this.nodeEdit.extendStop();
+        e.preventDefault();
+        return true;
+      }
       console.log('[onDblClick] calling insertAt', worldPt.x, worldPt.y);
       this.nodeEdit.insertAt(worldPt.x, worldPt.y);
       e.preventDefault();

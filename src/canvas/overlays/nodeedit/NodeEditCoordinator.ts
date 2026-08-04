@@ -43,6 +43,7 @@ export class NodeEditCoordinator {
   private deps: NodeEditDeps;
   private editingIds = new Set<string>();
   private drag: DragState | null = null;
+  public isExtending = false;
   public readonly overlayEl: NodeEditOverlayElement;
 
   constructor(deps: NodeEditDeps) {
@@ -57,6 +58,9 @@ export class NodeEditCoordinator {
     this.session.onSelectionChange = (): void => {
       this.syncOverlay();
       this.deps.onSelectionChange?.(this.session.getSelectedCount());
+    };
+    this.session.onExtendChange = (): void => {
+      this.syncOverlay();
     };
   }
 
@@ -88,6 +92,8 @@ export class NodeEditCoordinator {
 
   public exit(): void {
     if (this.session.isEmpty) return;
+    this.isExtending = false;
+    this.session.extendCancel();
     for (const id of this.editingIds) {
       const el = this.deps.getElement(id);
       if (el) {
@@ -105,6 +111,8 @@ export class NodeEditCoordinator {
     this.overlayEl.controlCircles = {};
     this.overlayEl.handleLines = {};
     this.overlayEl.segments = {};
+    this.overlayEl.pendingAnchors = {};
+    this.overlayEl.pendingSegs = {};
     this.deps.restoreSelectionOverlay?.();
     this.drag = null;
     this.deps.onExit?.();
@@ -216,6 +224,37 @@ export class NodeEditCoordinator {
     this.overlayEl.controlCircles = controls;
     this.overlayEl.handleLines = lines;
     this.overlayEl.segments = segs;
+    this.overlayEl.pendingAnchors = {};
+    this.overlayEl.pendingSegs = {};
+
+    const pc = this.session.pendingContour;
+    if (pc && pc.nodes.length > 0) {
+      const pAnchors: typeof anchors = {};
+      const pSegs: typeof segs = {};
+      for (let i = 0; i < pc.nodes.length; i++) {
+        const node = pc.nodes[i];
+        pAnchors[node.id] = {
+          x: node.anchor.x - half,
+          y: node.anchor.y - half,
+          w: anchorSz,
+          h: anchorSz,
+          kind: node.type === 'corner' ? 'corner' : node.type === 'symmetric' ? 'symmetric' : 'smooth',
+          selected: false,
+        };
+        if (i > 0) {
+          const pa = pc.nodes[i - 1].anchor;
+          const pb = node.anchor;
+          pSegs[`p-${i - 1}`] = {
+            x1: pa.x, y1: pa.y,
+            x2: pb.x, y2: pb.y,
+            closed: false,
+            contourIdx: -1,
+          };
+        }
+      }
+      this.overlayEl.pendingAnchors = pAnchors;
+      this.overlayEl.pendingSegs = pSegs;
+    }
   }
 
   private applyBack(id: string): void {
@@ -244,6 +283,16 @@ export class NodeEditCoordinator {
   }
 
   public pointerDown(worldPt: Point, ctrlKey = false): boolean {
+    if (this.isExtending) {
+      const hit = this.hitNode(worldPt.x, worldPt.y);
+      if (hit && hit.part === 'anchor') {
+        this.session.extendAddExistingNode(hit.elementId, hit.nodeId);
+      } else {
+        this.session.extendAddPoint(worldPt.x, worldPt.y);
+      }
+      return true;
+    }
+
     const hit = this.hitNode(worldPt.x, worldPt.y);
     if (hit) {
       this.overlayEl.selectedSegId = null;
@@ -480,7 +529,21 @@ export class NodeEditCoordinator {
     this.syncOverlay();
   }
 
+  public extendStart(): void {
+    this.isExtending = true;
+    this.session.extendStart();
+    this.session.clearSelection();
+    this.overlayEl.selectedSegId = null;
+  }
+
+  public extendStop(): void {
+    this.session.extendFinish();
+    this.isExtending = false;
+    this.syncOverlay();
+  }
+
   public clickEmpty(): void {
+    if (this.isExtending) return;
     if (!this.session.multiSelectMode) this.session.clearSelection();
   }
 }

@@ -102,6 +102,18 @@ export class NodeEditController {
     this.canvas.nodeEdit.connectNodes(elementId, nodeId1, nodeId2);
   }
 
+  extendPathStart(): void {
+    this.canvas.nodeEdit.extendStart();
+  }
+
+  extendPathStop(): void {
+    this.canvas.nodeEdit.extendStop();
+  }
+
+  get isExtendingPath(): boolean {
+    return this.canvas.nodeEdit.isExtending;
+  }
+
   undoNodeEdit(): void {
     this.canvas.timeMachine.undo();
   }
