@@ -1,7 +1,10 @@
 import type { SvgCanvas } from '@/canvas/SvgCanvas';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
+import { PathElement } from '@/core/shapes/elements/PathElement';
 import { createFromJSON } from '@/core/shapes/factory';
 import type { BooleanOp, ElementType } from '@/core/type';
+import { segmentsToCommands, commandsToSegments } from '@/core/type';
+import { transformCommands } from '@/core/math/path';
 import {
   createCreateCommand,
   createCreateFileCommand,
@@ -481,5 +484,44 @@ export class ShapeController {
     const snapshot = el.toDTO().attributes as Record<string, unknown>;
     const merged = { ...snapshot, ...geo };
     el.applyDTO(merged);
+  }
+
+  mergePaths(ids: string[]): string | null {
+    const paths = ids
+      .map((id) => this.canvas.shapeManager.getById(id))
+      .filter((el): el is PathElement => el instanceof PathElement);
+    if (paths.length < 2) return null;
+
+    const allSegments: Parameters<typeof commandsToSegments>[0] = [];
+    for (const el of paths) {
+      const cmds = segmentsToCommands(el.geometry.segments);
+      const m = el.transform.matrix;
+      const transformed = m.isIdentity ? cmds : transformCommands(cmds, m);
+      if (allSegments.length > 0 && transformed.length > 0) {
+        transformed[0] = { ...transformed[0], command: 'M' };
+      }
+      allSegments.push(...transformed);
+    }
+
+    const newId = crypto.randomUUID();
+    const merged = new PathElement(newId);
+    const first = paths[0];
+    merged.style.fill = first.style.fill;
+    merged.style.stroke = first.style.stroke;
+    merged.style.strokeWidth = first.style.strokeWidth;
+    merged.style.opacity = first.style.opacity;
+    merged.style.visible = first.style.visible;
+    merged.groupId = first.groupId;
+    merged.name = first.name;
+
+    merged.geometry.segments = commandsToSegments(allSegments);
+    merged.rebuildHitArea();
+
+    this.canvas.elementManager.addShape(merged);
+    for (const el of paths) {
+      this.canvas.hitTestEngine.remove(el.id);
+      this.canvas.shapeManager.removeElementAndNode(el.id);
+    }
+    return newId;
   }
 }

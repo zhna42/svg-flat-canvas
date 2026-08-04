@@ -1063,7 +1063,10 @@ function setupZOrderButtons(): void {
   };
   document.getElementById('btn-merge')!.onclick = () => {
     const ids = getIds();
-    if (ids.length) api.merge.merge(ids);
+    if (ids.length) {
+      const mergedId = api.shapes.mergePaths(ids);
+      if (mergedId) api.selection.selectShapes({ elementIds: [mergedId] });
+    }
   };
   document.getElementById('btn-text-to-path')!.onclick = () => {
     api.textToPath.convertSelected();
