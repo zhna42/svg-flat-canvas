@@ -48,7 +48,7 @@ export class PathElement
     const segs = this.geometry.segments;
     if (segs.length === 0) return;
 
-    if (this.isSimpleHitArea) {
+    if (this.isSimpleHitArea || segs.length > 100) {
       let minX = Infinity,
         minY = Infinity,
         maxX = -Infinity,
