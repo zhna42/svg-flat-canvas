@@ -206,6 +206,7 @@ export class NodeEditCoordinator {
                 : node.type === 'symmetric'
                   ? 'symmetric'
                   : 'smooth',
+            selected: sel,
           };
         }
       }
@@ -242,7 +243,7 @@ export class NodeEditCoordinator {
     return this.drag !== null;
   }
 
-  public pointerDown(worldPt: Point): boolean {
+  public pointerDown(worldPt: Point, ctrlKey = false): boolean {
     const hit = this.hitNode(worldPt.x, worldPt.y);
     if (hit) {
       this.overlayEl.selectedSegId = null;
@@ -252,7 +253,7 @@ export class NodeEditCoordinator {
           .find((x) => x.elementId === hit.elementId);
         const already = t?.selection.has(hit.nodeId);
         if (!already) {
-          if (this.session.multiSelectMode)
+          if (ctrlKey || this.session.multiSelectMode)
             this.session.toggle(hit.elementId, hit.nodeId);
           else this.session.selectSingle(hit.elementId, hit.nodeId);
         }
@@ -264,6 +265,7 @@ export class NodeEditCoordinator {
 
     const segHit = this.hitSegment(worldPt.x, worldPt.y);
     if (segHit) {
+      console.log('[pointerDown] segment hit, contourIdx:', segHit.contourIdx, 'segIdx:', segHit.segIdx);
       this.session.clearSelection();
       const segId = `${segHit.contourIdx}-${segHit.segIdx}`;
       this.overlayEl.selectedSegId = segId;
@@ -355,7 +357,8 @@ export class NodeEditCoordinator {
   }
 
   public insertAt(worldX: number, worldY: number): boolean {
-    const maxD = 12 / this.deps.camera.zoom;
+    const maxD = 12000 / this.deps.camera.zoom;
+    console.log('[insertAt] world:', worldX, worldY, 'maxD:', maxD, 'targets:', this.session.getTargetIds());
     let best: {
       elementId: string;
       contourIdx: number;
@@ -386,7 +389,11 @@ export class NodeEditCoordinator {
         }
       }
     }
-    if (!best || best.dist > maxD) return false;
+    if (!best || best.dist > maxD) {
+      console.log('[insertAt] no candidate or too far, best:', best, 'maxD:', maxD);
+      return false;
+    }
+    console.log('[insertAt] inserting at segIdx:', best.segIdx, 'contourIdx:', best.contourIdx, 't:', best.t, 'dist:', best.dist);
     const nodeId = this.session.insertNode(
       best.elementId,
       best.contourIdx,

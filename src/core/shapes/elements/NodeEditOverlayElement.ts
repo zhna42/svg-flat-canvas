@@ -4,7 +4,7 @@ import type { Point } from '@/core/type';
 export class NodeEditOverlayElement extends AbstractGraphicElement {
   public anchorRects: Record<
     string,
-    { x: number; y: number; w: number; h: number; kind: string }
+    { x: number; y: number; w: number; h: number; kind: string; selected?: boolean }
   > = {};
   public controlCircles: Record<string, { cx: number; cy: number; r: number }> = {};
   public handleLines: Record<

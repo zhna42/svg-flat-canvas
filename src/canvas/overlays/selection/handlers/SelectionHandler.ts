@@ -183,7 +183,7 @@ export class SelectionHandler {
 
     // Path node editing — проверка попадания по узлу/ручке
     if (this.nodeEdit.isActive) {
-      if (this.nodeEdit.pointerDown(worldPt)) {
+      if (this.nodeEdit.pointerDown(worldPt, e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         return true;
       }
@@ -404,12 +404,14 @@ export class SelectionHandler {
   }
 
   public onDblClick(e: MouseEvent): boolean {
+    console.log('[onDblClick] fired, button:', e.button, 'defaultPrevented:', e.defaultPrevented, 'nodeEdit.active:', this.nodeEdit.isActive);
     if (e.button !== 0) return false;
     if (e.defaultPrevented) return false;
     if (this.opts.isCreating?.()) return false;
     const worldPt = this.screenToWorld(e);
 
     if (this.nodeEdit.isActive) {
+      console.log('[onDblClick] calling insertAt', worldPt.x, worldPt.y);
       this.nodeEdit.insertAt(worldPt.x, worldPt.y);
       e.preventDefault();
       return true;

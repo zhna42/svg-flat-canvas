@@ -56,7 +56,7 @@ export class CanvasNodeEditRenderer {
     g: SVGElement,
     data: Record<
       string,
-      { x: number; y: number; w: number; h: number; kind: string }
+      { x: number; y: number; w: number; h: number; kind: string; selected?: boolean }
     >,
   ): void {
     const existing = new Map<string, SVGElement>();
@@ -82,6 +82,10 @@ export class CanvasNodeEditRenderer {
       }
 
       updateAnchor(el, rect, isCorner);
+      const sel = rect.selected;
+      el.setAttribute('fill', sel ? ACCENT : FILL);
+      el.setAttribute('stroke', sel ? FILL : ACCENT);
+      el.setAttribute('stroke-width', String(sel ? STROKE_W + 2 : STROKE_W));
       existing.delete(nodeId);
     }
 
