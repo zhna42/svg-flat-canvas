@@ -1,6 +1,6 @@
 import type { Camera } from '@/canvas/Camera';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
-import type { Point, NodeKind, NodeHit, INodeEditable } from '@/core/type';
+import type { Point, NodeKind, NodeHit, INodeEditable, EditContour } from '@/core/type';
 import type { EventBus } from '@/core/event-bus/EventBus';
 import { PathElement } from '@/core/shapes/elements/PathElement';
 import { NodeEditOverlayElement } from '@/core/shapes/elements/NodeEditOverlayElement';
@@ -529,6 +529,10 @@ export class NodeEditCoordinator {
   public clickEmpty(): void {
     if (this.isExtending) return;
     if (!this.session.multiSelectMode) this.session.clearSelection();
+  }
+
+  public splitPath(): EditContour | null {
+    return this.session.splitSelected();
   }
 }
 

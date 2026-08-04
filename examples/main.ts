@@ -743,6 +743,10 @@ function setupNodeEditToolbar(): void {
     }
   });
 
+  click('btn-node-split', () => {
+    api.nodeEdit.splitPath();
+  });
+
   closedChk.onchange = () => {
     const ids = api.nodeEdit.session.getTargetIds();
     if (ids.length === 0) return;

@@ -120,6 +120,38 @@ export class NodeEditController {
     return this.canvas.nodeEdit.isExtending;
   }
 
+  splitPath(): void {
+    const ids = this.canvas.nodeEdit.session.getTargetIds();
+    if (ids.length === 0) return;
+    const origEl = this.canvas.shapeManager.getById(ids[0]);
+    if (!(origEl instanceof PathElementCtor)) return;
+    const origPath = origEl as PathElement;
+
+    const contour = this.canvas.nodeEdit.splitPath();
+    if (!contour || contour.nodes.length === 0) return;
+
+    const newId = crypto.randomUUID();
+    const newPath = new PathElementCtor(newId);
+    newPath.style.fill = origPath.style.fill;
+    newPath.style.stroke = origPath.style.stroke;
+    newPath.style.strokeWidth = origPath.style.strokeWidth;
+    newPath.style.opacity = origPath.style.opacity;
+    newPath.style.visible = origPath.style.visible;
+    newPath.groupId = origPath.groupId;
+    newPath.name = origPath.name;
+    newPath.transform.matrix = new DOMMatrix(origPath.transform.matrix.toString());
+
+    this.canvas.elementManager.addShape(newPath);
+
+    newPath.applyEditModel({
+      elementId: newId,
+      elementType: 'path',
+      contours: [contour],
+    });
+
+    this.canvas.nodeEdit.exit();
+  }
+
   undoNodeEdit(): void {
     this.canvas.timeMachine.undo();
   }

@@ -404,6 +404,31 @@ export class NodeEditSession {
     this.onSelectionChange?.();
   }
 
+  public splitSelected(): EditContour | null {
+    const extracted: EditNode[] = [];
+    const touched = new Set<string>();
+    for (const t of this.targets.values()) {
+      if (t.selection.size === 0) continue;
+      for (const contour of t.contours) {
+        const kept: EditNode[] = [];
+        for (const node of contour.nodes) {
+          if (t.selection.has(node.id)) extracted.push(node);
+          else kept.push(node);
+        }
+        contour.nodes = kept;
+      }
+      t.contours = t.contours.filter(
+        (c) => c.nodes.length >= 2 || (!c.closed && c.nodes.length >= 1),
+      );
+      t.selection.clear();
+      touched.add(t.elementId);
+    }
+    if (extracted.length === 0) return null;
+    this.emitGeometry(touched);
+    this.onSelectionChange?.();
+    return { nodes: extracted, closed: false };
+  }
+
   // ── Distribute selected evenly along their chord ──
 
   public distributeSelectedEvenly(): void {
