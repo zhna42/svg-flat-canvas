@@ -67,13 +67,14 @@ export class GridOverlay {
 
     const step = this._stepMM * MM_TO_PX;
     const { width, height } = this.getArtboardSize();
+    const sw = 300;
 
     let html = '';
     for (let x = 0; x <= width; x += step) {
-      html += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="#ccc" stroke-width="${MM_TO_PX}" stroke-opacity="0.3" vector-effect="non-scaling-stroke"/>`;
+      html += `<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="#000" stroke-width="${sw}" stroke-opacity="0.3"/>`;
     }
     for (let y = 0; y <= height; y += step) {
-      html += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="#ccc" stroke-width="${MM_TO_PX}" stroke-opacity="0.3" vector-effect="non-scaling-stroke"/>`;
+      html += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="#000" stroke-width="${sw}" stroke-opacity="0.3"/>`;
     }
     this.group.innerHTML = html;
   }
