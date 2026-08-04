@@ -386,6 +386,89 @@ export class NodeEditSession {
     this.emitGeometry(touched);
   }
 
+  // ── Single node type change ──
+
+  public setNodeType(elementId: string, nodeId: string, kind: NodeKind): void {
+    const loc = this.locate(elementId, nodeId);
+    if (!loc) return;
+    applyNodeKind(loc, kind);
+    this.emitGeometry(new Set([elementId]));
+  }
+
+  // ── Delete segment (splits contour) ──
+
+  public deleteSegment(
+    elementId: string,
+    contourIdx: number,
+    segIdx: number,
+  ): void {
+    const target = this.targets.get(elementId);
+    if (!target) return;
+    const contour = target.contours[contourIdx];
+    if (!contour) return;
+    const n = contour.nodes.length;
+    const minNodes = contour.closed ? 2 : 1;
+    if (n <= minNodes) return;
+    const after = contour.nodes.slice(segIdx + 1);
+    contour.nodes = contour.nodes.slice(0, segIdx + 1);
+    contour.closed = false;
+    target.contours.splice(contourIdx + 1, 0, {
+      nodes: after,
+      closed: false,
+    });
+    target.selection.clear();
+    this.emitGeometry(new Set([elementId]));
+    this.onSelectionChange?.();
+  }
+
+  // ── Toggle close path ──
+
+  public closePathToggle(elementId: string, contourIdx: number): void {
+    const target = this.targets.get(elementId);
+    if (!target) return;
+    const contour = target.contours[contourIdx];
+    if (!contour) return;
+    contour.closed = !contour.closed;
+    this.emitGeometry(new Set([elementId]));
+  }
+
+  // ── Connect two nodes ──
+
+  public connectNodes(
+    elementId: string,
+    nodeId1: string,
+    nodeId2: string,
+  ): void {
+    const target = this.targets.get(elementId);
+    if (!target) return;
+    let contour: EditContour | undefined;
+    let idx1 = -1;
+    let idx2 = -1;
+    for (const c of target.contours) {
+      idx1 = c.nodes.findIndex((n) => n.id === nodeId1);
+      idx2 = c.nodes.findIndex((n) => n.id === nodeId2);
+      if (idx1 !== -1 && idx2 !== -1) {
+        contour = c;
+        break;
+      }
+    }
+    if (!contour || idx1 === -1 || idx2 === -1) return;
+    if (Math.abs(idx1 - idx2) <= 1) return;
+    const a = contour.nodes[idx1];
+    const b = contour.nodes[idx2];
+    a.handleOut = undefined;
+    b.handleIn = undefined;
+    a.type = 'corner';
+    b.type = 'corner';
+    if (idx1 > idx2) {
+      contour.nodes.splice(idx2 + 1, idx1 - idx2 - 1);
+    } else {
+      contour.nodes.splice(idx1 + 1, idx2 - idx1 - 1);
+    }
+    this.emitGeometry(new Set([elementId]));
+    this.onSelectionChange?.();
+  }
+
   // ── Insert node on a segment ──
 
   public insertNode(

@@ -6,6 +6,8 @@ const FILL = '#ffffff';
 const LINE_COLOR = '#a0a0a0';
 const STROKE_W = 6;
 const LINE_W = 5;
+const SEG_STROKE_W = 2;
+const SEG_BG_STROKE_W = 4;
 
 export class CanvasNodeEditRenderer {
   readonly _elements: Map<string, SVGElement>;
@@ -39,7 +41,10 @@ export class CanvasNodeEditRenderer {
     const anchorsRaw = diff._anchors;
     const controlsRaw = diff._controls;
     const linesRaw = diff._lines;
+    const segmentsRaw = diff._segments;
 
+    if (typeof segmentsRaw === 'string')
+      this._syncSegments(g, JSON.parse(segmentsRaw), diff._selectedSegId as string | null);
     if (typeof anchorsRaw === 'string')
       this._syncAnchors(g, JSON.parse(anchorsRaw));
     if (typeof controlsRaw === 'string')
@@ -134,6 +139,87 @@ export class CanvasNodeEditRenderer {
       el.setAttribute('x2', String(l.x2));
       el.setAttribute('y2', String(l.y2));
       existing.delete(lineId);
+    }
+
+    for (const el of existing.values()) el.remove();
+  }
+
+  private _syncSegments(
+    g: SVGElement,
+    data: Record<
+      string,
+      { x1: number; y1: number; x2: number; y2: number; closed: boolean; contourIdx: number; points?: Array<{x:number;y:number}> }
+    >,
+    selectedSegId: string | null,
+  ): void {
+    const existing = new Map<string, SVGElement>();
+    for (const el of g.querySelectorAll('[data-seg-id]'))
+      existing.set(el.getAttribute('data-seg-id')!, el as SVGElement);
+
+    for (const [segId, s] of Object.entries(data)) {
+      let group = existing.get(segId);
+      if (!group) {
+        group = document.createElementNS(SVG_NS, 'g');
+        group.setAttribute('data-seg-id', segId);
+        group.setAttribute('pointer-events', 'visibleStroke');
+
+        if (s.points) {
+          const ptsStr = s.points.map((p) => `${p.x},${p.y}`).join(' ');
+          const bg = document.createElementNS(SVG_NS, 'polyline') as SVGPolylineElement;
+          bg.setAttribute('points', ptsStr);
+          bg.setAttribute('stroke', '#ffffff');
+          bg.setAttribute('stroke-width', String(SEG_BG_STROKE_W));
+          bg.setAttribute('stroke-dasharray', '8 4');
+          bg.setAttribute('fill', 'none');
+          bg.setAttribute('vector-effect', 'non-scaling-stroke');
+          group.appendChild(bg);
+
+          const fg = document.createElementNS(SVG_NS, 'polyline') as SVGPolylineElement;
+          fg.setAttribute('points', ptsStr);
+          fg.setAttribute('stroke', ACCENT);
+          fg.setAttribute('stroke-width', String(SEG_STROKE_W));
+          fg.setAttribute('stroke-dasharray', '8 4');
+          fg.setAttribute('fill', 'none');
+          fg.setAttribute('vector-effect', 'non-scaling-stroke');
+          group.appendChild(fg);
+        } else {
+          const bg = document.createElementNS(SVG_NS, 'line') as SVGLineElement;
+          bg.setAttribute('stroke', '#ffffff');
+          bg.setAttribute('stroke-width', String(SEG_BG_STROKE_W));
+          bg.setAttribute('stroke-dasharray', '8 4');
+          bg.setAttribute('vector-effect', 'non-scaling-stroke');
+          group.appendChild(bg);
+
+          const fg = document.createElementNS(SVG_NS, 'line') as SVGLineElement;
+          fg.setAttribute('stroke', ACCENT);
+          fg.setAttribute('stroke-width', String(SEG_STROKE_W));
+          fg.setAttribute('stroke-dasharray', '8 4');
+          fg.setAttribute('vector-effect', 'non-scaling-stroke');
+          group.appendChild(fg);
+        }
+
+        g.insertBefore(group, g.firstChild);
+      }
+      const isSelected = segId === selectedSegId;
+      for (const child of group.children) {
+        if (s.points) {
+          const ptsStr = s.points.map((p) => `${p.x},${p.y}`).join(' ');
+          child.setAttribute('points', ptsStr);
+        } else {
+          (child as SVGLineElement).setAttribute('x1', String(s.x1));
+          (child as SVGLineElement).setAttribute('y1', String(s.y1));
+          (child as SVGLineElement).setAttribute('x2', String(s.x2));
+          (child as SVGLineElement).setAttribute('y2', String(s.y2));
+        }
+        if (child.getAttribute('stroke') === '#ffffff') {
+          child.setAttribute('stroke-width', String(isSelected ? SEG_BG_STROKE_W + 2 : SEG_BG_STROKE_W));
+        } else {
+          child.setAttribute('stroke', isSelected ? '#ff9800' : ACCENT);
+          child.setAttribute('stroke-dasharray', isSelected ? 'none' : '8 4');
+          child.setAttribute('stroke-width', String(isSelected ? SEG_STROKE_W + 1 : SEG_STROKE_W));
+        }
+      }
+      existing.delete(segId);
     }
 
     for (const el of existing.values()) el.remove();

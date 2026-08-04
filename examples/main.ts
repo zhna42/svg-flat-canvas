@@ -636,12 +636,24 @@ function setupNodeEditToolbar(): void {
   const multiBtn = document.getElementById(
     'btn-node-multi',
   ) as HTMLButtonElement;
+  const connectSection = document.getElementById('node-connect-section') as HTMLElement;
+  const segSection = document.getElementById('node-segment-section') as HTMLElement;
+  const segInfo = document.getElementById('node-seg-info') as HTMLElement;
+  const closedChk = document.getElementById('chk-node-closed') as HTMLInputElement;
 
   const show = (visible: boolean): void => {
     panel.style.display = visible ? 'block' : 'none';
   };
 
-  api.on('NODE_EDIT_ENTERED', () => show(true));
+  api.on('NODE_EDIT_ENTERED', () => {
+    show(true);
+    segSection.style.display = 'none';
+    connectSection.style.display = 'none';
+    const ids = api.nodeEdit.session.getTargetIds();
+    if (ids.length > 0) {
+      closedChk.checked = api.nodeEdit.isPathClosed(ids[0], 0);
+    }
+  });
   api.on('NODE_EDIT_EXITED', () => {
     show(false);
     multiBtn.textContent = 'Мультивыбор: off';
@@ -650,6 +662,33 @@ function setupNodeEditToolbar(): void {
   api.on('NODE_SELECTION_CHANGED', (ev) => {
     const count = (ev.data as { count?: number })?.count ?? 0;
     countEl.textContent = `Выбрано: ${count}`;
+    connectSection.style.display = count === 2 ? '' : 'none';
+    if (count === 0) segSection.style.display = 'none';
+  });
+
+  let _segContourIdx = 0;
+  let _segSegIdx = 0;
+
+  api.on('SEGMENT_SELECTED', (ev) => {
+    const d = ev.data as { elementId?: string; contourIdx?: number; segIdx?: number };
+    _segContourIdx = d.contourIdx ?? 0;
+    _segSegIdx = d.segIdx ?? 0;
+    segInfo.textContent = `Контур ${d.contourIdx ?? '?'}, сегмент ${d.segIdx ?? '?'}`;
+    segSection.style.display = '';
+  });
+
+  api.on('SEGMENT_DELETED', () => {
+    segSection.style.display = 'none';
+  });
+
+  api.on('NODES_CONNECTED', () => {
+    connectSection.style.display = 'none';
+    segSection.style.display = 'none';
+  });
+
+  api.on('PATH_CLOSED_CHANGED', (ev) => {
+    const d = ev.data as { closed?: boolean };
+    closedChk.checked = d.closed ?? false;
   });
 
   const click = (id: string, fn: () => void): void => {
@@ -677,6 +716,25 @@ function setupNodeEditToolbar(): void {
   click('btn-node-delete', () => api.nodeEdit.deleteSelectedNodes());
   click('btn-node-undo', () => api.nodeEdit.undoNodeEdit());
   click('btn-node-redo', () => api.nodeEdit.redoNodeEdit());
+
+  click('btn-node-connect', () => {
+    const refs = api.nodeEdit.getSelectedNodeRefs();
+    if (refs.length === 2) {
+      api.nodeEdit.connectNodes(refs[0].elementId, refs[0].nodeId, refs[1].nodeId);
+    }
+  });
+
+  click('btn-node-seg-delete', () => {
+    const ids = api.nodeEdit.session.getTargetIds();
+    if (ids.length === 0) return;
+    api.nodeEdit.deleteSegment(ids[0], _segContourIdx, _segSegIdx);
+  });
+
+  closedChk.onchange = () => {
+    const ids = api.nodeEdit.session.getTargetIds();
+    if (ids.length === 0) return;
+    api.nodeEdit.closePath(ids[0], 0, closedChk.checked);
+  };
 
   makeDraggable(
     panel,

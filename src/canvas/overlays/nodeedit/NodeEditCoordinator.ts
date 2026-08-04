@@ -1,14 +1,15 @@
 import type { Camera } from '@/canvas/Camera';
 import type { AbstractGraphicElement } from '@/core/shapes/elements/AbstractGraphicElement';
 import type { Point, NodeKind, NodeHit, INodeEditable } from '@/core/type';
+import type { EventBus } from '@/core/event-bus/EventBus';
 import { PathElement } from '@/core/shapes/elements/PathElement';
 import { NodeEditOverlayElement } from '@/core/shapes/elements/NodeEditOverlayElement';
 import { NodeEditSession } from './NodeEditSession';
 import { NodeSnapHelper } from './NodeSnapHelper';
 
 const HIT_PX = 5400;
-const ANCHOR_PX = 720;
-const CTRL_R_SCREEN = 576;
+const ANCHOR_PX = 1440;
+const CTRL_R_SCREEN = 1152;
 
 export interface NodeEditDeps {
   camera: Camera;
@@ -16,6 +17,7 @@ export interface NodeEditDeps {
   getAllElements: () => AbstractGraphicElement[];
   convertToPath: (id: string) => PathElement | null;
   getOverlayElement: () => NodeEditOverlayElement;
+  events: EventBus;
   onEnter?: (ids: string[]) => void;
   onExit?: () => void;
   onSelectionChange?: (count: number) => void;
@@ -98,9 +100,11 @@ export class NodeEditCoordinator {
     this.editingIds.clear();
     this.session.clear();
     this.overlayEl.editing = false;
+    this.overlayEl.selectedSegId = null;
     this.overlayEl.anchorRects = {};
     this.overlayEl.controlCircles = {};
     this.overlayEl.handleLines = {};
+    this.overlayEl.segments = {};
     this.deps.restoreSelectionOverlay?.();
     this.drag = null;
     this.deps.onExit?.();
@@ -120,9 +124,45 @@ export class NodeEditCoordinator {
     const anchors: typeof this.overlayEl.anchorRects = {};
     const controls: typeof this.overlayEl.controlCircles = {};
     const lines: typeof this.overlayEl.handleLines = {};
+    const segs: typeof this.overlayEl.segments = {};
 
     for (const target of targets) {
-      for (const contour of target.contours) {
+      for (let contourIdx = 0; contourIdx < target.contours.length; contourIdx++) {
+        const contour = target.contours[contourIdx];
+        const n = contour.nodes.length;
+        const segCount = contour.closed ? n : n - 1;
+        for (let s = 0; s < segCount; s++) {
+          const na = contour.nodes[s];
+          const nb = contour.nodes[(s + 1) % n];
+          const a = na.anchor;
+          const b = nb.anchor;
+          const seg: typeof segs[string] = {
+            x1: a.x,
+            y1: a.y,
+            x2: b.x,
+            y2: b.y,
+            closed: contour.closed,
+            contourIdx,
+          };
+          if (na.handleOut || nb.handleIn) {
+            const p0 = a;
+            const p1 = na.handleOut ?? a;
+            const p2 = nb.handleIn ?? b;
+            const p3 = b;
+            const pts: Point[] = [];
+            const steps = 12;
+            for (let i = 0; i <= steps; i++) {
+              const t = i / steps;
+              const mt = 1 - t;
+              pts.push({
+                x: mt * mt * mt * p0.x + 3 * mt * mt * t * p1.x + 3 * mt * t * t * p2.x + t * t * t * p3.x,
+                y: mt * mt * mt * p0.y + 3 * mt * mt * t * p1.y + 3 * mt * t * t * p2.y + t * t * t * p3.y,
+              });
+            }
+            seg.points = pts;
+          }
+          segs[`${contourIdx}-${s}`] = seg;
+        }
         for (const node of contour.nodes) {
           const sel = target.selection.has(node.id);
 
@@ -174,6 +214,7 @@ export class NodeEditCoordinator {
     this.overlayEl.anchorRects = anchors;
     this.overlayEl.controlCircles = controls;
     this.overlayEl.handleLines = lines;
+    this.overlayEl.segments = segs;
   }
 
   private applyBack(id: string): void {
@@ -201,22 +242,59 @@ export class NodeEditCoordinator {
 
   public pointerDown(worldPt: Point): boolean {
     const hit = this.hitNode(worldPt.x, worldPt.y);
-    if (!hit) return false;
+    if (hit) {
+      this.overlayEl.selectedSegId = null;
+      if (hit.part === 'anchor') {
+        const t = this.session
+          .getTargets()
+          .find((x) => x.elementId === hit.elementId);
+        const already = t?.selection.has(hit.nodeId);
+        if (!already) {
+          if (this.session.multiSelectMode)
+            this.session.toggle(hit.elementId, hit.nodeId);
+          else this.session.selectSingle(hit.elementId, hit.nodeId);
+        }
+      }
+      this.snap.buildTargets(this.editingIds, this.collectSnapNodes(hit));
+      this.drag = { hit, last: { x: worldPt.x, y: worldPt.y }, moved: false };
+      return true;
+    }
 
-    if (hit.part === 'anchor') {
-      const t = this.session
-        .getTargets()
-        .find((x) => x.elementId === hit.elementId);
-      const already = t?.selection.has(hit.nodeId);
-      if (!already) {
-        if (this.session.multiSelectMode)
-          this.session.toggle(hit.elementId, hit.nodeId);
-        else this.session.selectSingle(hit.elementId, hit.nodeId);
+    const segHit = this.hitSegment(worldPt.x, worldPt.y);
+    if (segHit) {
+      this.session.clearSelection();
+      const segId = `${segHit.contourIdx}-${segHit.segIdx}`;
+      this.overlayEl.selectedSegId = segId;
+      this.deps.events.emit('SEGMENT_SELECTED', segHit);
+      return true;
+    }
+
+    return false;
+  }
+
+  public hitSegment(worldX: number, worldY: number): {
+    elementId: string;
+    contourIdx: number;
+    segIdx: number;
+  } | null {
+    const r = HIT_PX / (this.deps.camera.zoom > 0 ? this.deps.camera.zoom : 1);
+    const r2 = r * r;
+    for (const target of this.session.getTargets()) {
+      for (let contourIdx = 0; contourIdx < target.contours.length; contourIdx++) {
+        const contour = target.contours[contourIdx];
+        const n = contour.nodes.length;
+        const segCount = contour.closed ? n : n - 1;
+        for (let s = 0; s < segCount; s++) {
+          const a = contour.nodes[s].anchor;
+          const b = contour.nodes[(s + 1) % n].anchor;
+          const { dist } = pointToSegmentDist2(worldX, worldY, a.x, a.y, b.x, b.y);
+          if (dist <= r2) {
+            return { elementId: target.elementId, contourIdx, segIdx: s };
+          }
+        }
       }
     }
-    this.snap.buildTargets(this.editingIds, this.collectSnapNodes(hit));
-    this.drag = { hit, last: { x: worldPt.x, y: worldPt.y }, moved: false };
-    return true;
+    return null;
   }
 
   public pointerMove(worldPt: Point): void {
@@ -306,6 +384,12 @@ export class NodeEditCoordinator {
     );
     if (nodeId) {
       this.session.selectSingle(best.elementId, nodeId);
+      this.deps.events.emit('NODE_INSERTED', {
+        elementId: best.elementId,
+        nodeId,
+        contourIdx: best.contourIdx,
+        segIdx: best.segIdx,
+      });
       return true;
     }
     return false;
@@ -347,6 +431,37 @@ export class NodeEditCoordinator {
   public getSelectedCount(): number {
     return this.session.getSelectedCount();
   }
+
+  public setNodeType(elementId: string, nodeId: string, kind: NodeKind): void {
+    this.session.setNodeType(elementId, nodeId, kind);
+    this.deps.events.emit('NODE_TYPE_CHANGED', { elementId, nodeId, type: kind });
+    this.syncOverlay();
+  }
+
+  public deleteSegment(elementId: string, contourIdx: number, segIdx: number): void {
+    this.session.deleteSegment(elementId, contourIdx, segIdx);
+    this.overlayEl.selectedSegId = null;
+    this.deps.events.emit('SEGMENT_DELETED', { elementId, contourIdx, segIdx });
+    this.syncOverlay();
+  }
+
+  public closePath(elementId: string, contourIdx: number, closed: boolean): void {
+    this.session.closePathToggle(elementId, contourIdx);
+    const contour = this.session.getTargets().find((t) => t.elementId === elementId)?.contours[contourIdx];
+    this.deps.events.emit('PATH_CLOSED_CHANGED', {
+      elementId,
+      contourIdx,
+      closed: contour?.closed ?? closed,
+    });
+    this.syncOverlay();
+  }
+
+  public connectNodes(elementId: string, nodeId1: string, nodeId2: string): void {
+    this.session.connectNodes(elementId, nodeId1, nodeId2);
+    this.deps.events.emit('NODES_CONNECTED', { elementId, nodeId1, nodeId2 });
+    this.syncOverlay();
+  }
+
   public clickEmpty(): void {
     if (!this.session.multiSelectMode) this.session.clearSelection();
   }
@@ -398,4 +513,24 @@ function nearestOnSegment(
   const px = ax + dx * t;
   const py = ay + dy * t;
   return { t, dist: Math.hypot(x - px, y - py) };
+}
+
+function pointToSegmentDist2(
+  x: number,
+  y: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): { dist: number } {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  let t = lenSq > 0 ? ((x - ax) * dx + (y - ay) * dy) / lenSq : 0;
+  t = Math.max(0, Math.min(1, t));
+  const px = ax + dx * t;
+  const py = ay + dy * t;
+  const distX = x - px;
+  const distY = y - py;
+  return { dist: distX * distX + distY * distY };
 }

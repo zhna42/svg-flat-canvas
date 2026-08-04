@@ -70,6 +70,33 @@ export class NodeEditController {
     return this.canvas.nodeEdit.getSelectedCount();
   }
 
+  setNodeType(elementId: string, nodeId: string, kind: NodeKind): void {
+    this.canvas.nodeEdit.setNodeType(elementId, nodeId, kind);
+  }
+
+  getSelectedNodeRefs(): Array<{ elementId: string; nodeId: string }> {
+    return this.canvas.nodeEdit.session.getSelectedRefs();
+  }
+
+  deleteSegment(elementId: string, contourIdx: number, segIdx: number): void {
+    this.canvas.nodeEdit.deleteSegment(elementId, contourIdx, segIdx);
+  }
+
+  closePath(elementId: string, contourIdx: number, closed: boolean): void {
+    this.canvas.nodeEdit.closePath(elementId, contourIdx, closed);
+  }
+
+  isPathClosed(elementId: string, contourIdx: number): boolean {
+    const target = this.canvas.nodeEdit.session
+      .getTargets()
+      .find((t) => t.elementId === elementId);
+    return target?.contours[contourIdx]?.closed ?? false;
+  }
+
+  connectNodes(elementId: string, nodeId1: string, nodeId2: string): void {
+    this.canvas.nodeEdit.connectNodes(elementId, nodeId1, nodeId2);
+  }
+
   undoNodeEdit(): void {
     this.canvas.timeMachine.undo();
   }

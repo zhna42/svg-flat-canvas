@@ -11,7 +11,12 @@ export class NodeEditOverlayElement extends AbstractGraphicElement {
     string,
     { x1: number; y1: number; x2: number; y2: number }
   > = {};
+  public segments: Record<
+    string,
+    { x1: number; y1: number; x2: number; y2: number; closed: boolean; contourIdx: number; points?: Point[] }
+  > = {};
   public editing = false;
+  public selectedSegId: string | null = null;
 
   public constructor(id: string) {
     super(id, 'overlay' as 'path');
@@ -19,7 +24,9 @@ export class NodeEditOverlayElement extends AbstractGraphicElement {
       'anchorRects',
       'controlCircles',
       'handleLines',
+      'segments',
       'editing',
+      'selectedSegId',
     );
   }
 
@@ -38,6 +45,8 @@ export class NodeEditOverlayElement extends AbstractGraphicElement {
       _anchors: JSON.stringify(this.anchorRects),
       _controls: JSON.stringify(this.controlCircles),
       _lines: JSON.stringify(this.handleLines),
+      _segments: JSON.stringify(this.segments),
+      _selectedSegId: this.selectedSegId,
     };
   }
   protected getGeometrySnapshot(): Record<string, unknown> {
