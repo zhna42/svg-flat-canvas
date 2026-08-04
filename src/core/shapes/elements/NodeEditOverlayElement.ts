@@ -15,14 +15,6 @@ export class NodeEditOverlayElement extends AbstractGraphicElement {
     string,
     { x1: number; y1: number; x2: number; y2: number; closed: boolean; contourIdx: number; points?: Point[] }
   > = {};
-  public pendingAnchors: Record<
-    string,
-    { x: number; y: number; w: number; h: number; kind: string; selected?: boolean }
-  > = {};
-  public pendingSegs: Record<
-    string,
-    { x1: number; y1: number; x2: number; y2: number; closed: boolean; contourIdx: number; points?: Point[] }
-  > = {};
   public editing = false;
   public selectedSegId: string | null = null;
 
@@ -33,8 +25,6 @@ export class NodeEditOverlayElement extends AbstractGraphicElement {
       'controlCircles',
       'handleLines',
       'segments',
-      'pendingAnchors',
-      'pendingSegs',
       'editing',
       'selectedSegId',
     );
@@ -56,8 +46,6 @@ export class NodeEditOverlayElement extends AbstractGraphicElement {
       _controls: JSON.stringify(this.controlCircles),
       _lines: JSON.stringify(this.handleLines),
       _segments: JSON.stringify(this.segments),
-      _pendingAnchors: JSON.stringify(this.pendingAnchors),
-      _pendingSegs: JSON.stringify(this.pendingSegs),
       _selectedSegId: this.selectedSegId,
     };
   }

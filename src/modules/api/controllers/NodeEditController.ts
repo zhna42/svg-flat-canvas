@@ -103,6 +103,12 @@ export class NodeEditController {
   }
 
   extendPathStart(): void {
+    const ids = this.canvas.nodeEdit.session.getTargetIds();
+    const el = ids.length > 0 ? this.canvas.shapeManager.getById(ids[0]) : null;
+    if (el) {
+      this.canvas.creationHandler.editingPathElement = el;
+      this.canvas.creationHandler.setActiveType('path');
+    }
     this.canvas.nodeEdit.extendStart();
   }
 

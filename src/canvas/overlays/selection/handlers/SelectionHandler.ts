@@ -183,6 +183,7 @@ export class SelectionHandler {
 
     // Path node editing — проверка попадания по узлу/ручке
     if (this.nodeEdit.isActive) {
+      if (this.nodeEdit.isExtending) return false;
       if (this.nodeEdit.pointerDown(worldPt, e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         return true;
@@ -412,7 +413,6 @@ export class SelectionHandler {
 
     if (this.nodeEdit.isActive) {
       if (this.nodeEdit.isExtending) {
-        console.log('[onDblClick] extending — finish');
         this.nodeEdit.extendStop();
         e.preventDefault();
         return true;
