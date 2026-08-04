@@ -237,6 +237,49 @@ export class NodeEditSession {
     this.onSelectionChange?.();
   }
 
+  public selectNodesInRect(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    toggle: boolean,
+  ): void {
+    if (!toggle) {
+      for (const t of this.targets.values()) t.selection.clear();
+    }
+    for (const t of this.targets.values()) {
+      for (const c of t.contours) {
+        for (const n of c.nodes) {
+          const ax = n.anchor.x;
+          const ay = n.anchor.y;
+          if (ax >= x && ax <= x + w && ay >= y && ay <= y + h) {
+            t.selection.add(n.id);
+          }
+        }
+      }
+    }
+    this.onSelectionChange?.();
+  }
+
+  public selectNodesInLasso(
+    points: { x: number; y: number }[],
+    toggle: boolean,
+  ): void {
+    if (!toggle) {
+      for (const t of this.targets.values()) t.selection.clear();
+    }
+    for (const t of this.targets.values()) {
+      for (const c of t.contours) {
+        for (const n of c.nodes) {
+          if (pointInPolygon(n.anchor.x, n.anchor.y, points)) {
+            t.selection.add(n.id);
+          }
+        }
+      }
+    }
+    this.onSelectionChange?.();
+  }
+
   public getSelectedRefs(): NodeRef[] {
     const refs: NodeRef[] = [];
     for (const t of this.targets.values())
@@ -590,4 +633,23 @@ function splitCubic(
   const e = lerp(b, c);
   const f = lerp(d, e);
   return { aOut: a, inH: d, point: f, outH: e, bIn: c };
+}
+
+function pointInPolygon(
+  px: number,
+  py: number,
+  poly: { x: number; y: number }[],
+): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    if (
+      yi > py !== yj > py &&
+      px < ((xj - xi) * (py - yi)) / (yj - yi) + xi
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }

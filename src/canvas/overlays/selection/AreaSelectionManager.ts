@@ -22,6 +22,13 @@ export class AreaSelectionManager {
   private readonly onGroupSelect?: (ids: string[]) => void;
   private readonly hitTestEngine: HitTestEngine;
 
+  public onNodeAreaSelect:
+    | ((rect: { x: number; y: number; width: number; height: number }, toggle: boolean) => void)
+    | null = null;
+  public onNodeLassoSelect:
+    | ((points: { x: number; y: number }[], toggle: boolean) => void)
+    | null = null;
+
   private rectActive = false;
   private rectStartWorld = { x: 0, y: 0 };
   private rectStartSvgX = 0;
@@ -187,6 +194,10 @@ export class AreaSelectionManager {
       width: Math.abs(wp.x - this.rectStartWorld.x),
       height: Math.abs(wp.y - this.rectStartWorld.y),
     };
+    if (this.onNodeAreaSelect) {
+      this.onNodeAreaSelect(rect, ctrl);
+      return;
+    }
     const boxDirection =
       wp.x >= this.rectStartWorld.x ? 'left-to-right' : 'right-to-left';
 
@@ -211,6 +222,10 @@ export class AreaSelectionManager {
   }
 
   private _dispatchSelectLasso(ctrl: boolean, mode: SelectionMode): void {
+    if (this.onNodeLassoSelect) {
+      this.onNodeLassoSelect([...this.lassoWorldPoints], ctrl);
+      return;
+    }
     if (mode === 'group') {
       const gids = this.hitTestEngine.queryLassoGroups(
         this.lassoWorldPoints,

@@ -7,6 +7,7 @@ import { NodeEditOverlayElement } from '@/core/shapes/elements/NodeEditOverlayEl
 import { NodeEditSession } from './NodeEditSession';
 import { NodeSnapHelper } from './NodeSnapHelper';
 import type { CreationHandler } from '@/manager/commands/handlers/creation/CreationHandler';
+import type { AreaSelectionManager } from '@/canvas/overlays/selection/AreaSelectionManager';
 
 const HIT_PX = 5400;
 const ANCHOR_PX = 1440;
@@ -20,6 +21,7 @@ export interface NodeEditDeps {
   getOverlayElement: () => NodeEditOverlayElement;
   events: EventBus;
   creationHandler?: () => CreationHandler | undefined;
+  areaSelectionManager?: () => AreaSelectionManager;
   onEnter?: (ids: string[]) => void;
   onExit?: () => void;
   onSelectionChange?: (count: number) => void;
@@ -75,6 +77,18 @@ export class NodeEditCoordinator {
     const editable = elements.filter(isNodeEditable);
     if (editable.length === 0) return;
     this.exit();
+
+    const asm = this.deps.areaSelectionManager?.();
+    if (asm && !asm.onNodeAreaSelect) {
+      asm.onNodeAreaSelect = (rect, toggle) => {
+        this.session.selectNodesInRect(rect.x, rect.y, rect.width, rect.height, toggle);
+        asm.setGesture('click');
+      };
+      asm.onNodeLassoSelect = (points, toggle) => {
+        this.session.selectNodesInLasso(points, toggle);
+        asm.setGesture('click');
+      };
+    }
 
     const models = editable.map((el) => {
       el.isEditingNodes = true;
@@ -256,10 +270,10 @@ export class NodeEditCoordinator {
           .getTargets()
           .find((x) => x.elementId === hit.elementId);
         const already = t?.selection.has(hit.nodeId);
-        if (!already) {
-          if (ctrlKey || this.session.multiSelectMode)
-            this.session.toggle(hit.elementId, hit.nodeId);
-          else this.session.selectSingle(hit.elementId, hit.nodeId);
+        if (ctrlKey || this.session.multiSelectMode) {
+          this.session.toggle(hit.elementId, hit.nodeId);
+        } else if (!already) {
+          this.session.selectSingle(hit.elementId, hit.nodeId);
         }
       }
       this.snap.buildTargets(this.editingIds, this.collectSnapNodes(hit));

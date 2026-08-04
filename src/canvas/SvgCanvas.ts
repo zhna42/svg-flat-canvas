@@ -439,6 +439,7 @@ export class SvgCanvas implements ICanvasContext {
       getOverlayElement: () => overlayEl,
       events: this.events,
       creationHandler: () => this.creationHandler,
+      areaSelectionManager: () => this.selectionHandler?.getAreaSelectionManager(),
       onEnter: (ids) => this.events.emit('NODE_EDIT_ENTERED', { ids }),
       onExit: () => this.events.emit('NODE_EDIT_EXITED', {}),
       onSelectionChange: (count) =>

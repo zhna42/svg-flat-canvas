@@ -21,6 +21,10 @@ export class SelectionHandler {
   private readonly nodeEdit: NodeEditCoordinator;
   private readonly areaSelectionManager: AreaSelectionManager;
 
+  public getAreaSelectionManager(): AreaSelectionManager {
+    return this.areaSelectionManager;
+  }
+
   private shortcuts: SelectionShortcuts;
   private ctrlHeld = false;
   private shiftOverride = false;
@@ -156,6 +160,8 @@ export class SelectionHandler {
     }
     if (e.button !== 0) return false;
 
+    if (e.ctrlKey || e.metaKey) e.preventDefault();
+
     if (this.opts.isCreating?.()) return false;
     if (this.opts.isTextEditing?.()) return false;
 
@@ -184,6 +190,19 @@ export class SelectionHandler {
     // Path node editing — проверка попадания по узлу/ручке
     if (this.nodeEdit.isActive) {
       if (this.nodeEdit.isExtending) return false;
+      if (useRect || this.areaSelectionManager.getGesture() === 'lasso') {
+        if (
+          this.areaSelectionManager.onMouseDown(
+            svgPt, worldPt, this.ctrlHeld, this.shiftOverride, 'element', false,
+          )
+        ) {
+          e.preventDefault();
+          return true;
+        }
+        this.nodeEdit.clickEmpty();
+        e.preventDefault();
+        return true;
+      }
       if (this.nodeEdit.pointerDown(worldPt, e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         return true;

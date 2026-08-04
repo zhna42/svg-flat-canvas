@@ -31,9 +31,14 @@ export class DOMEventCoordinator {
     this.bound = true;
 
     this.svg.addEventListener('mousedown', (e: MouseEvent) => {
+      if (e.ctrlKey || e.metaKey) e.preventDefault();
       for (let i = this.handlers.length - 1; i >= 0; i--) {
         if (this.handlers[i].onMouseDown?.(e)) return;
       }
+    });
+
+    this.svg.addEventListener('contextmenu', (e: MouseEvent) => {
+      if (e.ctrlKey || e.metaKey) e.preventDefault();
     });
 
     window.addEventListener('mousemove', (e: MouseEvent) => {
