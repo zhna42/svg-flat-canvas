@@ -224,7 +224,9 @@ export class NodeEditCoordinator {
     if (!model) return;
 
     let editable: INodeEditable = el;
-    if (!el.supportsCurves && this.session.hasCurves(id)) {
+    const needsPath = !el.supportsCurves && this.session.hasCurves(id);
+    const multiContour = model.contours.length > 1 && (el.type === 'polygon' || el.type === 'polyline');
+    if (needsPath || multiContour) {
       const path = this.deps.convertToPath(id);
       if (path) editable = path;
     }
@@ -279,22 +281,31 @@ export class NodeEditCoordinator {
   } | null {
     const r = HIT_PX / (this.deps.camera.zoom > 0 ? this.deps.camera.zoom : 1);
     const r2 = r * r;
+    let best: { elementId: string; contourIdx: number; segIdx: number } | null = null;
+    let bestDist = Infinity;
     for (const target of this.session.getTargets()) {
       for (let contourIdx = 0; contourIdx < target.contours.length; contourIdx++) {
         const contour = target.contours[contourIdx];
         const n = contour.nodes.length;
         const segCount = contour.closed ? n : n - 1;
         for (let s = 0; s < segCount; s++) {
-          const a = contour.nodes[s].anchor;
-          const b = contour.nodes[(s + 1) % n].anchor;
-          const { dist } = pointToSegmentDist2(worldX, worldY, a.x, a.y, b.x, b.y);
-          if (dist <= r2) {
-            return { elementId: target.elementId, contourIdx, segIdx: s };
+          const a = contour.nodes[s];
+          const b = contour.nodes[(s + 1) % n];
+          let dist: number;
+          if (a.handleOut || b.handleIn) {
+            dist = curveDist2(worldX, worldY, a.anchor, a.handleOut ?? a.anchor, b.handleIn ?? b.anchor, b.anchor);
+          } else {
+            const { dist: d } = pointToSegmentDist2(worldX, worldY, a.anchor.x, a.anchor.y, b.anchor.x, b.anchor.y);
+            dist = d;
+          }
+          if (dist <= r2 && dist < bestDist) {
+            bestDist = dist;
+            best = { elementId: target.elementId, contourIdx, segIdx: s };
           }
         }
       }
     }
-    return null;
+    return best;
   }
 
   public pointerMove(worldPt: Point): void {
@@ -513,6 +524,24 @@ function nearestOnSegment(
   const px = ax + dx * t;
   const py = ay + dy * t;
   return { t, dist: Math.hypot(x - px, y - py) };
+}
+
+function curveDist2(
+  px: number, py: number,
+  p0: Point, p1: Point, p2: Point, p3: Point,
+): number {
+  let best = Infinity;
+  for (let i = 0; i <= 16; i++) {
+    const t = i / 16;
+    const mt = 1 - t;
+    const cx = mt * mt * mt * p0.x + 3 * mt * mt * t * p1.x + 3 * mt * t * t * p2.x + t * t * t * p3.x;
+    const cy = mt * mt * mt * p0.y + 3 * mt * mt * t * p1.y + 3 * mt * t * t * p2.y + t * t * t * p3.y;
+    const dx = px - cx;
+    const dy = py - cy;
+    const d = dx * dx + dy * dy;
+    if (d < best) best = d;
+  }
+  return best;
 }
 
 function pointToSegmentDist2(
