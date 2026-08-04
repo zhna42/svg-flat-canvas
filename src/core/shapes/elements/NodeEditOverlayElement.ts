@@ -6,7 +6,7 @@ export class NodeEditOverlayElement extends AbstractGraphicElement {
     string,
     { x: number; y: number; w: number; h: number; kind: string }
   > = {};
-  public controlCircles: Record<string, { cx: number; cy: number }> = {};
+  public controlCircles: Record<string, { cx: number; cy: number; r: number }> = {};
   public handleLines: Record<
     string,
     { x1: number; y1: number; x2: number; y2: number }

@@ -4,9 +4,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const ACCENT = '#4285f4';
 const FILL = '#ffffff';
 const LINE_COLOR = '#a0a0a0';
-const STROKE_W = 2;
-const LINE_W = 1;
-const CTRL_R = 10;
+const STROKE_W = 6;
+const LINE_W = 5;
 
 export class CanvasNodeEditRenderer {
   readonly _elements: Map<string, SVGElement>;
@@ -86,7 +85,7 @@ export class CanvasNodeEditRenderer {
 
   private _syncControls(
     g: SVGElement,
-    data: Record<string, { cx: number; cy: number }>,
+    data: Record<string, { cx: number; cy: number; r: number }>,
   ): void {
     const existing = new Map<string, SVGCircleElement>();
     for (const el of g.querySelectorAll('[data-ctrl-id]'))
@@ -96,7 +95,6 @@ export class CanvasNodeEditRenderer {
       let el = existing.get(ctrlId);
       if (!el) {
         el = document.createElementNS(SVG_NS, 'circle') as SVGCircleElement;
-        el.setAttribute('r', String(CTRL_R));
         el.setAttribute('fill', FILL);
         el.setAttribute('stroke', ACCENT);
         el.setAttribute('stroke-width', String(STROKE_W));
@@ -104,6 +102,7 @@ export class CanvasNodeEditRenderer {
         el.setAttribute('data-ctrl-id', ctrlId);
         g.appendChild(el);
       }
+      el.setAttribute('r', String(c.r));
       el.setAttribute('cx', String(c.cx));
       el.setAttribute('cy', String(c.cy));
       existing.delete(ctrlId);

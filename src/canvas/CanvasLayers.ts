@@ -32,18 +32,21 @@ export class CanvasLayers {
     const preview = document.createElementNS(ns, 'g');
     const groupSelection = document.createElementNS(ns, 'g');
     const selectionOverlay = document.createElementNS(ns, 'g');
+    const nodeEditOverlay = document.createElementNS(ns, 'g');
     const overlay = document.createElementNS(ns, 'g');
 
     this._cameraGroup.appendChild(shapes);
     this._cameraGroup.appendChild(preview);
     this._cameraGroup.appendChild(groupSelection);
     this._cameraGroup.appendChild(selectionOverlay);
+    this._cameraGroup.appendChild(nodeEditOverlay);
     this._svgRoot.appendChild(overlay);
 
     this._layers.set('shapesGroup', shapes);
     this._layers.set('previewGroup', preview);
     this._layers.set('groupSelectionOverlay', groupSelection);
     this._layers.set('selectionOverlay', selectionOverlay);
+    this._layers.set('nodeEditOverlay', nodeEditOverlay);
     this._layers.set('overlayRoot', overlay);
   }
 }

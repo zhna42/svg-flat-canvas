@@ -428,6 +428,7 @@ export class SvgCanvas implements ICanvasContext {
     this.view.cameraGroup.appendChild(this.gridOverlay.getElement());
 
     const overlayEl = new NodeEditOverlayElement('node-edit-overlay');
+    overlayEl.layerName = 'nodeEditOverlay';
     this.shapeManager.add(overlayEl);
 
     this.nodeEdit = new NodeEditCoordinator({

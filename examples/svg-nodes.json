@@ -63,7 +63,7 @@
       "x2": "62500",
       "y2": "70000",
       "stroke": "#9b59b6",
-      "stroke-width": "4"
+      "stroke-width": "4000"
     },
     "svgFileId": null,
     "svgGroupId": "grp-lines",
@@ -78,7 +78,7 @@
       "points": "85000,47500 94500,60500 88000,66750 82000,66750 75500,60500 79000,56250",
       "fill": "#f39c12",
       "stroke": "#e67e22",
-      "stroke-width": "2"
+      "stroke-width": "2000"
     },
     "svgFileId": null,
     "svgGroupId": null,
@@ -92,7 +92,7 @@
     "properties": {
       "points": "122500,57500 132500,50000 142500,60000 152500,52500 162500,61250",
       "stroke": "#1abc9c",
-      "stroke-width": "3",
+      "stroke-width": "3000",
       "fill": "none"
     },
     "svgFileId": null,
@@ -105,9 +105,9 @@
     "tag": "text",
     "groupPath": [],
     "properties": {
-      "x": "15000",
-      "y": "85000",
-      "font-size": "5500",
+      "x": "1500",
+      "y": "8500",
+      "font-size": "550",
       "font-family": "monospace",
       "fill": "#2c3e50",
       "textContent": "Hello SVG Canvas!"
@@ -122,7 +122,7 @@
     "tag": "image",
     "groupPath": [],
     "properties": {
-      "x": "80000",
+      "x": "185000",
       "y": "80000",
       "width": "160000",
       "height": "160000",
@@ -140,7 +140,7 @@
     "properties": {
       "d": "M 0 0 C 15000 -12500 35000 -12500 50000 0 S 65000 17500 80000 0 S 95000 -12500 110000 0",
       "stroke": "#e67e22",
-      "stroke-width": "3",
+      "stroke-width": "3000",
       "fill": "none",
       "transformMatrix": "1,0,0,1,7500,105000"
     },
@@ -157,7 +157,7 @@
       "d": "M 0 0 L 50000 0 L 50000 30000 L 0 30000 Z M 10000 7500 L 20000 7500 L 20000 20000 L 10000 20000 Z M 30000 7500 L 40000 7500 L 40000 20000 L 30000 20000 Z",
       "fill": "#e74c3c",
       "stroke": "#c0392b",
-      "stroke-width": "2",
+      "stroke-width": "2000",
       "transformMatrix": "1,0,0,1,120000,105000"
     },
     "svgFileId": null,
@@ -175,7 +175,7 @@
       "r": "3000",
       "fill": "#2ecc71",
       "stroke": "#27ae60",
-      "stroke-width": "1"
+      "stroke-width": "1000"
     },
     "svgFileId": null,
     "svgGroupId": "inner-group-b",

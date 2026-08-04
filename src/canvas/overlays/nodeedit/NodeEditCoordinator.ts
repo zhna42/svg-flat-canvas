@@ -6,8 +6,9 @@ import { NodeEditOverlayElement } from '@/core/shapes/elements/NodeEditOverlayEl
 import { NodeEditSession } from './NodeEditSession';
 import { NodeSnapHelper } from './NodeSnapHelper';
 
-const HIT_PX = 40000;
-const ANCHOR_PX = 27;
+const HIT_PX = 5400;
+const ANCHOR_PX = 720;
+const CTRL_R_SCREEN = 576;
 
 export interface NodeEditDeps {
   camera: Camera;
@@ -136,6 +137,7 @@ export class NodeEditCoordinator {
               controls[`${node.id}-in`] = {
                 cx: node.handleIn.x,
                 cy: node.handleIn.y,
+                r: CTRL_R_SCREEN / z,
               };
             }
             if (node.handleOut) {
@@ -148,6 +150,7 @@ export class NodeEditCoordinator {
               controls[`${node.id}-out`] = {
                 cx: node.handleOut.x,
                 cy: node.handleOut.y,
+                r: CTRL_R_SCREEN / z,
               };
             }
           }

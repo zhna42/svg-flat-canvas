@@ -3,6 +3,7 @@ export type LayerName =
   | 'previewGroup'
   | 'groupSelectionOverlay'
   | 'selectionOverlay'
+  | 'nodeEditOverlay'
   | 'overlayRoot';
 
 export interface DrawPayload {
