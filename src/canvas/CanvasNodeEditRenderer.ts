@@ -162,52 +162,24 @@ export class CanvasNodeEditRenderer {
 
     for (const [segId, s] of Object.entries(data)) {
       let group = existing.get(segId);
+      const isCurve = !!s.points;
       if (!group) {
         group = document.createElementNS(SVG_NS, 'g');
         group.setAttribute('data-seg-id', segId);
         group.setAttribute('pointer-events', 'visibleStroke');
-
-        if (s.points) {
-          const ptsStr = s.points.map((p) => `${p.x},${p.y}`).join(' ');
-          const bg = document.createElementNS(SVG_NS, 'polyline') as SVGPolylineElement;
-          bg.setAttribute('points', ptsStr);
-          bg.setAttribute('stroke', '#ffffff');
-          bg.setAttribute('stroke-width', String(SEG_BG_STROKE_W));
-          bg.setAttribute('stroke-dasharray', '8 4');
-          bg.setAttribute('fill', 'none');
-          bg.setAttribute('vector-effect', 'non-scaling-stroke');
-          group.appendChild(bg);
-
-          const fg = document.createElementNS(SVG_NS, 'polyline') as SVGPolylineElement;
-          fg.setAttribute('points', ptsStr);
-          fg.setAttribute('stroke', ACCENT);
-          fg.setAttribute('stroke-width', String(SEG_STROKE_W));
-          fg.setAttribute('stroke-dasharray', '8 4');
-          fg.setAttribute('fill', 'none');
-          fg.setAttribute('vector-effect', 'non-scaling-stroke');
-          group.appendChild(fg);
-        } else {
-          const bg = document.createElementNS(SVG_NS, 'line') as SVGLineElement;
-          bg.setAttribute('stroke', '#ffffff');
-          bg.setAttribute('stroke-width', String(SEG_BG_STROKE_W));
-          bg.setAttribute('stroke-dasharray', '8 4');
-          bg.setAttribute('vector-effect', 'non-scaling-stroke');
-          group.appendChild(bg);
-
-          const fg = document.createElementNS(SVG_NS, 'line') as SVGLineElement;
-          fg.setAttribute('stroke', ACCENT);
-          fg.setAttribute('stroke-width', String(SEG_STROKE_W));
-          fg.setAttribute('stroke-dasharray', '8 4');
-          fg.setAttribute('vector-effect', 'non-scaling-stroke');
-          group.appendChild(fg);
-        }
-
+        group.setAttribute('data-seg-type', isCurve ? 'curve' : 'line');
+        this._buildSegChildren(group, s);
         g.insertBefore(group, g.firstChild);
+      } else if (group.getAttribute('data-seg-type') !== (isCurve ? 'curve' : 'line')) {
+        while (group.firstChild) group.firstChild.remove();
+        group.setAttribute('data-seg-type', isCurve ? 'curve' : 'line');
+        this._buildSegChildren(group, s);
       }
+
       const isSelected = segId === selectedSegId;
       for (const child of group.children) {
-        if (s.points) {
-          const ptsStr = s.points.map((p) => `${p.x},${p.y}`).join(' ');
+        if (isCurve) {
+          const ptsStr = s.points!.map((p) => `${p.x},${p.y}`).join(' ');
           child.setAttribute('points', ptsStr);
         } else {
           (child as SVGLineElement).setAttribute('x1', String(s.x1));
@@ -227,6 +199,46 @@ export class CanvasNodeEditRenderer {
     }
 
     for (const el of existing.values()) el.remove();
+  }
+
+  private _buildSegChildren(
+    group: SVGElement,
+    s: { x1: number; y1: number; x2: number; y2: number; points?: Array<{x:number;y:number}> },
+  ): void {
+    if (s.points) {
+      const ptsStr = s.points.map((p) => `${p.x},${p.y}`).join(' ');
+      const bg = document.createElementNS(SVG_NS, 'polyline') as SVGPolylineElement;
+      bg.setAttribute('points', ptsStr);
+      bg.setAttribute('stroke', '#ffffff');
+      bg.setAttribute('stroke-width', String(SEG_BG_STROKE_W));
+      bg.setAttribute('stroke-dasharray', '8 4');
+      bg.setAttribute('fill', 'none');
+      bg.setAttribute('vector-effect', 'non-scaling-stroke');
+      group.appendChild(bg);
+
+      const fg = document.createElementNS(SVG_NS, 'polyline') as SVGPolylineElement;
+      fg.setAttribute('points', ptsStr);
+      fg.setAttribute('stroke', ACCENT);
+      fg.setAttribute('stroke-width', String(SEG_STROKE_W));
+      fg.setAttribute('stroke-dasharray', '8 4');
+      fg.setAttribute('fill', 'none');
+      fg.setAttribute('vector-effect', 'non-scaling-stroke');
+      group.appendChild(fg);
+    } else {
+      const bg = document.createElementNS(SVG_NS, 'line') as SVGLineElement;
+      bg.setAttribute('stroke', '#ffffff');
+      bg.setAttribute('stroke-width', String(SEG_BG_STROKE_W));
+      bg.setAttribute('stroke-dasharray', '8 4');
+      bg.setAttribute('vector-effect', 'non-scaling-stroke');
+      group.appendChild(bg);
+
+      const fg = document.createElementNS(SVG_NS, 'line') as SVGLineElement;
+      fg.setAttribute('stroke', ACCENT);
+      fg.setAttribute('stroke-width', String(SEG_STROKE_W));
+      fg.setAttribute('stroke-dasharray', '8 4');
+      fg.setAttribute('vector-effect', 'non-scaling-stroke');
+      group.appendChild(fg);
+    }
   }
 }
 
