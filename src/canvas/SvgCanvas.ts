@@ -443,8 +443,8 @@ export class SvgCanvas implements ICanvasContext {
       areaSelectionManager: () => this.selectionHandler?.getAreaSelectionManager(),
       onEnter: (ids) => this.events.emit('NODE_EDIT_ENTERED', { ids }),
       onExit: () => this.events.emit('NODE_EDIT_EXITED', {}),
-      onSelectionChange: (count) =>
-        this.events.emit('NODE_SELECTION_CHANGED', { count }),
+      onSelectionChange: (count, nodeType) =>
+        this.events.emit('NODE_SELECTION_CHANGED', { count, nodeType }),
       hideSelectionOverlay: () => this.selectionManager.clear(),
       restoreSelectionOverlay: () =>
         this.selectionManager.setElementSelection(
@@ -652,6 +652,7 @@ export class SvgCanvas implements ICanvasContext {
     this.eventManager.register(this.selectionHandler);
     this.eventManager.register(this.measure);
     this.eventManager.register(this.textEngine);
+    this.eventManager.register(this.nodeEdit);
     this.eventManager.bind();
     requestAnimationFrame(() => {
       this.timeMachine.captureRoot();

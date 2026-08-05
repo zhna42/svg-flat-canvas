@@ -288,6 +288,13 @@ export class NodeEditSession {
     return refs;
   }
 
+  public getSelectedNodeType(): NodeKind | null {
+    const refs = this.getSelectedRefs();
+    if (refs.length !== 1) return null;
+    const loc = this.locate(refs[0].elementId, refs[0].nodeId);
+    return loc?.node.type ?? null;
+  }
+
   public getSelectedCount(): number {
     let n = 0;
     for (const t of this.targets.values()) n += t.selection.size;

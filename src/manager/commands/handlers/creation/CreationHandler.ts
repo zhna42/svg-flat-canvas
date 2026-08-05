@@ -206,6 +206,11 @@ export class CreationHandler {
       preview.style.stroke = '#000000';
       preview.style.strokeWidth = 1;
       preview.style.opacity = 1;
+    } else if (type === 'path') {
+      preview.style.fill = 'none';
+      preview.style.stroke = '#000000';
+      preview.style.strokeWidth = 1000;
+      preview.style.opacity = 1;
     } else {
       preview.style.fill = DEFAULT_STYLE.fill;
       preview.style.stroke = DEFAULT_STYLE.stroke;

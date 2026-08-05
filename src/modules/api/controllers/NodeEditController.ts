@@ -150,6 +150,11 @@ export class NodeEditController {
     });
 
     this.canvas.nodeEdit.exit();
+
+    this.canvas.events.emit('PATH_SPLIT', {
+      elementId: origPath.id,
+      newElementId: newId,
+    });
   }
 
   undoNodeEdit(): void {

@@ -24,7 +24,7 @@ export interface NodeEditDeps {
   areaSelectionManager?: () => AreaSelectionManager;
   onEnter?: (ids: string[]) => void;
   onExit?: () => void;
-  onSelectionChange?: (count: number) => void;
+  onSelectionChange?: (count: number, nodeType?: string) => void;
   hideSelectionOverlay?: () => void;
   restoreSelectionOverlay?: () => void;
 }
@@ -61,7 +61,9 @@ export class NodeEditCoordinator {
     };
     this.session.onSelectionChange = (): void => {
       this.syncOverlay();
-      this.deps.onSelectionChange?.(this.session.getSelectedCount());
+      const count = this.session.getSelectedCount();
+      const nodeType = this.session.getSelectedNodeType();
+      this.deps.onSelectionChange?.(count, nodeType ?? undefined);
     };
   }
 
@@ -433,27 +435,53 @@ export class NodeEditCoordinator {
 
   public setMultiSelect(on: boolean): void {
     this.session.multiSelectMode = on;
+    this.deps.events.emit('NODE_MULTI_SELECT_CHANGED', { enabled: on });
   }
   public getMultiSelect(): boolean {
     return this.session.multiSelectMode;
   }
   public deleteSelected(): void {
+    const refs = this.session.getSelectedRefs();
+    const elementIds = [...new Set(refs.map((r) => r.elementId))];
     this.session.deleteSelected();
+    if (elementIds.length > 0)
+      this.deps.events.emit('NODES_DELETED', { elementIds, nodeIds: refs.map((r) => r.nodeId) });
   }
   public setSelectedType(kind: NodeKind): void {
+    const elementIds = this.getSelectedElementIds();
     this.session.setSelectedType(kind);
+    if (elementIds.length > 0)
+      this.deps.events.emit('NODES_TYPE_CHANGED', { elementIds, type: kind });
   }
   public smoothSelected(): void {
+    const elementIds = this.getSelectedElementIds();
     this.session.smoothSelected();
+    if (elementIds.length > 0)
+      this.deps.events.emit('NODES_SMOOTHED', { elementIds });
   }
   public sharpenSelected(): void {
+    const elementIds = this.getSelectedElementIds();
     this.session.sharpenSelected();
+    if (elementIds.length > 0)
+      this.deps.events.emit('NODES_SHARPENED', { elementIds });
   }
   public distributeEvenly(): void {
+    const elementIds = this.getSelectedElementIds();
     this.session.distributeSelectedEvenly();
+    if (elementIds.length > 0)
+      this.deps.events.emit('NODES_DISTRIBUTED', { elementIds });
   }
   public nudge(dx: number, dy: number): void {
+    const elementIds = this.getSelectedElementIds();
     this.session.moveSelected(dx, dy);
+    if (elementIds.length > 0)
+      this.deps.events.emit('NODES_NUDGED', { elementIds, dx, dy });
+  }
+
+  private getSelectedElementIds(): string[] {
+    return [
+      ...new Set(this.session.getSelectedRefs().map((r) => r.elementId)),
+    ];
   }
   public selectAll(): void {
     this.session.selectAll();
@@ -502,9 +530,13 @@ export class NodeEditCoordinator {
     this.isExtending = true;
     this.session.clearSelection();
     this.overlayEl.selectedSegId = null;
+    const ids = this.session.getTargetIds();
+    if (ids.length > 0) this.deps.events.emit('PATH_EXTEND_STARTED', { elementId: ids[0] });
   }
 
   public extendStop(): void {
+    const ids = this.session.getTargetIds();
+    const elId = ids.length > 0 ? ids[0] : null;
     const ch = this.deps.creationHandler?.();
     if (ch?.isActive) ch.finishMulti();
     if (ch) {
@@ -513,6 +545,7 @@ export class NodeEditCoordinator {
     }
     this.isExtending = false;
     this.reloadTargets();
+    if (elId) this.deps.events.emit('PATH_EXTEND_STOPPED', { elementId: elId });
   }
 
   public reloadTargets(): void {
@@ -533,6 +566,16 @@ export class NodeEditCoordinator {
 
   public splitPath(): EditContour | null {
     return this.session.splitSelected();
+  }
+
+  public onKeyDown(e: KeyboardEvent): boolean {
+    if (!this.isActive) return false;
+    if (e.key === 'Escape' || e.key === 'Enter') {
+      e.preventDefault();
+      this.exit();
+      return true;
+    }
+    return false;
   }
 }
 
