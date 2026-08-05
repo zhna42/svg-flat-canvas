@@ -35,6 +35,9 @@ export class ElementManager {
     this.colorIndexer.add(shape);
     shape.onGeometryChanged = (el) => this.hitTestEngine.update(el);
     shape.onColorChanged = (el) => this.colorIndexer.update(el);
+    if ((shape.type as string) !== 'overlay') {
+      this.events.emit('ELEMENT_ADDED', { elementId: shape.id, type: shape.type });
+    }
   }
 
   loadElements(items: ElementJSON[]): void {
@@ -61,6 +64,9 @@ export class ElementManager {
       el.onColorChanged = (element) => this.colorIndexer.update(element);
     }
     this.events.emit('elements-added', elements);
+    for (const el of elements) {
+      this.events.emit('ELEMENT_ADDED', { elementId: el.id, type: el.type });
+    }
   }
 
   replaceElements(items: ElementJSON[]): void {
@@ -113,6 +119,9 @@ export class ElementManager {
       );
     }
     this.commandBus.execute(createDeleteCommand(ids));
+    for (const id of ids) {
+      this.events.emit('ELEMENT_REMOVED', { elementId: id });
+    }
   }
 
   selectElements(ids: string[]): void {

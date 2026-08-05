@@ -73,6 +73,9 @@ export class ClipboardController {
       dx,
       dy,
     });
+    for (const c of clones) {
+      this.canvas.events.emit('ELEMENT_CREATED', { elementId: c.id, type: c.type });
+    }
 
     return clones;
   }
@@ -120,6 +123,9 @@ export class ClipboardController {
       dx,
       dy,
     });
+    for (const u of useElements) {
+      this.canvas.events.emit('ELEMENT_CREATED', { elementId: u.id, type: u.type });
+    }
 
     return useElements;
   }
@@ -166,6 +172,7 @@ export class ClipboardController {
       useId,
       parentId: parentId ?? null,
     });
+    this.canvas.events.emit('ELEMENT_CREATED', { elementId: clone.id, type: clone.type });
 
     return clone;
   }

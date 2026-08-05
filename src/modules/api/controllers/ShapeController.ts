@@ -58,6 +58,7 @@ export class ShapeController {
       el.data = { ...dto.data, laserData: dto.laserData };
     }
     this.canvas.commandBus.execute(createCreateCommand(el));
+    this.canvas.events.emit('ELEMENT_CREATED', { elementId: el.id, type: el.type });
     return el;
   }
 
@@ -84,6 +85,9 @@ export class ShapeController {
     this.canvas.commandBus.execute(
       createCreateFileCommand(elements, groupId, groupName),
     );
+    for (const el of elements) {
+      this.canvas.events.emit('ELEMENT_CREATED', { elementId: el.id, type: el.type });
+    }
     return { groupId, elements };
   }
 
@@ -106,18 +110,27 @@ export class ShapeController {
   updateShapes(dto: UpdateShapesDTO): void {
     if (!guardEditMode(this.canvas)) return;
     const elements = this.findElements(dto.elementIds);
+    const changedNames: string[] = [];
+    const changedVisible: string[] = [];
+    const changedLock: string[] = [];
     for (const el of elements) {
       if (dto.style) this.applyStyleDto(el, dto.style);
       if (dto.transform) this.applyTransformDto(el, dto.transform);
       if (dto.geometry) this.applyGeometryDelta(el, dto.geometry);
-      if (dto.name !== undefined) el.name = dto.name;
-      if (dto.visible !== undefined) el.setVisible(dto.visible);
-      if (dto.lock !== undefined) el.lock = dto.lock;
+      if (dto.name !== undefined) { el.name = dto.name; changedNames.push(el.id); }
+      if (dto.visible !== undefined) { el.setVisible(dto.visible); changedVisible.push(el.id); }
+      if (dto.lock !== undefined) { el.lock = dto.lock; changedLock.push(el.id); }
       if (dto.groupId !== undefined) el.groupId = dto.groupId;
       if (dto.data !== undefined) {
         el.data = { ...el.data, ...dto.data };
       }
     }
+    if (changedNames.length)
+      this.canvas.events.emit('ELEMENT_NAME_CHANGED', { elementIds: changedNames });
+    if (changedVisible.length)
+      this.canvas.events.emit('ELEMENT_VISIBILITY_CHANGED', { elementIds: changedVisible });
+    if (changedLock.length)
+      this.canvas.events.emit('ELEMENT_LOCK_CHANGED', { elementIds: changedLock });
   }
 
   moveShapes(dto: MoveShapesDTO): void {
@@ -193,7 +206,9 @@ export class ShapeController {
   }
 
   getAllShapes(): readonly AbstractGraphicElement[] {
-    return this.canvas.shapeManager.getAll();
+    return this.canvas.shapeManager.getAll().filter(
+      (el) => (el.type as string) !== 'overlay' && !el.isPreview,
+    );
   }
 
   getElementById(id: string): Record<string, unknown> | null {

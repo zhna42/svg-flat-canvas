@@ -224,6 +224,35 @@ export class CanvasController {
     this.dbg.setEnabled(enabled);
   }
 
+  public scrollToElements(ids: string[]): void {
+    const elements = ids
+      .map((id) => this.canvas.shapeManager.getById(id))
+      .filter((el): el is NonNullable<typeof el> => !!el);
+    if (elements.length === 0) return;
+
+    const wUnits = this.canvas.artboard?.widthPx ?? 0;
+    const hUnits = this.canvas.artboard?.heightPx ?? 0;
+    const { w: realW, h: realH } = this._getRealViewportSize(wUnits, hUnits);
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of elements) {
+      const b = el.getTransformedBBox();
+      if (b.width === 0 && b.height === 0) continue;
+      if (b.x < minX) minX = b.x;
+      if (b.y < minY) minY = b.y;
+      if (b.x + b.width > maxX) maxX = b.x + b.width;
+      if (b.y + b.height > maxY) maxY = b.y + b.height;
+    }
+    if (!isFinite(minX)) return;
+
+    const cx = (minX + maxX) / 2;
+    const cy = (minY + maxY) / 2;
+    this.canvas.camera.x = realW / 2 - cx * this.canvas.camera.zoom;
+    this.canvas.camera.y = realH / 2 - cy * this.canvas.camera.zoom;
+
+    this.canvas.selectionState.replace(elements as any[]);
+  }
+
   _debugShowHitArea = false;
 
   public get debugShowHitArea(): boolean {
