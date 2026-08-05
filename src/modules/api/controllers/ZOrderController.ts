@@ -13,6 +13,7 @@ export class ZOrderController {
       this.canvas.shapeManager.raise(id);
       this.canvas.view._elementIndex.raise(id);
     }
+    this.canvas.events.emit('Z_ORDER_CHANGED', { elementIds: sorted, action: 'raise' });
   }
 
   lower(elementIds: string[]): void {
@@ -21,6 +22,7 @@ export class ZOrderController {
       this.canvas.shapeManager.lower(id);
       this.canvas.view._elementIndex.lower(id);
     }
+    this.canvas.events.emit('Z_ORDER_CHANGED', { elementIds: sorted, action: 'lower' });
   }
 
   raiseToTop(elementIds: string[]): void {
@@ -29,6 +31,7 @@ export class ZOrderController {
       this.canvas.shapeManager.raiseToTop(id);
       this.canvas.view._elementIndex.raiseToTop(id);
     }
+    this.canvas.events.emit('Z_ORDER_CHANGED', { elementIds: sorted, action: 'raiseToTop' });
   }
 
   lowerToBottom(elementIds: string[]): void {
@@ -37,6 +40,7 @@ export class ZOrderController {
       this.canvas.shapeManager.lowerToBottom(id);
       this.canvas.view._elementIndex.lowerToBottom(id);
     }
+    this.canvas.events.emit('Z_ORDER_CHANGED', { elementIds: sorted, action: 'lowerToBottom' });
   }
 
   insertBefore(elementIds: string[], referenceId: string): void {
@@ -45,6 +49,7 @@ export class ZOrderController {
       this.canvas.shapeManager.insertBefore(id, referenceId);
       this.canvas.view._elementIndex.insertBefore(id, referenceId);
     }
+    this.canvas.events.emit('Z_ORDER_CHANGED', { elementIds: sorted, action: 'insertBefore', referenceId });
   }
 
   private _sortByIndex(ids: string[], descending = false): string[] {
