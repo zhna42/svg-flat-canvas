@@ -43,6 +43,7 @@ interface CadTextEngineDeps {
   hitTest: (x: number, y: number) => string[];
   onUndo: () => void;
   onRedo: () => void;
+  clearSelection?: () => void;
 }
 
 export class CadTextEngine {
@@ -52,6 +53,8 @@ export class CadTextEngine {
   private textarea: HTMLTextAreaElement | null = null;
   private oldFullText = '';
   private mouseAnchor = -1;
+
+  public onTextChanged: ((elementId: string) => void) | null = null;
 
   constructor(deps: CadTextEngineDeps) {
     this.deps = deps;
@@ -103,10 +106,12 @@ export class CadTextEngine {
     ta.addEventListener('keydown', this._onTAreaKeyDown);
 
     document.addEventListener('selectionchange', this._onDocSelectionChange);
+    window.addEventListener('mousedown', this._onWindowMouseDown, true);
   }
 
   public exitEdit(): void {
     if (!this.editingId) return;
+    this.deps.clearSelection?.();
     const id = this.editingId;
 
     const el = this.deps.getTextElement(id);
@@ -115,6 +120,7 @@ export class CadTextEngine {
       el.caretIdx = -1;
       el.selStart = -1;
       el.selEnd = -1;
+      (el as any).pushDiffRendering?.((el as any)._rootProxy ?? el);
     }
 
     const ta = this.textarea!;
@@ -123,6 +129,7 @@ export class CadTextEngine {
     ta.removeEventListener('keydown', this._onTAreaKeyDown);
 
     document.removeEventListener('selectionchange', this._onDocSelectionChange);
+    window.removeEventListener('mousedown', this._onWindowMouseDown, true);
 
     ta.blur();
     this.editingId = null;
@@ -159,6 +166,7 @@ export class CadTextEngine {
     this.oldFullText = newText;
 
     el.caretIdx = this.textarea!.selectionStart ?? newText.length;
+    this.onTextChanged?.(this.editingId);
     el.selStart = -1;
     el.selEnd = -1;
   };
@@ -288,6 +296,14 @@ export class CadTextEngine {
 
     return true;
   }
+
+  private _onWindowMouseDown = (e: MouseEvent): void => {
+    console.log('[TEXT] window mousedown capture, editingId:', this.editingId, 'target:', e.target, 'svg:', this.deps.svg, 'contains:', this.deps.svg.contains(e.target as Node));
+    if (!this.editingId) return;
+    if (!this.deps.svg.contains(e.target as Node)) return;
+    console.log('[TEXT] exitEdit via window click');
+    this.exitEdit();
+  };
 
   public onMouseMove(e: MouseEvent): boolean {
     if (!this.editingId || this.mouseAnchor < 0) return false;

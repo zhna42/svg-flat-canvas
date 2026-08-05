@@ -108,6 +108,7 @@ export class TextToPathController {
     this.canvas.shapeManager.removeElementAndNode(textEl.id);
     this.canvas.elementManager.addShape(el);
     this.canvas.selectionState.replace([el]);
+    this.canvas.events.emit('TEXT_TO_PATH', { textId: textEl.id, pathId: el.id });
   }
 
   private async _textToPath(el: TextElement): Promise<string | null> {

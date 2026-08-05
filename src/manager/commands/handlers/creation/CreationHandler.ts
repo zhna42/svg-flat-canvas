@@ -393,7 +393,6 @@ export class CreationHandler {
               type: 'CREATE',
               options: { element: polygon },
             });
-            this.onElementFinalize?.(polygon);
             this.currentPreview = null;
             this.onCreationEnd?.(polygon);
             this.multiPointPoints = [];
@@ -592,7 +591,6 @@ export class CreationHandler {
       options: { element: el },
     });
 
-    this.onElementFinalize?.(el);
     this.onCreationEnd?.(el);
   }
 }

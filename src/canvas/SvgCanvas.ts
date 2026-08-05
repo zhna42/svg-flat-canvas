@@ -360,6 +360,7 @@ export class SvgCanvas implements ICanvasContext {
         this.hitTestEngine.queryPoint(x, y).hits.map((h) => h.id),
       onUndo: () => this.timeMachine.undo(),
       onRedo: () => this.timeMachine.redo(),
+      clearSelection: () => this.selectionState.clear(),
     });
   }
 
@@ -538,7 +539,10 @@ export class SvgCanvas implements ICanvasContext {
       this.camera,
       this.commandBus,
       (el) => this.elementManager.addShape(el),
-      (el) => this.shapeManager.remove(el.id),
+      (el) => {
+        this.shapeManager.remove(el.id);
+        this.hitTestEngine.remove(el.id);
+      },
     );
     creationHandler.onElementFinalize = (el) => {
       this.elementManager.indexShape(el);

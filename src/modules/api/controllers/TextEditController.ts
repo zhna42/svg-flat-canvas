@@ -3,7 +3,11 @@ import type { CadTextEngine, TextStylePatch } from '@/modules/text';
 import { setEngineDefaultFont, getEngineDefaultFont } from '@/modules/text';
 
 export class TextEditController {
-  constructor(private canvas: SvgCanvas) {}
+  constructor(private canvas: SvgCanvas) {
+    this.canvas.textEngine.onTextChanged = (elementId) => {
+      this.canvas.events.emit('TEXT_CONTENT_CHANGED', { elementId });
+    };
+  }
 
   private get engine(): CadTextEngine {
     return this.canvas.textEngine;
@@ -30,10 +34,13 @@ export class TextEditController {
 
   enterTextEdit(id: string): void {
     this.engine.enterEdit(id);
+    this.canvas.events.emit('TEXT_EDIT_ENTER', { elementId: id });
   }
 
   exitTextEdit(): void {
+    const id = this.engine.getEditingId();
     this.engine.exitEdit();
+    if (id) this.canvas.events.emit('TEXT_EDIT_EXIT', { elementId: id });
   }
 
   isTextEditing(): boolean {
@@ -101,6 +108,7 @@ export class TextEditController {
         });
       }
     }
+    this.canvas.events.emit('TEXT_STYLE_CHANGED', { patch });
   }
 
   setTextFontSize(microns: number): Promise<void> {
@@ -150,6 +158,7 @@ export class TextEditController {
         | undefined;
       if (el) el.lineHeight = value;
     }
+    this.canvas.events.emit('TEXT_STYLE_CHANGED', { patch: { lineHeight: value } });
   }
 
   setTextAlign(align: 'left' | 'center' | 'right'): void {
@@ -164,6 +173,7 @@ export class TextEditController {
         | undefined;
       if (el) el.align = align;
     }
+    this.canvas.events.emit('TEXT_STYLE_CHANGED', { patch: { align } });
   }
 
   getText(id: string): string | null {
@@ -178,6 +188,7 @@ export class TextEditController {
       el.textModel = [
         { ...el.defaultStyle, text: html.replace(/<[^>]*>/g, '') },
       ];
+      this.canvas.events.emit('TEXT_CONTENT_CHANGED', { elementId: id });
     }
   }
 

@@ -454,6 +454,9 @@ export class SelectionHandler {
         e.preventDefault();
         return true;
       } else if (picked.type === 'text') {
+        if (!this.opts.state.selected.some((s) => s.id === picked.id)) {
+          this.opts.state.replace([picked]);
+        }
         this.opts.onTextEdit?.(picked);
         e.preventDefault();
         return true;
